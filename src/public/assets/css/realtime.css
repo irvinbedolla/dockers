@@ -1,0 +1,38 @@
+/*Animación de resaltado*/
+.highlight-realtime {
+  background-color: #fff3cd !important;
+  border-left: 3px solid #ff6b6b;
+  animation: pulseRealtime 1s infinite alternate;
+}
+
+@keyframes pulseRealtime {
+  from { opacity: 1; }
+  to { opacity: 0.8; }
+}
+
+/*Contador de notificaciones*/
+.menu-badge {
+  display: inline-block;
+  margin-left: .5rem;
+  background: #dc3545;
+  color: #fff;
+  border-radius: 10px;
+  padding: 2px 6px;
+  font-size: 12px;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+#menu-pendiente-firma {
+  display: flex !important;
+  align-items: center;
+  gap: .35rem;
+  white-space: nowrap; /*forzar el contenido en un alínea */
+}
+#menu-pendiente-firma .text-dark,
+#menu-pendiente-firma .text-danger {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  white-space: nowrap;
+}

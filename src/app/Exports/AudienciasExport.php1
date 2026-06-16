@@ -1,0 +1,184 @@
+<?php
+
+namespace App\Exports;
+
+use Maatwebsite\Excel\Concerns\WithMultipleSheets;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
+use App\Models\User;
+
+class AudienciasExport implements WithMultipleSheets
+{
+    protected $fecha_inicial, $fecha_final, $sede, $conciliador;
+
+    public function __construct($fecha_inicial, $fecha_final, $sede, $conciliador)
+    {
+        $this->fecha_inicial = $fecha_inicial;
+        $this->fecha_final = $fecha_final;
+        $this->sede = $sede;
+        $this->conciliador = $conciliador;
+    }
+
+    public function sheets(): array
+    {
+        $user = Auth::user();
+        $sedeUsuario = $this->sede;
+
+        $grupos = [
+            'Morelia' => ['Morelia', 'Zitácuaro'],
+            'Uruapan' => ['Uruapan', 'Lázaro Cárdenas'],
+            'Zamora'  => ['Zamora', 'Sahuayo']
+        ];
+
+        // 1. Definición de filtros de delegación para conciliadores y audiencias
+        $delegacionesBusqueda = [];
+        if ($this->sede !== "Todos") {
+            if ($this->sede === "TodosDelegado") {
+                $delegacionesBusqueda = $grupos[$sedeUsuario] ?? [$sedeUsuario];
+            } else {
+                $delegacionesBusqueda = [$this->sede];
+            }
+        }
+
+        $aplicarFiltros = function ($q) use ($sedeUsuario, $grupos) {
+            $q->whereBetween("audiencias.fecha", [$this->fecha_inicial, $this->fecha_final]);
+            
+            if ($this->sede !== "Todos") {
+                if ($this->sede === "TodosDelegado") {
+                    $delegaciones = $grupos[$sedeUsuario] ?? [$sedeUsuario];
+                    $q->whereIn("audiencias.delegacion", $delegaciones);
+                } else {
+                    $q->where("audiencias.delegacion", $this->sede);
+                }
+            }
+        };
+
+        // 2. Obtención de conciliadores específicos de la tabla de usuarios
+        // Filtramos por rol 'Conciliador' y por las delegaciones correspondientes
+        $conciliadoresIds = User::role('Conciliador')
+            ->when(!empty($delegacionesBusqueda), function ($q) use ($delegacionesBusqueda) {
+                return $q->whereIn('delegacion', $delegacionesBusqueda);
+            })
+            ->pluck('id');
+
+
+        // Subconsulta para contar audiencias por expediente
+        $audienciasPorExpediente = DB::table('audiencias')
+            ->select('id_solicitud', DB::raw('COUNT(*) as total_audiencias'))
+            ->where(fn($q) => $aplicarFiltros($q))
+            ->groupBy('id_solicitud');
+
+        /**
+         * REPORTE 1: ESTADÍSTICAS AGRUPADAS
+         */
+        $estadisticas = DB::table('users')
+            ->join('seer_general', 'users.id', '=', 'seer_general.conciliador_id')
+            ->join('audiencias', 'seer_general.id', '=', 'audiencias.id_solicitud')
+            ->joinSub($audienciasPorExpediente, 'a_count', function ($join) {
+                $join->on('a_count.id_solicitud', '=', 'seer_general.id');
+            })
+            ->where(fn($q) => $aplicarFiltros($q))
+            // Filtramos para que solo aparezcan los conciliadores obtenidos arriba[cite: 1]
+            ->whereIn('users.id', $conciliadoresIds)
+            ->when($this->conciliador !== "Todos", function ($q) {
+                return $q->where('seer_general.conciliador_id', $this->conciliador);
+            })
+            ->select(
+                'users.name as conciliador_nombre',
+                DB::raw("SUM(CASE WHEN audiencias.estatus IN ('Conciliacion','No conciliacion','No conciliacion reagendada','Reinstalacion', 'Pendiente') THEN 1 
+                            WHEN audiencias.estatus NOT IN ('Pendiente','Conciliacion','No conciliacion reagendada','No conciliacion') THEN 1 ELSE 0 END) as total_conteo"),
+
+                DB::raw("COUNT(DISTINCT CASE WHEN audiencias.estatus IN ('Pendiente','Conciliacion','No conciliacion','Reagendada','Archivada','No conciliacion reagendada',
+                'Incompetencia','Reinstalacion','Desistimiento','Archivada en Audiencia') THEN seer_general.id END) as total_prog"),
+
+                DB::raw("COUNT(DISTINCT CASE WHEN audiencias.estatus IN ('Conciliacion','Reinstalacion','No conciliacion reagendada') 
+                            OR (audiencias.estatus = 'No conciliacion' AND (SELECT resolicion_primera FROM seer_conciliadores WHERE id_solicitud = seer_general.id ORDER BY id DESC LIMIT 1) IS NOT NULL) 
+                            THEN seer_general.id END) as total_celeb"),
+                            
+                DB::raw($this->getLógicaFinalizado(1)), 
+                DB::raw($this->getLógicaFinalizado(2)), 
+                DB::raw($this->getLógicaFinalizado(3, true)) 
+            )
+            ->groupBy('users.id', 'users.name')
+            ->get();
+
+        $resultados = $estadisticas->map(fn($item) => [
+            'nombre'      => $item->conciliador_nombre,
+            'total'       => (int)$item->total_conteo,
+            'programadas' => (int)$item->total_prog,
+            'celebradas'  => (int)$item->total_celeb,
+            'final_1'     => (int)$item->final_1,
+            'final_2'     => (int)$item->final_2,
+            'final_3'     => (int)$item->final_3,
+        ]);
+
+        $estadisticasFinal = $resultados->toArray();
+        $estadisticasFinal[] = [
+            'nombre'      => 'TOTAL GENERAL',
+            'total'       => $resultados->sum('total'),
+            'programadas' => $resultados->sum('programadas'),
+            'celebradas'  => $resultados->sum('celebradas'),
+            'final_1'     => $resultados->sum('final_1'),
+            'final_2'     => $resultados->sum('final_2'),
+            'final_3'     => $resultados->sum('final_3'),
+        ];
+
+        /**
+         * REPORTE 2: DETALLE POR REGISTRO
+         */
+        $detalle = DB::table('audiencias')
+            ->join('seer_general', 'seer_general.id', '=', 'audiencias.id_solicitud')
+            ->join('seer_solicitante', 'seer_general.id', '=', 'seer_solicitante.id_solicitud')
+            ->join('users as conciliador', 'conciliador.id', '=', 'seer_general.conciliador_id')
+            ->where(fn($q) => $aplicarFiltros($q))
+            ->when($this->conciliador !== "Todos", function ($q) {
+                return $q->where('seer_general.conciliador_id', $this->conciliador);
+            })
+            ->select(
+                'seer_general.NUE',
+                // Usamos MAX para obtener la fecha/hora de la última audiencia del expediente en el periodo
+                DB::raw('MAX(audiencias.fecha) as fecha'),
+                DB::raw('MAX(audiencias.hora) as hora'),
+                'seer_solicitante.nombre as nombre_solicitante',
+                'conciliador.name as nombre_conciliador',
+                'seer_general.delegacion',
+                DB::raw("CASE 
+                            WHEN (SELECT a_last.estatus FROM audiencias a_last WHERE a_last.id_solicitud = seer_general.id ORDER BY a_last.id DESC LIMIT 1) = 'No conciliacion'
+                                AND (SELECT sc.resolicion_primera FROM seer_conciliadores sc WHERE sc.id_solicitud = seer_general.id ORDER BY sc.id DESC LIMIT 1) IS NULL
+                            THEN 'No conciliacion (Incomparecencia)'
+                            ELSE (SELECT a_last.estatus FROM audiencias a_last WHERE a_last.id_solicitud = seer_general.id ORDER BY a_last.id DESC LIMIT 1)
+                        END as estatus")
+            )
+            ->groupBy(
+                'seer_general.id', 
+                'seer_general.NUE', 
+                'seer_solicitante.nombre', 
+                'conciliador.name', 
+                'seer_general.delegacion'
+            )
+            ->orderBy('seer_general.consecutivo', 'desc')
+            ->get()
+            ->map(fn($item) => (array) $item)
+            ->toArray();
+
+        return [
+            new AudienciasTotalesSheet($estadisticasFinal),
+            new AudienciasDetalleSheet($detalle),
+        ];
+    }
+
+    /**
+     * El método debe ir AQUÍ, fuera de sheets() pero dentro de la clase
+     */
+    private function getLógicaFinalizado($num, $esMayorIgual = false)
+    {
+        $operador = $esMayorIgual ? '>=' : '=';
+        return "COUNT(DISTINCT CASE WHEN a_count.total_audiencias $operador $num AND (
+                    (SELECT a_last.estatus FROM audiencias a_last WHERE a_last.id_solicitud = seer_general.id ORDER BY a_last.id DESC LIMIT 1) IN ('Conciliacion','Reinstalacion','No conciliacion reagendada')
+                    OR (
+                        (SELECT a_last.estatus FROM audiencias a_last WHERE a_last.id_solicitud = seer_general.id ORDER BY a_last.id DESC LIMIT 1) = 'No conciliacion'
+                        AND (SELECT sc.resolicion_primera FROM seer_conciliadores sc WHERE sc.id_solicitud = seer_general.id ORDER BY sc.id DESC LIMIT 1) IS NOT NULL
+                    )
+                ) THEN seer_general.id END) as final_$num";
+    }
+}

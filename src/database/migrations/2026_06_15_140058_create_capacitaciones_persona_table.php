@@ -1,0 +1,33 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('capacitaciones_persona', function (Blueprint $table) {
+            $table->integer('id', true);
+            $table->integer('capacitacion');
+            $table->integer('persona');
+            $table->integer('modulo');
+            $table->enum('estatus', ['En curso', 'Terminado', 'Cancelado', 'En prueba'])->default('En curso');
+            $table->integer('calificacion')->nullable();
+            $table->timestamp('created_at')->useCurrent();
+            $table->timestamp('updated_at')->useCurrent();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('capacitaciones_persona');
+    }
+};
