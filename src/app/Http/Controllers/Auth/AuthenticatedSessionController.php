@@ -25,33 +25,37 @@ class AuthenticatedSessionController extends Controller
 
     public function store(LoginRequest $request)
     {
+        // 1. Autenticar las credenciales del usuario
         $request->authenticate();
-
+        // 2. Regenerar la sesión
         $request->session()->regenerate();
 
+        // 3. Limpiar cualquier proceso de solicitud auxiliar
+        $request->session()->forget([
+            'solicitud_aux_lock',
+            'solicitud_draft_id',
+        ]);
+
+        // 4. Actualizar la información de inicio de sesión del usuario
         $request->user()->update([
             'last_login_at' => Carbon::now()->toDateTimeString(),
             'last_login_ip' => $request->getClientIp()
         ]);
-
-        return redirect()->intended(RouteServiceProvider::HOME);
+        // 5. CORRECCIÓN CRUCIAL: Forzar la redirección al HOME
+        // En hostings compartidos, intended() a veces se queda atrapado enviando al '/' (login) en bucle.
+        //return redirect()->intended(RouteServiceProvider::HOME);
+        return redirect()->to(RouteServiceProvider::HOME);
     }
 
-    /**
-     * Destroy an authenticated session.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     *
-     * @return \Illuminate\Http\RedirectResponse
-     */
     public function destroy(Request $request)
     {
+
         Auth::guard('web')->logout();
 
         $request->session()->invalidate();
 
         $request->session()->regenerateToken();
 
-        return redirect('/');
+        return redirect()->route('login');
     }
 }

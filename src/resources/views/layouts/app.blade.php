@@ -5,20 +5,19 @@
         <meta name="csrf-token" content="{{ csrf_token() }}"/>
         <title>Sí Concilio</title>
         <meta content='width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no' name='viewport'>
-    <meta name="poll-pendiente-url" content="{{ url('/poll/pendiente-firma') }}"/>
 
     <!-- Bootstrap 5.3.3 -->
-        <link href="{{ asset('assets/css/bootstrap.min.css') }}" rel="stylesheet" type="text/css"/>
+        <link href="../public/assets/css/bootstrap.min.css" rel="stylesheet" type="text/css"/>
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
        
         <!-- Ionicons -->
         <link href="//fonts.googleapis.com/css?family=Lato&display=swap" rel="stylesheet">
-        <link href="{{ asset('assets/css/all.css') }}" rel="stylesheet" type="text/css">
-        <link href="{{ asset('assets/css/iziToast.min.css') }}" rel="stylesheet">
-        <link href="{{ asset('assets/css/sweetalert.css') }}" rel="stylesheet" type="text/css"/>
-        <link href="{{ asset('assets/css/select2.min.css') }}" rel="stylesheet" type="text/css"/>
-        <link href="{{ asset('assets/css/realtime.css') }}" rel="stylesheet" type="text/css"/>
+        <link href="../public/assets/css/all.css" rel="stylesheet" type="text/css">
+        <link href="../public/assets/css/iziToast.min.css" rel="stylesheet">
+        <link href="../public/assets/css/sweetalert.css" rel="stylesheet" type="text/css"/>
+        <link href="../public/assets/css/select2.min.css" rel="stylesheet" type="text/css"/>
+        <link href="../public/assets/css/realtime.css" rel="stylesheet" type="text/css"/>
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
         
         <!-- Agregados para los Select del Formulario Personas-->
@@ -38,7 +37,7 @@
                 width: 100%;
                 height: 100%;
                 z-index: 9999;
-                background: url('{{ asset("assets/images/pageLoader.gif") }}') 50% 50% no-repeat rgb(249,249,249);
+                background: url('../public/assets/images/pageLoader.gif') 50% 50% no-repeat rgb(249,249,249);
                 opacity: .8;
             }
         </style>
@@ -47,9 +46,9 @@
 
         @yield('page_css')
             <!-- Template CSS -->
-            <link rel="icon"       href="{{ asset('assets/images/ccl-r.png') }}" type="image/x-icon">
-            <link rel="stylesheet" href="{{ asset('assets/css/style.css') }}">
-            <link rel="stylesheet" href="{{ asset('assets/css/components.css') }}">
+            <link rel="icon"       href="../public/assets/images/ccl-r.png" type="image/x-icon">
+            <link rel="stylesheet" href="../public/assets/css/style.css">
+            <link rel="stylesheet" href="../public/assets/css/components.css">
         @yield('page_css')
 
         @yield('page_css')
@@ -88,22 +87,22 @@
 
 
 
-    <script src="{{ asset('assets/js/jquery.min.js') }}"></script>
-    <script src="{{ asset('assets/js/popper.min.js') }}"></script>
-    <script src="{{ asset('assets/js/bootstrap.min.js') }}"></script>
-    <script src="{{ asset('assets/js/sweetalert.min.js') }}"></script>
-    <script src="{{ asset('assets/js/select2.min.js') }}"></script>
-    <script src="{{ asset('assets/js/jquery.nicescroll.js') }}"></script>
+    <script src="../public/assets/js/jquery.min.js"></script>
+    <script src="../public/assets/js/popper.min.js"></script>
+    <script src="../public/assets/js/bootstrap.min.js"></script>
+    <script src="../public/assets/js/sweetalert.min.js"></script>
+    <script src="../public/assets/js/select2.min.js"></script>
+    <script src="../public/assets/js/jquery.nicescroll.js"></script>
 
     <!-- Template JS File -->
-    <script src="{{ asset('assets/js/stisla.js') }}"></script>
-    <script src="{{ asset('assets/js/scripts.js') }}"></script>
-    <script src="{{ asset('assets/js/profile.js') }}"></script>
-    <script src="{{ asset('assets/js/custom.js') }}"></script>
+    <script src="../public/assets/js/stisla.js"></script>
+    <script src="../public/assets/js/scripts.js"></script>
+    <script src="../public/assets/js/profile.js"></script>
+    <script src="../public/assets/js/custom.js"></script>
 
     <script src="https://cdn.datatables.net/2.2.1/js/dataTables.js"></script>
     <script src="https://cdn.datatables.net/2.2.1/js/dataTables.bootstrap4.js"></script>
-    <script src="{{ asset('assets/js/general/menu.js') }}"></script>
+    <script src="../public/assets/js/general/menu.js"></script>
 
     
     <script>

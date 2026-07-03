@@ -1,4 +1,4 @@
-@extends('layouts.app')
+@extends('layouts.app_editar')
 
 @section('content')
     <section class="section">
@@ -74,7 +74,7 @@
                                     <div class="col-xs-12 col-sm-12 col-md-6 mb-3">
                                         <label for="name">Referencia 1</label><br>
                                         @if (!empty($citado->imagen_domicilio1) && $citado->imagen_domicilio1 !== 'Sin documento')
-                                            <a target='_blank' href="{{ asset('storage/app/documentosSolicitud/'.$citado->imagen_domicilio1) }}">VER IMAGEN</a>
+                                            <a target='_blank' href="{{ asset('storage/app/documentosSolicitud/'. $citado->id_solicitud . '/' . $citado->imagen_domicilio1) }}">VER IMAGEN</a>
                                         @else
                                             <span class="text-muted">No se subió imagen</span>
                                         @endif

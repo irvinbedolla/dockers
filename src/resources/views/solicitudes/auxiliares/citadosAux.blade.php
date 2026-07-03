@@ -88,6 +88,7 @@
                                 <form class="needs-validation" novalidate id="form_concluir" method="POST" action="{{route('seer.citadosAux')}}" enctype="multipart/form-data">
                                     @csrf
                                     <input type="hidden" name="id" value="{{ $id }}">
+                                    <input type="hidden" name="draft_id" value="{{ $draftId }}">
                                     <div class="row" id="div_datos_citado">
                                         <div class="col-xs-12 col-sm-12 col-md-2">
                                             <div class="form-group">
@@ -394,7 +395,7 @@
                                             </div>
                                             <div style="display:flex; flex-direction:column; align-items:flex-end;">
                                                 @if($citados > 0)
-                                                    <a href="{{ route('seer.finalizaAux',$id) }}" id="btn-conclude" class="btn btn-success" style=" background-color:#CEA845;border-color:#CEA845;">Concluir solicitud</a>
+                                                    <a href="{{ route('seer.finalizaAux',$id) }}?draft_id={{ urlencode($draftId) }}" id="btn-conclude" class="btn btn-success" style=" background-color:#CEA845;border-color:#CEA845;">Concluir solicitud</a>
                                                     <div id="conclude-warning" class="text-danger" style="display:none; margin-top:6px;">Guarde el citado antes de concluir</div>
                                                 @endif
                                             </div>
@@ -695,5 +696,6 @@
         }, false);    }
     });
     </script>
+@include('solicitudes.auxiliares._pollLock')
 @endsection
 @endsection

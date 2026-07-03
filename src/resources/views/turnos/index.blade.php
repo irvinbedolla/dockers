@@ -13,16 +13,31 @@
                         <div class="card-body">
                             @can('crear-turnos')
                                 <div class="row g-3 align-items-end">
+                                    
+
                                     <div class="col-12 col-md-2">
                                         <div class="form-group">
-                                            <label for="ufs">Último Folio Solicitudes</label>
-                                            <input id="ufs" name="ufs" type="text" class="form-control" value="{{ $last_solicitudes ?? '' }}" readonly>
+                                            <label for="ufs">Último Folio de Solicitudes en la Sede </label>
+                                            <input id="ufs" name="ufs" type="text" class="form-control" value="{{ $last_sede_solicitud ?? '' }}" readonly>
                                         </div>
                                     </div>
                                     <div class="col-12 col-md-2">
                                         <div class="form-group">
-                                            <label for="ufr">Último Folio Ratificaciones</label>
-                                            <input id="ufr" name="ufr" type="text" class="form-control" value="{{ $last_turnos ?? '' }}" readonly>
+                                            <label for="ufs">Último Folio de Solicitudes del Día</label>
+                                            <input id="ufs" name="ufs" type="text" class="form-control" value="{{ $last_hora_solicitud ?? '' }}" readonly>
+                                        </div>
+                                    </div>
+                            
+                                    <div class="col-12 col-md-2">
+                                        <div class="form-group">
+                                            <label for="ufs">Último Folio de Ratificaciones en la Sede</label>
+                                            <input id="ufs" name="ufs" type="text" class="form-control" value="{{ $last_sede_ratificacion ?? '' }}" readonly>
+                                        </div>
+                                    </div>
+                                    <div class="col-12 col-md-2">
+                                        <div class="form-group">
+                                            <label for="ufs">Último Folio de Ratificacionesdel Día</label>
+                                            <input id="ufs" name="ufs" type="text" class="form-control" value="{{ $last_hora_ratificacion ?? '' }}" readonly>
                                         </div>
                                     </div>
                                 </div>

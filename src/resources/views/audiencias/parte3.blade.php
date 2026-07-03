@@ -1,4 +1,4 @@
-@extends('layouts.app')
+@extends('layouts.app_editar')
 
 @section('content')
     <section class="section">
@@ -442,62 +442,65 @@
             }
         }
 
-        function isReinstalacionSelectedInPrestaciones() {
-            return $('.tipo-pago-select').filter(function() { return $(this).val() === 'Reinstalación'; }).length > 0;
+        function isConclusionReinstalacion() {
+            return $('#tipo_de_conclucion').val() === 'Reinstalacion';
         }
 
-        function applyCumplimientoMontoReinstalacionRule($cumplimientoRow) {
-            if (!$cumplimientoRow || !$cumplimientoRow.length) return;
-            const $monto = $cumplimientoRow.find('input[name="monto_pagos[]"]');
+        // Aplica/quita el bloqueo de monto en $0.00 al Cumplimiento marcado como designado para la Reinstalación.
+        function aplicarMontoReinstalacionPago($row, marcado) {
+            if (!$row || !$row.length) return;
+            const $monto = $row.find('input[name="monto_pagos[]"]');
             if (!$monto.length) return;
-            $monto.val('0.00').prop('readonly', true);
-        }
 
-        function clearCumplimientoMontoReinstalacionRule($cumplimientoRow) {
-            if (!$cumplimientoRow || !$cumplimientoRow.length) return;
-            const $monto = $cumplimientoRow.find('input[name="monto_pagos[]"]');
-            if (!$monto.length) return;
-            $monto.prop('readonly', false);
-        }
-
-        function applyReinstalacionRuleToFirstCumplimientoIfNeeded() {
-            if (!isReinstalacionSelectedInPrestaciones()) {
-                $('#newRowaPago').find('.inputFormRow2').each(function() {
-                    clearCumplimientoMontoReinstalacionRule($(this));
-                    $(this).find('.reinstalacion-notice').remove();
-                });
-                return;
+            if (marcado) {
+                $monto.val('0.00').prop('readonly', true);
+                if (!$row.find('.reinstalacion-pago-aviso').length) {
+                    const aviso = '<div class="alert alert-warning reinstalacion-pago-aviso mt-2" style="width: 100%;">' +
+                        'El horario seleccionado para este cumplimiento será la fecha indicada para la <b>Reinstalación</b>. El monto queda fijo en $0.00.' +
+                        '</div>';
+                    $row.find('.form-group').first().append(aviso);
+                }
+            } else {
+                $monto.prop('readonly', false);
+                $row.find('.reinstalacion-pago-aviso').remove();
             }
+        }
 
-            const $rows = $('#newRowaPago').find('.inputFormRow2');
-            if (!$rows.length) return;
-
-            const $firstCreated = $rows.filter('[data-first-cumplimiento="1"]').first();
-
-            $rows.each(function() {
-                const $row = $(this);
-                const isFirstCreated = $firstCreated.length && $row.is($firstCreated);
-
-                if (isFirstCreated) {
-                    addReinstalacionNoticeIfNeeded($row);
-                    applyCumplimientoMontoReinstalacionRule($row);
-                } else {
-                    $row.find('.reinstalacion-notice').remove();
-                    clearCumplimientoMontoReinstalacionRule($row);
+        // Solo uno de los Cumplimientos puede quedar marcado como el designado para la Reinstalación.
+        function actualizaEstadoCheckboxesReinstalacion() {
+            const $checkboxes = $('#newRowaPago .reinstalacion-pago-checkbox:visible');
+            const algunoMarcado = $checkboxes.filter(function() { return $(this).is(':checked'); }).length > 0;
+            $checkboxes.each(function() {
+                if (!$(this).is(':checked')) {
+                    $(this).prop('disabled', algunoMarcado);
                 }
             });
         }
 
-        function addReinstalacionNoticeIfNeeded($cumplimientoRow) {
-            if (!isReinstalacionSelectedInPrestaciones()) return;
-            const isFirst = $('.inputFormRow2').length === 1;
-            if (!isFirst) return;
-            if ($cumplimientoRow.find('.reinstalacion-notice').length) return;
+        // Muestra/oculta la opción de marcar un Cumplimiento como Reinstalación según la conclusión seleccionada.
+        function sincronizarCheckboxesReinstalacionPagos() {
+            const aplica = isConclusionReinstalacion();
 
-            const html = '<div class="alert alert-warning reinstalacion-notice mt-2" style="width: 100%;">' +
-                'El horario seleccionado para este cumplimiento será la fecha indicada para la <b>Reinstalación</b>' +
-                '</div>';
-            $cumplimientoRow.find('.form-group').first().append(html);
+            $('#newRowaPago .inputFormRow2').each(function() {
+                const $row = $(this);
+                const $wrapper = $row.find('.reinstalacion-pago-wrapper');
+                const $checkbox = $wrapper.find('.reinstalacion-pago-checkbox');
+
+                if (aplica) {
+                    $wrapper.show();
+                } else {
+                    $wrapper.hide();
+                    if ($checkbox.is(':checked')) {
+                        $checkbox.prop('checked', false);
+                    }
+                    $checkbox.prop('disabled', false);
+                    aplicarMontoReinstalacionPago($row, false);
+                }
+            });
+
+            if (aplica) {
+                actualizaEstadoCheckboxesReinstalacion();
+            }
         }
 
         let filaActualParaAgendar = null; 
@@ -515,7 +518,7 @@
                     toggleMontoPrestacionForReinstalacion($(this));
                 });
 
-                applyReinstalacionRuleToFirstCumplimientoIfNeeded();
+                sincronizarCheckboxesReinstalacionPagos();
             });
 
             // Agregar registro
@@ -582,7 +585,7 @@
         $("#addPago").click(function () {
             let numeroPago = $('.numero_pago').length + 1;
             var html = '';
-            html += '<div class="inputFormRow2 row mb-2 align-items-end" ' + (numeroPago === 1 ? 'data-first-cumplimiento="1"' : '') + '>';
+            html += '<div class="inputFormRow2 row mb-2 align-items-end">';
             html += '<div class="col-xs-12 col-sm-12 col-md-12">';
             html += '<div class="form-group">';
             html += '<label for="confirm-password"><br>Fecha y hora de pago</label>';
@@ -622,6 +625,12 @@
             html += '<input type="text" class="form-control" name="monto_pagos[]" required oninput="validarNumero(this)" >';
             html += '<div class="invalid-feedback">La Dirección es obligatoria.</div>';
             html += '</div></div>';
+            // Marcar este Cumplimiento como el designado para la Reinstalación (solo visible si la conclusión es "Reinstalación")
+            html += '<div class="col-xs-12 col-sm-12 col-md-12 reinstalacion-pago-wrapper" style="display:none;">';
+            html += '<label>';
+            html += '<input type="checkbox" class="reinstalacion-pago-checkbox"> Marcar este pago como el designado para la Reinstalación (monto fijo $0.00)';
+            html += '</label>';
+            html += '</div>';
             // Tipo de Agenda
             /*html += '<div class="col-xs-12 col-sm-12 col-md-12">';
             html += '<div class="form-group">';
@@ -647,8 +656,8 @@
             $('#newRowaPago').append(html);
             actualizaNumeroPago();
 
-            applyReinstalacionRuleToFirstCumplimientoIfNeeded();
-            
+            sincronizarCheckboxesReinstalacionPagos();
+
             //Esto reemplaza el container por los botones de opciones, para que aparezca debajo del selector de opciones
             $('#newRowaPago').find('#tipoPago').last().on('change', function() {
                 var opcionPago = $(this).val();
@@ -776,7 +785,7 @@
         $(document).on('click', '.removeRow2', function () {
             $(this).closest('.inputFormRow2').remove();
             actualizaNumeroPago();
-            applyReinstalacionRuleToFirstCumplimientoIfNeeded();
+            actualizaEstadoCheckboxesReinstalacion();
             setTimeout(function(){ if (typeof calcularTotal === 'function') { calcularTotal(); } }, 100);
         });
         //Actualiza los números de pago
@@ -850,7 +859,15 @@
         $(document).on('click', '.removeRow3', function () {
             $(this).closest('.col-xs-12').remove();
         });
-            applyReinstalacionRuleToFirstCumplimientoIfNeeded();
+
+        // Marcar/desmarcar un Cumplimiento como el designado para la Reinstalación
+        $(document).on('change', '.reinstalacion-pago-checkbox', function() {
+            const $row = $(this).closest('.inputFormRow2');
+            aplicarMontoReinstalacionPago($row, $(this).is(':checked'));
+            actualizaEstadoCheckboxesReinstalacion();
+        });
+
+        sincronizarCheckboxesReinstalacionPagos();
         });
         
         //CALCULO DE PAGO TOTAL
@@ -1289,7 +1306,6 @@
 
             ensureReinstalacionOption($(this));
             toggleMontoPrestacionForReinstalacion($(this));
-            applyReinstalacionRuleToFirstCumplimientoIfNeeded();
 
             if (selected === 'Otras') {
                 container.show();
@@ -1331,6 +1347,27 @@
             $('#totalCalculado').text("$" + formatoMoneda(total));
                 $("#totalPagosDiferidos").text('$' + formatoMoneda(totalPagosDiferidos));
             }
+
+        // Si la conclusión es Reinstalación, es obligatorio marcar un Cumplimiento como el designado para la Reinstalación.
+        $('#form_roles').on('submit', function(e) {
+            if (!isConclusionReinstalacion()) return;
+
+            const marcados = $('.reinstalacion-pago-checkbox').filter(function() { return $(this).is(':checked'); }).length;
+            if (marcados !== 1) {
+                // stopImmediatePropagation evita que el listener global de turnos.js (que muestra el loader #nuevo_turno
+                // al detectar el submit) siga ejecutándose una vez que cancelamos el envío del formulario.
+                e.stopImmediatePropagation();
+                e.preventDefault();
+                $('#nuevo_turno').hide();
+                const msg = 'Debes marcar uno de los Cumplimientos como el designado para la Reinstalación.';
+                if (window.Swal && typeof Swal.fire === 'function') {
+                    Swal.fire({ icon: 'warning', title: 'Falta marcar Reinstalación', text: msg });
+                } else {
+                    alert(msg);
+                }
+                return false;
+            }
+        });
         </script>
         <!--script>
             // Validación: los montos de pago deben existir y ser numéricos > 0
@@ -1500,7 +1537,7 @@
                     },
                     events: function(fetchInfo, success, failure) {
                         $.ajax({
-                            url: '{{ url('/api/obtenerAudienciasParte3') }}',
+                            url: '{{ url('/api/obtenerAudienciasParte2') }}',
                             data: { sede: sede, start: fetchInfo.startStr, end: fetchInfo.endStr, conciliador: conciliadorId },
                             success: function(data){
                                 success(data);

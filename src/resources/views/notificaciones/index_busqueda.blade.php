@@ -10,6 +10,7 @@
                 <div class="col-lg-12">
                     <div class="card">
                         <div class="card-body">
+                            
                             <div class="table-responsive">
                                 <table id="example" class="table table-striped mt-1" style="text-align:center">
                                     <thead style="background-color: #4A001F;">
@@ -18,7 +19,7 @@
                                         <th style="color: #fff;">Dirección</th>
                                         <th style="color: #fff;">Estatus</th>
                                         <th style="color: #fff;">Medio</th>
-                                        <th style="color: #fff;">Tipo de notificación</th>"
+                                        <th style="color: #fff;">Tipo de notificación</th>
                                         <th style="color: #fff;">Editar</th>
                                         <th style="color: #fff;">Documento</th>
                                     </thead>

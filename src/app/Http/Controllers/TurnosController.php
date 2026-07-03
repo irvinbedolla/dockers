@@ -84,9 +84,14 @@ class TurnosController extends Controller
     {
         $doc = DocumentosSolicitud::findOrFail($id);
 
-        $path = 'documentosSolicitud/' . $doc->nombre_documento;
+        $pathNew = 'documentos_ratificacion/' . $doc->id_solicitud . '/' . $doc->nombre_documento;
+        $pathOld = 'documentosSolicitud/' . $doc->nombre_documento;
 
-        if (!Storage::exists($path)) {
+        if (Storage::exists($pathNew)) {
+            $path = $pathNew;
+        } elseif (Storage::exists($pathOld)) {
+            $path = $pathOld;
+        } else {
             abort(404, 'Documento no encontrado en almacenamiento.');
         }
 
@@ -789,6 +794,10 @@ class TurnosController extends Controller
             $data_insert["num_int"] =  $data["N_Int"];
         }
 
+        unset($data_insertar['ine'], $data_insertar['representacion'], $data_insertar['documentoidentificacion']);
+        $turno = Turnos::create($data_insertar);
+        $id_turno = $turno->id;
+
         //Documentos si cargaron el folio
         if(isset($data["folio"])){
             $representante  = Poder::find($data["folio"]);
@@ -803,13 +812,13 @@ class TurnosController extends Controller
             //Se carga el INE del abogado
             $nombre_ine = $data["nombre_empresa"]."".$data["primero_empresa"]."".$data["segundo_empresa"]."-".$data["empresa"]."_IDENTIFICACION.pdf";
             $path = Storage::putFileAs(
-                'documentos_ratificacion', $request->file('documentoIne'), $nombre_ine
+                'documentos_ratificacion/' . $id_turno, $request->file('documentoIne'), $nombre_ine
             );
-            
+
             //Se carga el Poder del abogado
             $nombre_representación = $data["nombre_empresa"]."".$data["primero_empresa"]."".$data["segundo_empresa"]."-".$data["empresa"]."_PODER.pdf";
             $path = Storage::putFileAs(
-                'documentos_ratificacion', $request->file('documentoPoder'), $nombre_representación
+                'documentos_ratificacion/' . $id_turno, $request->file('documentoPoder'), $nombre_representación
             );
         }
         
@@ -821,27 +830,27 @@ class TurnosController extends Controller
         */
         $trabajador_identificacion  = $data["trabajador_curp"]."_IDENTIFICACION.pdf";
         $path = Storage::putFileAs(
-            'documentos_ratificacion', $request->file('documentoidentificacion'), $trabajador_identificacion
+            'documentos_ratificacion/' . $id_turno, $request->file('documentoidentificacion'), $trabajador_identificacion
         );
 
-        $data_insertar["ine"]                       = $nombre_ine;
-        $data_insertar["representacion"]            = "";   
-        //$data_insertar["documentoCurp"]             = $trabajador_curp;
-        $data_insertar["documentoidentificacion"]   = $trabajador_identificacion;  
+        $turno->update([
+            'ine'                     => $nombre_ine,
+            'representacion'          => '',
+            'documentoidentificacion' => $trabajador_identificacion,
+        ]);
 
 
         if(isset($data["cuantificacion"])){
             $cuantificacion  = $data["trabajador_curp"]."_CUANTIFICACION.pdf";
             $path = Storage::putFileAs(
-                'documentos_ratificacion', $request->file('cuantificacion'), $cuantificacion
+                'documentos_ratificacion/' . $id_turno, $request->file('cuantificacion'), $cuantificacion
             );
-            $data_insertar["documentoCuanti"] = $cuantificacion;
+            $turno->update(['documentoCuanti' => $cuantificacion]);
         }
         if(isset($data["N_Int"])){
             $data_insert["num_int"] =  $data["N_Int"];
         }
         //Se van insetar todos los datos
-        Turnos::create($data_insertar);
        /*
         //Revisar si ya existe el correo
         $usuario = User::where('email',$email)->first();
@@ -2259,7 +2268,7 @@ class TurnosController extends Controller
                 //Nombre único por documento (id de solicitud y id de documento)
                 $documentoExpediente = $slugBase . '_Expediente_' . $data['audiencia_id'] . '_' . $doc->id . '.' . $ext;
 
-                Storage::putFileAs('documentosSolicitud', $file, $documentoExpediente);
+                Storage::putFileAs('documentos_ratificacion/' . $audienciaId, $file, $documentoExpediente);
 
                 $doc->update(['nombre_documento' => $documentoExpediente]);
 
@@ -2403,7 +2412,7 @@ class TurnosController extends Controller
         Deducciones::find($id_solicitud)->delete();
         return back()->with('success', 'Pago Deducción Correctamente.');
     }
-    
+
     public function pago_eliminar_pago_ratificacion($id_solicitud){
         Pagos::find($id_solicitud)->delete();
         return back()->with('success', 'Pago Borrado Correctamente.');
@@ -2417,6 +2426,20 @@ class TurnosController extends Controller
         $id = auth()->user()->id;
         $user = User::find($id);
         $sede = $user->delegacion;
+
+        //Revisar que exista al menos un concepto de pago (ya guardados + nuevos)
+        $conceptosExistentes = Concepto::where('id_solicitud', $id_solicitud)->where('tipo_pago', 'Ratificacion')->count();
+        $nuevosConceptos = isset($data["tipo_pago"]) ? count($data["tipo_pago"]) : 0;
+        if(($conceptosExistentes + $nuevosConceptos) < 1){
+            return back()->withErrors('Debes agregar por lo menos un concepto de pago.');
+        }
+
+        //Revisar que exista al menos un pago (ya guardados + nuevos)
+        $pagosExistentes = Pagos::where('id_solicitud', $id_solicitud)->where('tipo_pago', 'Ratificacion')->count();
+        $nuevosPagos = isset($data["dias_pagos"]) ? count($data["dias_pagos"]) : 0;
+        if(($pagosExistentes + $nuevosPagos) < 1){
+            return back()->withErrors('Debes agregar por lo menos un pago.');
+        }
 
         //Revisar si existe
         if(isset($data["dias_pagos"])){
@@ -2805,18 +2828,18 @@ class TurnosController extends Controller
 
         if ($request->hasFile('documentoidentificacion')) {
             $nombre_ine = $request->curp . "_IDENTIFICACION_" . time() . ".pdf";
-            $request->file('documentoidentificacion')->storeAs('documentos_ratificacion', $nombre_ine);
-            $updateData["documentoidentificacion"] = $nombre_ine; 
+            $request->file('documentoidentificacion')->storeAs('documentos_ratificacion/' . $id_solicitud, $nombre_ine);
+            $updateData["documentoidentificacion"] = $nombre_ine;
         }
         if ($request->hasFile('documentoCurp')) {
             $nombre_curp = $request->curp . "_CURP_" . time() . ".pdf";
-            $request->file('documentoCurp')->storeAs('documentos_ratificacion', $nombre_curp);
+            $request->file('documentoCurp')->storeAs('documentos_ratificacion/' . $id_solicitud, $nombre_curp);
             $updateData["documentoCurp"] = $nombre_curp;
         }
 
         if ($request->hasFile('cuantificacion')) {
             $nombre_cuantificacion = $request->curp . "_CUANTIFICACION_" . time() . ".pdf";
-            $request->file('cuantificacion')->storeAs('documentos_ratificacion', $nombre_cuantificacion);
+            $request->file('cuantificacion')->storeAs('documentos_ratificacion/' . $id_solicitud, $nombre_cuantificacion);
             $updateData["documentoCuanti"] = $nombre_cuantificacion; 
         }
         $solicitud->update($updateData);

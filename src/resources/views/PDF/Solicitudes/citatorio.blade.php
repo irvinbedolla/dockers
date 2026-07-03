@@ -177,7 +177,7 @@
                 </ul>
                 <p><br>En cualquiera de los casos, será necesario presentar la documentación física y en formato pdf no mayor a 5 megabytes.</p>
 
-                <div style="page-break-after: always;"></div>
+                <!--div style="page-break-after: always;"></div-->
                 
                 <p>
                     Se sugiere llegar con 15 minutos de anticipación de la hora señalada para el desahogo de la audiencia y llevar los registros de ingreso correspondientes, con la finalidad de dar inicio de manera puntual con su procedimiento de conciliación.

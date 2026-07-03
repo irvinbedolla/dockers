@@ -10,6 +10,6 @@ class SeerCasosExcepcion extends Model
     //use HasFactory;
     protected $table = 'seer_casos_excepcion';
     protected $primaryKey = 'id';
-    protected $fillable = ['id_solicitud','frecuencia_hechos','cambios_situacionL','comunico_hechos','descripcion_conducta','responsable_cargo','actos_cometidos','momento_hechos', 'lugar_hechos',
-    'constancia_hechos','solicito_apoyo','continuacion_solicto_apoyo', 'incidencia_directa','recibio_atencion']; 
+    protected $fillable = ['id_turno','id_user','tipo_caso','motivos','vulnerables','frecuencia','situacion_laboral','dependencia',
+    'expediente','descripcion_persona','descripcion_conductas', 'observaciones','jefe_inmediato','ubicacion', 'empresa','puesto', 'area_adscripcion','fecha','hora','created_at','updated_at'];
 }

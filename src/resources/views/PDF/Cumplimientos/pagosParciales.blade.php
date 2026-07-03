@@ -157,12 +157,6 @@
                                         DEL ESTADO DE MICHOACÁN DE OCAMPO
                                 </b>
                             </td>
-                        <td style="width:50%; vertical-align:top; padding:0 5px;"><b>Vo. Bo.</b><br><br><br><br>
-                                <div style="border-top: 2px solid #000; width:90%; margin: 0 auto 5px auto;"></div>
-                                <b>{{ mb_strtoupper($delegado ? $delegado->name : 'N/A', 'UTF-8') }}<br>
-                                    {!! nl2br(e($nombramiento_delegado)) !!}                                 
-                                </b>
-                            </td>
                         </tr>
                     </table><br>
                     <p style="font-size: 10px;">

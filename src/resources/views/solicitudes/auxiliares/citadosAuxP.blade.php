@@ -83,6 +83,7 @@
                                 <form class="needs-validation" novalidate id="form_concluir" method="POST" action="{{route('seer.citadosAuxP', ['id' => $id])}}" enctype="multipart/form-data">
                                     @csrf
                                     <input type="hidden" name="id" value="{{ $id }}">
+                                    <input type="hidden" name="draft_id" value="{{ $draftId }}">
 
                                     <div style="background-color:#D2D3D5; width:100%; height:30px;">
                                         <h4 class="text-center" style="color:black">Datos Personales del Citado</h4>
@@ -359,7 +360,7 @@
                                     <div class="col-xs-12 col-sm-12 col-md-4">
                                         <div class="form-group">
                                             <label for="name">Código postal <span style="color:red;">(*)</span></label>
-                                            <input type="text" name="cp" id="cp" class="form-control" maxlength="5">
+                                            <input type="number" name="cp" id="cp" class="form-control" maxlength="5">
                                             <div class="invalid-feedback">
                                                 El campo Código Postal es obligatorio. Debes ingresar 5 caracteres.
                                             </div>
@@ -447,7 +448,7 @@
                                         <div class="col-xs-12 col-sm-12 col-md-3">
                                             <div class="form-group">
                                                 <label for="name">Número de Seguro Social (Opcional)</label>
-                                                <input type="number" name="seguro" minlength="11" maxlength="12" class="form-control soloNumeros"> 
+                                                <input type="number" name="seguro" minlength="11" maxlength="12" class="form-control soloNumeros" oninput="if(this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);"> 
                                                 <div class="invalid-feedback">
                                                     Debe tener 12 dígitos su número de seguridad social
                                                 </div>
@@ -489,8 +490,7 @@
                                         <div class="col-xs-12 col-sm-12 col-md-3">
                                             <div class="form-group">
                                                 <label for="name">Total de horas trabajadas por semana <span style="color:red;">(*)</span></label>
-                                                <input type="number" name="horas" min="0" class="form-control" required> 
-                                                <div class="invalid-feedback">
+                                                <input type="number" name="horas" min="0" max="168" class="form-control" oninput="if(this.value > 168) this.value = 168; if(this.value < 0) this.value = 0;" required>                                                <div class="invalid-feedback">
                                                     El campo cantidad de horas trabajadas es obligatorio.
                                                 </div>
                                             </div>
@@ -543,7 +543,7 @@
                                             </div> -->
                                             <div style="display:flex; flex-direction:column; align-items:flex-end;">
                                                 <!-- @if($citados > 0)
-                                                    <a href="{{ route('seer.finalizaAuxP',$id) }}" id="btn-conclude" class="btn btn-success" style=" background-color:#CEA845;border-color:#CEA845;">Concluir solicitud</a>
+                                                    <a href="{{ route('seer.finalizaAuxP',$id) }}?draft_id={{ urlencode($draftId) }}" id="btn-conclude" class="btn btn-success" style=" background-color:#CEA845;border-color:#CEA845;">Concluir solicitud</a>
                                                     <div id="conclude-warning" class="text-danger" style="display:none; margin-top:6px;">Guarde el citado antes de concluir</div>
                                                 @endif -->
                                                 <button type="submit" id="btn-conclude" class="btn btn-primary" style=" background-color:#CEA845;border-color:#CEA845;">Concluir solicitud</button>
@@ -945,5 +945,6 @@
             });
         });
     </script>
+@include('solicitudes.auxiliares._pollLock')
 @endsection
 @endsection

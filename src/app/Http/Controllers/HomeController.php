@@ -13,6 +13,8 @@ use App\Models\Recepcion;
 use App\Models\CitaDireccion;
 use App\Models\Pagos;
 use App\Models\Audiencias;
+use App\Models\Estados;
+use App\Models\Municipios;
 use App\Imports\PagoSolicitudImport;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Imports\ConceptoPagoImport;
@@ -175,15 +177,38 @@ class HomeController extends Controller
     }
 
     public function citas(){
-        return view('turnos');
+        $estados = Estados::all();
+        $municipios = Municipios::all();
+        return view('turnos', compact('estados', 'municipios'));
     }
 
     public function turnos_publico(Request $request){
+        if (!$request->filled('fecha_turno') || !$request->filled('hora_turno')) {
+            return back()->withInput()->with('error', 'Es necesario seleccionar la fecha y el horario del turno en el calendario.');
+        }
+
         $data = $request->all();
-        $fecha_actual = date('Y-m-d');
-        $hora_actual  = date("H:i:s");
+        $sede = $data["delegacion"];
+        $tipo = $data["tipo"];
+        $excepcion = $data["excepcion"] ?? "No";
+        $fecha_turno = $data["fecha_turno"];
+        $hora_turno = $data["hora_turno"];
+
+        //El horario seleccionado en el calendario ya no debe estar ocupado ni caer en un día/horario inhábil
+        if (!(new RecepcionController())->turnoSlotDisponible($sede, $tipo, $fecha_turno, $hora_turno, $excepcion)) {
+            return back()->withInput()->with('error', 'El horario seleccionado ya no está disponible. Por favor selecciona otro.');
+        }
+
+        if ($excepcion === 'Si') {
+            $hora_fin = date("H:i:s", strtotime($hora_turno . " +75 minutes"));
+        } elseif ($tipo === 'Solicitud' || $tipo === 'Asesoria') {
+            $hora_fin = date("H:i:s", strtotime($hora_turno . " +40 minutes"));
+        } else {
+            $hora_fin = date("H:i:s", strtotime($hora_turno . " +60 minutes"));
+        }
+
         $numero_consecutivo = 0;
-        $consecutivo  = Recepcion::latest('id')->where('fecha', $fecha_actual)->first();
+        $consecutivo  = Recepcion::latest('id')->where('fecha', $fecha_turno)->first();
 
         if(empty($consecutivo)){
             $numero_consecutivo = 1;
@@ -198,20 +223,26 @@ class HomeController extends Controller
             'solicitante'   => $data["nombre"],
             'auxiliar'      => 0,
             'lugar_auxiliar'=> "Recepción",
-            'tipo'          => $data["tipo"],
-            'fecha'         => $fecha_actual,
-            'hora'          => $hora_actual,
-            'hora_fin'      => $hora_actual,
-            'delegacion'    => $data["delegacion"],
+            'tipo'          => $tipo,
+            'tipo_caso'     => $data["tipo_caso"],
+            'fecha'         => $fecha_turno,
+            'hora'          => $hora_turno,
+            'hora_fin'      => $hora_fin,
+            'delegacion'    => $sede,
             'estatus'       => "no atendido",
-            'exepcion'      => "No",
+            'exepcion'      => $excepcion,
             'edad'          => $data["edad"],
             'sexo'          => $data["sexo"],
             'vulnerables'   => $data["vulnerables"],
-        );    
+            'estado'        => $data["estado_citado"],
+            'municipio'     => $data["municipio_citado"],
+            'correo'        => $data["email"],
+            'telefono'      => $data["telefono"],
+            'observaciones' => $data["conflicto"]
+        );
         Recepcion::create($data_insertar);
-        
-        return back()->with('success', 'Turno registrado correctamente favor de pasar a ventanilla.'); 
+
+        return back()->with('success', 'Turno registrado correctamente lllegar 10 minutos antes, llevar tu Identificación Oficial Vigente.');
     }
 
     public function password_cambiar(){

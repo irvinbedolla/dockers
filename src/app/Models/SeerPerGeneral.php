@@ -17,6 +17,9 @@ class SeerPerGeneral extends Model
     public function solicitante() {
         return $this->hasOne(SeerSolicitante::class, 'id_solicitud');
     }
+    public function citados() {
+        return $this->hasMany(SeerCitados::class, 'id_solicitud', 'id');
+    }
 
     public function motivos() {
         return $this->hasManyThrough(CatalogoMotivo::class, SeerMotivo::class, 'id_solicitud', 'id', 'id', 'id_motivo');

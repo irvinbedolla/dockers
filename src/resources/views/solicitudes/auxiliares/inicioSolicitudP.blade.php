@@ -56,6 +56,7 @@
                             <form class="needs-validation" novalidate method="POST" action="{{route('agregaSolicitanteAP')}}">
                                 @csrf
                                 <input type="hidden" name="tipo_solicitud" value="{{ $tipo_solicitud }}">
+                                <input type="hidden" name="draft_id" value="{{ $draftId }}">
                                 <div class="row">
                                     <div class="col-xs-12 col-sm-12 col-md-4">
                                         <div class="form-group">
@@ -266,4 +267,5 @@
                 });
             });
         </script>
+    @include('solicitudes.auxiliares._pollLock')
     @endsection

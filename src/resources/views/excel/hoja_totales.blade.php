@@ -27,3 +27,12 @@
         @endforeach
     </tbody>
 </table>
+
+<table>
+    <tbody>
+        <tr>
+            <td style="font-weight: bold;">Total Notificaciones Trabajador:</td>
+            <td style="text-align: center; font-weight: bold;">{{ $totalTrabajador }}</td>
+        </tr>
+    </tbody>
+</table>

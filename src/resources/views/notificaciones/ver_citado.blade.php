@@ -1,4 +1,4 @@
-@extends('layouts.app')
+@extends('layouts.app_editar')
 
 @section('content')
     <section class="section">
@@ -183,7 +183,9 @@
                                     <div class="col-xs-12 col-sm-12 col-md-3">
                                         <div class="form-group">
                                             <label for="name">Código Postal <span style="color:red;">(*)</span></label>
-                                            <input type="text" name="cp" class="form-control" value="<?=$folio["cp"];?>" minlength="5" maxlength="5" required> 
+                                            <!--input type="number" name="cp" class="form-control" value="<?=$folio["cp"];?>" minlength="5" maxlength="5" required-->
+                                            <input type="number" min="0" max="99999" maxlength="5" class="form-control" name="cp" id="cp" oninput="if(this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);" value="<?=$folio["cp"];?>" required>
+
                                             <div class="invalid-feedback">
                                                 El campo Código Postal es obligatorio.
                                             </div>
@@ -221,7 +223,7 @@
                                     <div class="col-xs-12 col-sm-12 col-md-6">
                                         <label for="password">Referencia 1 <span style="color:red;">(*)</span></label><br>
                                         @if (!empty($folio->imagen_domicilio1) && $folio->imagen_domicilio1 !== 'Sin documento')
-                                            <a target='_blank' href="{{ asset('storage/app/documentosSolicitud/'.$folio->imagen_domicilio1) }}">VER IMAGEN</a>
+                                            <a target='_blank' href="{{ asset('storage/app/documentosSolicitud/'. $folio->id_solicitud . '/'. $folio->imagen_domicilio1) }}">VER IMAGEN</a>
                                         @else
                                             <span class="text-muted">No se subió imagen</span>
                                         @endif
@@ -231,7 +233,7 @@
                                     <div class="col-xs-12 col-sm-12 col-md-6">
                                         <label for="password">Referencia 2</label><br>
                                         @if (!empty($folio->imagen_domicilio2) && $folio->imagen_domicilio2 !== 'Sin documento')
-                                            <a target='_blank' href="{{ asset('storage/app/documentosSolicitud/'.$folio->imagen_domicilio2) }}">VER IMAGEN</a><br>
+                                            <a target='_blank' href="{{ asset('storage/app/documentosSolicitud/'. $folio->id_solicitud . '/'. $folio->imagen_domicilio2) }}">VER IMAGEN</a><br>
                                         @else
                                             <span class="text-muted">No se subió imagen</span>
                                         @endif

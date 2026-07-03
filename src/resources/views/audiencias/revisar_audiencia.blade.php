@@ -361,7 +361,7 @@
                                                 <div class="col-xs-12 col-sm-6 col-md-3">
                                                     <div class="form-group">
                                                         <label for="password">Teléfono<span style="color:red;"> (*)</span></label>
-                                                        <input type="tel" id="telefono1_solicitante" class="form-control" name="telefono1_solicitante" value="<?=$solicitante["telefono1"];?>" required inputmode="numeric" maxlength="14">
+                                                        <input type="number" id="telefono1_solicitante" class="form-control" name="telefono1_solicitante" value="<?=$solicitante["telefono1"];?>" required inputmode="numeric" maxlength="10">
                                                         <div class="invalid-feedback">
                                                             El teléfono es obligatorio y debe contener 10 dígitos.
                                                         </div>   
@@ -370,7 +370,7 @@
                                                 <div class="col-xs-12 col-sm-6 col-md-3">
                                                     <div class="form-group">
                                                             <label for="password">Teléfono (Opcional)</label>
-                                                            <input type="tel" id="telefono2_solicitante" class="form-control" name="telefono2_solicitante" value="<?=$solicitante["telefono2"];?>" inputmode="numeric" maxlength="14">   
+                                                            <input type="number" id="telefono2_solicitante" class="form-control" name="telefono2_solicitante" value="<?=$solicitante["telefono2"];?>" inputmode="numeric" maxlength="10">   
                                                         </div>
                                                 </div>
                                                 <div class="col-xs-12 col-sm-6 col-md-3">
@@ -1148,10 +1148,26 @@
                                                     </div>
                                                 </div>
 
+                                                @php
+                                                    $img1 = $citado->imagen_domicilio1 ?? null;
+                                                    $img2 = $citado->imagen_domicilio2 ?? null;
+                                                    $urlImg1 = null;
+                                                    $urlImg2 = null;
+                                                    if ($img1 && $img1 !== 'Sin documento') {
+                                                        $urlImg1 = \Storage::exists("documentosSolicitud/{$id}/{$img1}")
+                                                            ? asset("../storage/app/documentosSolicitud/{$id}/{$img1}")
+                                                            : asset("../storage/app/documentosSolicitud/{$img1}");
+                                                    }
+                                                    if ($img2 && $img2 !== 'Sin documento') {
+                                                        $urlImg2 = \Storage::exists("documentosSolicitud/{$id}/{$img2}")
+                                                            ? asset("../storage/app/documentosSolicitud/{$id}/{$img2}")
+                                                            : asset("../storage/app/documentosSolicitud/{$img2}");
+                                                    }
+                                                @endphp
                                                 <div class="col-xs-12 col-sm-12 col-md-5">
                                                     <label for="password">Referencia Imagen 1<span style="color:red;"> (*)</span></label><br>
-                                                    @if (!empty($citado->imagen_domicilio1) && $citado->imagen_domicilio1 !== 'Sin documento')
-                                                        <a target='_blank' href="../storage/app/documentosSolicitud/{{$citado->imagen_domicilio1}}">VER IMAGEN</a><br>
+                                                    @if ($urlImg1)
+                                                        <a target='_blank' href="{{ $urlImg1 }}">VER IMAGEN</a><br>
                                                     @else
                                                         <span class="text-muted">No se subió imagen</span>
                                                     @endif
@@ -1160,8 +1176,8 @@
                                                 </div>
                                                 <div class="col-xs-12 col-sm-12 col-md-5">
                                                     <label for="password">Referencia Imagen 2</label><br>
-                                                    @if (!empty($citado->imagen_domicilio2) && $citado->imagen_domicilio2 !== 'Sin documento')
-                                                        <a target='_blank' href="../storage/app/documentosSolicitud/{{$citado->imagen_domicilio2}}">VER IMAGEN</a><br>
+                                                    @if ($urlImg2)
+                                                        <a target='_blank' href="{{ $urlImg2 }}">VER IMAGEN</a><br>
                                                     @else
                                                         <span class="text-muted">No se subió imagen</span>
                                                     @endif

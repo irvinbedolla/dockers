@@ -23,9 +23,9 @@ class OrganizarDocumentosSolicitud extends Command
         $raizFisica = null;
         foreach ($rutasPosibles as $ruta) {
             if (
-                //is_dir($ruta . '/documentosSolicitud') || 
+                is_dir($ruta . '/documentosSolicitud') //|| 
                 //is_dir($ruta . '/documentos_abogados') //|| 
-                is_dir($ruta . '/documentos_ratificacion') //|| 
+                //is_dir($ruta . '/documentos_ratificacion') //|| 
                 //is_dir($ruta . '/documentos_notificacion')
                 ) {
                 $raizFisica = $ruta;
@@ -48,13 +48,13 @@ class OrganizarDocumentosSolicitud extends Command
             $docs = DB::table('documentos')->select('id_solicitud', 'nombre_documento as archivo')->whereNotNull('nombre_documento')->where('nombre_documento', '<>', '')->get();
             foreach ($docs as $d) { $listaArchivos[] = ['id' => $d->id_solicitud, 'file' => $d->archivo, 'tipo_id' => 'solicitud']; }
         }
-
+*/
         // --- TABLA 2: seer_solicitante ---
         if (Schema::hasTable('seer_solicitante')) {
             $solicitantes = DB::table('seer_solicitante')->select('id_solicitud', 'documentoIdentificacion as archivo')->whereNotNull('documentoIdentificacion')->where('documentoIdentificacion', '<>', '')->get();
             foreach ($solicitantes as $s) { $listaArchivos[] = ['id' => $s->id_solicitud, 'file' => $s->archivo, 'tipo_id' => 'solicitud']; }
         }
-*/
+/*
         // --- TABLA 3: turnos ---
         if (Schema::hasTable('turnos')) {
             $turnos = DB::table('turnos')->select('id as id_solicitud', 'documentoidentificacion as archivo')->whereNotNull('documentoidentificacion')->where('documentoidentificacion', '<>', '')->get();

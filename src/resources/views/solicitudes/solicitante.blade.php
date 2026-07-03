@@ -101,6 +101,7 @@
                                     <form id="form-solicitante" novalidate method="POST" action="{{route('parte2')}}" enctype='multipart/form-data'>
                                         @csrf
                                         <input type="hidden" name="id" value="{{$id}}">
+                                        <input type="hidden" name="draft_id" value="{{ $draftId ?? request('draft_id') }}">
                                         <div class="row">
                                             <input type="hidden" name="tipo" value="Fisica">
                                             <!--<div class="col-xs-12 col-sm-12 col-md-4">

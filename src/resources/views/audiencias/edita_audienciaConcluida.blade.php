@@ -1,4 +1,4 @@
-@extends('layouts.app1')
+@extends('layouts.app_editar1')
 
 @section('content')
     <section class="section">

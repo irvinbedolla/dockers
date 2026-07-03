@@ -17,7 +17,6 @@ class DashboardController extends Controller
         $delegacion = $user->delegacion;
         $relacionEloquent = "roles";
 
-
         if($userRole[0] == "Super Usuario" || $userRole[0] == "Administrador" || $userRole[0] == "Estadistica"){
             $sedes = ["Morelia", "Zitácuaro","Uruapan", "Lázaro Cárdenas","Zamora", "Sahuayo"];
             $conciliadores = User::whereHas($relacionEloquent, function ($query) {

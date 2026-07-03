@@ -941,10 +941,11 @@
             $('#modal-competencia').modal('show');
             return;
         }else{
-            window.location.href = "{{ route('trabajadorAuxiliarP', [$tipo_solicitud]) }}";
+            window.location.href = "{{ route('trabajadorAuxiliarP', [$tipo_solicitud]) }}?draft_id={{ urlencode($draftId) }}";
         }
     }
     function sendIndustria() {
-        window.location.href = "{{ route('trabajadorAuxiliarP', [$tipo_solicitud]) }}";
+        window.location.href = "{{ route('trabajadorAuxiliarP', [$tipo_solicitud]) }}?draft_id={{ urlencode($draftId) }}";
     }
 </script>
+@include('solicitudes.auxiliares._pollLock')

@@ -1,4 +1,4 @@
-@extends('layouts.app')
+@extends('layouts.app_editar')
 @php
     $fechaActual = date('Y-m-d');
 @endphp
@@ -11,6 +11,20 @@
             <div class="alert alert-success alert-dismissible fade show" role="alert">
                 <strong>Correcto</strong>
                 {{ session()->get('success') }}
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+        @endif
+
+        @if ($errors->any())
+            <div class="alert alert-dark alert-dismissible fade show" role="alert">
+                <strong>¡Revise los campos!</strong>
+                <ul>
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
                 <button type="button" class="close" data-dismiss="alert" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
                 </button>
@@ -142,7 +156,7 @@
                                             <td>{{ $pago->descripcion}}</td>
                                             <td>${{ number_format($pago->monto,2) }}</td>
                                             <td>
-                                                <form method="POST" action="{{ route('pago_eliminar_pago', $pago->id) }}">
+                                                <form method="POST" action="{{ route('pago_eliminar_pago_ratificacion', $pago->id) }}">
                                                     @csrf
                                                     <input type="hidden" name="_method" value="DELETE">
                                                     <button class="btn btn-danger" onclick="editar_rol();" type="submit">Eliminar</button>
@@ -153,7 +167,7 @@
                                 </tbody> 
                             </table>
                             
-                            <form class='needs-validation novalidate' method='POST' action="{{route('terminar_ratificacion')}}">
+                            <form class='needs-validation novalidate' id="form_terminar" method='POST' action="{{route('terminar_ratificacion')}}">
                                 @csrf
                                 <input type="hidden" name="id" value="{{ $idSolicitud }}">
                                 @if($solicitud->year_ptu)
@@ -190,35 +204,35 @@
                                         <div class="col-xs-12 col-sm-12 col-md-2"><br>
                                             <div class="form-group">
                                                 <label for="vacaciones">Días de vacaciones</label>
-                                                <input type="number" name="vacaciones" class="form-control" value="{{ $solicitud['vacaciones_dias'] }}"> 
+                                                <input type="number" maxlength="2" min="0" max="99" name="vacaciones" class="form-control" value="{{ $solicitud['vacaciones_dias'] }}" oninput="if(this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);" required>
                                                 <div class="invalid-feedback">El campo es obligatorio.</div>
                                             </div>
                                         </div>
                                         <div class="col-xs-12 col-sm-12 col-md-2"><br>
                                             <div class="form-group">
                                                 <label for="aguinaldo">Días de Aguinaldo</label>
-                                                <input type="number" name="aguinaldo" class="form-control" value="{{ $solicitud['aguinaldo_dias'] }}"> 
+                                                <input type="number" maxlength="2" min="0" max="99" name="aguinaldo" class="form-control" value="{{ $solicitud['aguinaldo_dias'] }}" oninput="if(this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);" required>
                                                 <div class="invalid-feedback">El campo es obligatorio.</div>
                                             </div>
                                         </div>
                                         <div class="col-xs-12 col-sm-12 col-md-2"><br>
                                             <div class="form-group">
                                                 <label for="otros">Otros</label>
-                                                <input type="text" name="otros" class="form-control" value="{{ $solicitud['otros_dias'] }}"> 
+                                                <input type="number" maxlength="2" min="0" max="99" name="otros" class="form-control" value="{{ $solicitud['otros_dias'] }}" oninput="if(this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);">
                                                 <div class="invalid-feedback">El campo es obligatorio.</div>
                                             </div>
                                         </div>
                                         <div class="col-xs-12 col-sm-12 col-md-3"><br>
                                             <div class="form-group">
                                                 <label for="horario">Horario laboral</label>
-                                                <input type="text" name="horario" class="form-control" value="{{ $solicitud['horario'] }}"> 
+                                                <input type="text" maxlength="100" name="horario" class="form-control" value="{{ $solicitud['horario'] }}" required>
                                                 <div class="invalid-feedback">El campo es obligatorio.</div>
                                             </div>
                                         </div>
                                         <div class="col-xs-12 col-sm-12 col-md-3"><br>
                                             <div class="form-group">
                                                 <label for="comida">Horario de comida</label>
-                                                <input type="text" name="comida" class="form-control" value="{{ $solicitud['comida'] }}"> 
+                                                <input type="text" maxlength="100" name="comida" class="form-control" value="{{ $solicitud['comida'] }}" required>
                                                 <div class="invalid-feedback">El campo es obligatorio.</div>
                                             </div>
                                         </div>
@@ -494,12 +508,12 @@
                 var html = '<div id="inputFormRow3" class="col-xs-12 col-sm-12 col-md-12">';
                 html += '<div class="col-xs-12 col-sm-12 col-md-12"><div class="form-group">';
                 html += '<label>Descripción</label>';
-                html += '<input type="text" class="form-control" name="descripcion_deduccion[]" oninput="this.value = this.value.toUpperCase()">';
+                html += '<input type="text" class="form-control" name="descripcion_deduccion[]" oninput="this.value = this.value.toUpperCase()" required>';
                 html += '<div class="invalid-feedback">La Descripción es obligatoria.</div></div></div>';
 
                 html += '<div class="col-xs-12 col-sm-12 col-md-12"><div class="form-group">';
                 html += '<label>Monto a pagar</label>';
-                html += '<input type="text" class="form-control" name="monto_deduccion[]" oninput="validarNumero(this)" placeholder="$ Solo números y puntos">';
+                html += '<input type="text" class="form-control" name="monto_deduccion[]" oninput="validarNumero(this)" placeholder="$ Solo números y puntos" required>';
                 html += '<div class="invalid-feedback">El monto es obligatorio.</div></div></div>';
 
                 html += '<div class="input-group-append"><button class="removeRow3 btn btn-danger" type="button">Borrar</button></div></div>';
@@ -542,6 +556,26 @@
 
             // Ejecución inicial limpia
             calcularTotal();
+
+            // Verifica que exista al menos un concepto de pago y un pago, contando lo ya guardado en base de datos más lo agregado dinámicamente
+            var conceptosExistentes = {{ count($conceptos) }};
+            var pagosExistentes = {{ count($pagos) }};
+
+            $('#form_terminar').on('submit', function (e) {
+                var totalConceptos = conceptosExistentes + $('#newRow').children().length;
+                var totalPagos = pagosExistentes + $('#newRowaPago').children().length;
+
+                if (totalConceptos === 0) {
+                    e.preventDefault();
+                    swal('Error', 'Debe existir al menos un concepto de pago.', 'error');
+                    return false;
+                }
+                if (totalPagos === 0) {
+                    e.preventDefault();
+                    swal('Error', 'Debe existir al menos un pago.', 'error');
+                    return false;
+                }
+            });
         });
 
         function validarNumero(input) {

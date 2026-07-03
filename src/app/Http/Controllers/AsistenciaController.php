@@ -41,11 +41,11 @@ class AsistenciaController extends Controller
         if($delegacion == "Morelia"){
             $ipOficina = '193.186.4.242';
         }
-        /*
+        
         if ($ipCliente !== $ipOficina) {
             return "Acceso denegado: Solo puedes registrar asistencia conectado al Wi-Fi oficial.";
         }
-        */
+
         // 2. Usamos Carbon para fechas (más limpio en Laravel)
         $hoy = Carbon::today()->format('Y-m-d');
         $ahora = Carbon::now()->format('H:i:s');

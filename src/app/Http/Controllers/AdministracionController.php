@@ -41,6 +41,7 @@ use DateTime;
 use Carbon\Carbon;
 
 class AdministracionController extends Controller{
+    
     public function configuracion()
     {   
         $id = auth()->user()->id;

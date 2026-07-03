@@ -6,13 +6,14 @@
     <title>@yield('title') | SICCL</title>
 
     <!-- General CSS Files -->
-    <link href="{{ asset('assets/css/bootstrap.min.css') }}" rel="stylesheet" type="text/css"/>
+    <link href="public/assets/css/bootstrap.min.css" rel="stylesheet" type="text/css"/>
+
     <!-- Template CSS -->
-    <link href="{{ asset('assets/css/style.css') }}" rel="stylesheet">
-    <link href="{{ asset('assets/css/components.css') }}" rel="stylesheet">
-    <link href="{{ asset('assets/css/iziToast.min.css') }}" rel="stylesheet">
-    <link href="{{ asset('assets/css/sweetalert.css') }}" rel="stylesheet" type="text/css"/>
-    <link href="{{ asset('assets/css/select2.min.css') }}" rel="stylesheet" type="text/css"/>
+    <link href="public/assets/css/style.css" rel="stylesheet">
+    <link href="public/assets/css/components.css" rel="stylesheet">
+    <link href="public/assets/css/iziToast.min.css" rel="stylesheet">
+    <link href="public/assets/css/sweetalert.css" rel="stylesheet" type="text/css"/>
+    <link href="public/assets/css/select2.min.css" rel="stylesheet" type="text/css"/>
     <style>
         .loader {
             position: fixed;
@@ -21,7 +22,7 @@
             width: 100%;
             height: 100%;
             z-index: 9999;
-            background: url('{{ asset("assets/images/pageLoader.gif") }}') 50% 50% no-repeat rgb(249,249,249);
+            background: url('public/assets/images/pageLoader.gif') 50% 50% no-repeat rgb(249,249,249);
             opacity: .8;
         }
     </style>
@@ -35,7 +36,7 @@
             <div class="row">
                 <div class="col-md-6 offset-md-3">
                     <div class="login-brand">
-                        <img src="{{ asset('assets/images/ccl-r.png') }}" alt="logo" width="100"
+                        <img src="public/assets/images/ccl-r.png" alt="logo" width="100"
                              class="shadow-light">
                     </div>
                     @yield('content')
@@ -48,10 +49,10 @@
 </div>
 
 <!-- General JS Scripts -->
-<script src="{{ asset('assets/js/jquery.min.js') }}"></script>
-<script src="{{ asset('assets/js/popper.min.js') }}"></script>
-<script src="{{ asset('assets/js/bootstrap.min.js') }}"></script>
-<script src="{{ asset('assets/js/jquery.nicescroll.js') }}"></script>
+<script src="public/assets/js/jquery.min.js"></script>
+<script src="public/assets/js/popper.min.js"></script>
+<script src="public/assets/js/bootstrap.min.js"></script>
+<script src="public/assets/js/jquery.nicescroll.js"></script>
 
 <!-- JS Libraies -->
 <script type="text/javascript">
@@ -61,8 +62,8 @@
     });
 </script>
 <!-- Template JS File -->
-<script src="{{ asset('assets/js/stisla.js') }}"></script>
-<script src="{{ asset('assets/js/scripts.js') }}"></script>
+<script src="public/assets/js/stisla.js"></script>
+<script src="public/assets/js/scripts.js"></script>
 <!-- Page Specific JS File -->
 </body>
 </html>

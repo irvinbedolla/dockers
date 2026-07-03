@@ -13,6 +13,11 @@ use App\Models\Turnos;
 use App\Models\TurnoDisponible;
 use Carbon\Carbon;
 use App\Models\DiasInhabiles;
+use App\Models\SeerCasosExcepcion;
+use App\Models\SeerChatR;
+use App\Models\Estados;
+use App\Models\Municipios;
+
 
 class RecepcionController extends Controller
 {   
@@ -28,21 +33,33 @@ class RecepcionController extends Controller
         if (!$request->has('tipo') || empty($request->input('tipo'))) {
             return redirect()->back()->with('error', 'Es necesario seleccionar el Tipo de Trámite.');
         }
+        if (!$request->filled('fecha_turno') || !$request->filled('hora_turno')) {
+            return redirect()->back()->with('error', 'Es necesario seleccionar la fecha y el horario del turno en el calendario.');
+        }
 
         $data = $request->all();
         $sede = $data["delegacion"];
-        $tipoTramite = $data["tipo"]; 
-        $hora_actual = date("H:i:s");
+        $tipoTramite = $data["tipo"];
+        $fecha_asignada_str = $data["fecha_turno"];
+        $hora_turno = $data["hora_turno"];
         $id_auxiliar = auth()->user()->id;
+        $hora_fin =$hora_turno;
 
-        // 1. Llamar a la función enviándole la sede y el tipo de trámite seleccionado
-        $fechaAsignada = $this->obtenerProximaFechaTurno($sede, $tipoTramite);
-
-        if (!$fechaAsignada) {
-            return redirect()->back()->with('error', 'No se encontraron fechas disponibles para realizar una ' . $tipoTramite . ' en la sede ' . $sede . '.');
+        if($data["excepcion"]== 'Si'){
+             $hora_fin = date("H:i:s", strtotime($hora_turno . " +75 minutes"));
         }
-
-        $fecha_asignada_str = $fechaAsignada->format('Y-m-d');
+        else{
+            if($data["tipo"]=='Solicitud'){
+                 $hora_fin = date("H:i:s", strtotime($hora_turno . " +40 minutes"));
+            }
+            else{
+                 $hora_fin = date("H:i:s", strtotime($hora_turno . " +60 minutes"));
+            }
+        }
+        // El horario seleccionado en el calendario ya no debe estar ocupado ni caer en un día/horario inhábil
+        if (!$this->turnoSlotDisponible($sede, $tipoTramite, $fecha_asignada_str, $hora_turno, $data["excepcion"] ?? null)) {
+            return redirect()->back()->with('error', 'El horario seleccionado ya no está disponible. Por favor selecciona otro.');
+        }
 
         // 2. Calcular el consecutivo dinámico de acuerdo a la FECHA ASIGNADA y SEDE
         $consecutivo = Recepcion::where('fecha', $fecha_asignada_str)
@@ -65,10 +82,11 @@ class RecepcionController extends Controller
         $data_insertar = array(
             'consecutivo'     => $numero_consecutivo,
             'fecha'           => $fecha_asignada_str,
-            'hora'            => $hora_actual,
-            'auxiliar'        => 0,
-            'tipo'            => $tipoTramite, 
-            'lugar_auxiliar'  => $data["lugar_auxiliar"] ?? 'Mesa 1', 
+            'hora'            => $hora_turno,
+            'hora_fin'        => $hora_fin,
+            'auxiliar'        => $id_auxiliar,
+            'tipo'            => $tipoTramite,
+            'lugar_auxiliar'  => $data["lugar_auxiliar"] ?? 'Mesa 1',
             'exepcion'        => $data["excepcion"] ?? 'No',
             'edad'            => $data["edad"] ?? null,
             'sexo'            => $data["sexo"] ?? null,
@@ -83,15 +101,19 @@ class RecepcionController extends Controller
             'folio'           => $data["folio"] ?? null,
             'INS'             => $data["INS"] ?? null,
             'resultado'       => null,
+            'telefono'        => $data["telefono"],
+            'correo'          => $data["correo"],
+            'estado'          => $data["estado_solicitante"],
+            'municipio'       => $data["municipio_solicitante"],
         );
 
         // 5. Ejecutar el Insert a través de Eloquent
         Recepcion::create($data_insertar);
 
         // Traducir fecha legible (Ej: "Martes 9 de Junio")
-        $fechaFormateada = ucfirst($fechaAsignada->isoFormat('dddd D [de] MMMM'));
+        $fechaFormateada = ucfirst(Carbon::parse($fecha_asignada_str)->isoFormat('dddd D [de] MMMM'));
 
-        return redirect()->back()->with('success', 'Turno #' . $numero_consecutivo . ' (' . $tipoTramite . ') generado exitosamente para la sede ' . $sede . ' el día ' . $fechaFormateada);
+        return redirect()->back()->with('success', 'Turno #' . $numero_consecutivo . ' (' . $tipoTramite . ') generado exitosamente para la sede ' . $sede . ' el día ' . $fechaFormateada . ' a las ' . substr($hora_turno, 0, 5) . ' horas.');
     }
 
     public function index_turnos()
@@ -100,8 +122,13 @@ class RecepcionController extends Controller
         $relacionEloquent = 'roles';
         $id = auth()->user()->id;
         $user = User::find($id);
-        $last_solicitudes = SeerPerGeneral::where('delegacion', $user["delegacion"])->latest()->value('consecutivo');
-        $last_turnos = Turnos::where('delegacion', $user["delegacion"])->latest()->value('consecutivo');
+        $delegacion_user = $user["delegacion"];
+        $last_solicitudes = SeerPerGeneral::where('delegacion', $delegacion_user)->latest()->value('consecutivo');
+        $last_turnos = Turnos::where('delegacion', $delegacion_user)->latest()->value('consecutivo');
+        $last_sede_solicitud = Recepcion::where('delegacion', $delegacion_user)->where('tipo', "Solicitud")->count();
+        $last_sede_ratificacion = Recepcion::where('delegacion', $delegacion_user)->where('tipo', "Ratificación")->count();
+        $last_hora_solicitud = Recepcion::where('delegacion', $delegacion_user)->where('fecha', $fecha_actual)->where('tipo', "Solicitud")->count();
+        $last_hora_ratificacion = Recepcion::where('delegacion', $delegacion_user)->where('fecha', $fecha_actual)->where('tipo', "Ratificación")->count();
 
         $auxiliares = User::whereHas($relacionEloquent, function ($query) {
             return $query->where('name', '=', 'Auxiliar');
@@ -131,7 +158,7 @@ class RecepcionController extends Controller
         }
         $total = count($auxiliares_morelia);
 
-        return view('turnos.index',compact('auxiliares_morelia','total', 'last_solicitudes', 'last_turnos'));
+        return view('turnos.index',compact('auxiliares_morelia','total', 'last_hora_solicitud', 'last_hora_ratificacion', 'last_sede_solicitud', 'last_sede_ratificacion'));
     }
 
     public function create()
@@ -489,10 +516,11 @@ class RecepcionController extends Controller
 
     public function misturnos(){
         $id = auth()->user()->id;
+        $fecha_actual = date('Y-m-d');
 
         /////Validar si es auxiliar o exepcion /////
         $misturnos = Recepcion::where('auxiliar', $id)
-        ->where('estatus', 'no atendido')
+        ->where('fecha', $fecha_actual)
         ->get();
 
         return view('turnos.misturnos',compact('misturnos'));
@@ -700,60 +728,274 @@ class RecepcionController extends Controller
     }
 
     public function nueva_cita(){
-        return view('turnos/crear');
+        $estados = Estados::all();
+        $municipios = Municipios::all();
+        return view('turnos.crear', compact('estados','municipios'));
     }
-    
-    private function obtenerProximaFechaTurno($sede, $tipo){
-        // 1. Determinar el límite diario en base al tipo de trámite y la sede
+
+    // Duración del slot (minutos) y hora de cierre de jornada según el tipo de trámite y si es caso de excepción.
+    private function configuracionHorarioTurno($tipo, $excepcion){
+        if ($excepcion === 'Si') {
+            return ['intervalo' => 75, 'fin' => ['hour' => 17, 'minute' => 00],'comida' => ['hour' => 14, 'minute' => 0]];
+        }
+
         if ($tipo === 'Ratificación') {
-            $limiteSolicitudes = 4; // Límite estricto para ratificaciones en cualquier sede
+            return ['intervalo' => 60, 'fin' => ['hour' => 16, 'minute' => 30],'comida' => ['hour' => 13, 'minute' => 0]];
+        }
+
+        return ['intervalo' => 40, 'fin' => ['hour' => 16, 'minute' => 50],'comida' => ['hour' => 12, 'minute' => 20]]; //cambio fin a las 16:50
+    }
+
+    public function obtenerTurnosDisponibles(Request $request){
+        $request->validate([
+            'sede' => 'required|string',
+            'tipo' => 'required|string',
+        ]);
+
+        $sede = $request->input('sede');
+        $tipo = $request->input('tipo');
+        $excepcion = $request->input('excepcion');
+
+        $fecha_inicio_str = $request->input('start', now()->format('Y-m-d'));
+        $fecha_fin_str = $request->input('end', now()->addDays(60)->format('Y-m-d'));
+
+        $config = $this->configuracionHorarioTurno($tipo, $excepcion);
+
+        $inhabiles = DiasInhabiles::where('centro', $sede)
+            ->whereNull('user_id')
+            ->where(function ($query) use ($fecha_inicio_str, $fecha_fin_str) {
+                $query->where('fecha_inicio', '<=', $fecha_fin_str)
+                    ->where('fecha_final', '>=', $fecha_inicio_str);
+            })
+            ->get();
+
+        $esExcepcion = $excepcion === 'Si';
+        $maxEmpalme = $esExcepcion ? 1 : ($sede === 'Morelia' ? ($tipo === 'Ratificación' ? 2 : 3) : 1);
+
+        $ocupadosQuery = Recepcion::whereBetween('fecha', [$fecha_inicio_str, $fecha_fin_str]);
+        if ($esExcepcion) {
+            //Si es Exceción ignopra tipo de trámite y delegación
+            $ocupadosQuery->where('exepcion', 'Si');
         } else {
-            // Si es 'Solicitud' u otro tipo por defecto
-            $limiteSolicitudes = ($sede === 'Morelia') ? 20 : 10;
+            if($tipo == "Ratificación"){
+                $ocupadosQuery->where('tipo', $tipo)->where('delegacion', $sede);
+            }
+            else{
+                $ocupadosQuery->whereIn('tipo', ['Solicitud', 'Asesoría'])->where('delegacion', $sede);
+            }
+        }
+        $ocupados = $ocupadosQuery->get(['fecha', 'hora']);
+
+        $ocupadosCount = [];
+        foreach ($ocupados as $turno) {
+            $key = $turno->fecha->format('Y-m-d') . 'T' . $turno->hora->format('H:i:s');
+            $ocupadosCount[$key] = ($ocupadosCount[$key] ?? 0) + 1;
         }
 
-        $fecha_evaluar = Carbon::now();
-        $fecha_encontrada = null;
+        $ahora = new \DateTime();
+        $eventos = [];
+        $fecha = (new \DateTime($fecha_inicio_str))->setTime(0, 0, 0);
+        $fin = (new \DateTime($fecha_fin_str))->setTime(0, 0, 0);
 
-        // Bucle de seguridad para evaluar los próximos 60 días
-        for ($i = 0; $i < 60; $i++) {
-            $fecha_str = $fecha_evaluar->format('Y-m-d');
+        $colores = [
+            'ocupado' => '#DA0909', 'inhabil' => '#3B78DB',
+            'expirado' => '#F59727', 'disponible' => '#00CE1C',
+            'turnos' => '#00CE1C',
+        ];
+        $titulos = [
+            'ocupado' => 'Ocupado', 'inhabil' => 'Inhábil',
+            'expirado' => 'No disponible', 'disponible' => 'Disponible',
+        ];
 
-            // Regla A: Omitir fines de semana
-            if ($fecha_evaluar->isWeekend()) {
-                $fecha_evaluar->addDay();
-                continue;
+        while ($fecha <= $fin) {
+            if ((int) $fecha->format('N') < 6) { // Saltar fines de semana
+                $slot = (clone $fecha)->setTime(9, 0, 0);
+                $finJornada = (clone $fecha)->setTime($config['fin']['hour'], $config['fin']['minute'], 0);
+                $hora_comida = (clone $fecha)->setTime($config['comida']['hour'], $config['comida']['minute'], 0);
+                while ($slot < $finJornada) {
+                    $slotStart = $slot->format('Y-m-d\TH:i:s');
+
+                    $esInhabil = false;
+                    $esNoInhabil = false;
+                    foreach ($inhabiles as $dia) {
+                        $inicioInhabil = $dia->fecha_inicio . 'T' . ($dia->horario_inicio ?? '00:00:00');
+                        $finInhabil = $dia->fecha_final . 'T' . ($dia->horario_final ?? '23:59:59');
+                        if ($slotStart >= $inicioInhabil && $slotStart <= $finInhabil) {
+                            if ($dia->descripcion === 'No inhabil') {
+                                $esNoInhabil = true;
+                            } else {
+                                $esInhabil = true;
+                            }
+                            break;
+                        }
+                    }
+
+                    $cantidadOcupados = $ocupadosCount[$slotStart] ?? 0;
+
+                    if ($esInhabil) {
+                        $estado = 'inhabil';
+                    } elseif ($esNoInhabil || $ahora > $slot) {
+                        $estado = 'expirado';
+                    }
+                    elseif($slot == $hora_comida){
+                        $estado = 'expirado';
+                    }
+                    elseif ($cantidadOcupados > 0 && $cantidadOcupados < $maxEmpalme) {
+                        $estado = 'turnos';
+                    }
+                    elseif ($cantidadOcupados > 0) {
+                        $estado = 'ocupado';
+                    }
+                     else {
+                        $estado = 'disponible';
+                    }
+
+                    $titulo = $estado === 'turnos' ? "Turnos ({$cantidadOcupados})" : $titulos[$estado];
+
+                    $eventos[] = [
+                        'title' => $titulo,
+                        'start' => $slotStart,
+                        'color' => $colores[$estado],
+                        'extendedProps' => ['estado' => $estado],
+                    ];
+                    if($slot == $hora_comida){
+                        $slot->modify("+30 minutes");
+                    }
+                    else{
+                        $slot->modify("+{$config['intervalo']} minutes");
+                    }
+                }
             }
-
-            // Regla B: Verificar si es día inhábil general del Centro/Sede
-            $esInhabil = DiasInhabiles::where('centro', $sede)
-                ->whereNull('user_id')
-                ->whereIn('tipo', ['Todos', 'Audiencias'])
-                ->where('descripcion', 'Inhabil')
-                ->where('fecha_inicio', '<=', $fecha_str)
-                ->where('fecha_final', '>=', $fecha_str)
-                ->exists();
-
-            if ($esInhabil) {
-                $fecha_evaluar->addDay();
-                continue;
-            }
-
-            // Regla C: Contar cuántos trámites DEL MISMO TIPO ya se agendaron en esa fecha y sede
-            $totalTurnosDelDia = Recepcion::where('fecha', $fecha_str)
-                ->where('delegacion', $sede)
-                ->where('tipo', $tipo) // Filtramos específicamente por el tipo de trámite evaluado
-                ->count();
-
-            // Si hay cupo libre para ese tipo de trámite, se selecciona el día
-            if ($totalTurnosDelDia < $limiteSolicitudes) {
-                $fecha_encontrada = $fecha_evaluar->copy();
-                break;
-            }
-
-            $fecha_evaluar->addDay();
+            $fecha->modify('+1 day');
         }
 
-        return $fecha_encontrada;
+        return response()->json($eventos);
+    }
+
+    public function turnoSlotDisponible($sede, $tipo, $fecha, $hora, $excepcion = null){
+        // El calendario de excepción no admite empalmes. Fuera de excepción, solo la sede Morelia admite empalmar varias citas en un mismo slot.
+        $esExcepcion = $excepcion === 'Si';
+        $maxEmpalme = $esExcepcion ? 1 : ($sede === 'Morelia' ? ($tipo === 'Ratificación' ? 2 : 3) : 1);
+
+        $cantidadQuery = Recepcion::where('fecha', $fecha)->where('hora', $hora);
+        if ($esExcepcion) {
+            //Si es excepción bloquea el slot sin importar el tipo de trámite o la sede
+            $cantidadQuery->where('exepcion', 'Si');
+        } else {
+            $cantidadQuery->where('tipo', $tipo)->where('delegacion', $sede);
+        }
+
+        if ($cantidadQuery->count() >= $maxEmpalme) {
+            return false;
+        }
+
+        $slotStart = $fecha . 'T' . $hora;
+
+        $inhabil = DiasInhabiles::where('centro', $sede)
+            ->whereNull('user_id')
+            ->where('fecha_inicio', '<=', $fecha)
+            ->where('fecha_final', '>=', $fecha)
+            ->get()
+            ->contains(function ($dia) use ($slotStart) {
+                $inicio = $dia->fecha_inicio . 'T' . ($dia->horario_inicio ?? '00:00:00');
+                $fin = $dia->fecha_final . 'T' . ($dia->horario_final ?? '23:59:59');
+                return $slotStart >= $inicio && $slotStart <= $fin;
+            });
+
+        return !$inhabil;
+    }
+
+    public function index_excepciones()
+    {
+        $fecha_actual = date('Y-m-d');
+        $recepciones = Recepcion::where('exepcion', 'Si')->where('fecha',$fecha_actual)->where('estatus','no atendido')->get();
+        $recepciones = Recepcion::where('exepcion', 'Si')->get();
+
+        return view('excepciones.index',compact('recepciones'));
+    }
+
+    public function atender_excepcion($id){
+        
+        $recepcion = Recepcion::find($id);
+        return view('excepciones.atender', compact('recepcion'));
+    }
+
+    public function guardar_excepcion(Request $request){
+
+        $data = $request->all();
+        $id_user = auth()->user()->id;
+        $fecha_actual = date('Y-m-d');
+        $hora_actual= date('H:i');
+        $data_insertar = array(
+            'id_turno'          => $data['id'],
+            'id_user'           => $id_user,
+            'observaciones'     => $data['observaciones'],
+            'dependencia'       => $data['dependencia'],
+            'expediente'        => $data['expediente'], 
+            'situacion_laboral' => $data['situacion_laboral'],
+            'frecuencia'        => $data['frecuencia'],
+            'descripcion_conductas' => $data['descripcion_conductas'],
+            'tipo_caso'         => $data['tipo_caso'],
+            'vulnerables'       => $data['vulnerables'],
+            'jefe_inmediato'    => $data['jefe_inmediato'],
+            'empresa'           => $data['empresa'],
+            'ubicacion'         =>$data['ubicacion'],
+            'puesto'            => $data['puesto'],
+            'area_adscripcion'   => $data['area_adscripcion'],
+            'fecha'             => $fecha_actual, 
+            'hora'              => $hora_actual ,
+        );
+
+        if(!isset($data['descripcion_persona'])){
+            $data_insertar['descripcion_persona'] =null;
+        }
+        else{
+            $data_insertar['descripcion_persona'] =  $data['descripcion_persona'];
+        }
+        if(isset($data['motivo'])){
+            $data_insertar['motivos'] =  $data['motivo'];
+        }
+        else{
+            $data_insertar['motivos'] = null;
+        }
+        
+        
+        SeerCasosExcepcion::create($data_insertar);
+        
+        $data_update = DB::table('recepcion')
+        ->where('id', $data["id"])
+        ->update(['estatus' => 'atendido']);
+
+        return redirect()->route('excepcion');
+
+    }
+    public function Verpdfcasosprevistos($id){
+        $recepcion = Recepcion::find($id);
+        $caso = SeerCasosExcepcion::where('id_turno', $id)->first();
+        $auxiliar = User::where('id', $recepcion->auxiliar)->first();
+
+        $html = view('PDF.Recepcion.CasosPrevistos', compact('recepcion','caso', 'auxiliar'))->render();
+
+        $pdf = \PDF::loadHTML($html)
+            ->setPaper('a4', 'portrait')
+            ->setOption('isHtml5ParserEnabled', true)
+            ->setOption('isPhpEnabled', true); 
+
+        $nombreArchivo = 'casos_previstos'.'pdf';
+        return $pdf->stream($nombreArchivo);       
+    }
+    public function Verpdfcanalizacion($id){
+        $recepcion = Recepcion::find($id);
+        $caso = SeerCasosExcepcion::where('id_turno', $id)->first();
+        $auxiliar = User::where('id', $recepcion->auxiliar)->first();
+        $html = view('PDF.Recepcion.Canalizacion', compact('recepcion','caso','auxiliar'))->render();
+
+        $pdf = \PDF::loadHTML($html)
+            ->setPaper('a4', 'portrait')
+            ->setOption('isHtml5ParserEnabled', true)
+            ->setOption('isPhpEnabled', true); 
+
+        $nombreArchivo = 'canalizacion'.'pdf';
+        return $pdf->stream($nombreArchivo);       
     }
 }

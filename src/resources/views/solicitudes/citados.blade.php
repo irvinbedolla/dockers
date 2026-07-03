@@ -123,6 +123,7 @@
                                     <form class="needs-validation" novalidate method="POST" action="{{route('seer.citados')}}" enctype="multipart/form-data">
                                         @csrf
                                         <input type="hidden" name="id" value="{{ $id }}">
+                                        <input type="hidden" name="draft_id" value="{{ $draftId ?? request('draft_id') }}">
                                         <div class="row" id="div_datos_citado">
                                             <div class="col-xs-12 col-sm-12 col-md-2">
                                                 <div class="form-group">
@@ -495,7 +496,7 @@
                                                         @if($citados > 0)
                                                             <div alig="center">
                                                                 <button type="submit" class="btn btn-primary" style="background-color:#CEA845; border-color:#CEA845;">Agregar citado</button>
-                                                                <a href="{{ route('seer.finaliza',$id) }}" id="btn-conclude" class="btn btn-primary" style=" background-color:#CEA845;border-color:#CEA845;">Concluir solicitud</a>
+                                                                <a href="{{ route('seer.finaliza',$id) }}?draft_id={{ $draftId ?? request('draft_id') }}" id="btn-conclude" class="btn btn-primary" style=" background-color:#CEA845;border-color:#CEA845;">Concluir solicitud</a>
                                                                 <div id="conclude-warning" class="text-danger" style="display:none; margin-top:6px;">Guarde el citado antes de concluir</div>
                                                             </div>
                                                         @endif

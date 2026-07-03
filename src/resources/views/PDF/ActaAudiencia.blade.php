@@ -134,7 +134,8 @@
                         mayor de edad, por lo que tiene plenas capacidades de goce y ejercicio para convenir o transigir.
                     @endif
                 </p> 
-                    
+                
+                <p>
                     {{--La parte solicitante manifiesta que presento solicitud el dia: {{ \Carbon\Carbon::parse($solicitud->fecha)->translatedFormat('d \d\e F \d\e\l Y') }} para iniciar el procedimiento de conciliacion 
                     prejudicial ante el Centro de Conciliación Laboral del Estado de Michoacán de Ocampo. <br><br>--}}
 
@@ -153,7 +154,7 @@
                                 @else--}}
                                     <b>{{ $solicitud->trabajador }} {{ $solicitud->primero_trabajador }} {{ $solicitud->segundo_trabajador ?? ''}}</b> quien comparece por derecho propio y se identifica con
                                     <b>{{ strtoupper($solicitud->tipo_identificacion) }}</b>, de Número <b>{{ $solicitud->num_identificacion}}</b> expedida a su favor por <b>{{ $descripcionIdentificacionS }}</b>,
-                                    y declara ser una persona mayor de edad, por lo que tiene plenas capacidades de goce y ejercicio para convenir o transigir.<br><br>
+                                    y declara ser una persona mayor de edad, por lo que tiene plenas capacidades de goce y ejercicio para convenir o transigir.
                                 {{--@endif
                             @endif
                         @else
@@ -176,24 +177,29 @@
                     <b>{{ mb_strtoupper($abogado->tipo_identificacion, 'UTF-8') }}</b>, de Número <b>{{ $abogado->num_identificacion }}</b> expedida a su favor por 
                     <b>{{ $descripcionIdentificacionP }}</b>, identificaciones que concuerdan fisionómicamente con las partes y, que, en este acto, se agrega copia cotejada al 
                     expediente electrónico para que conste como corresponda; documentos que les son devueltos por ser innecesaria su retención. <br><br>--}}
+                </p>
+                
                     De lo anterior, una vez realizando el respectivo cotejo con identificaciones, mismas que concuerdan fisionómicamente con las partes y, que en este acto, se agrega copia cotejada 
-                    al expediente electrónico para que conste como corresponda; esta Autoridad Conciliadora se encuentra en condiciones para desahogar la <b>Audiencia de Conciliación Prejudicial</b>.<br><br>
-
+                    al expediente electrónico para que conste como corresponda; esta Autoridad Conciliadora se encuentra en condiciones para desahogar la <b>Audiencia de Conciliación Prejudicial</b>.
+                </p>
                     <!--Por tanto, esta Autoridad Conciliadora se encuentra en condiciones para desahogar la <b>Audiencia de Conciliación Prejudicial.</b><br><br>-->
-
+                <p>
                     Se hace del conocimiento del trabajador(a) que puede comparecer asistido por abogado(a) o persona de su confianza, pero no se reconocerá a ésta como apoderado, por tratarse 
                     de un Procedimiento de Conciliación y no de un juicio; por lo que respecta al empleador, éste podrá comparecer a través de su representante, siempre y cuando cuente con las 
-                    facultades suficientes para obligarse en su nombre y lo acredite ante esta instancia.<br><br>
-
+                    facultades suficientes para obligarse en su nombre y lo acredite ante esta instancia.
+                </p>
+                <p>
                     Asimismo, se les informa a las partes que las manifestaciones que realicen durante la audiencia, no podrán constituir prueba o indicio en ningún procedimiento administrativo 
                     o judicial ni el personal de las autoridades conciliadoras podrán ser llamados a comparecer como testigos ante los Tribunales Laborales, de conformidad con los establecido en 
-                    los artículos 684-C tercer párrafo y 684-J de la Ley Federal del Trabajo.<br><br>
-
+                    los artículos 684-C tercer párrafo y 684-J de la Ley Federal del Trabajo.
+                </p>
+                <p>
                     El Procedimiento de Conciliación se realiza de conformidad con los principios constitucionales de imparcialidad, neutralidad, flexibilidad, legalidad, equidad, buena fe, información, 
                     honestidad, y confidencialidad. Consecuentemente, es un proceso ágil, objetivo, imparcial, transparente y eficaz, en el que sus costos son menores en comparación a un procedimiento 
                     jurisdiccional, máxime que en el procedimiento ni el patrón ni el trabajador puede estar seguro de ganar el juicio, mientras que en la conciliación se llega a un acuerdo en el que 
-                    se benefician ambas partes.<br><br>
-
+                    se benefician ambas partes.
+                </p>
+                <p>
                     A continuación, se cede el uso de la voz de manera ordenada y respetuosa a los presentes en esta audiencia, para manifestar en relación al proceso de conciliación:
                 </p> 
                     <!--[RESOLUCION_PRIMERA_MANIFESTACION]-->

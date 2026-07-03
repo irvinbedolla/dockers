@@ -2,6 +2,7 @@
 
 namespace App\Exports;
 
+use App\Models\SeerCitados;
 use App\Models\SeerPerGeneral;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 
@@ -110,6 +111,8 @@ class NotificacionesExport implements WithMultipleSheets
 
         // 3. Calculamos los totales
 
+        $notificacionesTrabajador = SeerCitados::where('notificacion', 'Trabajador')->whereBetween('created_at', [$this->fecha_inicial, $this->fecha_final])->count();
+
         $totalesPorNotificador = $notificacionesDomicilio
             ->groupBy(function ($item) {
                 $estatus = trim((string) ($item->estatus ?? ''));
@@ -136,7 +139,7 @@ class NotificacionesExport implements WithMultipleSheets
 
         // 4. Retornamos las hojas pasando los datos específicos a cada una
         return [
-            new NotificacionesTotalesSheet($totalesPorNotificador), // Hoja 1
+            new NotificacionesTotalesSheet($totalesPorNotificador, $notificacionesTrabajador), // Hoja 1
             new NotificacionesDetalleSheet($notificacionesDomicilio),       // Hoja 2
         ];
     }

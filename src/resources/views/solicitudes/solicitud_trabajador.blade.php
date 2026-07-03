@@ -101,6 +101,7 @@
                                     <form id="form-parte1" class="needs-validation" novalidate method="POST" action="{{route('parte1')}}">
                                         @csrf
                                         <input type="hidden" name="tipo_solicitud" value="{{ $tipo_solicitud }}">
+                                        <input type="hidden" name="draft_id" value="{{ $draftId ?? request('draft_id') }}">
                                         <div class="row">
                                             <div class="col-xs-12 col-sm-12 col-md-4">
                                                 <div class="form-group">

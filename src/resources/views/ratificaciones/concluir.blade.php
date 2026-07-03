@@ -1,4 +1,4 @@
-@extends('layouts.app')
+@extends('layouts.app_editar')
 
 @section('content')
     <section class="section">
@@ -100,7 +100,7 @@
                                         <div class="col-xs-12 col-sm-12 col-md-2"><br>
                                             <div class="form-group">
                                                 <label for="name">Días de vacaciones</label>
-                                                <input type="number" name="vacaciones" class="form-control" required> 
+                                                <input type="number" maxlength="2" min="0" max="99" name="vacaciones" class="form-control" oninput="if(this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);" required> 
                                                 <div class="invalid-feedback">
                                                     El campo es obligatorio.
                                                 </div>
@@ -109,7 +109,7 @@
                                         <div class="col-xs-12 col-sm-12 col-md-2">
                                             <div class="form-group"><br>
                                                 <label for="name">Días de Aguinaldo</label>
-                                                <input type="number" name="aguinaldo" class="form-control" required> 
+                                                <input type="number" maxlength="2" min="0" max="99" name="aguinaldo" class="form-control" oninput="if(this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);" required> 
                                                 <div class="invalid-feedback">
                                                     El campo es obligatorio.
                                                 </div>
@@ -118,7 +118,7 @@
                                         <div class="col-xs-12 col-sm-12 col-md-1">
                                             <div class="form-group"><br>
                                                 <label for="name">Otros</label>
-                                                <input type="number" name="otros" class="form-control"> 
+                                                <input type="number" maxlength="2" min="0" max="99" name="otros" class="form-control" oninput="if(this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);"> 
                                                 <div class="invalid-feedback">
                                                     El campo es obligatorio.
                                                 </div>
@@ -127,7 +127,7 @@
                                         <div class="col-xs-12 col-sm-12 col-md-7">
                                             <div class="form-group"><br>
                                                 <label for="name">Horario laboral</label>
-                                                <input type="text" name="horario" class="form-control" placeholder="Ejemplo: De lunes a viernes de 9Am a 5PM y Sábados de 9 Am a 2 PM" required> 
+                                                <input type="text" maxlength="100" name="horario" class="form-control" placeholder="Ejemplo: De lunes a viernes de 9Am a 5PM y Sábados de 9 Am a 2 PM" required> 
                                                 <div class="invalid-feedback">
                                                     El campo es obligatorio.
                                                 </div>
@@ -136,7 +136,7 @@
                                         <div class="col-xs-12 col-sm-12 col-md-6">
                                             <div class="form-group"><br>
                                                 <label for="name">Horario de comida</label>
-                                                <input type="text" name="comida" class="form-control" placeholder="De 2PM a 3 PM o 13:30 a 15:00" required> 
+                                                <input type="text" maxlength="100" name="comida" class="form-control" placeholder="De 2PM a 3 PM o 13:30 a 15:00" required> 
                                                 <div class="invalid-feedback">
                                                     El campo es obligatorio.
                                                 </div>
@@ -281,7 +281,7 @@
                         html += '</div>';
                         // Select de año PTU (solo visible si se selecciona "PTU")
                         html += '<div class="ptu-year-container" style="display: none; margin-top: 10px;">';
-                        html += '<label>Año PTU</label>';
+                        html += '<label>Ejercicio Fiscal Correspondiente del Pago de Utilidades</label>';
                         html += '<select class="form-control ptu-year-select" name="year_ptu[]">';
                         html += '<option value="">Seleccione el año</option>';
                         for (var y = 2025; y >= 2010; y--) {
@@ -398,7 +398,7 @@
                     html += '<div class="col-xs-12 col-sm-12 col-md-12">';
                     html += '<div class="form-group">';
                     html += '<label for="password">Descripción</label>';
-                    html +='<input type="text" class="form-control" name="descripcion_deduccion[]"  oninput="this.value = this.value.toUpperCase()" >';
+                    html +='<input type="text" class="form-control" name="descripcion_deduccion[]"  oninput="this.value = this.value.toUpperCase()" required>';
                     html += '<div class="invalid-feedback">';
                     html += 'La Descripción es obligatoria.';
                     html += '</div> </div> </div>';
@@ -407,7 +407,7 @@
                     html += '<div class="col-xs-12 col-sm-12 col-md-12">';
                     html += '<div class="form-group">';
                     html += '<label for="password">Monto a pagar</label>';
-                    html +='<input type="text" class="form-control" name="monto_deduccion[]"  oninput="validarNumero(this)" placeholder="$ Solo números y puntos" >';
+                    html +='<input type="text" class="form-control" name="monto_deduccion[]"  oninput="validarNumero(this)" placeholder="$ Solo números y puntos" required>';
                     html += '<div class="invalid-feedback">';
                     html += 'El monto es obligatorio.';
                     html += '</div> </div> </div>';
@@ -441,6 +441,19 @@
             setTimeout(calcularTotal, 100);
         });
 
+        // Verifica que exista al menos un concepto de pago y un pago antes de enviar
+        $('#form_roles').on('submit', function (e) {
+            if ($('#newRow').children().length === 0) {
+                e.preventDefault();
+                swal('Error', 'Debes agregar por lo menos un concepto de pago.', 'error');
+                return false;
+            }
+            if ($('#newRowaPago').children().length === 0) {
+                e.preventDefault();
+                swal('Error', 'Debes agregar por lo menos un pago.', 'error');
+                return false;
+            }
+        });
 
         });
 

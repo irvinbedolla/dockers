@@ -27,6 +27,14 @@
             border-color: #80bdff !important;
             outline: 0 !important;
         }
+        .signature-container { width: 100%; max-width: 800px; margin: 20px auto; text-align: center; font-family: Arial, sans-serif; }
+        .form-group { margin-bottom: 15px; text-align: left; }
+        .form-control { width: 100%; padding: 10px; box-sizing: border-box; border-radius: 4px; border: 1px solid #ccc; }
+        .canvas-wrapper { position: relative; width: 100%; height: 400px; margin-bottom: 15px; }
+        #signature-canvas { width: 100%; height: 100%; background-color: #ffffff; border: 2px solid #b5b5b5; border-radius: 6px; touch-action: none; }
+        .btn { padding: 10px 20px; font-size: 14px; cursor: pointer; border-radius: 4px; border: 1px solid #ccc; }
+        .btn-clear { background-color: #623a3a; color: #ffffff; }
+        .btn-save { background-color: #4884b5 ; color: #ffffff; margin-left: 10px; }
     </style>
     @section('content')
         <section class="section">
@@ -67,9 +75,10 @@
                                         <h3 class="text-center" style="color:black">Datos del Solicitante</h3>
                                     </div>    
                                     <!--Se realiza el envío de datos con formulario de Laravel Collective-->
-                                    <form class="needs-validation" novalidate method="POST" action="{{route('guardaSolicitanteA')}}" enctype='multipart/form-data'>
+                                    <form id="frmSolicitante" class="needs-validation" novalidate method="POST" action="{{route('guardaSolicitanteA')}}" enctype='multipart/form-data'>
                                         @csrf
                                         <input type="hidden" name="id" value="{{$id}}">
+                                        <input type="hidden" name="draft_id" value="{{ $draftId }}">
                                         <div class="row">
                                             <input type="hidden" name="tipo" value="Fisica">
                                             <!--<div class="col-xs-12 col-sm-12 col-md-4">
@@ -197,7 +206,7 @@
                                             <div class="col-xs-12 col-sm-12 col-md-4">
                                                 <div class="form-group">
                                                     <label for="name">Teléfono Celular <span style="color:red;">(*)</span></label>
-                                                    <input type="number" name="telefono1" minlength="10" maxlength="10" class="form-control numeroTelefonico" required>
+                                                    <input type="number" name="telefono1" minlength="10" maxlength="10" class="form-control numeroTelefonico" oninput="if(this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);" required>
                                                     <div class="invalid-feedback">
                                                         El campo teléfono es obligatorio. Debe tener 10 dígitos
                                                     </div>
@@ -206,7 +215,7 @@
                                             <div class="col-xs-12 col-sm-12 col-md-4">
                                                 <div class="form-group">
                                                     <label for="name">Teléfono Fijo (Campo opcional)</label>
-                                                    <input type="number" name="telefono2" minlength="10" maxlength="10" class="form-control numeroTelefonico"> 
+                                                    <input type="number" name="telefono2" minlength="10" maxlength="10" class="form-control numeroTelefonico" oninput="if(this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);"> 
                                                 </div>
                                                  <div class="invalid-feedback">
                                                         El teléfono fijo debe tener 10 dígitos
@@ -328,7 +337,8 @@
                                             <div class="col-xs-12 col-sm-12 col-md-4">
                                                 <div class="form-group">
                                                     <label for="name">Código Postal <span style="color:red;">(*)</span></label>
-                                                    <input type="number" name="cp" id="cp" class="form-control soloNumeros" maxlength="5" required>
+                                                    <!--input type="number" name="cp" id="cp" class="form-control soloNumeros" maxlength="5" required-->
+                                                    <input type="number" min="0" max="99999" maxlength="5" class="form-control" name="cp" id="cp" oninput="if(this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);" required>
                                                     <!--<input type="number" name="cp" class="form-control soloNumeros" minlength="5" maxlength="5" required>--> 
                                                     <div class="invalid-feedback">
                                                         El campo código postal es obligatorio. Debe tener 5 dígitos
@@ -369,7 +379,7 @@
                                             <div class="col-xs-12 col-sm-12 col-md-3">
                                                 <div class="form-group">
                                                     <label for="name">Número de Seguro Social (Opcional)</label>
-                                                    <input type="number" name="seguro" minlength="11" maxlength="12" class="form-control soloNumeros"> 
+                                                    <input type="number" name="seguro" minlength="11" maxlength="12" class="form-control soloNumeros" oninput="if(this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);"> 
                                                     <div class="invalid-feedback">
                                                         Debe tener 12 dígitos su número de seguridad social
                                                     </div>
@@ -411,7 +421,9 @@
                                             <div class="col-xs-12 col-sm-12 col-md-3">
                                                 <div class="form-group">
                                                     <label for="name">Total de horas trabajadas por semana <span style="color:red;">(*)</span></label>
-                                                    <input type="number" name="horas" min="0" class="form-control" required> 
+                                                    <!--input type="number" name="horas" min="0" max= "168" maxlength="3" class="form-control" oninput="if(this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);" required-->
+                                                    <input type="number" name="horas" min="0" max="168" class="form-control" oninput="if(this.value > 168) this.value = 168; if(this.value < 0) this.value = 0;" required>
+
                                                     <div class="invalid-feedback">
                                                         El campo cantidad de horas trabajadas es obligatorio.
                                                     </div>
@@ -497,7 +509,7 @@
                                             <div class="col-xs-12 col-sm-12 col-md-4">
                                                 <div class="form-group">
                                                     <label for="name">Núm de identificación <span style="color:red;">(*)</span> <span data-bs-toggle="modal" data-bs-target="#helpModal" style="cursor: pointer;">❓</span></label>
-                                                    <input type="text" name="num_identificacion" maxlength="50" class="form-control" oninput="this.value = this.value.toUpperCase()" required> 
+                                                    <input type="text" name="num_identificacion" maxlength="50" class="form-control" oninput="this.value = this.value.toUpperCase(); if(this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength); " required> 
                                                     <div class="invalid-feedback">
                                                         El campo núm. de identificación es obligatorio.
                                                     </div>
@@ -695,9 +707,20 @@
                                                 </div>
                                             </div>
                                         </div>-->
+                                        <!--div class="canvas-wrapper">
+                                            <canvas id="signature-canvas"></canvas>
+                                        </!--div-->
+                                        <!--input type="hidden" name="firma" id="firma"-->
+                                        <!--div>
+                                            <button id="clear-btn" type="button" class="btn btn-primary">Limpiar Pantalla</button>
+                                        </div-->
+                                        <!--input type="hidden" name="firma" id="firma"-->
+                                        <!--div class="col-xs-12 col-sm-12 col-md-12">
+                                            <button type="button" class="btn btn-info open-modal" data-bs-toggle="modal" data-bs-target="#modalFirmas">Firma</button>                                                        
+                                        </div-->
                                         <div class="col-xs-12 col-sm-12 col-md-12">
                                             <div align="center">
-                                                <button type="submit" class="btn btn-primary" style="background-color:#CEA845; border-color:#CEA845;">Guardar</button>   
+                                                <button id="save-btn" type="submit" class="btn btn-primary" style="background-color:#CEA845; border-color:#CEA845;">Guardar</button>   
                                             </div>
                                         </div>     
                                     </form>
@@ -806,6 +829,20 @@
                     </div>
                 </div>
             </div>
+            <!--div class="modal fade" id="modalFirmas" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-xl">
+                        <div class="modal-content">
+                            <div class="canvas-wrapper">
+                                <canvas id="signature-canvas"></canvas>
+                            </div>
+                            
+                            <div>
+                                <button type="button" id ="clear-btn" class="btn btn-clear">Limpiar</button>
+                                
+                            </div>
+                        </div>
+                    </div>
+            </div-->
 
     <!--<script>
         document.getElementById("tipoPersona_razon").style.display="none";
@@ -1154,3 +1191,56 @@
             $('#años_edad').val(anios);
         }
     </script>
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script> 
+        
+    <script>// Código para la captura de la firma
+        document.addEventListener("DOMContentLoaded", function () {
+            const canvas = document.getElementById('signature-canvas');
+            const signaturePad = new SignaturePad(canvas, {
+                backgroundColor: 'rgba(255, 255, 255, 0)', 
+                minWidth: 1.0,            
+                maxWidth: 2.6,            
+                velocityFilterWeight: 0.7 
+            });
+
+            // Función para ajustar el tamaño del canvas
+            function resizeCanvas() { 
+                const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                canvas.width = canvas.offsetWidth * ratio;
+                canvas.height = canvas.offsetHeight * ratio;
+                canvas.getContext("2d").scale(ratio, ratio);
+                signaturePad.clear(); 
+            }
+            window.addEventListener("resize", resizeCanvas);
+            resizeCanvas()
+
+            document.getElementById('clear-btn').addEventListener('click', () => { 
+                signaturePad.clear(); 
+            });
+
+            
+
+            /*document.getElementById('save-btn').addEventListener('click', () => {
+                if (signaturePad.isEmpty()) {
+                    alert("Por favor, estampe su firma antes de continuar.");
+                    return;
+                }
+                document.getElementById('firma').value =
+                    signaturePad.toDataURL('image/png');
+            });*/
+            /*const form = document.getElementById('frmSolicitante');
+            form.addEventListener('submit', function(){
+            });*/
+
+        });
+    </script>
+        <script>//este
+            $('.open-modal').click(function() {
+                const id = $(this).data('id'); // Obtiene el valor de data-id
+                document.getElementById('modal-id').value = id;
+            });
+        </script>
+        <script src="../public/js/usuarios/usuarios.js"></script>
+        
+
+@include('solicitudes.auxiliares._pollLock')

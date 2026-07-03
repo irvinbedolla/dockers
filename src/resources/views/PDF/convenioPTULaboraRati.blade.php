@@ -144,17 +144,37 @@
                         </tr> 
                     </table>
                 </div><br><br><br><br>
-                <center><p><b>CENTRO DE CONCILIACIÓN LABORAL DEL ESTADO DE MICHOACÁN DE OCAMPO <br><br>
-                CONVENIO DE CONCILIACIÓN DE PAGO DE PARTICIPACIÓN DE UTILIDADES </b></p></center>
-
-                <p>Con fundamento en los artículos 123, apartado A, fracciones XX párrafo segundo y XXVII, inciso h) de la Constitución Política de los Estados Unidos Mexicanos; 33, 98, 117, 
-                    122, 130, 590-E fracción I, 684-E fracción VI, XIII y 684-F fracción VIII, IX de la Ley Federal del Trabajo, artículo 8 fracción I, III y artículo 27 de Ley Orgánica del 
-                    Centro de Conciliación Laboral del Estado de Michoacán de Ocampo, se celebra el presente convenio por una parte 
-                    <b>{{ $ratificacion->trabajador }} {{ $ratificacion->primero_trabajador }} {{ $ratificacion->segundo_trabajador }}</b> quién en lo subsecuente se denominará la parte <b>“TRABAJADORA”</b> y, por otro <b> 
+                <p><center><b>CENTRO DE CONCILIACIÓN LABORAL DEL ESTADO DE MICHOACÁN DE OCAMPO</b></center></p> <br><br>
+                <p>
+                    SOLICITANTE: <b>{{ $ratificacion->trabajador }} {{ $ratificacion->primero_trabajador }} {{ $ratificacion->segundo_trabajador }}</b><br>
+                    CITADO(S):
+                    <b>
                     @if(is_null($abogado->primer_apellido_patronal) && is_null($abogado->segundo_apellido_patronal))
+                        {{ $abogado->nombres_patronal }}
+                    @else 
+                        {{ $abogado->nombres_patronal }} {{ $abogado->primer_apellido_patronal }} {{ $abogado->segundo_apellido_patronal }} 
+                    @endif
+                    </b>
+                </p>  
+
+                <p><center><b>CONVENIO DE CONCILIACIÓN DE PAGO DE PARTICIPACIÓN DE UTILIDADES</b></center></p> <br><br>
+
+                <p>Con fundamento en los artículos 123, apartado A, fracciones XX párrafo segundo y XXVII, inciso h) de la Constitución Política de los Estados Unidos Mexicanos;
+                    33, 48 y 684-E de la Ley Federal del Trabajo, así como la fracción I del artículo 16 del Reglamento Interior del 
+                    Centro de Conciliación Laboral del Estado de Michoacán de Ocampo, se celebra el presente convenio por una parte 
+                    <b>{{ $ratificacion->trabajador }} {{ $ratificacion->primero_trabajador }} {{ $ratificacion->segundo_trabajador }}</b> quién en lo subsecuente se denominará la parte <b>“TRABAJADORA”</b> y, por otro
+
+                    @if (is_null($abogado->nombre_representante))
+                        <b>{{ $abogado->nombres_patronal }} {{ $abogado->primer_apellido_patronal }} {{ $abogado->segundo_apellido_patronal }}</b>
+                    @else
+                    <b>
+                        @if(is_null($abogado->primer_apellido_patronal) && is_null($abogado->segundo_apellido_patronal))
                            {{ $abogado->nombres_patronal }}
-                       @else {{ $abogado->nombres_patronal }} {{ $abogado->primer_apellido_patronal }} {{ $abogado->segundo_apellido_patronal }} @endif representado(a) por {{ $abogado->nombre_representante }} {{ $abogado->primer_apellido_representante }} {{ $abogado->segundo_apellido_representante }} 
-                       en carácter de apoderado legal</b> a quién en lo subsecuente se le denominará la parte <b>"EMPLEADORA",</b> a quienes en lo sucesivo de forma conjunta se les denominará
+                        @else {{ $abogado->nombres_patronal }} {{ $abogado->primer_apellido_patronal }} {{ $abogado->segundo_apellido_patronal }} @endif representado(a) por {{ $abogado->nombre_representante }} {{ $abogado->primer_apellido_representante }} {{ $abogado->segundo_apellido_representante }} 
+                       en carácter de apoderado legal
+                    </b>
+                    @endif
+                    a quién en lo subsecuente se le denominará la parte <b>"EMPLEADORA",</b> a quienes en lo sucesivo de forma conjunta se les denominará
                     las <b>"PARTES"</b> quienes se someten y obligan en términos de las siguientes declaraciones y cláusulas: 
                 </p>
 
@@ -166,7 +186,7 @@
                     <b>@if(is_null($abogado->primer_apellido_patronal) && is_null($abogado->segundo_apellido_patronal))
                            {{ $abogado->nombres_patronal }}
                        @else {{ $abogado->nombres_patronal }} {{ $abogado->primer_apellido_patronal }} {{ $abogado->segundo_apellido_patronal }} @endif</b> y que cuenta con facultades suficientes para 
-                    convenir a nombre de su representada en términos de <b>{{ $abogado->tipo_documento_representante }}</b>, poder que a la fecha de este convenio no le ha sido revocado.</p> 
+                    convenir a nombre de su representada en términos de <b>{{ $abogado->tipo_documento_representante }}</b>, facultad que a la fecha de este convenio no le ha sido revocado.</p> 
 
                 <p><b>TERCERA</b>. Declara la parte <b>TRABAJADORA</b>:</p>
                     <p class="sangria">
@@ -212,18 +232,18 @@
                         <center><b>C L Á U S U L A S:</b></center><br>
                     </p>
                     <p>
-                        <b>PRIMERA</b>. El presente convenio tiene por objeto fijar la forma y términos en que la parte <b>EMPLEADORA</b> cubrirá a la parte <b>TRABAJADORA</b> el pago correspondiente por concepto de Participación de los Trabajadores en las Utilidades (PTU) del ejercicio fiscal {{ $ratificacion->year_ptu }}.
+                        <b>PRIMERA</b>. El presente convenio tiene por objeto fijar la forma y términos en que la parte <b>EMPLEADORA</b> cubrirá a la parte <b>TRABAJADORA</b> el pago correspondiente por concepto de Participación de los Trabajadores en las Utilidades (PTU) del ejercicio fiscal <b>{{ $ratificacion->year_ptu }}</b>.<br><br>
 
-                        <b>SEGUNDA</b>. La parte <b>EMPLEADORA</b> reconoce adeudar a favor de la parte <b>TRABAJADORA</b> la cantidad de {{ number_format($pagoTotal, 2) }} {{ $montoTexto }} M.N. por concepto de Participación de los Trabajadores en erl Reparto de Utilidades.<br><br>
+                        <b>SEGUNDA</b>. La parte <b>EMPLEADORA</b> reconoce adeudar a favor de la parte <b>TRABAJADORA</b> la cantidad de {{ number_format($pagoTotal, 2) }} {{ $montoTexto }} M.N. por concepto de Participación de los Trabajadores en el Reparto de Utilidades.<br><br>
                                     
-                        <b>TERCERA</b>. La parte <b>TRABAJADORA</b> manifiesta bajo protesta de decir verdad, que la cantidad pactada en el presente convenio corresponde al monto determinado conforme al proyecto de reparto aprobado por la Comisión Mixta para la Participación de los Trabajadores en las Utilidades de la empresa,
-                         correspondiente al ejercicio fiscal <b>{{ $ratificacion->year_ptu }}</b>.<br><br>
+                        <b>TERCERA</b>. La parte <b>EMPLEADORA</b> manifiesta bajo protesta de decir verdad, que la cantidad pactada en el presente convenio corresponde al monto determinado conforme al proyecto de reparto aprobado por la Comisión Mixta para la Participación de los Trabajadores en las Utilidades de la empresa,
+                         correspondiente al ejercicio fiscal <b>{{ $ratificacion->year_ptu }}</b>. <br><br> Asimismo, manifiesta que dicho monto fue calculado conforme a la información fiscal y laboral aplicable, asumiendo plena responsabilidad respecto de su determinación, procedencia y exactitud. <br><br>
 
                         <b>CUARTA.</b> Las <b>PARTES</b> solicitan al Centro de Conciliación Laboral del Estado de Michoacán tenga por realizada dicha manifestación para los efectos legales conducentes, precisando que la aprobación y ratificación del presente convenio se efectúa de buena fe y con base en lo manifestado por las partes
                          comparecientes, sin que dicho Centro cuente con facultades materiales, técnicas o medios de verificación y cercioramiento respecto del cálculo, integración o determinación del monto correspondiente al reparto de utilidades.<br><br>
                         En consecuencia, cualquier responsabilidad derivada de la veracidad, suficiencia o exactitud del monto pactado recaerá exclusivamente en la parte <b>EMPLEADORA</b>, quedando a salvo los derechos de la parte <b>TRABAJADORA</b> conforme a la legislación aplicable.<br><br>
 
-                        <b>QUINTA.</b> El <b>TRABAJADOR</b> recibirá por parte de la <b>EMPLEADORA</b> la cantidad de <b>${{ number_format($ratificacion->monto, 2) }} {{ $montoTexto }}</b>, conforme a los siguientes conceptos: 
+                        <b>QUINTA.</b> La parte <b>TRABAJADORA</b> recibirá de la <b>EMPLEADORA</b> la cantidad de <b>${{ number_format($ratificacion->monto, 2) }} {{ $montoTexto }}</b>, conforme a los siguientes conceptos:<br><br>
                         
                         <b>Prestaciones</b>
                         <table class="table table-bordered table-compacta">
@@ -279,8 +299,8 @@
                             </thead>   
                         </table>
 
-                        <p>La cantidad antes desglosada cubre lo correspondiente al pago de la Participación de los Trabajadores en las Utilidades de la empresa PTU del ejercicio fiscal 2024, conforme a lo manifestado bajo protesta de decir verdad 
-                        por la EMPLEADORA, motivo por el cual se ratifica el acuerdo conciliatorio al que llegaron las partes, al encontrarse apegado a derecho.</p>
+                        <!--p>La cantidad antes desglosada cubre lo correspondiente al pago de la Participación de los Trabajadores en las Utilidades de la empresa PTU del ejercicio fiscal 2024, conforme a lo manifestado bajo protesta de decir verdad 
+                        por la EMPLEADORA, motivo por el cual se ratifica el acuerdo conciliatorio al que llegaron las partes, al encontrarse apegado a derecho.</!--p-->
 
                         <!-- CON PAGOS DIFERIDOS-->       
                         @if($pagosDif->C_pagos>'1')            
@@ -366,7 +386,7 @@
                     <div class="salto-inteligente"></div>
                     <div class="contenedor-firmas">
                         <p>
-                            Enteradas las <b>PARTES</b> del alcance legal del presente convenio que se eleva a cosa juzgada, conforme al artículo 684-E fracción XIII, mismo que se firma en <b>Michoacán de Ocampo a {{ \Carbon\Carbon::parse($ratificacion->fecha)->translatedFormat('d \d\e F \d\e\l Y') }}</b>, 
+                            Enteradas las <b>PARTES</b> del alcance legal del presente convenio que se eleva a cosa juzgada, conforme al artículo 684-E fracción XIII, mismo que se firma en <b>{{ $ratificacion->delegacion }},  Michoacán de Ocampo a {{ \Carbon\Carbon::parse($ratificacion->fecha)->translatedFormat('d \d\e F \d\e\l Y') }}</b>, 
                             ante la fe de <b>{{$conciliador->name}}</b>, funcionario(a) conciliador(a), quien lo sanciona en este mismo acto. <b>Doy fe.</b>
                         </p>
                         <br><br>

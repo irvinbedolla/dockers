@@ -12,8 +12,27 @@
                         <div class="card-body">
                             
                             @can('ver-seer')
+                                    <form method="GET" action="{{ route('notificaciones') }}" class="mb-3">
+                                        <div class="input-group">
+                                            <input type="text"
+                                                   name="busqueda"
+                                                   class="form-control"
+                                                   placeholder="Buscar por expediente, citado, dirección o tipo..."
+                                                   value="{{ request('busqueda') }}">
+                                            <div class="input-group-append">
+                                                <button type="submit" class="btn btn-primary">
+                                                    <i class="fas fa-search"></i> Buscar
+                                                </button>
+                                                @if(request('busqueda'))
+                                                    <a href="{{ route('notificaciones') }}" class="btn btn-secondary">
+                                                        <i class="fas fa-times"></i> Limpiar
+                                                    </a>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    </form>
                                     <div class="table-responsive">
-                                        <table id="example" class="table table-striped mt-1" style="text-align:center">
+                                        <table class="table table-striped mt-1" style="text-align:center">
                                             <thead style="background-color: #4A001F;">
                                                 <th style="display: none;">ID</th>
                                                 <th style="color: #fff;">Expediente</th>
@@ -114,9 +133,9 @@
                                         </table>
                                     </div>
                             @endcan
-                            <!-- Centramos la paginación a la derecha-->
-                            <div class="pagination justify-content-end">
-                            </div>                        
+                            <div class="d-flex justify-content-end mt-2">
+                                {{ $mis_notificaciones->links('pagination::bootstrap-4') }}
+                            </div>                      
                         </div>
                     </div>
                 </div>

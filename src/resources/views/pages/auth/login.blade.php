@@ -7,7 +7,7 @@
         <div class="card-header"><h4>Si concilio</h4></div>
 
         <div class="card-body">
-            <form method="POST" action="{{ route('login') }}" id="login">
+            <form method="POST" action="{{ route('login.post') }}" id="login.post">
                 @csrf
                 @if ($errors->any())
                     <div class="alert alert-danger p-0">

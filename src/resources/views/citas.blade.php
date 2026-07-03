@@ -198,7 +198,7 @@
                                                 <div class="col-xs-12 col-sm-12 col-md-4">
                                                     <div class="form-group">
                                                         <label for="name">Primer apellido <span style="color:red;">(*)</span></label>
-                                                        <input type="text" name="primero_trabajador" class="form-control soloLetras" oninput="this.value = this.value.toUpperCase()" required> 
+                                                        <input type="text" maxlength="100" name="primero_trabajador" class="form-control soloLetras" oninput="this.value = this.value.toUpperCase()" required> 
                                                         <div class="invalid-feedback">
                                                             El campo es obligatorio.
                                                         </div>
@@ -207,14 +207,14 @@
                                                 <div class="col-xs-12 col-sm-12 col-md-4">
                                                     <div class="form-group">
                                                         <label for="name">Segundo apellido <span style="color:red;">(*)</span></label>
-                                                        <input type="text" name="segundo_trabajador" id ="segundo_apellido" class="form-control soloLetras" oninput="this.value = this.value.toUpperCase()" required> 
+                                                        <input type="text" maxlength="100" name="segundo_trabajador" id ="segundo_apellido" class="form-control soloLetras" oninput="this.value = this.value.toUpperCase()" required> 
                                                         
                                                     </div>
                                                 </div>
                                                 <div class="col-xs-12 col-sm-12 col-md-4">
                                                     <div class="form-group">
                                                         <label for="name">Nombre(s) <span style="color:red;">(*)</span></label>
-                                                        <input type="text" name="trabajador" class="form-control soloLetras" oninput="this.value = this.value.toUpperCase()" required> 
+                                                        <input type="text" maxlength="100" name="trabajador" class="form-control soloLetras" oninput="this.value = this.value.toUpperCase()" required> 
                                                         <div class="invalid-feedback">
                                                             El nombre es obligatorio.
                                                         </div>
@@ -236,7 +236,7 @@
                                                 <div  class="col-xs-12 col-sm-12 col-md-1">
                                                     <div class="form-group">
                                                         <label for="name">Edad <span style="color:red;">(*)</span></label>
-                                                        <input type="number" name="trabajador_edad" class="form-control soloNumeros" required> 
+                                                        <input type="number" min="0" max="150" maxlength="3" name="trabajador_edad" class="form-control soloNumeros" oninput="if(this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);" required> 
                                                         <div class="invalid-feedback">
                                                             El campo edad es obligatorio.
                                                         </div>
@@ -258,7 +258,7 @@
                                                 <div class="col-xs-12 col-sm-12 col-md-5">
                                                     <div class="form-group">
                                                         <label for="name">CURP del trabajador <span style="color:red;">(*)</span></span></label>
-                                                        <input type="text" name="trabajador_curp"  oninput="validarInput(this, 'resultado_curp_trabajador')" class="form-control" required> 
+                                                        <input type="text" name="trabajador_curp" maxlength="18" oninput="validarInput(this, 'resultado_curp_trabajador')" class="form-control" required> 
                                                         <pre id="resultado_curp_trabajador" class="resultado"></pre>
                                                         <div class="invalid-feedback">
                                                             El campo curp es obligatorio.
@@ -306,7 +306,7 @@
                                                 <div class="col-xs-12 col-sm-12 col-md-4"> 
                                                     <div class="form-group">
                                                         <label for="name">Núm de identificación <span style="color:red;">(*)</span> <span data-bs-toggle="modal" data-bs-target="#helpModal" style="cursor: pointer;">❓</span></label>
-                                                        <input type="text" name="num_identificacion" maxlength="13" minlength="6" class="form-control" oninput="this.value = this.value.toUpperCase()" placeholder="De 3 a 13 caracteres" required> 
+                                                        <input type="text" name="num_identificacion" maxlength="13" minlength="3" class="form-control" oninput="this.value = this.value.toUpperCase()" placeholder="De 3 a 13 caracteres" required> 
                                                         <div class="invalid-feedback">
                                                             El campo núm. de identificación es obligatorio.
                                                         </div>
@@ -391,7 +391,7 @@
                                                 <div class="col-xs-12 col-sm-12 col-md-3">
                                                     <div class="form-group">
                                                         <label for="name">Nombre de la Vialidad <span style="color:red;">(*)</span></label>
-                                                        <input type="text" name="vialidad_calle" id="vialidad_calle" class="form-control" placeholder="*Nombre vialidad" oninput="this.value = this.value.toUpperCase()" required> 
+                                                        <input type="text" maxlength="50" name="vialidad_calle" id="vialidad_calle" class="form-control" placeholder="*Nombre vialidad" oninput="this.value = this.value.toUpperCase()" required> 
                                                         <div class="invalid-feedback">
                                                             El campo vialidad o calle es obligatorio.
                                                         </div>
@@ -400,7 +400,7 @@
                                                 <div class="col-xs-12 col-sm-12 col-md-3">
                                                     <div class="form-group">
                                                         <label for="">Colonia <span style="color:red;">(*)</span></label>
-                                                        <input type="text" class="form-control" placeholder="*Colonia" name="colonia" id="colonia" oninput="this.value = this.value.toUpperCase()" required>
+                                                        <input type="text" maxlength="50" class="form-control" placeholder="*Colonia" name="colonia" id="colonia" oninput="this.value = this.value.toUpperCase()" required>
                                                         <div class="invalid-feedback">
                                                             El domicilio es obligatoria.
                                                         </div>
@@ -410,7 +410,7 @@
                                                 <div class="col-xs-12 col-sm-12 col-md-3">
                                                     <div class="form-group">
                                                         <label for="">Núm. Ext. <span style="color:red;">(*)</span></label>
-                                                        <input type="text" class="form-control" placeholder="*Núm. exterior" name="N_Ext" id="N_Ext" oninput="this.value = this.value.toUpperCase()" required>
+                                                        <input type="text" maxlength="20" class="form-control" placeholder="*Núm. exterior" name="N_Ext" id="N_Ext" oninput="this.value = this.value.toUpperCase()" required>
                                                         <div class="invalid-feedback">
                                                             El domicilio es obligatoria.
                                                         </div>
@@ -419,8 +419,8 @@
             
                                                 <div class="col-xs-12 col-sm-12 col-md-3">
                                                     <div class="form-group">
-                                                        <label for="">Núm. Int.(Opcional)</label>
-                                                        <input type="text" class="form-control" placeholder="Núm. interior" name="N_Int" id="N_Int" oninput="this.value = this.value.toUpperCase()">
+                                                        <label for="">Núm. Int. (Opcional)</label>
+                                                        <input type="text" maxlength="10" class="form-control" placeholder="Núm. interior" name="N_Int" id="N_Int" oninput="this.value = this.value.toUpperCase()">
                                                         <div class="invalid-feedback">
                                                             El domicilio es obligatoria.
                                                         </div>
@@ -430,7 +430,7 @@
                                                 <div class="col-xs-12 col-sm-12 col-md-3">
                                                     <div class="form-group">
                                                         <label for="">Código postal <span style="color:red;">(*)</span></label>
-                                                        <input type="text" class="form-control" placeholder="*Código postal" name="cp" id="cp" oninput="this.value = this.value.toUpperCase()" required>
+                                                        <input type="number" min="0" max="99999" maxlength="5" class="form-control" placeholder="*Código postal" name="cp" id="cp" oninput="if(this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);" required>
                                                         <div class="invalid-feedback">
                                                             El domicilio es obligatoria.
                                                         </div>
@@ -439,7 +439,7 @@
                                                 <div  class="col-xs-12 col-sm-12 col-md-4">
                                                     <div class="form-group">
                                                         <label for="name">¿Existe procedimiento previo en la junta local de conciliación y arbitraje? <span style="color:red;">(*)</span></label>
-                                                        <select name="JLCA" class="form-control"  required>
+                                                        <select name="JLCA" class="form-control" required>
                                                             <option value="">Seleccione</option>
                                                             <option value="Si">Si</option>
                                                             <option value="No">No</option>
@@ -461,7 +461,7 @@
 
                                                 <div class="col-xs-12 col-sm-12 col-md-3">
                                                     <div class="form-group">
-                                                        <label for="fecha_termino">Fecha de término de la relación laboral <span style="color:red;">(*)</span></label>
+                                                        <label for="fecha_termino">Fecha de término de la relación laboral (Opcional)</label>
                                                         <input type="date" name="fecha_termino" class="form-control" > 
                                                         <div class="invalid-feedback">
                                                             El campo edad es obligatorio.
@@ -497,7 +497,7 @@
                                                 <div class="col-xs-12 col-sm-12 col-md-3">
                                                     <div class="form-group">
                                                         <label for="name">Salario <span style="color:red;">(*)</span></label><br>
-                                                        <input type="text" name="salario" placeholder="$" class="form-control soloMontos" class="myInput" required> 
+                                                        <input type="text" name="salario" placeholder="$" maxlength="7" class="form-control soloMontos" class="myInput" required> 
                                                         <div class="invalid-feedback">
                                                             Este campo salario es obligatorio.
                                                         </div>
@@ -507,7 +507,7 @@
                                                 <div class="col-xs-12 col-sm-12 col-md-3">
                                                     <div class="form-group">
                                                         <label for="name">Días a la semana trabajados <span style="color:red;">(*)</span></label>
-                                                        <input type="number" name="dias" class="form-control soloNumeros" required> 
+                                                        <input type="number" name="dias" maxlength="1" min="0" max="7" class="form-control soloNumeros" oninput="if(this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);" required> 
                                                         <div class="invalid-feedback">
                                                             Este campo días a la semana trabajados es obligatorio.
                                                         </div>
@@ -521,6 +521,7 @@
                                                             <option value="">Seleccione</option>
                                                             <option value="Pago de prestaciones">Pago de prestaciones</option>
                                                             <option value="Terminación voluntaria de la relación de trabajo">Terminación voluntaria de la relación de trabajo</option>
+                                                            <option value="PTU">Pago de PTU</option>
                                                         </select>
                                                         <div class="invalid-feedback">
                                                             El campo motivo de la conciliación es obligatorio.
@@ -573,6 +574,9 @@
                                                             Otras
                                                             </label>
                                                         </div>
+                                                        <div id="motivoPagoWarning" class="text-danger" style="display:none;">
+                                                            Debes seleccionar al menos una casilla.
+                                                        </div>
                                                     </div>
                                                 </div>
 
@@ -599,7 +603,7 @@
                                                 <div class="col-xs-12 col-sm-6 col-md-2">
                                                     <div class="form-group">
                                                         <label for="name"><br>
-                                                        <center><a href="https://cclmichoacan.gob.mx/Calculadora.html" target="_blank">* Calcula el monto aproximado del convenio.</a></center>
+                                                        <center><a href="https://cclmichoacan.gob.mx/calculadora.html" target="_blank">* Calcula el monto aproximado del convenio.</a></center>
                                                         </label>
                                                     </div>
                                                 </div>
@@ -684,6 +688,12 @@
                                             <div id="resumenCita" class="col-xs-12 col-sm-12 col-md-12" style="margin-top: 10px; display: none;">
                                                 <div class="alert alert-info">
                                                     <strong>Cita seleccionada:</strong> <span id="fechaResumen"></span> a las <span id="horaResumen"></span>
+                                                </div>
+                                            </div>
+
+                                            <div id="fechaHoraWarning" class="col-xs-12 col-sm-12 col-md-12" style="margin-top: 10px; display: none;">
+                                                <div class="alert alert-danger text-center">
+                                                    Debes seleccionar una fecha y horario en el calendario antes de guardar la cita.
                                                 </div>
                                             </div>
 
@@ -1191,12 +1201,59 @@
                     document.getElementById('fechaResumen').textContent = fecha;
                     document.getElementById('horaResumen').textContent = hora;
                     document.getElementById('resumenCita').style.display = 'block';
-                    
+                    document.getElementById('fechaHoraWarning').style.display = 'none';
+
                     // Cerrar modal
                     $('#calendarModal').modal('hide');
                 } else {
                     alert('Por favor selecciona un horario disponible');
                 }
+            });
+        });
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const formCita = document.querySelector('form.needs-validation');
+            const fechaHoraWarning = document.getElementById('fechaHoraWarning');
+            const motivoPagoWarning = document.getElementById('motivoPagoWarning');
+            const motivoSelect = document.getElementById('motivo');
+            const checkboxesPrestaciones = document.querySelectorAll('#motivo_pago input[type="checkbox"]');
+
+            function algunaCasillaMarcada() {
+                return Array.from(checkboxesPrestaciones).some(cb => cb.checked);
+            }
+
+            checkboxesPrestaciones.forEach(function(cb) {
+                cb.addEventListener('change', function() {
+                    if (algunaCasillaMarcada()) {
+                        motivoPagoWarning.style.display = 'none';
+                    }
+                });
+            });
+
+            formCita.addEventListener('submit', function(e) {
+                const fecha = document.getElementById('fechaSeleccionada').value;
+                const hora = document.getElementById('horaSeleccionada').value;
+
+                if (!fecha || !hora) {
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
+                    fechaHoraWarning.style.display = 'block';
+                    document.getElementById('botonCalendar').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    alert('Debes seleccionar una fecha y horario en el calendario antes de guardar la cita.');
+                    return;
+                }
+                fechaHoraWarning.style.display = 'none';
+
+                if (motivoSelect.value === 'Pago de prestaciones' && !algunaCasillaMarcada()) {
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
+                    motivoPagoWarning.style.display = 'block';
+                    document.getElementById('motivo_pago').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    alert('Debes seleccionar al menos una casilla en "Selecciona las casillas correspondientes".');
+                    return;
+                }
+                motivoPagoWarning.style.display = 'none';
             });
         });
     </script>

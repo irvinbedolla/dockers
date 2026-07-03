@@ -25,12 +25,15 @@
 		"yajra/laravel-datatables-buttons": "^11.2"
 	},
 	"require-dev": {
+		"enlightn/enlightn": "^2.10",
 		"fakerphp/faker": "^1.9.1",
+		"kitloong/laravel-migrations-generator": "^7.4",
 		"laravel/breeze": "^2.0",
 		"laravel/pint": "^1.0",
 		"laravel/sail": "^1.0.1",
 		"mockery/mockery": "^1.4.4",
 		"nunomaduro/collision": "^8.1",
+		"orangehill/iseed": "^3.8",
 		"phpunit/phpunit": "^10.0",
 		"spatie/laravel-ignition": "^2.0"
 	},

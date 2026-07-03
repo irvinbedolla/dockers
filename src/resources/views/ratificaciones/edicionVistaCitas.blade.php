@@ -1,7 +1,18 @@
-@extends('layouts.app')
+@extends('layouts.app_editar')
     @php
         $fechaActual = date('Y-m-d');
         $contador = 0;
+        $newDocDir = 'documentos_ratificacion/' . $idSolicitud . '/';
+        $oldDocDir = 'documentos_ratificacion/';
+        $curpUrl   = ($solicitud->documentoCurp && \Illuminate\Support\Facades\Storage::exists($newDocDir . $solicitud->documentoCurp))
+            ? '../../storage/app/' . $newDocDir . $solicitud->documentoCurp
+            : '../../storage/app/' . $oldDocDir . $solicitud->documentoCurp;
+        $identUrl  = ($solicitud->documentoidentificacion && \Illuminate\Support\Facades\Storage::exists($newDocDir . $solicitud->documentoidentificacion))
+            ? '../../storage/app/' . $newDocDir . $solicitud->documentoidentificacion
+            : '../../storage/app/' . $oldDocDir . $solicitud->documentoidentificacion;
+        $cuantiUrl = ($solicitud->documentoCuanti && \Illuminate\Support\Facades\Storage::exists($newDocDir . $solicitud->documentoCuanti))
+            ? '../../storage/app/' . $newDocDir . $solicitud->documentoCuanti
+            : '../../storage/app/' . $oldDocDir . $solicitud->documentoCuanti;
     @endphp
     <style>
         .loader {
@@ -147,7 +158,7 @@
                                             <div class="col-xs-12 col-sm-12 col-md-4">
                                                 <div class="form-group">
                                                     <label for="name">Primer apellido <span style="color:red;">(*)</span></label>
-                                                    <input type="text" name="primero" class="form-control" oninput="this.value = this.value.toUpperCase()" value="<?=$solicitud["primero_trabajador"];?>" required>  
+                                                    <input type="text" maxlength="100" name="primero" class="form-control" oninput="this.value = this.value.toUpperCase()" value="<?=$solicitud["primero_trabajador"];?>" required>  
                                                     <div class="invalid-feedback">
                                                         El campo es obligatorio.
                                                     </div>
@@ -156,7 +167,7 @@
                                             <div class="col-xs-12 col-sm-12 col-md-4">
                                                 <div class="form-group">
                                                     <label for="name">Segundo apellido <span style="color:red;">(*)</span></label>
-                                                    <input type="text" name="segundo" class="form-control" oninput="this.value = this.value.toUpperCase()" value="<?=$solicitud["segundo_trabajador"];?>" required>                                                         <div class="invalid-feedback">
+                                                    <input type="text" maxlength="100" name="segundo" class="form-control" oninput="this.value = this.value.toUpperCase()" value="<?=$solicitud["segundo_trabajador"];?>" required>                                                         <div class="invalid-feedback">
                                                         El campo es obligatorio.
                                                     </div>
                                                 </div>
@@ -164,7 +175,7 @@
                                             <div class="col-xs-12 col-sm-12 col-md-4">
                                                 <div class="form-group">
                                                     <label for="name">Nombre(s) <span style="color:red;">(*)</span></label>
-                                                    <input type="text" name="nombre" class="form-control" oninput="this.value = this.value.toUpperCase()" value="<?=$solicitud["trabajador"];?>" required> 
+                                                    <input type="text" maxlength="100" name="nombre" class="form-control" oninput="this.value = this.value.toUpperCase()" value="<?=$solicitud["trabajador"];?>" required> 
                                                     <div class="invalid-feedback">
                                                         El campo nombre es obligatorio.
                                                     </div>
@@ -173,7 +184,7 @@
                                             <div  class="col-xs-12 col-sm-12 col-md-1">
                                                 <div class="form-group">
                                                     <label for="name">Edad <span style="color:red;">(*)</span></label>
-                                                    <input type="text" name="edad" class="form-control" oninput="this.value = this.value.toUpperCase()" value="<?=$solicitud["edad"];?>" required> 
+                                                    <input type="number" maxlength="3" min="0" max="150" name="edad" class="form-control" oninput="this.value = this.value.toUpperCase(); if(this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);" value="<?=$solicitud["edad"];?>" required>
                                                     <div class="invalid-feedback">
                                                         El campo edad es obligatorio.
                                                     </div>
@@ -195,7 +206,7 @@
                                             <div class="col-xs-12 col-sm-12 col-md-5">
                                                 <div class="form-group">
                                                     <label for="name">CURP del trabajador <span style="color:red;">(*)</span></span></label>
-                                                    <input type="text" name="curp" id="curp_input" oninput="validarInput(this)"class="form-control" value="<?=$solicitud["trabajador_curp"];?>" required> 
+                                                    <input type="text" maxlength="18" name="curp" id="curp_input" oninput="validarInput(this)"class="form-control" value="<?=$solicitud["trabajador_curp"];?>" required> 
                                                     <pre id="resultado"></pre>
                                                     <!--<pre id="resultado_curp_trabajador" class="resultado"></pre>-->
                                                     <div class="invalid-feedback">
@@ -207,7 +218,7 @@
                                                 <div class="form-group">
                                                     <label for="name">Documento de la CURP (Opcional)</span></label>
                                                     <input type="file" id="documentoCurp" name="documentoCurp" class="form-control" accept=".pdf"> 
-                                                    <a target="_blank" class="btn btn-primary" href="../../storage/app/documentos_ratificacion/{{$solicitud->documentoCurp}}">Existente</a>
+                                                    <a target="_blank" class="btn btn-primary" href="{{ $curpUrl }}">Existente</a>
                                                     <div class="invalid-feedback">
                                                         El campo edad es obligatorio.
                                                     </div>
@@ -245,7 +256,7 @@
                                             <div class="col-xs-12 col-sm-12 col-md-4"> 
                                                 <div class="form-group">
                                                     <label for="name">Núm de identificación <span style="color:red;">(*)</span></label>
-                                                    <input type="text" name="num_identificacion" class="form-control" oninput="this.value = this.value.toUpperCase()" value="<?=$solicitud["num_identificacion"];?>" required> 
+                                                    <input type="text" maxlength="20" name="num_identificacion" class="form-control" oninput="this.value = this.value.toUpperCase()" value="<?=$solicitud["num_identificacion"];?>" required> 
                                                     <div class="invalid-feedback">
                                                         El campo núm. de identificación es obligatorio.
                                                     </div>
@@ -255,7 +266,7 @@
                                                 <div class="form-group">
                                                     <label for="name">Subir Identificación Oficial <span style="color:red;">(*)</span></label>
                                                     <input type="file" id="documentoidentificacion" name="documentoidentificacion" class="form-control" accept=".pdf"> 
-                                                    <a target="_blank" class="btn btn-primary" href="../../storage/app/documentos_ratificacion/{{$solicitud->documentoidentificacion}}">Existente</a>
+                                                    <a target="_blank" class="btn btn-primary" href="{{ $identUrl }}">Existente</a>
                                                     <div class="invalid-feedback">
                                                         El campo identificación es obligatorio.
                                                     </div>
@@ -272,7 +283,7 @@
                                             <div class="col-xs-12 col-sm-12 col-md-3">
                                                     <div class="form-group">
                                                         <label for="name">Estado <span style="color:red;">(*)</span></label>
-                                                        <select class="form-control" name="estado_rat" required>
+                                                        <select id="estado_rat" class="form-control" name="estado_rat" required>
                                                             <option value="">Seleccione</option>
                                                             @foreach($estados as $est)
                                                                 <option value="{{ $est['id'] }}" {{ $solicitud['estado_rat'] ==  $est['id'] ? "selected" : '' }} >{{$est['nombre']}}</option>
@@ -333,7 +344,7 @@
                                                 <div class="col-xs-12 col-sm-12 col-md-3">
                                                     <div class="form-group">
                                                         <label for="name">Nombre de la Vialidad <span style="color:red;">(*)</span></label>
-                                                        <input type="text" name="vialidad_calle" id="vialidad_calle" class="form-control" placeholder="*Nombre vialidad" oninput="this.value = this.value.toUpperCase()" value="<?=$solicitud["calle"];?>" required> 
+                                                        <input type="text" maxlength="50" name="vialidad_calle" id="vialidad_calle" class="form-control" placeholder="*Nombre vialidad" oninput="this.value = this.value.toUpperCase()" value="<?=$solicitud["calle"];?>" required> 
                                                         <div class="invalid-feedback">
                                                             El campo vialidad o calle es obligatorio.
                                                         </div>
@@ -342,7 +353,7 @@
                                                 <div class="col-xs-12 col-sm-12 col-md-3">
                                                     <div class="form-group">
                                                         <label for="">Colonia <span style="color:red;">(*)</span></label>
-                                                        <input type="text" class="form-control" placeholder="*Colonia" name="colonia" id="colonia" oninput="this.value = this.value.toUpperCase()" value="<?=$solicitud["colonia"];?>" required>
+                                                        <input type="text" maxlength="50" class="form-control" placeholder="*Colonia" name="colonia" id="colonia" oninput="this.value = this.value.toUpperCase()" value="<?=$solicitud["colonia"];?>" required>
                                                         <div class="invalid-feedback">
                                                             El domicilio es obligatoria.
                                                         </div>
@@ -352,7 +363,7 @@
                                                 <div class="col-xs-12 col-sm-12 col-md-3">
                                                     <div class="form-group">
                                                         <label for="">Núm. Ext. <span style="color:red;">(*)</span></label>
-                                                        <input type="text" class="form-control" placeholder="*Núm. exterior" name="N_Ext" id="N_Ext" oninput="this.value = this.value.toUpperCase()" value="<?=$solicitud["num_ext"];?>" required>
+                                                        <input type="text" maxlength="20" class="form-control" placeholder="*Núm. exterior" name="N_Ext" id="N_Ext" oninput="this.value = this.value.toUpperCase()" value="<?=$solicitud["num_ext"];?>" required>
                                                         <div class="invalid-feedback">
                                                             El domicilio es obligatoria.
                                                         </div>
@@ -362,7 +373,7 @@
                                                 <div class="col-xs-12 col-sm-12 col-md-3">
                                                     <div class="form-group">
                                                         <label for="">Núm. Int.(Opcional)</label>
-                                                        <input type="text" class="form-control" placeholder="Núm. interior" name="N_Int" id="N_Int" oninput="this.value = this.value.toUpperCase()" value="<?=$solicitud["num_int"];?>"> 
+                                                        <input type="text" maxlength="10" class="form-control" placeholder="Núm. interior" name="N_Int" id="N_Int" oninput="this.value = this.value.toUpperCase()" value="<?=$solicitud["num_int"];?>"> 
                                                         <div class="invalid-feedback">
                                                             El domicilio es obligatoria.
                                                         </div>
@@ -372,7 +383,7 @@
                                                 <div class="col-xs-12 col-sm-12 col-md-3">
                                                     <div class="form-group">
                                                         <label for="">Código postal <span style="color:red;">(*)</span></label>
-                                                        <input type="text" class="form-control" placeholder="*Código postal" name="cp" id="cp" oninput="this.value = this.value.toUpperCase()" value="<?=$solicitud["codigo_postal"];?>" required>
+                                                        <input type="number" maxlength="5" min="0" class="form-control" placeholder="*Código postal" name="cp" id="cp" oninput="this.value = this.value.toUpperCase(); if(this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);" value="<?=$solicitud["codigo_postal"];?>" required>
                                                         <div class="invalid-feedback">
                                                             El domicilio es obligatoria.
                                                         </div>
@@ -400,7 +411,7 @@
                                             <div  class="col-xs-12 col-sm-12 col-md-3">
                                                 <div class="form-group">
                                                     <label for="name">Categoría o Puesto que desempeña <span style="color:red;">(*)</span></label>
-                                                    <input type="text" name="categoria" class="form-control" oninput="this.value = this.value.toUpperCase()" value="<?=$solicitud["categoria"];?>" required>
+                                                    <input type="text" maxlength="60" name="categoria" class="form-control" oninput="this.value = this.value.toUpperCase()" value="<?=$solicitud["categoria"];?>" required>
                                                     <div class="invalid-feedback">
                                                         El campo categoría es obligatorio.
                                                     </div>
@@ -426,7 +437,7 @@
                                             <div class="col-xs-12 col-sm-12 col-md-2">
                                                 <div class="form-group">
                                                     <label for="name">Salario <span style="color:red;">(*)</span></label><br>
-                                                    <input type="text" name="salario" class="form-control soloMontos" oninput="this.value = this.value.toUpperCase()" value="<?=$solicitud["salario"];?>" required>
+                                                    <input type="number" maxlength="7" min="0" name="salario" class="form-control soloMontos" oninput="this.value = this.value.toUpperCase(); if(this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);" value="<?=$solicitud["salario"];?>" required>
                                                     <div class="invalid-feedback">
                                                         Este campo salario es obligatorio.
                                                     </div>
@@ -436,7 +447,7 @@
                                             <div class="col-xs-12 col-sm-12 col-md-3">
                                                 <div class="form-group">
                                                     <label for="name">Días a la semana trabajados <span style="color:red;">(*)</span></label>
-                                                    <input type="number" name="dias" class="form-control" oninput="this.value = this.value.toUpperCase()" value="<?=$solicitud["dias"];?>" required>
+                                                    <input type="number" maxlength="1" min="0" max="7" name="dias" class="form-control" oninput="this.value = this.value.toUpperCase(); if(this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);" value="<?=$solicitud["dias"];?>" required>
                                                     <div class="invalid-feedback">
                                                         Este campo días a la semana trabajados es obligatorio.
                                                     </div>
@@ -519,7 +530,7 @@
                                             <div class="col-xs-12 col-sm-12 col-md-3">
                                                 <div class="form-group">
                                                     <label for="name">Monto total del convenio a pagar <span style="color:red;">(*)</span></label>
-                                                    <input type="text" name="monto" class="form-control soloMontos" oninput="this.value = this.value.toUpperCase()" value="<?=$solicitud["monto"];?>" required>
+                                                    <input type="number" maxlength="8" min="0" name="monto" class="form-control soloMontos" oninput="this.value = this.value.toUpperCase(); if(this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);" value="<?=$solicitud["monto"];?>" required>
                                                     <div class="invalid-feedback">
                                                         El campo monto es obligatorio.
                                                     </div>
@@ -547,7 +558,7 @@
                                                 <div class="form-group">
                                                     <label for="name">Sube tu cuantificación (Opcional)</label>
                                                     <input type="file" id="cuantificacion" name="cuantificacion" class="form-control" accept=".pdf"> 
-                                                    <a target="_blank" class="btn btn-primary" href="../../storage/app/documentos_ratificacion/{{$solicitud->documentoCuanti}}">Existente</a>
+                                                    <a target="_blank" class="btn btn-primary" href="{{ $cuantiUrl }}">Existente</a>
                                                     <div class="invalid-feedback">
                                                         El campo edad es obligatorio.
                                                     </div>
@@ -588,10 +599,9 @@
                                             <div class="modal-footer">
                                                 <button type="button" class="btn btn-primary" onclick="window.history.back()">Regresar</button>
                                                 <button type="submit" class="btn btn-success">Guardar edición</button>
-                                                @if($solicitud['estatus'] != "Pendiente")    
+                                                @if($solicitud['estatus'] == "Concluida" || $solicitud['estatus' == "Concluida Pagos"])    
                                                     <a class="btn btn-danger" href="{{ route('vista_previa_ratificacion', $solicitud->id) }}"  target="_blank">Editar finalización de ratificación</a>                          
                                                 @endif
-                                                
                                             </div>
                                     </form>
                                 </div>
@@ -751,15 +761,20 @@
         }
 
         const tipo_iden = document.getElementById('tipo_identificacion');
-        tipo_iden.addEventListener('change', function() {
-            const valorSeleccionado = this.value;
-            // Realiza la validación o acciones necesarias
-            if (valorSeleccionado === 'Otro') {
-                document.getElementById('espesificar_tipo_identificacion').style.display = "block";
-            } else {
-                document.getElementById('espesificar_tipo_identificacion').style.display = "none";
+        const tipoOtrosInput = document.querySelector('#espesificar_tipo_identificacion input[name="tipo_otros"]');
+        function toggleTipoOtros() {
+            const visible = tipo_iden.value === 'Otro';
+            document.getElementById('espesificar_tipo_identificacion').style.display = visible ? "block" : "none";
+            if (tipoOtrosInput) {
+                if (visible) {
+                    tipoOtrosInput.setAttribute('required', '');
+                } else {
+                    tipoOtrosInput.removeAttribute('required');
+                }
             }
-        });
+        }
+        tipo_iden.addEventListener('change', toggleTipoOtros);
+        toggleTipoOtros();
 
         const motivo = document.getElementById('motivo');
         motivo.addEventListener('change', function() {
@@ -773,10 +788,20 @@
         });        
         
         const otras = document.getElementById('otras');
-        otras.addEventListener('click', function() {
-            const valorSeleccionado = this.value;
-                document.getElementById('div_otras').style.display = "block";
-        });
+        const especifiqueInput = document.querySelector('#div_otras input[name="Especifique"]');
+        function toggleEspecifique() {
+            const visible = otras.checked;
+            document.getElementById('div_otras').style.display = visible ? "block" : "none";
+            if (especifiqueInput) {
+                if (visible) {
+                    especifiqueInput.setAttribute('required', '');
+                } else {
+                    especifiqueInput.removeAttribute('required');
+                }
+            }
+        }
+        otras.addEventListener('change', toggleEspecifique);
+        toggleEspecifique();
         
         //Fechas inicio y fin
         document.addEventListener("DOMContentLoaded", function () {
@@ -839,60 +864,70 @@
         });
     </script>
     <script>
-        // Esperamos a que el DOM esté listo para evitar el error "Cannot read properties of null"
-        document.addEventListener('DOMContentLoaded', function() {
-            const inputDocumento = document.querySelector('input[name="cuantificacion"]');
-            if (inputDocumento) {
-                inputDocumento.addEventListener('change', function(e) {
-                    // Accedemos al archivo cargado
-                    const archivo = e.target.files[0];
+        document.addEventListener('DOMContentLoaded', function () {
+            var base_url = "{{ url('') }}";
+            var municipioGuardado = "{{ $solicitud['municipio_rat'] }}";
 
-                    if (archivo) {
-                        // Aquí puedes ejecutar tu validación de 10MB
-                        const limite = 10 * 1024 * 1024;
-                        if (archivo.size > limite) {
-                            alert("El archivo no puede pasar de 10 Megas");
-                            this.value = ""; // Limpiar el input
+            function cargarMunicipiosRat(estadoId, seleccionar) {
+                var $municipio = $('#municipio_rat');
+                if (!$municipio.length) return;
+                $municipio.html('<option value="">Cargando...</option>');
+                if (!estadoId) {
+                    $municipio.html('<option value="">Seleccione</option>');
+                    return;
+                }
+                $.get(base_url + '/api/munSolicitante/' + estadoId, function (data) {
+                    var html = '<option value="">Seleccione</option>';
+                    data.forEach(function (m) {
+                        var sel = (seleccionar && String(m.id) === String(seleccionar)) ? 'selected' : '';
+                        html += '<option value="' + m.id + '" ' + sel + '>' + m.nombre + '</option>';
+                    });
+                    $municipio.html(html);
+                }).fail(function (jqXHR, textStatus, errorThrown) {
+                    $.get(base_url + '/munSolicitante/' + estadoId, function (data) {
+                        var html = '<option value="">Seleccione</option>';
+                        data.forEach(function (m) {
+                            var sel = (seleccionar && String(m.id) === String(seleccionar)) ? 'selected' : '';
+                            html += '<option value="' + m.id + '" ' + sel + '>' + m.nombre + '</option>';
+                        });
+                        $municipio.html(html);
+                    }).fail(function (jq2, t2, e2) {
+                        $municipio.html('<option value="">Error cargando municipios</option>');
+                        if (typeof iziToast !== 'undefined') {
+                            iziToast.error({
+                                title: 'Error',
+                                message: 'No se pudieron cargar los municipios. HTTP: ' + (jqXHR.status || jq2.status || 'N/A') + ' - ' + (errorThrown || e2 || textStatus),
+                                position: 'topRight'
+                            });
+                        } else {
+                            alert('No se pudieron cargar los municipios.');
                         }
-                    }
+                    });
                 });
+            }
+
+            var $estadoRat = $('#estado_rat');
+            if ($estadoRat.length) {
+                $estadoRat.on('change', function () {
+                    cargarMunicipiosRat(this.value, null);
+                });
+                var inicial = $estadoRat.val();
+                if (inicial) cargarMunicipiosRat(inicial, municipioGuardado);
             }
         });
+    </script>
+    <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const inputDocumento = document.querySelector('input[name="documentoCurp"]');
-            if (inputDocumento) {
+            const limite = 10 * 1024 * 1024;
+            document.querySelectorAll('input[type="file"]').forEach(function(inputDocumento) {
                 inputDocumento.addEventListener('change', function(e) {
-                    // Accedemos al archivo cargado
                     const archivo = e.target.files[0];
-
-                    if (archivo) {
-                        // Aquí puedes ejecutar tu validación de 10MB
-                        const limite = 10 * 1024 * 1024;
-                        if (archivo.size > limite) {
-                            alert("El archivo no puede pasar de 10 Megas");
-                            this.value = ""; // Limpiar el input
-                        }
+                    if (archivo && archivo.size > limite) {
+                        alert("El archivo no puede pasar de 10 Megas");
+                        this.value = ""; // Limpiar el input
                     }
                 });
-            }
-        });
-        document.addEventListener('DOMContentLoaded', function() {
-            const inputDocumento = document.querySelector('input[name="documentoidentificacion"]');
-            if (inputDocumento) {
-                inputDocumento.addEventListener('change', function(e) {
-                    // Accedemos al archivo cargado
-                    const archivo = e.target.files[0];
-
-                    if (archivo) {
-                        // Aquí puedes ejecutar tu validación de 10MB
-                        const limite = 10 * 1024 * 1024;
-                        if (archivo.size > limite) {
-                            alert("El archivo no puede pasar de 10 Megas");
-                            this.value = ""; // Limpiar el input
-                        }
-                    }
-                });
-            }
+            });
         });
     </script>
     

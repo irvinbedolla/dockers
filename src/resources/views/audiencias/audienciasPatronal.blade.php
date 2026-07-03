@@ -1,4 +1,4 @@
-@extends('layouts.app')
+@extends('layouts.app_editar')
 @php
     $fechaActual = date('Y-m-d');
     $contador = 0;
@@ -230,6 +230,7 @@
     <form class='needs-validation novalidate'  method='POST' action="{{route('editar_solicitud')}}">
         @csrf
         <input type="hidden" name="id" value="{{$id}}">
+        <input type="hidden" name="audiencia_id" value="{{ request()->query('audiencia_id') }}">
         <div class="modal-dialog modal-xl">
             <div class="modal-content">
                 <div class="modal-header">
@@ -2441,7 +2442,7 @@
                 if(doc && doc !== '') {
                     const basePath = "{{ url('storage/') }}";
                     $('#comp_doc_existente_container').show();
-                    $('#comp_btn_ver_doc').attr('href', basePath + '/app/documentosSolicitud/' + doc);
+                    $('#comp_btn_ver_doc').attr('href', basePath + '/app/documentosSolicitud/' + solicitud + '/' + doc);
                     $('#comp_doc_input').removeAttr('required');
                 } else {
                     $('#comp_doc_existente_container').hide();

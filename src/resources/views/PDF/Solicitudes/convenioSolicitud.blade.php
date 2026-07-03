@@ -103,7 +103,7 @@
                     <table id="tabla_solicitud" class="table-striped" style="width:60%; float: right;">
                         <tr>   
                             <td><b>Oficina: </b></td>
-                            <td>{{ strtoupper($solicitud->delegacion) }} </td>
+                            <td>{{ mb_strtoupper($solicitud->delegacion) }} </td>
                         </tr>
                         <tr>    
                             <td><b>Número de identificación único: </b></td>
@@ -133,7 +133,7 @@
 
                 <p><b>PRIMERA.</b> 
                 @if($solicitud->tipo_solicitud == '1')
-                    La parte <b>TRABAJADORA {{ $solicitante->nombre }}</b> se identifica con <b>{{ strtoupper($solicitante->identificacion) }}</b>, de Número <b>{{ $solicitante->num_identificacion }}</b> 
+                    La parte <b>TRABAJADORA {{ $solicitante->nombre }}</b> se identifica con <b>{{ mb_strtoupper($solicitante->identificacion) }}</b>, de Número <b>{{ $solicitante->num_identificacion }}</b> 
                     expedida a su favor por <b>{{ $descripcionIdentificacionS }}</b> y declara ser una persona mayor de edad, por lo que tiene plenas capacidades de goce y ejercicio para convenir o transigir.</p> 
                 @else
                     @if($audienciaPoder->poder->reprecentante == 'Si')
@@ -173,11 +173,11 @@
 
                             @if(!$tieneRepresentante)
                                 La parte EMPLEADORA <b>{{ $rep->nombres_patronal }} {{ $rep->primer_apellido_patronal }} {{ $rep->segundo_apellido_patronal }}</b> quien se identifica con
-                                <b>{{ strtoupper($rep->tipo_identificacion) }}</b>, de Número <b>{{ $rep->num_identificacion }}</b> expedida a su favor por <b>{{ $descId }}</b>,
+                                <b>{{ mb_strtoupper($rep->tipo_identificacion) }}</b>, de Número <b>{{ $rep->num_identificacion }}</b> expedida a su favor por <b>{{ $descId }}</b>,
                                 y declara ser una persona mayor de edad, por lo que tiene plenas capacidades de goce y ejercicio para convenir o transigir.
                             @else
                                 Declara <b>{{ $nombreRepresentante }}</b>, <b>ser representante legal de la PARTE EMPLEADORA</b>, quien se identifica con
-                                <b>{{ strtoupper($rep->tipo_identificacion) }}</b>, de Número <b>{{ $rep->num_identificacion }}</b> expedida a su favor por <b>{{ $descId }}</b>, así como <b>{{ $rep->descipcion_poder }}</b>
+                                <b>{{ mb_strtoupper($rep->tipo_identificacion) }}</b>, de Número <b>{{ $rep->num_identificacion }}</b> expedida a su favor por <b>{{ $descId }}</b>, así como <b>{{ $rep->descipcion_poder }}</b>
                             @endif
                         @endforeach
                     </p>
@@ -504,7 +504,7 @@
                     <div class="salto-inteligente"></div>
                     <div class="contenedor-firmas">             
                     <p>Enteradas las <b>PARTES</b> del alcance legal del presente convenio que se eleva a la categoria de cosa juzgada, conforme al artículo 684-E fracción XIII, mismo que se firma en <b>{{ $solicitud->delegacion }}</b> 
-                        de Michoacán de Ocampo a los <b>{{ \Carbon\Carbon::parse($audiencia->fecha)->translatedFormat('d \d\í\a\s \d\e F \d\e\l Y') }}</b>, ante la fe de <b>{{ strtoupper($conciliador->name) }}</b>, funcionario(a) conciliador(a), quien 
+                        de Michoacán de Ocampo a los <b>{{ \Carbon\Carbon::parse($audiencia->fecha)->translatedFormat('d \d\í\a\s \d\e F \d\e\l Y') }}</b>, ante la fe de <b>{{ mb_strtoupper($conciliador->name) }}</b>, funcionario(a) conciliador(a), quien 
                         lo sanciona en este mismo acto. <b>Doy fe.</b>
                     </p>
                     <br><br>

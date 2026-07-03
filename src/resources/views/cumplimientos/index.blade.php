@@ -12,7 +12,7 @@
                         <div class="card-body">
                             <form action="{{ url()->current() }}" method="GET" class="mb-4">
                                 <div class="input-group" style="max-width: 450px;">
-                                    <input type="text" name="buscar" class="form-control" placeholder="Buscar por NUE o Nombre..." value="{{ request('buscar') }}">
+                                    <input type="text" name="buscar" class="form-control" placeholder="Buscar por NUE" value="{{ request('buscar') }}">
                                     <button class="btn btn-primary" type="submit" style="background-color: #4A001F; border-color: #4A001F;">Buscar</button>
                                     @if(request('buscar'))
                                         <a href="{{ url()->current() }}" class="btn btn-secondary">Limpiar</a>
@@ -26,6 +26,7 @@
                                             <th style="color: #fff;">Hora</th>
                                             <th style="color: #fff;">Número de Expediente</th>
                                             <th style="color: #fff;">Tipo</th>
+                                            <th style="color: #fff;">Estatus</th>
                                             <th style="color: #fff;">Detalles</th>
                                         </thead>
                                         <tbody class="contenidobusqueda">
@@ -35,6 +36,7 @@
                                                     <td>{{ $audiencia->hora_formateada }}</td>
                                                     <td>{{$audiencia->NUE_FINAL}}</td>
                                                     <td>{{$audiencia->tipo_pago}}</td>
+                                                    <td>{{$audiencia->estatus}}</td>
                                                     <td><a class="btn btn-primary" href="{{ route('pago_cumplimiento', $audiencia->id) }}">Cumplimiento</a></td>
                                                 </tr>
                                             @endforeach

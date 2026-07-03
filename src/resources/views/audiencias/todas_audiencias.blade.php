@@ -74,7 +74,7 @@
                                                     @endif
                                                 </td>
                                                 <td>
-                                                    @if($audiencia->estatus_modelo == "Conciliacion" || $audiencia->estatus_modelo == "Concluida Pagos")
+                                                    @if($audiencia->estatus_modelo == "Conciliacion" || $audiencia->estatus_modelo == "Reinstalacion" || $audiencia->estatus_modelo == "Concluida Pagos")
                                                         <a class="btn btn-primary" href="{{ route('audiencia_cumplimientos', $audiencia->id_solicitud) }}">Cumplimiento</a>
                                                     @endif
                                                 </td>

@@ -17,6 +17,9 @@
             <a class="nav-link" href="{{ route('todas_notificaciones') }}">
                 <i class="bi bi-file-person"></i><span class="text-dark" onclick="consultar_estadistica()">Busqueda Notificaciones</span>
             </a>
+            <a class="nav-link" href="{{ route('excepcion') }}">
+                <i class="bi bi-bank"></i><span class="text-dark" onclick="mis_citas()">Casos de Excepción</span>
+            </a>
             <a class="nav-link" href="{{ route('subir_doc_masivo') }}">
                 <i class="bi bi-bank"></i><span class="text-dark" onclick="mis_citas()">Carga Masiva</span>
             </a>
@@ -47,13 +50,15 @@
             <a class="nav-link" href="{{ route('misturnos') }}">
                 <i class="bi bi-file-person"></i><span class="text-dark" onclick="turnos()">Mis Turnos</span>
             </a>
+            <a class="nav-link" href="{{ route('index_oficialia') }}">
+                <i class="bi bi-journal-text"></i><span class="text-dark" onclick="oficialia()">Oficialia de Partes</span>
+            </a>
             <a class="nav-link" href="{{ route('plantillas_index') }}">
                 <i class="bi bi-file-text-fill"></i><span class="text-dark" onclick="estadistica()">Plantillas</span>
             </a>
-            <a id="menu-pendiente-firma" class="nav-link" href="{{ route('firma_citatorio') }}">
+            <a  class="nav-link" href="{{ route('firma_citatorio') }}">
                 <i class="bi bi-bank"></i>
                 <span class="text-dark" onclick="mis_citas()">Pendiente de Firma
-                    <!--<span id="badge-pendiente-firma" class="menu-badge" style="display:none;">0</span>-->
                 </span>
             </a>
             <a class="nav-link" href="{{ route('notificaciones') }}">
@@ -267,14 +272,9 @@
     @endauth    
     @auth
         @role('Turnos')
-            <a class="nav-link" href="{{ route('indexDireccionGeneral') }}">
-                <i class="bi bi-bank"></i><span class="text-dark" onclick="mis_citas()">Dirección General</span>
-            </a>
-            <a class="nav-link" href="{{ route('crear_inidencia') }}">
-                <i class="bi bi-bank"></i><span class="text-dark" onclick="mis_citas()">Incidencia</span>
-            </a>
-            <a class="nav-link" href="{{ route('poderes') }}">
-                <i class="bi bi-bank"></i><span class="text-dark" onclick="poderes()">Poderes</span>
+            
+            <a class="nav-link" href="{{ route('index_oficialia') }}">
+                <i class="bi bi-journal-text"></i><span class="text-dark" onclick="oficialia()">Oficialia de Partes</span>
             </a>
             <a class="nav-link" href="{{ route('turnos') }}">
                 <i class="bi bi-book" aria-hidden="true"></i></i><span class="text-dark" onclick="turnos()">Turnos</span>
@@ -286,23 +286,17 @@
             <a class="nav-link" href="{{ route('agenda') }}">
                 <i class="bi bi-bank"></i><span class="text-dark" onclick="poderes()">Agenda</span>
             </a>
+            <a class="nav-link" href="{{ route('index_oficialia') }}">
+                <i class="bi bi-people-fill"></i><span class="text-dark" onclick="oficialia()">Oficialia de Partes</span>
+            </a>
             <a class="nav-link" href="{{ route('poderes') }}">
                 <i class="bi bi-bank"></i><span class="text-dark" onclick="poderes()">Poderes</span>
             </a>
-            <a class="nav-link" href="{{ route('misturnos') }}">
-                <i class="bi bi-file-person"></i><span class="text-dark" onclick="turnos()">Mis Turnos</span>
-            </a>
-            <a class="nav-link" href="{{ route('tarjeta_informativa') }}">
-                <i class="bi bi-file-person"></i><span class="text-dark" onclick="turnos()">Tarjeta Informativa</span>
-            </a>
-            <a class="nav-link" href="{{ route('reporte_excepcion') }}">
+            <a class="nav-link" href="#">
                 <i class="bi bi-clipboard-data-fill"></i><span class="text-dark" onclick="estadistica()">Reporte</span>
             </a>
-            <a class="nav-link" href="{{ route('seer') }}">
-                <i class="bi bi-clipboard-data-fill"></i><span class="text-dark" onclick="estadistica()">SEER</span>
-            </a>
-            <a class="nav-link" href="{{ route('crear_inidencia') }}">
-                <i class="bi bi-bank"></i><span class="text-dark" onclick="mis_citas()">Incidencia</span>
+            <a class="nav-link" href="{{ route('excepcion') }}">
+                <i class="bi bi-bank"></i><span class="text-dark" onclick="mis_citas()">Casos de Excepción</span>
             </a>
         @endrole
     @endauth
@@ -390,6 +384,7 @@
             </a>
         @endrole
     @endauth
+    
     
 </li>
 

@@ -166,7 +166,7 @@
                                                 <div class="col-xs-12 col-sm-12 col-md-4">
                                                     <div class="form-group">
                                                         <label for="name">Nombre(s) del Empleador(a) <span style="color:red;">(*)</span></label>
-                                                        <input type="text" name="nombre_pF" id="nombre_pF" class="form-control" oninput="this.value = this.value.toUpperCase()" > 
+                                                        <input type="text" maxlength="150" name="nombre_pF" id="nombre_pF" class="form-control" oninput="this.value = this.value.toUpperCase()" > 
                                                         <div class="invalid-feedback">
                                                             El nombre es obligatorio.
                                                         </div>
@@ -175,7 +175,7 @@
                                                 <div class="col-xs-12 col-sm-12 col-md-4">
                                                     <div class="form-group">
                                                         <label for="name">Primer apellido <span style="color:red;">(*)</span></label>
-                                                        <input type="text" name="primero_PF" id="primero_PF" class="form-control" oninput="this.value = this.value.toUpperCase()" > 
+                                                        <input type="text" maxlength="200" name="primero_PF" id="primero_PF" class="form-control" oninput="this.value = this.value.toUpperCase()" > 
                                                         <div class="invalid-feedback">
                                                             El primer apellido es obligatorio.
                                                         </div>
@@ -184,7 +184,7 @@
                                                 <div class="col-xs-12 col-sm-12 col-md-4">
                                                     <div class="form-group">
                                                         <label for="name">Segundo apellido <span style="color:red;">(*)</span></label>
-                                                        <input type="text" name="segundo_Pf" id="segundo_Pf" class="form-control" oninput="this.value = this.value.toUpperCase()" > 
+                                                        <input type="text" maxlength="200" name="segundo_Pf" id="segundo_Pf" class="form-control" oninput="this.value = this.value.toUpperCase()" > 
                                                         <div class="invalid-feedback">
                                                             El segundo apellido es obligatorio.
                                                         </div>
@@ -225,7 +225,7 @@
                                                 <div class="col-xs-12 col-sm-12 col-md-9">
                                                     <div class="form-group">
                                                         <label for="name">Giro Comercial <span style="color:red;">(*)</span></label>
-                                                        <input type="text" name="giro_pF" id="giro_pF" class="form-control" oninput="this.value = this.value.toUpperCase()" > 
+                                                        <input type="text" maxlength="200" name="giro_pF" id="giro_pF" class="form-control" oninput="this.value = this.value.toUpperCase()" > 
                                                         <div class="invalid-feedback">
                                                             El nombre es obligatorio.
                                                         </div>
@@ -241,7 +241,7 @@
                                                 <div class="col-xs-12 col-sm-12 col-md-6">
                                                     <div class="form-group">
                                                         <label for="">Correo electrónico <span style="color:red;">(*)</span></label>
-                                                        <input type="email" class="form-control"  name="correo_pF" id="electrónico_pF" >
+                                                        <input type="email" maxlength="40" class="form-control"  name="correo_pF" id="electrónico_pF" >
                                                         <div class="invalid-feedback">
                                                             El Correo electrónico es obligatorio.
                                                         </div>
@@ -250,7 +250,7 @@
                                                 <div class="col-xs-12 col-sm-12 col-md-6">
                                                     <div class="form-group">
                                                         <label for="">Teléfono <span style="color:red;">(*)</span></label>
-                                                            <input type="text" class="form-control"  name="telefono_PF" id="telefono_PF" maxlength="10" pattern="[0-9]+" >
+                                                            <input type="number" class="form-control"  name="telefono_PF" id="telefono_PF" maxlength="10" pattern="[0-9]+" oninput="if(this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);" >
                                                         <div class="invalid-feedback">
                                                             El telefono es obligatorio.
                                                         </div>
@@ -326,7 +326,7 @@
                                                 <div class="col-xs-12 col-sm-12 col-md-3">
                                                     <div class="form-group">
                                                         <label for="name">Nombre de la Vialidad <span style="color:red;">(*)</span></label>
-                                                        <input type="text" name="vialidad_calle_pF" id="vialidad_calle_pF" class="form-control" oninput="this.value = this.value.toUpperCase()" > 
+                                                        <input type="text" maxlength="100" name="vialidad_calle_pF" id="vialidad_calle_pF" class="form-control" oninput="this.value = this.value.toUpperCase()" > 
                                                         <div class="invalid-feedback">
                                                             El campo vialidad o calle es obligatorio.
                                                         </div>
@@ -335,7 +335,7 @@
                                                 <div class="col-xs-12 col-sm-12 col-md-3">
                                                     <div class="form-group">
                                                         <label for="">Colonia <span style="color:red;">(*)</span></label>
-                                                        <input type="text" class="form-control" name="colonia_pF" id="colonia_pF" oninput="this.value = this.value.toUpperCase()" >
+                                                        <input type="text" maxlength="50" class="form-control" name="colonia_pF" id="colonia_pF" oninput="this.value = this.value.toUpperCase()" >
                                                         <div class="invalid-feedback">
                                                             La colonia es obligatoria.
                                                         </div>
@@ -344,7 +344,7 @@
                                                 <div class="col-xs-12 col-sm-12 col-md-3">
                                                     <div class="form-group">
                                                         <label for="">Núm. Ext. <span style="color:red;">(*)</span></label>
-                                                        <input type="text" class="form-control" placeholder="*Número exterior" name="num_ext_pF" id="num_ext_pF" oninput="this.value = this.value.toUpperCase()" >
+                                                        <input type="text" maxlength="50" class="form-control" placeholder="*Número exterior" name="num_ext_pF" id="num_ext_pF" oninput="this.value = this.value.toUpperCase()" >
                                                         <div class="invalid-feedback">
                                                             El Núm. ext. es obligatoria.
                                                         </div>
@@ -353,13 +353,13 @@
                                                 <div class="col-xs-12 col-sm-12 col-md-3">
                                                     <div class="form-group">
                                                         <label for="">Núm. Int.</label>
-                                                        <input type="text" class="form-control" placeholder="Número interior" name="num_int_pF" data-no-required oninput="this.value = this.value.toUpperCase()">
+                                                        <input type="text" maxlength="50" class="form-control" placeholder="Número interior" name="num_int_pF" data-no-required oninput="this.value = this.value.toUpperCase()">
                                                     </div>
                                                 </div>
                                                 <div class="col-xs-12 col-sm-12 col-md-3">
                                                     <div class="form-group">
                                                         <label for="">Código Postal <span style="color:red;">(*)</span></label>
-                                                        <input type="text" class="form-control" placeholder="*Código Postal" name="cp_pF" id="cp_pF" minlength="5" maxlength="5" oninput="this.value = this.value.toUpperCase()" >
+                                                        <input type="number" class="form-control" placeholder="*Código Postal" name="cp_pF" id="cp_pF" minlength="5" maxlength="5" oninput="this.value = this.value.toUpperCase(); if(this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);" >
                                                         <div class="invalid-feedback">
                                                             El código postal es obligatoria.
                                                         </div>
@@ -395,7 +395,7 @@
                                                 <div class="col-xs-12 col-sm-12 col-md-6">
                                                     <div class="form-group">
                                                         <label for="name">Nombre(s) del representante <span style="color:red;">(*)</span></label>
-                                                        <input type="text" name="nombre_representante_pF" id="nombre_representante_pF" class="form-control" oninput="this.value = this.value.toUpperCase()" > 
+                                                        <input type="text" maxlength="50" name="nombre_representante_pF" id="nombre_representante_pF" class="form-control" oninput="this.value = this.value.toUpperCase()" > 
                                                         <div class="invalid-feedback">
                                                             El nombre es obligatorio.
                                                         </div>
@@ -404,7 +404,7 @@
                                                 <div class="col-xs-12 col-sm-12 col-md-6">
                                                     <div class="form-group">
                                                         <label for="name">Primer apellido <span style="color:red;">(*)</span></label>
-                                                        <input type="text" name="primer_representante_pF" id="primer_representante_pF" class="form-control" oninput="this.value = this.value.toUpperCase()" > 
+                                                        <input type="text" maxlength="50" name="primer_representante_pF" id="primer_representante_pF" class="form-control" oninput="this.value = this.value.toUpperCase()" > 
                                                         <div class="invalid-feedback">
                                                             El primer apellido es obligatorio.
                                                         </div>
@@ -413,7 +413,7 @@
                                                 <div class="col-xs-12 col-sm-12 col-md-6">
                                                     <div class="form-group">
                                                         <label for="name">Segundo apellido <span style="color:red;">(*)</span></label>
-                                                        <input type="text" name="segundo_representante_pF" id="segundo_representante_pF" class="form-control" oninput="this.value = this.value.toUpperCase()" > 
+                                                        <input type="text" maxlength="50" name="segundo_representante_pF" id="segundo_representante_pF" class="form-control" oninput="this.value = this.value.toUpperCase()" > 
                                                         <div class="invalid-feedback">
                                                             El segundo apellido es obligatorio.
                                                         </div>
@@ -452,7 +452,7 @@
                                                 <div class="col-xs-12 col-sm-12 col-md-6">
                                                     <div class="form-group">
                                                         <label for="">Correo electrónico <span style="color:red;">(*)</span></label>
-                                                        <input type="email" class="form-control" name="correo_representante_pF" id="correo_representante_pF" >
+                                                        <input type="email" maxlength="50" class="form-control" name="correo_representante_pF" id="correo_representante_pF" >
                                                         <div class="invalid-feedback">
                                                             El Correo electrónico es obligatorio.
                                                         </div>
@@ -461,7 +461,7 @@
                                                 <div class="col-xs-12 col-sm-12 col-md-6">
                                                     <div class="form-group">
                                                         <label for="">Teléfono <span style="color:red;">(*)</span></label>
-                                                        <input type="text" class="form-control"  name="telefono_representante_pF" id="telefono_representante_pF" maxlength="10" pattern="[0-9]+" >
+                                                        <input type="number" class="form-control"  name="telefono_representante_pF" id="telefono_representante_pF" maxlength="10" pattern="[0-9]+" oninput="if(this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);" >
                                                         <div class="invalid-feedback">
                                                             El telefono es obligatorio.
                                                         </div>
@@ -542,7 +542,7 @@
                                                 <div class="col-xs-12 col-sm-12 col-md-6"> 
                                                     <div class="form-group">
                                                         <label for="name">Núm de identificación <span style="color:red;">(*)</span> <span data-bs-toggle="modal" data-bs-target="#helpModal" style="cursor: pointer;">❓</span></label>
-                                                        <input type="text" name="num_identificacion_pFCR" id="num_identificacion_pFCR" class="form-control" oninput="this.value = this.value.toUpperCase()"> 
+                                                        <input type="text" maxlength="20" name="num_identificacion_pFCR" id="num_identificacion_pFCR" class="form-control" oninput="this.value = this.value.toUpperCase()"> 
                                                         <div class="invalid-feedback">
                                                             El campo núm. de identificación es obligatorio.
                                                         </div>
@@ -624,7 +624,7 @@
                                                 <div class="col-xs-12 col-sm-12 col-md-6"> 
                                                     <div class="form-group">
                                                         <label for="name">Núm de identificación <span style="color:red;">(*)</span> <span data-bs-toggle="modal" data-bs-target="#helpModal" style="cursor: pointer;">❓</span></label>
-                                                        <input type="text" name="num_identificacion_pF" id="num_identificacion_pF" class="form-control" oninput="this.value = this.value.toUpperCase()"> 
+                                                        <input type="text" maxlength="20" name="num_identificacion_pF" id="num_identificacion_pF" class="form-control" oninput="this.value = this.value.toUpperCase()"> 
                                                         <div class="invalid-feedback">
                                                             El campo núm. de identificación es obligatorio.
                                                         </div>
@@ -690,7 +690,7 @@
                                                 <div class="col-xs-12 col-sm-12 col-md-6">
                                                     <div class="form-group">
                                                         <label for="name">Giro Comercial <span style="color:red;">(*)</span></label>
-                                                        <input type="text" name="giro_moral" id="giro_moral" class="form-control" oninput="this.value = this.value.toUpperCase()" > 
+                                                        <input type="text" maxlength="200" name="giro_moral" id="giro_moral" class="form-control" oninput="this.value = this.value.toUpperCase()" > 
                                                         <div class="invalid-feedback">
                                                             El nombre es obligatorio.
                                                         </div>
@@ -765,7 +765,7 @@
                                                 <div class="col-xs-12 col-sm-12 col-md-3">
                                                     <div class="form-group">
                                                         <label for="name">Nombre de la Vialidad <span style="color:red;">(*)</span></label>
-                                                        <input type="text" name="vialidad_calleMoral" id="vialidad_calleMoral" class="form-control" placeholder="*Nombre vialidad" oninput="this.value = this.value.toUpperCase()" > 
+                                                        <input type="text" maxlength="100" name="vialidad_calleMoral" id="vialidad_calleMoral" class="form-control" placeholder="*Nombre vialidad" oninput="this.value = this.value.toUpperCase()" > 
                                                         <div class="invalid-feedback">
                                                             El campo vialidad o calle es obligatorio.
                                                         </div>
@@ -774,7 +774,7 @@
                                                 <div class="col-xs-12 col-sm-12 col-md-3">
                                                     <div class="form-group">
                                                         <label for="">Colonia <span style="color:red;">(*)</span></label>
-                                                        <input type="text" class="form-control" name="colonia_moral" id="colonia_moral" oninput="this.value = this.value.toUpperCase()" >
+                                                        <input type="text" maxlength="50" class="form-control" name="colonia_moral" id="colonia_moral" oninput="this.value = this.value.toUpperCase()" >
                                                         <div class="invalid-feedback">
                                                             La colonia es obligatoria.
                                                         </div>
@@ -783,7 +783,7 @@
                                                 <div class="col-xs-12 col-sm-12 col-md-3">
                                                     <div class="form-group">
                                                         <label for="">Núm. Ext. <span style="color:red;">(*)</span></label>
-                                                        <input type="text" class="form-control" maxlength="50" placeholder="*Número exterior" name="num_ext_moral" id="num_ext_moral" oninput="this.value = this.value.toUpperCase()" >
+                                                        <input type="text" maxlength="50" class="form-control" maxlength="50" placeholder="*Número exterior" name="num_ext_moral" id="num_ext_moral" oninput="this.value = this.value.toUpperCase()" >
                                                         <div class="invalid-feedback">
                                                             El Núm. ext. es obligatorio.
                                                         </div>
@@ -792,13 +792,13 @@
                                                 <div class="col-xs-12 col-sm-12 col-md-3">
                                                     <div class="form-group">
                                                         <label for="">Núm. Int.</label>
-                                                        <input type="text" class="form-control" maxlength="30" placeholder="Número interior" name="num_int" data-no-required oninput="this.value = this.value.toUpperCase()">
+                                                        <input type="text" maxlength="50" class="form-control" maxlength="30" placeholder="Número interior" name="num_int" data-no-required oninput="this.value = this.value.toUpperCase()">
                                                     </div>
                                                 </div>
                                                 <div class="col-xs-12 col-sm-12 col-md-3">
                                                     <div class="form-group">
                                                         <label for="">Código Postal <span style="color:red;">(*)</span></label>
-                                                        <input type="text" class="form-control" name="cp_moral" id="cp_moral"  minlength="5" maxlength="5" oninput="this.value = this.value.toUpperCase()" >
+                                                        <input type="number" class="form-control" name="cp_moral" id="cp_moral"  minlength="5" maxlength="5" oninput="this.value = this.value.toUpperCase(); if(this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);" >
                                                         <div class="invalid-feedback">
                                                             El código postal es obligatorio.
                                                         </div>
@@ -820,7 +820,7 @@
                                                 <div class="col-xs-12 col-sm-12 col-md-6">
                                                     <div class="form-group">
                                                         <label for="name">Nombre(s) del Representante Legal<span style="color:red;">(*)</span></label>
-                                                        <input type="text" name="nombre_representante_Moral" id="nombre_representante_Moral" class="form-control" oninput="this.value = this.value.toUpperCase()" > 
+                                                        <input type="text" maxlength="50" name="nombre_representante_Moral" id="nombre_representante_Moral" class="form-control" oninput="this.value = this.value.toUpperCase()" > 
                                                         <div class="invalid-feedback">
                                                             El nombre es obligatorio.
                                                         </div>
@@ -829,7 +829,7 @@
                                                 <div class="col-xs-12 col-sm-12 col-md-6">
                                                     <div class="form-group">
                                                         <label for="name">Primer apellido <span style="color:red;">(*)</span></label>
-                                                        <input type="text" name="primer_Moral" maxlength="100" id="primer_Moral" class="form-control" oninput="this.value = this.value.toUpperCase()" > 
+                                                        <input type="text" maxlength="50" name="primer_Moral" maxlength="100" id="primer_Moral" class="form-control" oninput="this.value = this.value.toUpperCase()" > 
                                                         <div class="invalid-feedback">
                                                             El primer apellido es obligatorio.
                                                         </div>
@@ -838,7 +838,7 @@
                                                 <div class="col-xs-12 col-sm-12 col-md-6">
                                                     <div class="form-group">
                                                         <label for="name">Segundo apellido <span style="color:red;">(*)</span></label>
-                                                        <input type="text" name="segundo_Moral" maxlength="100" id="segundo_Moral" class="form-control" oninput="this.value = this.value.toUpperCase()" > 
+                                                        <input type="text" maxlength="50" name="segundo_Moral" maxlength="100" id="segundo_Moral" class="form-control" oninput="this.value = this.value.toUpperCase()" > 
                                                         <div class="invalid-feedback">
                                                             El segundo apellido es obligatorio.
                                                         </div>
@@ -847,7 +847,7 @@
                                                 <div class="col-xs-12 col-sm-12 col-md-6">
                                                     <div class="form-group">
                                                         <label for="">CURP<span style="color:red;"> (*)</span></label>
-                                                        <input type="text" class="form-control"  aria-label="CURP" name="curp_moral" id="curp_moral" minlength="18" maxlength="18" oninput="this.value = this.value.toUpperCase()" >
+                                                        <input type="text" maxlength="18" class="form-control"  aria-label="CURP" name="curp_moral" id="curp_moral" minlength="18" maxlength="18" oninput="this.value = this.value.toUpperCase()" >
                                                         <div class="invalid-feedback">
                                                             La CURP es obligatoria.
                                                         </div>
@@ -876,8 +876,8 @@
 
                                                 <div class="col-xs-12 col-sm-12 col-md-6">
                                                     <div class="form-group">
-                                                        <label for="">Correo electrónico <span style="color:red;">(*)</label>
-                                                        <input type="email" class="form-control" name="correo_Moral" id="correo_Moral" >
+                                                        <label for="">Correo electrónico <span style="color:red;">(*)</span></label>
+                                                        <input type="email" maxlength="50" class="form-control" name="correo_Moral" id="correo_Moral" >
                                                         <div class="invalid-feedback">
                                                             El Correo electrónico es obligatorio.
                                                         </div>
@@ -885,8 +885,8 @@
                                                 </div>
                                                 <div class="col-xs-12 col-sm-12 col-md-6">
                                                     <div class="form-group">
-                                                        <label for="">Teléfono <span style="color:red;">(*)</label>
-                                                        <input type="text" class="form-control" placeholder="*Telefono"  name="telefono_Moral" id="telefono_Moral" maxlength="10" pattern="[0-9]+" >
+                                                        <label for="">Teléfono <span style="color:red;">(*)</span></label>
+                                                        <input type="number" class="form-control" placeholder="*Telefono"  name="telefono_Moral" id="telefono_Moral" maxlength="10" pattern="[0-9]+" oninput="if(this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);" >
                                                         <div class="invalid-feedback">
                                                             El telefono es obligatorio.
                                                         </div>
@@ -967,7 +967,7 @@
                                                 <div class="col-xs-12 col-sm-12 col-md-6"> 
                                                     <div class="form-group">
                                                         <label for="name">Núm de identificación <span style="color:red;">(*)</span> <span data-bs-toggle="modal" data-bs-target="#helpModal" style="cursor: pointer;">❓</span></label>
-                                                        <input type="text" name="num_identificacion_Moral" id="num_identificacion_Moral" class="form-control" oninput="this.value = this.value.toUpperCase()"> 
+                                                        <input type="text" maxlength="20" name="num_identificacion_Moral" id="num_identificacion_Moral" class="form-control" oninput="this.value = this.value.toUpperCase()"> 
                                                         <div class="invalid-feedback">
                                                             El campo núm. de identificación es obligatorio.
                                                         </div>

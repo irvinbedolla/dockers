@@ -70,12 +70,14 @@
                             <a href="{{ route('password_cambiar' ) }}" class="dropdown-item has-icon text-susess">
                                 <i class="bi bi-pass"></i>Cambiar contraseña
                             </a>
-                            <a href="{{ url('logout') }}" class="dropdown-item has-icon text-danger" onclick="event.preventDefault(); localStorage.clear();  document.getElementById('logout-form').submit();">
-                                <i class="bi bi-door-open"></i>Salir
-                            </a>
-                            <form id="logout-form" action="{{ url('/logout') }}" method="POST" class="d-none">
-                                {{ csrf_field() }}
-                            </form>
+                            <div class="dropdown-item p-0">
+                                <form id="logout-form" action="{{ route('logout') }}" method="POST" class="m-0">
+                                    @csrf
+                                    <button type="submit" class="dropdown-item has-icon text-danger d-flex align-items-center" style="border: none; background: none; width: 100%; padding: 10px 20px;">
+                                        <i class="bi bi-door-open me-2"></i> Salir
+                                    </button>
+                                </form>
+                            </div>
                         </div>
                     </li>
                 @else

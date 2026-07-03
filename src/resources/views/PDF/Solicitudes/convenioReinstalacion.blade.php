@@ -129,7 +129,7 @@
                     <table id="tabla_solicitud" class="table-striped" style="width:60%; float: right;">
                         <tr>   
                             <td><b>Oficina: </b></td>
-                            <td>{{ strtoupper($solicitud->delegacion) }} </td>
+                            <td>{{ mb_strtoupper($solicitud->delegacion) }} </td>
                         </tr>
                         <tr>    
                             <td><b>Número de identificación único: </b></td>
@@ -176,7 +176,7 @@
 
                 <p><center><b>D E C L A R A C I O N E S:</b></center></p><br>
 
-                <p><b>PRIMERA.</b> La parte <b>TRABAJADORA {{ $solicitante->nombre }}</b> se identifica con <b>{{ strtoupper($solicitante->identificacion) }}</b>, de Número <b>{{ $solicitante->num_identificacion }}</b> 
+                <p><b>PRIMERA.</b> La parte <b>TRABAJADORA {{ $solicitante->nombre }}</b> se identifica con <b>{{ mb_strtoupper($solicitante->identificacion) }}</b>, de Número <b>{{ $solicitante->num_identificacion }}</b> 
                     expedida a su favor por <b>{{ $descripcionIdentificacionS }}</b> y declara ser una persona mayor de edad, por lo que tiene plenas capacidades de goce y ejercicio para convenir o transigir.</p> 
 
                 <p><b>SEGUNDA.</b>
@@ -196,11 +196,11 @@
 
                         @if(!$tieneRepresentante)
                             La parte EMPLEADORA <b>{{ $rep->nombres_patronal }} {{ $rep->primer_apellido_patronal }} {{ $rep->segundo_apellido_patronal }}</b> quien se identifica con
-                            <b>{{ strtoupper($rep->tipo_identificacion) }}</b>, de Número <b>{{ $rep->num_identificacion }}</b> expedida a su favor por <b>{{ $descId }}</b>,
+                            <b>{{ mb_strtoupper($rep->tipo_identificacion) }}</b>, de Número <b>{{ $rep->num_identificacion }}</b> expedida a su favor por <b>{{ $descId }}</b>,
                             y declara ser una persona mayor de edad, por lo que tiene plenas capacidades de goce y ejercicio para convenir o transigir.
                         @else
                             Declara <b>{{ $nombreRepresentante }}</b>, <b>que es apoderado legal de la PARTE EMPLEADORA</b>, quien se identifica con
-                            <b>{{ strtoupper($rep->tipo_identificacion) }}</b>, de Número <b>{{ $rep->num_identificacion }}</b> y que cuenta con facultades suficientes para convenir
+                            <b>{{ mb_strtoupper($rep->tipo_identificacion) }}</b>, de Número <b>{{ $rep->num_identificacion }}</b> y que cuenta con facultades suficientes para convenir
                             a nombre de su representada en términos de <b>{{ $rep->tipo_documento_representante }}</b>, facultad que a la fecha no le ha sido revocada.
                         @endif
                     @endforeach
@@ -243,7 +243,7 @@
                         </p>
                         <p class="sangria">
                             b) Que con motivo del citatorio de fecha <b>{{ \Carbon\Carbon::parse($solicitud->fecha)->translatedFormat('d \d\e F \d\e\l Y') }}</b> emitido por el Centro de Conciliación Laboral 
-                            del Estado de Michoacán de Ocampo, la parte <b>EMPLEADORA</b> fue notificada y comparece para desahogar la etapa se conciliación prejudicial conforme a los artículos 684-E de la Ley Federal del Trabajo.
+                            del Estado de Michoacán de Ocampo, la parte <b>EMPLEADORA</b> fue notificada y comparece para desahogar la etapa de conciliación prejudicial conforme a los artículos 684-E de la Ley Federal del Trabajo.
                         </p> 
                                    
                     <b>QUINTA.</b> Declaran las <b>PARTES</b>:  
@@ -358,9 +358,10 @@
                     <p><b>{{ $datosAudiencia->resolicion_justificacion }}</b></p><br>
                     <!-- (APARTADO QUE LLENA MANUALMENTE QUIEN ATIENDE A LAS PARTES)  -->
 
-                    <!-- CON PAGOS DIFERIDOS-->       
+                    <!-- CON PAGOS DIFERIDOS-->
                     @php
-                        $cantidadPagos = (int) ($pagosDif->C_pagos ?? 1);
+                        // Uno de los pagos registrados corresponde forzosamente al designado para la Reinstalación, no a una exhibición de pago.
+                        $cantidadPagos = max(0, ((int) ($pagosDif->C_pagos ?? 1)) - 1);
                     @endphp
 
                     <!-- CONDICIONAL 1 SOLO PAGO(EN UNA SOLA EXIBICIÓN)--> 
@@ -499,22 +500,19 @@
                         resultado del diálogo de la conciliación entre la parte <b>TRABAJADORA</b> y la parte <b>EMPLEADORA</b>. Así mismo, manifiestan que se encuentran conformes con el presente acuerdo 
                         por no contener cláusula contraria a la costumbre, a la moral, ni renuncia a los derechos de las <b>PARTES</b>, obligándose a su cabal cumplimiento, y dando por finalizada la controversia laboral.<br><br>
                                     
-                        <b>OCTAVA</b>. Las <b>PARTES</b> manifiestan que es su voluntad ratificar el presente convenio en todas y cada una de sus partes y la aprobación de su contenido, por lo que no se 
-                        reservan acción legal o derecho alguno para ejercitar con posterioridad a la firma del presente convenio.<br><br>
+                        <b>OCTAVA</b>. Las <b>PARTES</b> manifiestan que es su voluntad ratificar el presente convenio en todas y cada una de sus partes y la aprobación de su contenido, manifiestan que en la celebración del presente convenio 
+                        no existió violencia, mala fe, dolo, lesión o cualquier otro tipo de vicio del consentimiento que pudiera nulificarlo.<br><br>
                                     
                         <b>NOVENA</b>. Las <b>PARTES</b> solicitan ante el Centro Estatal de Conciliación Laboral que se les expida un tanto original del convenio, y en el momento en que se haya 
                         cumplido totalmente, se les expida acta en la que conste el cumplimiento de éste, en términos del artículo 684-E, fracción XIV, primer párrafo, de la Ley Federal del Trabajo.<br><br>
-                                    
-                        <b>DÉCIMA PRIMERA</b>. Las <b>PARTES</b> manifiestan que en la celebración del presente convenio no existió violencia, mala fe, dolo, lesión o cualquier otro tipo de vicio del consentimiento 
-                        que pudiera nulificarlo.<br><br>
                     
-                        <b>DÉCIMA SEGUNDA</b>. En caso de que no se cumplan los términos de lo convenido en el presente instrumento, las <b>PARTES</b> deberán acudir al Juzgado Laboral competente a 
+                        <b>DÉCIMA</b>. En caso de que no se cumplan los términos de lo convenido en el presente instrumento, las <b>PARTES</b> deberán acudir al Juzgado Laboral competente a 
                         efecto de que se realice el Procedimiento de Ejecución que la Ley Federal del Trabajo contempla. <br>
                     </p> 
                     <div class="salto-inteligente"></div>
                     <div class="contenedor-firmas">             
                     <p>Enteradas las <b>PARTES</b> del alcance legal del presente convenio que se eleva a la categoria de cosa juzgada, conforme al artículo 684-E fracción XIII, mismo que se firma en <b>{{ $solicitud->delegacion }}</b> 
-                        de Michoacán de Ocampo a los <b>{{ \Carbon\Carbon::parse($solicitud->update)->translatedFormat('d \d\í\a\s \d\e F \d\e\l Y') }}</b>, ante la fe de <b>{{ strtoupper($conciliador->name) }}</b>, funcionario(a) conciliador(a), quien 
+                        de Michoacán de Ocampo a los <b>{{ \Carbon\Carbon::parse($solicitud->update)->translatedFormat('d \d\í\a\s \d\e F \d\e\l Y') }}</b>, ante la fe de <b>{{ mb_strtoupper($conciliador->name) }}</b>, funcionario(a) conciliador(a), quien 
                         lo sanciona en este mismo acto. <b>Doy fe.</b>
                     </p>
                     <br><br>
@@ -554,7 +552,7 @@
                         </tr>
                     </table><br>
                     <p style="font-size: 10px;">
-                            LAS PRESENTES FIRMAS FORMAN PARTE INTEGRA DEL CONVENIO DE CONCILIACIÓN DE FECHA <b>{{ \Carbon\Carbon::parse($solicitud->fecha)->translatedFormat('d \d\e F \d\e\l Y') }}</b> EXPEDIENTE NÚMERO <b>{{ $solicitud->NUE }}</b> DEL CENTRO DE CONCILIACIÓN LABORAL DEL ESTADO DE MICHOACÁN DE OCAMPO.
+                            LAS PRESENTES FIRMAS FORMAN PARTE INTEGRA DEL CONVENIO DE CONCILIACIÓN DE FECHA <b>{{ mb_strtoupper(\Carbon\Carbon::parse($solicitud->fecha)->locale('es')->isoFormat('D [DE] MMMM [DE] YYYY'), 'UTF-8') }}</b> EXPEDIENTE NÚMERO <b>{{ $solicitud->NUE }}</b> DEL CENTRO DE CONCILIACIÓN LABORAL DEL ESTADO DE MICHOACÁN DE OCAMPO.
                     </p> 
                 </div>        
             </div>

@@ -29,7 +29,6 @@
                                 </div>
                             @endif
                             
-                            <a href="{{ route('notificaciones_consultar') }}"  class="btn btn-primary">Regresar</a>
                             <div class="col-xs-12 col-sm-12 col-md-12"><br></div>
                             <form class="needs-validation novalidate" method="POST" action="{{route('actualizar_enlace_hitorial')}}" enctype="multipart/form-data">
                                 @csrf    
@@ -76,18 +75,17 @@
                                             </div>
                                         </div>
                                     </div>
-                                    @if(!empty($folio['curp'])) 
-                                        <div class="col-xs-12 col-sm-12 col-md-6">
-                                            <div class="form-group">
-                                                <label for="name">CURP</label>
-                                                <input type="text" name="curp" id="curp_input" oninput="validarInput(this)" class="form-control" value="<?=$folio["curp"];?>"> 
-                                                <pre id="resultado"></pre>
-                                                <div class="invalid-feedback">
-                                                    El CURP es obligatorio.
-                                                </div>
+                                    
+                                    <div class="col-xs-12 col-sm-12 col-md-4">
+                                        <div class="form-group">
+                                            <label for="name">CURP <span style="color:red;">(*)</span></label>
+                                            <input type="text" name="curp" maxlength="18" id="curp_input" class="form-control" value="<?=$folio["curp"];?>"  oninput="validarInput(this)" required> 
+                                            <pre id="resultado"></pre>
+                                            <div class="invalid-feedback">
+                                                El campo CURP es obligatorio.
                                             </div>
                                         </div>
-                                    @endif
+                                    </div>
 
                                     <div class="col-xs-12 col-sm-12 col-md-6">
                                         <div class="form-group">
@@ -145,7 +143,7 @@
                                     <div class="col-xs-12 col-sm-12 col-md-6">
                                         <div class="form-group">
                                             <label for="name">Código postal <span style="color:red;">(*)</span></label>
-                                            <input type="text" name="cp" class="form-control" value="<?=$folio["cp"];?>" minlength="5" maxlength="5" required> 
+                                            <input type="number" min="0" max="99999" maxlength="5" class="form-control" name="cp" id="cp" oninput="if(this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);" value="<?=$folio["cp"];?>" required>
                                             <div class="invalid-feedback">
                                                 El campo Código Postal es obligatorio.
                                             </div>
@@ -231,7 +229,7 @@
                                     <div class="col-xs-12 col-sm-12 col-md-6">
                                         <label for="password">Referencia 1 <span style="color:red;">(*)</span></label><br>
                                         @if (!empty($folio->imagen_domicilio1) && $folio->imagen_domicilio1 !== 'Sin documento')
-                                            <a target='_blank' href="{{ asset('storage/app/documentosSolicitud/'.$folio->imagen_domicilio1) }}">VER IMAGEN</a>
+                                            <a target='_blank' href="{{ asset('storage/app/documentosSolicitud/'. $folio->id_solicitud . '/' . $folio->imagen_domicilio1) }}">VER IMAGEN</a>
                                         @else
                                             <span class="text-muted">No se subió imagen</span>
                                         @endif
@@ -242,7 +240,7 @@
                                     <div class="col-xs-12 col-sm-12 col-md-6">
                                         <label for="password">Referencia 2</label><br>
                                         @if (!empty($folio->imagen_domicilio2) && $folio->imagen_domicilio2 !== 'Sin documento')
-                                            <a target='_blank' href="{{ asset('storage/app/documentosSolicitud/'.$folio->imagen_domicilio2) }}">VER IMAGEN</a><br>
+                                            <a target='_blank' href="{{ asset('storage/app/documentosSolicitud/'. $folio->id_solicitud . '/' . $folio->imagen_domicilio2) }}">VER IMAGEN</a><br>
                                         @else
                                             <span class="text-muted">No se subió imagen</span>
                                         @endif
@@ -295,6 +293,9 @@
                                     </div>          
                                 </div>
                             </form>
+                                <a href="{{ route('notificaciones_consultar') }}"  class="btn btn-primary">Regresar</a>
+                        
+
                         </div>
                     </div>
                 </div>
@@ -312,7 +313,7 @@
 @section('scripts')
     <script src="../../public/assets/js/poderes/general.js"></script>
 @endsection
-    <script src="../../public/assets/js/validaciones.js"></script>
+    <script src="../public/assets/js/validaciones.js"></script> 
     <script src="../../public/assets/js/jquery.min.js"></script>
     <script src="../../public/assets/js/popper.min.js"></script>
     <script src="../../public/assets/js/bootstrap.min.js"></script>

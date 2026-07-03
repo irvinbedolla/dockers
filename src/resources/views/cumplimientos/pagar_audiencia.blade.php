@@ -1,4 +1,4 @@
-@extends('layouts.app')
+@extends('layouts.app_editar')
 @php
     $fechaActual = date('Y-m-d');
 @endphp
@@ -65,23 +65,23 @@
                                                         @if($pago->estatus == "Pagado")
                                                             @if($totalRegistros == 1)
                                                                 <a class="btn btn-success" href="{{ route('PDFcumplimientoParcial', $pago->id) }}" target="_blank">
-                                                                    PDF
+                                                                    Ver PDF
                                                                 </a>    
                                                             @else
                                                                 <a class="btn btn-success" href="{{ route('PDFcumplimientoParcial', $pago->id) }}" target="_blank">
-                                                                    PDF
+                                                                    Ver PDF
                                                                 </a>
                                                             @endif
                                                         @elseif($pago->estatus == "Pagado con pena convencional")
                                                             <a class="btn btn-success" href="{{ route('PDFcumplimientoParcial', $pago->id) }}" target="_blank">
-                                                                PDF
+                                                                Ver PDF
                                                             </a>
                                                         {{--@if($pago->estatus == "Pagado")
-                                                            <a class="btn btn-success" href="{{ route('PDFcumplimientoParcial', $pago->id) }}" target="_blank">PDF</a>--}}
+                                                            <a class="btn btn-success" href="{{ route('PDFcumplimientoParcial', $pago->id) }}" target="_blank">Ver PDF</a>--}}
                                                         @elseif($pago->estatus == "No pagado")
-                                                            <a class="btn btn-info" href="{{ route('PDFincumplimientoAudiencia', $pago->id) }}" target="_blank">PDF</a>
+                                                            <a class="btn btn-info" href="{{ route('PDFincumplimientoAudiencia', $pago->id) }}" target="_blank">Ver PDF</a>
                                                         @elseif($pago->estatus == "Incomparecencia trabajador")
-                                                            <a class="btn btn-info" href="{{ route('PDFIncomparecenciaCumplimiento', $pago->id) }}" target="_blank">PDF</a>
+                                                            <a class="btn btn-info" href="{{ route('PDFIncomparecenciaCumplimiento', $pago->id) }}" target="_blank">Ver PDF</a>
                                                         @endif
                                                     </td>
                                                 </tr>
