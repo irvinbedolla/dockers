@@ -6,17 +6,17 @@
     <title>Si concilio</title>
     <meta content='width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no' name='viewport'>
     <!-- Bootstrap 4.1.1 -->
-    <link href="public/assets/css/bootstrap.min.css" rel="stylesheet" type="text/css"/>
+    <link href="{{ asset('assets/css/bootstrap.min.css') }}" rel="stylesheet">
 
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/index.global.min.js'></script>
 
     <!-- Ionicons -->
     <link href="//fonts.googleapis.com/css?family=Lato&display=swap" rel="stylesheet">
-    <link href="public/assets/css/all.css" rel="stylesheet" type="text/css">
-    <link href="public/assets/css/iziToast.min.css" rel="stylesheet">
-    <link href="public/assets/css/sweetalert.css" rel="stylesheet" type="text/css"/>
-    <link href="public/assets/css/select2.min.css" rel="stylesheet" type="text/css"/>
-    <link href="public/assets/css/realtime.css" rel="stylesheet" type="text/css"/>
+    <link href="{{ asset('assets/css/all.css') }}" rel="stylesheet">
+    <link href="{{ asset('assets/css/iziToast.min.css') }}" rel="stylesheet">
+    <link href="{{ asset('assets/css/sweetalert.css') }}" rel="stylesheet">
+    <link href="{{ asset('assets/css/select2.min.css') }}" rel="stylesheet">
+    <link href="{{ asset('assets/css/realtime.css') }}" rel="stylesheet">
     
     <!-- Agregados para los Select del Formulario Personas-->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -32,7 +32,7 @@
             width: 100%;
             height: 100%;
             z-index: 9999;
-            background: url('public/assets/images/pageLoader.gif') 50% 50% no-repeat rgb(249,249,249);
+            background: url('{{ asset("assets/images/pageLoader.gif") }}') 50% 50% no-repeat rgb(249,249,249);
             opacity: .8;
         }
         #calendar {
@@ -102,9 +102,9 @@
 
     @yield('page_css')
     <!-- Template CSS -->
-    <link rel="icon" href="public/assets/images/ccl-r.png" type="image/x-icon">
-    <link rel="stylesheet" href="public/assets/css/style.css">
-    <link rel="stylesheet" href="public/assets/css/components.css">
+    <link rel="icon" href="{{ asset('assets/images/ccl-r.png') }}">
+    <link href="{{ asset('assets/css/style.css') }}" rel="stylesheet">
+    <link href="{{ asset('assets/css/components.css') }}" rel="stylesheet">
     @yield('page_css')
 
     @yield('css')
@@ -124,7 +124,7 @@
                     <li class="dropdown">
                         <a href="#" data-toggle="dropdown"
                         class="nav-link dropdown-toggle nav-link-lg nav-link-user">
-                            <img alt="image" src="public/assets/images/ccl-r.png"
+                            <img alt="image" src="{{ asset('assets/images/ccl-r.png') }}"
                                 class="rounded-circle mr-1 thumbnail-rounded user-thumbnail ">
                             <div class="d-sm-none d-lg-inline-block">
                                 Hola, {{\Illuminate\Support\Facades\Auth::user()->name}}</div>
@@ -164,13 +164,13 @@
         <div class="main-sidebar main-sidebar-postion">
             <aside id="sidebar-wrapper">
                 <div class="sidebar-brand">
-                    <img class="navbar-brand-full app-header-logo" src="public/assets/images/ccl-r.png" width="65"
+                    <img class="navbar-brand-full app-header-logo" src="{{ asset('assets/images/ccl-r.png') }}" width="65"
                         alt="Infyom Logo">
                     <a href="{{ url('/') }}"></a>
                 </div>
                 <div class="sidebar-brand sidebar-brand-sm">
                     <a href="{{ url('/') }}" class="small-sidebar-text">
-                        <img class="navbar-brand-full" src="public/assets/images/ccl-r.png" width="45px" alt=""/>
+                        <img class="navbar-brand-full" src="{{ asset('assets/images/ccl-r.png') }}" width="45px" alt=""/>
                     </a>
                 </div>
                 <ul class="sidebar-menu">
@@ -191,7 +191,7 @@
                                     <div class="row">
                                         <ul class="navbar-nav flex-grow-1 justify-content-center">
                                             <li class="nav-item text-center">
-                                                <img src="public/assets/images/ccl-r.png" alt="Logo" class="img-fluid" style="max-height: 100px;">
+                                                <img src="{{ asset('assets/images/ccl-r.png') }}" alt="Logo" class="img-fluid" style="max-height: 100px;">
                                             </li>
                                         </ul><br>
                                         @if($userRole[0] != 'Solicitante')
@@ -278,26 +278,28 @@
 
 
 @section('scripts')
-    <script src="public/assets/js/general/menu.js"></script>
+    <script src="{{asset('assets/js/general/menu.js')}}"></script>
 @endsection
 
 
 </body>
 
-    <script src="public/assets/js/jquery.min.js"></script>
-    <script src="public/assets/js/popper.min.js"></script>
-    <script src="public/assets/js/bootstrap.min.js"></script>
-    <script src="public/assets/js/sweetalert.min.js"></script>
-    <script src="public/assets/js/select2.min.js"></script>
-    <script src="public/assets/js/jquery.nicescroll.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/locales-all.min.js"></script>
-    <script src="public/assets/js/calendar.js"></script>
+    <script src="{{ asset('assets/js/jquery.min.js') }}"></script>
+    <script src="{{ asset('assets/js/popper.min.js') }}"></script>
+    <script src="{{ asset('assets/js/bootstrap.min.js') }}"></script>
 
-    <!-- Template JS File -->
-    <script src="public/assets/js/stisla.js"></script>
-    <script src="public/assets/js/scripts.js"></script>
-    <script src="public/assets/js/profile.js"></script>
-    <script src="public/assets/js/custom.js"></script>
+    <script src="{{ asset('assets/js/sweetalert.min.js') }}"></script>
+    <script src="{{ asset('assets/js/select2.min.js') }}"></script>
+    <script src="{{ asset('assets/js/jquery.nicescroll.js') }}"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/locales-all.min.js"></script>
+
+    <script src="{{ asset('assets/js/calendar.js') }}"></script>
+    <script src="{{ asset('assets/js/stisla.js') }}"></script>
+    <script src="{{ asset('assets/js/scripts.js') }}"></script>
+    <script src="{{ asset('assets/js/profile.js') }}"></script>
+    <script src="{{ asset('assets/js/custom.js') }}"></script>
+    <script src="{{ asset('assets/js/general/menu.js') }}"></script>
 @yield('page_js')
 @yield('scripts')
 

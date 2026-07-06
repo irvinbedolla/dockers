@@ -4,19 +4,19 @@
     <meta charset="UTF-8">
     <title>Si concilio</title>
     <!-- Bootstrap 4.1.1 -->
-    <link href="public/assets/css/bootstrap.min.css" rel="stylesheet" type="text/css"/>
+    <link href="{{ asset('assets/css/bootstrap.min.css')}}" rel="stylesheet" type="text/css"/>
     <!-- Ionicons -->
     <!--<link rel="icon" href="public/assets/images/ccl-r.png" type="image/x-icon">-->
     <link href="//fonts.googleapis.com/css?family=Lato&display=swap" rel="stylesheet">
-    <link href="public/assets/css/all.css" rel="stylesheet" type="text/css">
-    <link href="public/assets/css/iziToast.min.css" rel="stylesheet">
-    <link href="public/assets/css/sweetalert.css" rel="stylesheet" type="text/css"/>
-    <link href="public/assets/css/select2.min.css" rel="stylesheet" type="text/css"/>
+    <link href="{{ asset('assets/css/all.css')}}" rel="stylesheet" type="text/css">
+    <link href="{{ asset('assets/css/iziToast.min.css')}}" rel="stylesheet">
+    <link href="{{ asset('assets/css/sweetalert.css')}}" rel="stylesheet" type="text/css"/>
+    <link href="{{ asset('assets/css/select2.min.css') }}" rel="stylesheet" type="text/css"/>
 
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/index.global.min.js'></script>
 
     @yield('page_css')
-    <link rel="stylesheet" href="public/assets/css/components.css">
+    <link href="{{ asset('assets/css/components.css') }}" rel="stylesheet"/>
     @yield('page_css')
 </head>
     <div class="container">
@@ -52,17 +52,17 @@
         </div>
     </div>
 
-<script src="public/assets/js/calendar.js"></script>
-<script src="public/assets/js/jquery.min.js"></script>
-<script src="public/assets/js/popper.min.js"></script>
-<script src="public/assets/js/bootstrap.min.js"></script>
-<script src="public/assets/js/sweetalert.min.js"></script>
-<script src="public/assets/js/select2.min.js"></script>
-<script src="public/assets/js/jquery.nicescroll.js"></script>
+<script src="{{ asset('assets/js/calendar.js')}}"></script>
+<script src="{{ asset('assets/js/jquery.min.js') }}"></script>
+<script src="{{asset('assets/js/popper.min.js')}}"></script>
+<script src="{{asset('assets/js/bootstrap.min.js')}}"></script>
+<script src="{{asset('assets/js/sweetalert.min.js')}}"></script>
+<script src="{{asset('assets/js/select2.min.js')}}"></script>
+<script src="{{asset('assets/js/jquery.nicescroll.js')}}"></script>
 
 <!-- Template JS File -->
-<script src="public/assets/js/stisla.js"></script>
-<script src="public/assets/js/scripts.js"></script>
-<script src="public/assets/js/profile.js"></script>
-<script src="public/assets/js/custom.js"></script>
+<script src="{{asset('assets/js/stisla.js')}}"></script>
+<script src="{{asset('assets/js/scripts.js')}}"></script>
+<script src="{{asset('assets/js/profile.js')}}"></script>
+<script src="{{asset('assets/js/custom.js')}}"></script>
 
