@@ -1,4 +1,4 @@
-@extends('layouts.app_editar1')
+@extends('layouts.app')
 @php
     $fechaActual = date('Y-m-d');
 @endphp
