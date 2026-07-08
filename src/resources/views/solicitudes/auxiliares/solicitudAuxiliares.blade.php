@@ -1,4 +1,4 @@
-@extends('layouts.app_1')
+@extends('layouts.app')
     <style>
             .card {
                 border: none;
@@ -70,7 +70,7 @@
                     <div class="card">
 
                             <div class="card-body">
-                                <center><img src="public/assets/images/Baner.png" class="responsive-img" width="750" height="350" alt="Descripción de la imagen"></center><br>
+                                <center><img src="{{ asset('assets/images/Baner.png') }}" class="responsive-img" width="750" height="350" alt="Descripción de la imagen"></center><br>
                                 <center><div class="card-group">
                                       <!-- Inicio Seer -->
                                         <div style="display: block; text-align: center;">

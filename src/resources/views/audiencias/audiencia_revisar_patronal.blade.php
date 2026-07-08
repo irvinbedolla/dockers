@@ -1,4 +1,4 @@
-@extends('layouts.app_editar')
+@extends('layouts.app')
 @php
     $fechaActual = date('Y-m-d');
     $contador = 0;
@@ -705,7 +705,7 @@
                                     <option value="otros">OTROS</option>
                                 </select>
                                 <div class="invalid-feedback">
-                                    El tipo de identificaión es obligatorio.
+                                    El tipo de identificación es obligatorio.
                                 </div>
                             </div>
                         </div>
@@ -1096,8 +1096,8 @@
     });
 </script>
 
-<script src="../../public/assets/js/validaciones.js"></script> 
-<script src="../../public/assets/js/poderes/general.js"></script>
+<script src="{{ asset('assets/js/validaciones.js') }}"></script>
+<script src="{{ asset('assets/js/poderes/general.js') }}"></script>
 @endsection
 
 <div class="modal fade" id="modalEditarPoder" tabindex="-1" aria-labelledby="modalEditarPoderLabel" aria-hidden="true">
@@ -1403,7 +1403,7 @@
                                 <div class="form-group">
                                     <label>*Acta Constitutiva</label><br>
                                     <input type="file" name="documentoIne_Moral" id="documentoIne_Moral" class="form-control" accept=".pdf">
-                                    <a target="_blank" class="btn btn-primary mt-1" href="../../storage/app/documentos_abogados/{{$solicitante->poder->ineDocumento}}">Existente</a>
+                                    <a target="_blank" class="btn btn-primary mt-1" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->ineDocumento]) }}">Existente</a>
                                     <div class="invalid-feedback">La Identificación es obligatoria.</div>
                                 </div>
                             </div>
@@ -1412,7 +1412,7 @@
                                     <label>*Identificación del Representante Legal</label><br>
                                     <input type="file" name="documentoRepresentacion_Moral" id="documentoRepresentacion_Moral" class="form-control" accept=".pdf">
                                     @if($solicitante->poder->representacionDocumento != NULL)
-                                        <a target="_blank" class="btn btn-primary mt-1" href="../../storage/app/documentos_abogados/{{$solicitante->poder->representacionDocumento}}">Existente</a>
+                                        <a target="_blank" class="btn btn-primary mt-1" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->representacionDocumento]) }}">Existente</a>
                                     @endif
                                     <div class="invalid-feedback">El documento de representación es obligatorio.</div>
                                 </div>
@@ -1422,7 +1422,7 @@
                                     <label>*Documento que acredite la personería</label><br>
                                     <input type="file" name="documentoPoder" id="documentoPoder" class="form-control" accept=".pdf">
                                     @if($solicitante->poder->cedulaDocumento != NULL)
-                                        <a target="_blank" class="btn btn-primary mt-1" href="../../storage/app/documentos_abogados/{{$solicitante->poder->cedulaDocumento}}">Existente</a>
+                                        <a target="_blank" class="btn btn-primary mt-1" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->cedulaDocumento]) }}">Existente</a>
                                     @endif
                                 </div>
                             </div>
@@ -1431,7 +1431,7 @@
                                     <label>Anexo (Documentos Complementarios)</label><br>
                                     <input type="file" name="documentoAnexo" class="form-control" accept=".pdf">
                                     @if($solicitante->poder->anexo_documeto != "Sin anexo")
-                                        <a target="_blank" class="btn btn-primary mt-1" href="../../storage/app/documentos_abogados/{{$solicitante->poder->anexo_documeto}}">Existente</a>
+                                        <a target="_blank" class="btn btn-primary mt-1" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->anexo_documeto]) }}">Existente</a>
                                     @endif
                                 </div>
                             </div>
@@ -1763,7 +1763,7 @@
                                     <div class="form-group">
                                         <label>*Identificación del Empleador</label><br>
                                         <input type="file" name="documentoIne_pF" class="form-control" accept=".pdf">
-                                        <a target="_blank" class="btn btn-primary" href="../../storage/app/documentos_abogados/{{$solicitante->poder->ineDocumento}}">Existente</a>
+                                        <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->ineDocumento]) }}">Existente</a>
                                         <div class="invalid-feedback">La Identificación es obligatoria.</div>
                                     </div>
                                 </div>
@@ -1772,7 +1772,7 @@
                                         <label>*Identificación del Representante Legal</label><br>
                                         <input type="file" name="documentoRepresentacion_pF" class="form-control" accept=".pdf">
                                         @if($solicitante->poder->representacionDocumento != NULL)
-                                            <a target="_blank" class="btn btn-primary" href="../../storage/app/documentos_abogados/{{$solicitante->poder->representacionDocumento}}">Existente</a>
+                                            <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->representacionDocumento]) }}">Existente</a>
                                         @endif
                                         <div class="invalid-feedback">El documento de representación es obligatorio.</div>
                                     </div>
@@ -1782,7 +1782,7 @@
                                         <label>*Documento que acredite la personería</label><br>
                                         <input type="file" name="documentoPoder_pF" class="form-control" accept=".pdf">
                                         @if($solicitante->poder->cedulaDocumento != NULL)
-                                            <a target="_blank" class="btn btn-primary" href="../../storage/app/documentos_abogados/{{$solicitante->poder->cedulaDocumento}}">Existente</a>
+                                            <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->cedulaDocumento]) }}">Existente</a>
                                         @endif
                                     </div>
                                 </div>
@@ -1791,7 +1791,7 @@
                                         <label>Anexo (Documentos Complementarios)</label><br>
                                         <input type="file" name="documentoAnexo_pF" class="form-control" accept=".pdf">
                                         @if($solicitante->poder->anexo_documeto != "Sin anexo")
-                                            <a target="_blank" class="btn btn-primary" href="../../storage/app/documentos_abogados/{{$solicitante->poder->anexo_documeto}}">Existente</a>
+                                            <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->anexo_documeto]) }}">Existente</a>
                                         @endif
                                     </div>
                                 </div>
@@ -1846,7 +1846,7 @@
                                     <div class="form-group">
                                         <label>*Identificación Oficial</label><br>
                                         <input type="file" name="documentoIne_pFSR" id="documentoIne_pFSR" class="form-control" accept=".pdf">
-                                        <a target="_blank" class="btn btn-primary" href="../../storage/app/documentos_abogados/{{$solicitante->poder->ineDocumento}}">Existente</a>
+                                        <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->ineDocumento]) }}">Existente</a>
                                         <div class="invalid-feedback">La Identificación es obligatoria.</div>
                                     </div>
                                 </div>
@@ -1855,7 +1855,7 @@
                                         <label>Anexo (Documentos Complementarios)</label><br>
                                         <input type="file" name="documentoAnexo_pFSR" class="form-control" accept=".pdf">
                                         @if($solicitante->poder->anexo_documeto != "Sin anexo")
-                                            <a target="_blank" class="btn btn-primary" href="../../storage/app/documentos_abogados/{{$solicitante->poder->anexo_documeto}}">Existente</a>
+                                            <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->anexo_documeto]) }}">Existente</a>
                                         @endif
                                     </div>
                                 </div>

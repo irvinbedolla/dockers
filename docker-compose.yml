@@ -67,6 +67,7 @@ services:
     container_name: siconcilio-s3
     restart: unless-stopped
     ports:
+      - "9000:9000" # Puerto de la API S3, necesario para que el navegador pueda abrir las URLs firmadas
       - "9001:9001" # Puerto de la consola web local para que revises tus respaldos
     volumes:
       - s3data:/data

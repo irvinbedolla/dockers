@@ -1391,7 +1391,7 @@ body {font-family: Arial;}
 </div>
 
 @section('scripts')
-    <script src="../public/assets/js/estadistica/estadistica.js"></script>
+    <script src="{{ asset('assets/js/estadistica/estadistica.js') }}"></script>
         <script>
             $(function(){
                 $('#motivo_solicitud').on('change', validarcheckfolio);
@@ -1762,5 +1762,5 @@ body {font-family: Arial;}
         });
     </script>
 
-    <script src="../public/assets/js/poderes/general.js"></script>
+    <script src="{{ asset('assets/js/poderes/general.js') }}"></script>
 @endsection

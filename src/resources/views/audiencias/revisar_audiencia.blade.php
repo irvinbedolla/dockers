@@ -696,7 +696,7 @@
                                                                 @else
                                                                     <label>*Acta Constitutiva</label><br>
                                                                 @endif
-                                                                <a target="_blank" class="btn btn-primary" href="../storage/app/documentos_abogados/{{$audienciaCurrent->poder->idAbogado}}/{{$audienciaCurrent->poder->ineDocumento}}">Existente</a>
+                                                                <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $audienciaCurrent->poder->idAbogado, 'archivo' => $audienciaCurrent->poder->ineDocumento]) }}">Existente</a>
                                                                 <div class="invalid-feedback">
                                                                     La Identificación es obligatoria.
                                                                 </div>
@@ -706,7 +706,7 @@
                                                             <div class="form-group">
                                                                 <label>*Identificación del Representante Legal</label><br>
                                                                 @if($audienciaCurrent->poder->representacionDocumento != NULL)
-                                                                    <a target="_blank" class="btn btn-primary" href="../storage/app/documentos_abogados/{{$audienciaCurrent->poder->tipo}}/{{$audienciaCurrent->poder->representacionDocumento}}">Existente</a>
+                                                                    <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $audienciaCurrent->poder->idAbogado, 'archivo' => $audienciaCurrent->poder->representacionDocumento]) }}">Existente</a>
                                                                 @endif
                                                                 <div class="invalid-feedback">
                                                                     El documento de representación es obligatorio.
@@ -717,7 +717,7 @@
                                                             <div class="form-group">
                                                                 <label>*Documento que acredite la personería</label><br>
                                                                 @if($audienciaCurrent->poder->cedulaDocumento != NULL)
-                                                                    <a target="_blank" class="btn btn-primary" href="../storage/app/documentos_abogados/{{$audienciaCurrent->poder->tipo}}/{{$audienciaCurrent->poder->cedulaDocumento}}">Existente</a>
+                                                                    <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $audienciaCurrent->poder->idAbogado, 'archivo' => $audienciaCurrent->poder->cedulaDocumento]) }}">Existente</a>
                                                                 @endif
                                                             </div>
                                                         </div>
@@ -725,7 +725,7 @@
                                                             <div class="form-group">
                                                                 <label>Anexo (Documentos Complementarios)</label><br>
                                                                 @if($audienciaCurrent->poder->anexo_documeto != "Sin anexo")
-                                                                    <a target="_blank" class="btn btn-primary" href="../storage/app/documentos_abogados/{{$audienciaCurrent->poder->tipo}}/{{$audienciaCurrent->poder->anexo_documeto}}">Existente</a>
+                                                                    <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $audienciaCurrent->poder->idAbogado, 'archivo' => $audienciaCurrent->poder->anexo_documeto]) }}">Existente</a>
                                                                 @else
                                                                     <a class="btn btn-secondary disabled" href="#" tabindex="-1" aria-disabled="true">Sin anexo</a>
                                                                 @endif
@@ -741,7 +741,7 @@
                                                         <div class="col-xs-12 col-sm-12 col-md-6">
                                                             <div class="form-group">
                                                                 <label>*Identificación del Empleador</label><br>
-                                                                <a target="_blank" class="btn btn-primary" href="../storage/app/documentos_abogados/{{$audienciaCurrent->poder->tipo}}/{{$audienciaCurrent->poder->ineDocumento}}">Existente</a>
+                                                                <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $audienciaCurrent->poder->idAbogado, 'archivo' => $audienciaCurrent->poder->ineDocumento]) }}">Existente</a>
                                                                 <div class="invalid-feedback">
                                                                     La Identificación es obligatoria.
                                                                 </div>
@@ -752,7 +752,7 @@
                                                             <div class="form-group">
                                                                 <label>Anexo (Documentos Complementarios)</label><br>
                                                                 @if($audienciaCurrent->poder->anexo_documeto != "Sin anexo")
-                                                                    <a target="_blank" class="btn btn-primary" href="../storage/app/documentos_abogados/{{$audienciaCurrent->poder->tipo}}/{{$audienciaCurrent->poder->anexo_documeto}}">Existente</a>
+                                                                    <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $audienciaCurrent->poder->idAbogado, 'archivo' => $audienciaCurrent->poder->anexo_documeto]) }}">Existente</a>
                                                                 @else
                                                                     <a class="btn btn-secondary disabled" href="#" tabindex="-1" aria-disabled="true">Sin anexo</a>
                                                                 @endif
@@ -1151,18 +1151,12 @@
                                                 @php
                                                     $img1 = $citado->imagen_domicilio1 ?? null;
                                                     $img2 = $citado->imagen_domicilio2 ?? null;
-                                                    $urlImg1 = null;
-                                                    $urlImg2 = null;
-                                                    if ($img1 && $img1 !== 'Sin documento') {
-                                                        $urlImg1 = \Storage::exists("documentosSolicitud/{$id}/{$img1}")
-                                                            ? asset("../storage/app/documentosSolicitud/{$id}/{$img1}")
-                                                            : asset("../storage/app/documentosSolicitud/{$img1}");
-                                                    }
-                                                    if ($img2 && $img2 !== 'Sin documento') {
-                                                        $urlImg2 = \Storage::exists("documentosSolicitud/{$id}/{$img2}")
-                                                            ? asset("../storage/app/documentosSolicitud/{$id}/{$img2}")
-                                                            : asset("../storage/app/documentosSolicitud/{$img2}");
-                                                    }
+                                                    $urlImg1 = ($img1 && $img1 !== 'Sin documento')
+                                                        ? route('documentos.ver', ['tipo' => 'solicitud', 'id' => $id, 'archivo' => $img1])
+                                                        : null;
+                                                    $urlImg2 = ($img2 && $img2 !== 'Sin documento')
+                                                        ? route('documentos.ver', ['tipo' => 'solicitud', 'id' => $id, 'archivo' => $img2])
+                                                        : null;
                                                 @endphp
                                                 <div class="col-xs-12 col-sm-12 col-md-5">
                                                     <label for="password">Referencia Imagen 1<span style="color:red;"> (*)</span></label><br>
@@ -2209,7 +2203,7 @@
 
 @section('scripts')
 
-    <script src="../public/assets/js/estadistica/estadistica.js"></script>
+    <script src="{{ asset('assets/js/estadistica/estadistica.js') }}"></script>
     <script>
             $(function(){
                 $('#motivo_solicitud').on('change', validarcheckfolio);
@@ -2525,44 +2519,6 @@
                 }catch(err){ console.warn('updateMotivosState', err); }
             }
             try { document.addEventListener('DOMContentLoaded', updateMotivosState); } catch(err){}
-    </script>
-    <script>
-        const DURACION_SEGUNDOS = 300; // 5 minutos
-        const TIEMPO_FINAL_KEY = 'tiempoFinalTemporizador';
-
-        // 1. Cargar o Calcular el Tiempo Final
-        let tiempoFinal;
-        let tiempoFinalGuardado = localStorage.getItem(TIEMPO_FINAL_KEY);
-
-        if (tiempoFinalGuardado) {
-            // Si ya existe, usa el tiempo guardado (útil si la página se recarga)
-            tiempoFinal = parseInt(tiempoFinalGuardado);
-        } else {
-            // Si no existe, calcula el tiempo final y guárdalo
-            tiempoFinal = Date.now() + DURACION_SEGUNDOS * 1000;
-            localStorage.setItem(TIEMPO_FINAL_KEY, tiempoFinal);
-        }
-
-        // 2. Iniciar el Intervalo de Actualización
-        function actualizarTemporizador() {
-            const tiempoRestante = tiempoFinal - Date.now();
-            const segundosRestantes = Math.max(0, Math.floor(tiempoRestante / 1000));
-
-            const minutos = Math.floor(segundosRestantes / 60);
-            const segundos = segundosRestantes % 60;
-            
-            const display = `${String(minutos).padStart(2, '0')}:${String(segundos).padStart(2, '0')}`;
-            document.getElementById('temporizador').innerHTML = display;
-
-            if (segundosRestantes <= 0) {
-                clearInterval(intervalo);
-                document.getElementById('temporizador').innerHTML = "¡Tiempo terminado!";
-                localStorage.removeItem(TIEMPO_FINAL_KEY); // Limpiar la clave
-            }
-        }
-
-        const intervalo = setInterval(actualizarTemporizador, 1000);
-        actualizarTemporizador();
     </script>
     <script>
         function syncTipoCitado(index){

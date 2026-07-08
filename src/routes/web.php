@@ -442,6 +442,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/notificaciones/consultar/{id}',                [SeerController::class, 'mostrar_citados'])->name('editar_citado');
 
         Route::get('/documentos/solicitante/identificacion/{id}',       [SeerController::class, 'ver_identificacion_solicitante'])->name('documento_identificacion_solicitante_ver');
+        Route::get('/documentos_ver/{tipo}/{id}/{archivo}',             [SeerController::class, 'verPDF'])->name('documentos.ver');
         Route::get('/ObtenerCitatorios/{id}',                           [SeerController::class, 'mostrar_citatorios']);
         Route::get('/Verpdfcasosprevistos/{id}', [RecepcionController::class, 'VerPDFCasosPrevistos'])->name('VerPDFCasosPrevistos');
         Route::get('/Verpdfcanalizacion/{id}',   [RecepcionController::class, 'VerPDFCanalizacion'])->name('VerPDFCanalizacion');

@@ -197,7 +197,7 @@
                                                                 </ul>
                                                             </div>
                                                         </div> 
-                                                    @elseif($audiencia->estatus_modelo == "Confirmado")
+                                                    @elseif($audiencia->estatus_modelo == "Confirmado" || $audiencia->estatus_modelo == "Pendiente")
                                                         <div class="dropdown">
                                                             <div class="dropdown">
                                                                 <button class="btn btn-secondary dropdown-toggle" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">

@@ -1,4 +1,4 @@
-@extends('layouts.app_editar')
+@extends('layouts.app')
 @php
     $fechaActual = date('Y-m-d');
     $contador = 0;
@@ -2358,6 +2358,6 @@
         });
     </script>
 
-    <script src="../../public/assets/js/validaciones.js"></script> 
-    <script src="../../public/assets/js/poderes/general.js"></script>
+    <script src="{{ asset('assets/js/validaciones.js') }}"></script>
+    <script src="{{ asset('assets/js/poderes/general.js') }}"></script>
 @endsection

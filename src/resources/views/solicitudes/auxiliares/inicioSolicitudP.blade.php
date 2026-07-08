@@ -7,7 +7,7 @@
             width: 100%;
             height: 100%;
             z-index: 9999;
-            background: url('../public/assets/images/pageLoader.gif') 50% 50% no-repeat rgb(249,249,249);
+            background: url('{{ asset('assets/images/pageLoader.gif') }}') 50% 50% no-repeat rgb(249,249,249);
            /* background-color: #6A0F49;/*<p style="color: #CEA845*/
             opacity: .8;
         }
@@ -146,7 +146,7 @@
                 </div>
             </div>
         </section>
-        <script src="../public/assets/js/estadistica/estadistica.js"></script>
+        <script src="{{ asset('assets/js/estadistica/estadistica.js') }}"></script>
         <script src="https://cdn.datatables.net/2.1.5/js/dataTables.js"></script>
         <script src="https://cdn.datatables.net/2.1.5/js/dataTables.bootstrap4.js"></script>
         

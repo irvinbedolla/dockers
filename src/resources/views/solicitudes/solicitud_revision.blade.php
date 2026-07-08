@@ -6,14 +6,14 @@
     <title>Si concilio</title>
     <meta content='width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no' name='viewport'>
     <!-- Bootstrap 5.3.3 -->
-    <link href="public/assets/css/bootstrap.min.css" rel="stylesheet" type="text/css"/>
+    <link href="{{ asset('assets/css/bootstrap.min.css') }}" rel="stylesheet" type="text/css"/>
     <!-- Ionicons -->
-    <link rel="icon" href="public/assets/images/ccl-r.png" type="image/x-icon">
+    <link rel="icon" href="{{ asset('assets/images/ccl-r.png') }}" type="image/x-icon">
     <link href="//fonts.googleapis.com/css?family=Lato&display=swap" rel="stylesheet">
-    <link href="public/assets/css/all.css" rel="stylesheet" type="text/css">
-    <link href="public/assets/css/iziToast.min.css" rel="stylesheet">
-    <link href="public/assets/css/sweetalert.css" rel="stylesheet" type="text/css"/>
-    <link href="public/assets/css/select2.min.css" rel="stylesheet" type="text/css"/>
+    <link href="{{ asset('assets/css/all.css') }}" rel="stylesheet" type="text/css">
+    <link href="{{ asset('assets/css/iziToast.min.css') }}" rel="stylesheet">
+    <link href="{{ asset('assets/css/sweetalert.css') }}" rel="stylesheet" type="text/css"/>
+    <link href="{{ asset('assets/css/select2.min.css') }}" rel="stylesheet" type="text/css"/>
     
     <!-- Agregados para los Select del Formulario Personas-->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -29,7 +29,7 @@
             width: 100%;
             height: 100%;
             z-index: 9999;
-            background: url('public/assets/images/pageLoader.gif') 50% 50% no-repeat rgb(249,249,249);
+            background: url('{{ asset('assets/images/pageLoader.gif') }}') 50% 50% no-repeat rgb(249,249,249);
            /* background-color: #6A0F49;/*<p style="color: #CEA845*/
             opacity: .8;
         }
@@ -39,9 +39,9 @@
     @livewireStyles
 
     @yield('page_css')
-    <!-- Template CSS <img src="public/assets_seer/images/ccl.png" width="180" height="90" style="position: absolute; left: 100px; top: 10px; right:0px;"/>  -->
-    <link rel="stylesheet" href="public/assets/css/style.css">
-    <link rel="stylesheet" href="public/assets/css/components.css">
+    <!-- Template CSS <img src="{{ asset('assets_seer/images/ccl.png') }}" width="180" height="90" style="position: absolute; left: 100px; top: 10px; right:0px;"/>  -->
+    <link rel="stylesheet" href="{{ asset('assets/css/style.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/css/components.css') }}">
     @yield('page_css')
 </head>
     <div id="app">  
@@ -49,7 +49,7 @@
             <div class="col-lg-12" >
                 <div style="background-color:#6A0F49">
                     <div align="right"><br>
-                        <img src="public/assets/images/ccl-r.png" style="max-width: 10%" class="text-center">
+                        <img src="{{ asset('assets/images/ccl-r.png') }}" style="max-width: 10%" class="text-center">
                     </div>
                     <h3 class="text-center" style="color:#CEA845">Solicitud de trabajador</h3>    
                 </div>
@@ -168,7 +168,7 @@
         </section>
     </div>
 
-    <script src="./public/assets/js/estadistica/estadistica.js"></script>
+    <script src="{{ asset('assets/js/estadistica/estadistica.js') }}"></script>
     <script src="https://cdn.datatables.net/2.1.5/js/dataTables.js"></script>
     <script src="https://cdn.datatables.net/2.1.5/js/dataTables.bootstrap4.js"></script>
        

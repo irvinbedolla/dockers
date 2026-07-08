@@ -1,4 +1,4 @@
-@extends('layouts.app_editar')
+@extends('layouts.app')
 @php
     $fechaActual = date('Y-m-d');
     $contador = 0;
@@ -2418,8 +2418,8 @@
         });
     </script>
 
-    <script src="../../public/assets/js/validaciones.js"></script> 
-    <script src="../../public/assets/js/poderes/general.js"></script>
+    <script src="{{ asset('assets/js/validaciones.js') }}"></script>
+    <script src="{{ asset('assets/js/poderes/general.js') }}"></script>
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
@@ -2440,9 +2440,12 @@
                 $('#comp_num_identificacion').val(num);
                 
                 if(doc && doc !== '') {
-                    const basePath = "{{ url('storage/') }}";
+                    const docUrlTemplate = "{{ route('documentos.ver', ['tipo' => 'solicitud', 'id' => '__ID__', 'archivo' => '__ARCHIVO__']) }}";
+                    const docUrl = docUrlTemplate
+                        .replace('__ID__', encodeURIComponent(solicitud))
+                        .replace('__ARCHIVO__', encodeURIComponent(doc));
                     $('#comp_doc_existente_container').show();
-                    $('#comp_btn_ver_doc').attr('href', basePath + '/app/documentosSolicitud/' + solicitud + '/' + doc);
+                    $('#comp_btn_ver_doc').attr('href', docUrl);
                     $('#comp_doc_input').removeAttr('required');
                 } else {
                     $('#comp_doc_existente_container').hide();

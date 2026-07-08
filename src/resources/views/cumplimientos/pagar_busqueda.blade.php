@@ -1,4 +1,4 @@
-@extends('layouts.app_editar1')
+@extends('layouts.app')
 @php
     $fechaActual = date('Y-m-d');
 @endphp
@@ -214,5 +214,5 @@
             document.getElementById('modal-id').value = id;
         });
     </script>
-    <script src="../../public/assets/js/poderes/general.js"></script>
+    <script src="{{ asset('assets/js/poderes/general.js') }}"></script>
 @endsection

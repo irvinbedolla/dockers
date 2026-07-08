@@ -321,9 +321,7 @@ class SeerController extends Controller
             abort(404, 'Documento no encontrado en almacenamiento.');
         }
 
-        return response()->file(Storage::path($path), [
-            'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="Identificacion.pdf"',
+        return Storage::disk('s3')->response($path, 'Identificacion.pdf', [
             'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
             'Pragma' => 'no-cache',
             'Expires' => '0',
@@ -386,10 +384,38 @@ class SeerController extends Controller
         }
 
         $downloadName = $doc->tipo_documentos ?: $doc->nombre_documento;
-        return response()->file(Storage::path($path), [
-            'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="' . $downloadName . '"',
-        ]);
+        return Storage::disk('s3')->response($path, $downloadName);
+    }
+
+    public function verPDF($tipo, $id, $archivo){
+        $carpetas = [
+            'solicitud' => 'documentosSolicitud',
+            'poder'  => 'documentos_abogados',
+        ];
+
+        if (!array_key_exists($tipo, $carpetas)) {
+            abort(404, 'Tipo de documento no válido.');
+        }
+
+        $carpeta = $carpetas[$tipo];
+        $rutaS3 = $carpeta . '/' . $id . '/' . $archivo;
+
+        if (!Storage::disk('s3')->exists($rutaS3)) {
+            // Compatibilidad con documentos antiguos guardados sin subcarpeta de id
+            $rutaSinId = $carpeta . '/' . $archivo;
+            if (Storage::disk('s3')->exists($rutaSinId)) {
+                $rutaS3 = $rutaSinId;
+            } else {
+                abort(404, 'El documento solicitado no existe.');
+            }
+        }
+
+        $urlTemporal = Storage::disk('s3_public')->temporaryUrl(
+            $rutaS3,
+            now()->addMinutes(3)
+        );
+
+        return redirect()->away($urlTemporal);
     }
 
     public function index()
@@ -12691,7 +12717,7 @@ class SeerController extends Controller
          //Documentos subidos
         $documento_subidos = DocumentosSolicitud::where('id_solicitud',$documento_general->id)->where('tramite','Audiencia')->get();
 
-        return view('solicitudes.verDocumentos',compact('documento_general','documento_solicitante','documento_abogado','documento_fisica','documento_subidos','documentos_comparecencia'));
+        return view('solicitudes.VerDocumentos',compact('documento_general','documento_solicitante','documento_abogado','documento_fisica','documento_subidos','documentos_comparecencia'));
      }
 
    //PDF Constancia de cumplimiento

@@ -197,5 +197,5 @@
                 $('#expediente_audiencia_id').val(id);
             });
     </script>
-    <script src="../public/assets/js/poderes/general.js"></script>
+    <script src="{{ asset('assets/js/poderes/general.js') }}"></script>
 @endsection

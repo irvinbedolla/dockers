@@ -686,7 +686,7 @@ select[name="municipio_citado"] option {
                                                                 @else
                                                                     <label>*Acta Constitutiva</label><br>
                                                                 @endif
-                                                                <a target="_blank" class="btn btn-primary" href="../storage/app/documentos_abogados/{{$solicitante->poder->idAbogado}}/{{$solicitante->poder->ineDocumento}}">Existente</a>
+                                                                <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->ineDocumento]) }}">Existente</a>
                                                                 <div class="invalid-feedback">
                                                                     La Identificación es obligatoria.
                                                                 </div>
@@ -696,7 +696,7 @@ select[name="municipio_citado"] option {
                                                             <div class="form-group">
                                                                 <label>*Identificación del Representante Legal</label><br>
                                                                 @if($solicitante->poder->representacionDocumento != NULL)
-                                                                    <a target="_blank" class="btn btn-primary" href="../storage/app/documentos_abogados/{{$solicitante->poder->idAbogado}}/{{$solicitante->poder->representacionDocumento}}">Existente</a>
+                                                                    <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->representacionDocumento]) }}">Existente</a>
                                                                 @endif
                                                                 <div class="invalid-feedback">
                                                                     El documento de representación es obligatorio.
@@ -707,7 +707,7 @@ select[name="municipio_citado"] option {
                                                             <div class="form-group">
                                                                 <label>*Documento que acredite la personería</label><br>
                                                                 @if($solicitante->poder->cedulaDocumento != NULL)
-                                                                    <a target="_blank" class="btn btn-primary" href="../storage/app/documentos_abogados/{{$solicitante->poder->idAbogado}}/{{$solicitante->poder->cedulaDocumento}}">Existente</a>
+                                                                    <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->cedulaDocumento]) }}">Existente</a>
                                                                 @endif
                                                             </div>
                                                         </div>
@@ -715,7 +715,7 @@ select[name="municipio_citado"] option {
                                                             <div class="form-group">
                                                                 <label>Anexo (Documentos Complementarios)</label><br>
                                                                 @if($solicitante->poder->anexo_documeto != "Sin anexo")
-                                                                    <a target="_blank" class="btn btn-primary" href="../storage/app/documentos_abogados/{{$solicitante->poder->idAbogado}}/{{$solicitante->poder->anexo_documeto}}">Existente</a>
+                                                                    <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->anexo_documeto]) }}">Existente</a>
                                                                 @else
                                                                     <a class="btn btn-secondary disabled" href="#" tabindex="-1" aria-disabled="true">Sin anexo</a>
                                                                 @endif
@@ -731,7 +731,7 @@ select[name="municipio_citado"] option {
                                                         <div class="col-xs-12 col-sm-12 col-md-6">
                                                             <div class="form-group">
                                                                 <label>*Identificación del Empleador</label><br>
-                                                                <a target="_blank" class="btn btn-primary" href="../storage/app/documentos_abogados/{{$solicitante->poder->idAbogado}}/{{$solicitante->poder->ineDocumento}}">Existente</a>
+                                                                <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->ineDocumento]) }}">Existente</a>
                                                                 <div class="invalid-feedback">
                                                                     La Identificación es obligatoria.
                                                                 </div>
@@ -742,7 +742,7 @@ select[name="municipio_citado"] option {
                                                             <div class="form-group">
                                                                 <label>Anexo (Documentos Complementarios)</label><br>
                                                                 @if($solicitante->poder->anexo_documeto != "Sin anexo")
-                                                                    <a target="_blank" class="btn btn-primary" href="../storage/app/documentos_abogados/{{$solicitante->poder->idAbogado}}/{{$solicitante->poder->anexo_documeto}}">Existente</a>
+                                                                    <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->anexo_documeto]) }}">Existente</a>
                                                                 @else
                                                                     <a class="btn btn-secondary disabled" href="#" tabindex="-1" aria-disabled="true">Sin anexo</a>
                                                                 @endif
@@ -1279,7 +1279,7 @@ select[name="municipio_citado"] option {
                                                                 @else
                                                                     <label>*Acta Constitutiva</label><br>
                                                                 @endif
-                                                                <a target="_blank" class="btn btn-primary" href="../storage/app/documentos_abogados/{{$solicitante->poder->idAbogado}}/{{$solicitante->poder->ineDocumento}}">Existente</a>
+                                                                <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->ineDocumento]) }}">Existente</a>
                                                                 <div class="invalid-feedback">
                                                                     La Identificación es obligatoria.
                                                                 </div>
@@ -1289,7 +1289,7 @@ select[name="municipio_citado"] option {
                                                             <div class="form-group">
                                                                 <label>*Identificación del Representante Legal</label><br>
                                                                 @if($solicitante->poder->representacionDocumento != NULL)
-                                                                    <a target="_blank" class="btn btn-primary" href="../storage/app/documentos_abogados/{{$solicitante->poder->idAbogado}}/{{$solicitante->poder->representacionDocumento}}">Existente</a>
+                                                                    <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->representacionDocumento]) }}">Existente</a>
                                                                 @endif
                                                                 <div class="invalid-feedback">
                                                                     El documento de representación es obligatorio.
@@ -1300,7 +1300,7 @@ select[name="municipio_citado"] option {
                                                             <div class="form-group">
                                                                 <label>*Documento que acredite la personería</label><br>
                                                                 @if($solicitante->poder->cedulaDocumento != NULL)
-                                                                    <a target="_blank" class="btn btn-primary" href="../storage/app/documentos_abogados/{{$solicitante->poder->idAbogado}}/{{$solicitante->poder->cedulaDocumento}}">Existente</a>
+                                                                    <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->cedulaDocumento]) }}">Existente</a>
                                                                 @endif
                                                             </div>
                                                         </div>
@@ -1308,7 +1308,7 @@ select[name="municipio_citado"] option {
                                                             <div class="form-group">
                                                                 <label>Anexo (Documentos Complementarios)</label><br>
                                                                 @if($solicitante->poder->anexo_documeto != "Sin anexo")
-                                                                    <a target="_blank" class="btn btn-primary" href="../storage/app/documentos_abogados/{{$solicitante->poder->idAbogado}}/{{$solicitante->poder->anexo_documeto}}">Existente</a>
+                                                                    <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->anexo_documeto]) }}">Existente</a>
                                                                 @else
                                                                     <a class="btn btn-secondary disabled" href="#" tabindex="-1" aria-disabled="true">Sin anexo</a>
                                                                 @endif
@@ -1324,7 +1324,7 @@ select[name="municipio_citado"] option {
                                                         <div class="col-xs-12 col-sm-12 col-md-6">
                                                             <div class="form-group">
                                                                 <label>*Identificación del Empleador</label><br>
-                                                                <a target="_blank" class="btn btn-primary" href="../storage/app/documentos_abogados/{{$solicitante->poder->idAbogado}}/{{$solicitante->poder->ineDocumento}}">Existente</a>
+                                                                <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->ineDocumento]) }}">Existente</a>
                                                                 <div class="invalid-feedback">
                                                                     La Identificación es obligatoria.
                                                                 </div>
@@ -1335,7 +1335,7 @@ select[name="municipio_citado"] option {
                                                             <div class="form-group">
                                                                 <label>Anexo (Documentos Complementarios)</label><br>
                                                                 @if($solicitante->poder->anexo_documeto != "Sin anexo")
-                                                                    <a target="_blank" class="btn btn-primary" href="../storage/app/documentos_abogados/{{$solicitante->poder->anexo_documeto}}">Existente</a>
+                                                                    <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->anexo_documeto]) }}">Existente</a>
                                                                 @else
                                                                     <a class="btn btn-secondary disabled" href="#" tabindex="-1" aria-disabled="true">Sin anexo</a>
                                                                 @endif
@@ -1882,7 +1882,7 @@ select[name="municipio_citado"] option {
 </div>
 
 @section('scripts')
-    <script src="../public/assets/js/estadistica/estadisticaConfirmar.js"></script>
+    <script src="{{ asset('assets/js/estadistica/estadisticaConfirmar.js') }}"></script>
 
     <script>
         (function () {

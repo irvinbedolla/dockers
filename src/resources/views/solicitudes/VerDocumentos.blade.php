@@ -22,24 +22,25 @@
                                         @php
                                             $solicitudId = $documento_general->id;
 
-                                            // Resuelve URL para documentosSolicitud con fallback a ruta plana
+                                            // Resuelve URL para documentosSolicitud (con o sin subcarpeta de id,
+                                            // el fallback entre ambas rutas ahora lo resuelve documentos.ver/verPDF)
                                             $urlSolicitud = function(?string $filename) use ($solicitudId): ?string {
                                                 if (!$filename || $filename === 'Sin documento') return null;
-                                                if (\Storage::exists("documentosSolicitud/{$solicitudId}/{$filename}"))
-                                                    return asset("../storage/app/documentosSolicitud/{$solicitudId}/{$filename}");
-                                                if (\Storage::exists("documentosSolicitud/{$filename}"))
-                                                    return asset("../storage/app/documentosSolicitud/{$filename}");
-                                                return null;
+                                                $existe = \Storage::exists("documentosSolicitud/{$solicitudId}/{$filename}")
+                                                    || \Storage::exists("documentosSolicitud/{$filename}");
+                                                return $existe
+                                                    ? route('documentos.ver', ['tipo' => 'solicitud', 'id' => $solicitudId, 'archivo' => $filename])
+                                                    : null;
                                             };
 
-                                            // Resuelve URL para documentos_abogados con fallback a ruta plana
+                                            // Resuelve URL para documentos_abogados (con o sin subcarpeta de id)
                                             $urlAbogado = function(?string $filename, $idAbogado): ?string {
-                                                if (!$filename || $filename === 'Sin documento') return null;
-                                                if (\Storage::exists("documentos_abogados/{$idAbogado}/{$filename}"))
-                                                    return asset("../storage/app/documentos_abogados/{$idAbogado}/{$filename}");
-                                                if (\Storage::exists("documentos_abogados/{$filename}"))
-                                                    return asset("../storage/app/documentos_abogados/{$filename}");
-                                                return null;
+                                                if (!$filename || $filename === 'Sin documento' || !$idAbogado) return null;
+                                                $existe = \Storage::exists("documentos_abogados/{$idAbogado}/{$filename}")
+                                                    || \Storage::exists("documentos_abogados/{$filename}");
+                                                return $existe
+                                                    ? route('documentos.ver', ['tipo' => 'poder', 'id' => $idAbogado, 'archivo' => $filename])
+                                                    : null;
                                             };
                                         @endphp
 
@@ -193,5 +194,5 @@
 
 
 @section('scripts')
-    <script src="../public/assets/js/turnos/turnos.js"></script>
+    <script src="{{ asset('assets/js/turnos/turnos.js') }}"></script>
 @endsection

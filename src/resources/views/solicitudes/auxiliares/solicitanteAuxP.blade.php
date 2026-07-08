@@ -1,4 +1,4 @@
-@extends('layouts.app_1')
+@extends('layouts.app')
     <style>
         .loader {
             position: fixed;
@@ -7,7 +7,7 @@
             width: 100%;
             height: 100%;
             z-index: 9999;
-            background: url('public/assets/images/pageLoader.gif') 50% 50% no-repeat rgb(249,249,249);
+            background: url('{{ asset('assets/images/pageLoader.gif') }}') 50% 50% no-repeat rgb(249,249,249);
             opacity: .8;
         }
         #resultado {
@@ -736,7 +736,7 @@
                       <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                     </div>
                     <div class="modal-body text-center">
-                      <img src="./public/assets/images/capturaIne.png" alt="Instrucciones" class="img-fluid">
+                      <img src="{{ asset('assets/images/capturaIne.png') }}" alt="Instrucciones" class="img-fluid">
                     </div>
                   </div>
                 </div>
@@ -796,21 +796,21 @@
 
         });
     </script>-->
-    <script src="public/assets/js/poderes/general.js"></script>
+    <script src="{{ asset('assets/js/poderes/general.js') }}"></script>
 
-    <script src="public/assets/js/jquery.min.js"></script>
-    <script src="public/assets/js/popper.min.js"></script>
-    <script src="public/assets/js/bootstrap.min.js"></script>
-    <script src="public/assets/js/sweetalert.min.js"></script>
-    <script src="public/assets/js/select2.min.js"></script>
-    <script src="public/assets/js/jquery.nicescroll.js"></script>
-    <script src="public/assets/js/moment.js"></script>
+    <script src="{{ asset('assets/js/jquery.min.js') }}"></script>
+    <script src="{{ asset('assets/js/popper.min.js') }}"></script>
+    <script src="{{ asset('assets/js/bootstrap.min.js') }}"></script>
+    <script src="{{ asset('assets/js/sweetalert.min.js') }}"></script>
+    <script src="{{ asset('assets/js/select2.min.js') }}"></script>
+    <script src="{{ asset('assets/js/jquery.nicescroll.js') }}"></script>
+    <script src="{{ asset('assets/js/moment.js') }}"></script>
 
     <!-- Template JS File -->
-    <script src="public/assets/js/stisla.js"></script>
-    <script src="public/assets/js/scripts.js"></script>
-    <script src="public/assets/js/profile.js"></script>
-    <script src="public/assets/js/custom.js"></script>
+    <script src="{{ asset('assets/js/stisla.js') }}"></script>
+    <script src="{{ asset('assets/js/scripts.js') }}"></script>
+    <script src="{{ asset('assets/js/profile.js') }}"></script>
+    <script src="{{ asset('assets/js/custom.js') }}"></script>
 
     <script src="https://cdn.datatables.net/2.1.5/js/dataTables.js"></script>
     <script src="https://cdn.datatables.net/2.1.5/js/dataTables.bootstrap4.js"></script>
@@ -818,7 +818,7 @@
 
 
     @yield('scripts')
-    <script src="./public/assets/js/validaciones.js"></script>
+    <script src="{{ asset('assets/js/validaciones.js') }}"></script>
     <script> 
         function sedes(){
             document.getElementById("fecha").removeAttribute("disabled");

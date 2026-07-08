@@ -1,4 +1,4 @@
-@extends('layouts.app_editar')
+@extends('layouts.app')
 
 @section('content')
     <section class="section">
@@ -402,7 +402,7 @@
 </style>
 
 @section('scripts')
-    <script src="../../public/assets/js/turnos/turnos.js"></script>
+    <script src="{{ asset('assets/js/turnos/turnos.js') }}"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <!-- FullCalendar CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/index.global.min.css">

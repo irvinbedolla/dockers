@@ -1061,7 +1061,7 @@
 
 
 @section('scripts')
-    <script src="../public/assets/js/estadistica/estadistica.js"></script>
+    <script src="{{ asset('assets/js/estadistica/estadistica.js') }}"></script>
         <script>
             $(function(){
                 $('#motivo_solicitud').on('change', validarcheckfolio);

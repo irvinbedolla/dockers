@@ -115,5 +115,5 @@
 </div>
 
 @section('scripts')
-    <script src="../public/assets/js/poderes/general.js"></script>
+    <script src="{{ asset('assets/js/poderes/general.js') }}"></script>
 @endsection

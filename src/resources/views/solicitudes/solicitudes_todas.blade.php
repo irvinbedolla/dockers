@@ -358,7 +358,7 @@
 
 
 @section('scripts')
-    <script src="../public/assets/js/poderes/general.js"></script>
+    <script src="{{ asset('assets/js/poderes/general.js') }}"></script>
     <script>
         $(document).ready(function () {
             // 1. Evitar el error "Cannot reinitialise DataTable" destruyendo instancias previas automáticas
