@@ -11120,22 +11120,22 @@ class SeerController extends Controller
             $citado->documento2 ?? null,
         ];
         
-        foreach ($camposImagen as $img) {    
+        foreach ($camposImagen as $img) {
             if (!$img || $img === 'Sin documento') {
                 $imagenes[] = null;
                 continue;
             }
-        
-            $path = storage_path("app/documentos_notificacion/{$id_solicitud}/{$img}");
-        
-            if (file_exists($path)) {
-                $mime = mime_content_type($path);
-                $imagenes[] = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($path));
+
+            $path = "documentos_notificacion/{$id_solicitud}/{$img}";
+
+            if (Storage::disk('s3')->exists($path)) {
+                $mime = Storage::disk('s3')->mimeType($path);
+                $imagenes[] = 'data:' . $mime . ';base64,' . base64_encode(Storage::disk('s3')->get($path));
             } else {
-                $fallbackPath = storage_path("app/documentos_notificacion/{$img}");
-                if (file_exists($fallbackPath)) {
-                    $mime = mime_content_type($fallbackPath);
-                    $imagenes[] = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($fallbackPath));
+                $fallbackPath = "documentos_notificacion/{$img}";
+                if (Storage::disk('s3')->exists($fallbackPath)) {
+                    $mime = Storage::disk('s3')->mimeType($fallbackPath);
+                    $imagenes[] = 'data:' . $mime . ';base64,' . base64_encode(Storage::disk('s3')->get($fallbackPath));
                 } else {
                     $imagenes[] = null;
                 }
@@ -12072,16 +12072,16 @@ class SeerController extends Controller
                 continue;
             }
             
-            $path = storage_path("app/documentos_notificacion/{$id_solicitud}/{$img}");
-            
-            if (file_exists($path)) {
-                $mime = mime_content_type($path);
-                $imagenes[] = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($path));
+            $path = "documentos_notificacion/{$id_solicitud}/{$img}";
+
+            if (Storage::disk('s3')->exists($path)) {
+                $mime = Storage::disk('s3')->mimeType($path);
+                $imagenes[] = 'data:' . $mime . ';base64,' . base64_encode(Storage::disk('s3')->get($path));
             } else {
-                $fallbackPath = storage_path("app/documentos_notificacion/{$img}");
-                if (file_exists($fallbackPath)) {
-                    $mime = mime_content_type($fallbackPath);
-                    $imagenes[] = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($fallbackPath));
+                $fallbackPath = "documentos_notificacion/{$img}";
+                if (Storage::disk('s3')->exists($fallbackPath)) {
+                    $mime = Storage::disk('s3')->mimeType($fallbackPath);
+                    $imagenes[] = 'data:' . $mime . ';base64,' . base64_encode(Storage::disk('s3')->get($fallbackPath));
                 } else {
                     $imagenes[] = null;
                 }
@@ -12174,16 +12174,16 @@ class SeerController extends Controller
                 continue;
             }
         
-            $path = storage_path("app/documentos_notificacion/{$id_solicitud}/{$img}");
-        
-            if (file_exists($path)) {
-                $mime = mime_content_type($path);
-                $imagenes[] = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($path));
+            $path = "documentos_notificacion/{$id_solicitud}/{$img}";
+
+            if (Storage::disk('s3')->exists($path)) {
+                $mime = Storage::disk('s3')->mimeType($path);
+                $imagenes[] = 'data:' . $mime . ';base64,' . base64_encode(Storage::disk('s3')->get($path));
             } else {
-                $fallbackPath = storage_path("app/documentos_notificacion/{$img}");
-                if (file_exists($fallbackPath)) {
-                    $mime = mime_content_type($fallbackPath);
-                    $imagenes[] = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($fallbackPath));
+                $fallbackPath = "documentos_notificacion/{$img}";
+                if (Storage::disk('s3')->exists($fallbackPath)) {
+                    $mime = Storage::disk('s3')->mimeType($fallbackPath);
+                    $imagenes[] = 'data:' . $mime . ';base64,' . base64_encode(Storage::disk('s3')->get($fallbackPath));
                 } else {
                     $imagenes[] = null;
                 }
@@ -12277,16 +12277,16 @@ class SeerController extends Controller
                 continue;
             }
         
-            $path = storage_path("app/documentos_notificacion/{$id_solicitud}/{$img}");
-        
-            if (file_exists($path)) {
-                $mime = mime_content_type($path);
-                $imagenes[] = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($path));
+            $path = "documentos_notificacion/{$id_solicitud}/{$img}";
+
+            if (Storage::disk('s3')->exists($path)) {
+                $mime = Storage::disk('s3')->mimeType($path);
+                $imagenes[] = 'data:' . $mime . ';base64,' . base64_encode(Storage::disk('s3')->get($path));
             } else {
-                $fallbackPath = storage_path("app/documentos_notificacion/{$img}");
-                if (file_exists($fallbackPath)) {
-                    $mime = mime_content_type($fallbackPath);
-                    $imagenes[] = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($fallbackPath));
+                $fallbackPath = "documentos_notificacion/{$img}";
+                if (Storage::disk('s3')->exists($fallbackPath)) {
+                    $mime = Storage::disk('s3')->mimeType($fallbackPath);
+                    $imagenes[] = 'data:' . $mime . ';base64,' . base64_encode(Storage::disk('s3')->get($fallbackPath));
                 } else {
                     $imagenes[] = null;
                 }
@@ -12380,16 +12380,16 @@ class SeerController extends Controller
                 continue;
             }
         
-            $path = storage_path("app/documentos_notificacion/{$id_solicitud}/{$img}");
-        
-            if (file_exists($path)) {
-                $mime = mime_content_type($path);
-                $imagenes[] = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($path));
+            $path = "documentos_notificacion/{$id_solicitud}/{$img}";
+
+            if (Storage::disk('s3')->exists($path)) {
+                $mime = Storage::disk('s3')->mimeType($path);
+                $imagenes[] = 'data:' . $mime . ';base64,' . base64_encode(Storage::disk('s3')->get($path));
             } else {
-                $fallbackPath = storage_path("app/documentos_notificacion/{$img}");
-                if (file_exists($fallbackPath)) {
-                    $mime = mime_content_type($fallbackPath);
-                    $imagenes[] = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($fallbackPath));
+                $fallbackPath = "documentos_notificacion/{$img}";
+                if (Storage::disk('s3')->exists($fallbackPath)) {
+                    $mime = Storage::disk('s3')->mimeType($fallbackPath);
+                    $imagenes[] = 'data:' . $mime . ';base64,' . base64_encode(Storage::disk('s3')->get($fallbackPath));
                 } else {
                     $imagenes[] = null;
                 }
@@ -18264,16 +18264,16 @@ class SeerController extends Controller
                 continue;
             }
         
-            $path = storage_path("app/documentos_notificacion/{$id_solicitud}/{$img}");
-        
-            if (file_exists($path)) {
-                $mime = mime_content_type($path);
-                $imagenes[] = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($path));
+            $path = "documentos_notificacion/{$id_solicitud}/{$img}";
+
+            if (Storage::disk('s3')->exists($path)) {
+                $mime = Storage::disk('s3')->mimeType($path);
+                $imagenes[] = 'data:' . $mime . ';base64,' . base64_encode(Storage::disk('s3')->get($path));
             } else {
-                $fallbackPath = storage_path("app/documentos_notificacion/{$img}");
-                if (file_exists($fallbackPath)) {
-                    $mime = mime_content_type($fallbackPath);
-                    $imagenes[] = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($fallbackPath));
+                $fallbackPath = "documentos_notificacion/{$img}";
+                if (Storage::disk('s3')->exists($fallbackPath)) {
+                    $mime = Storage::disk('s3')->mimeType($fallbackPath);
+                    $imagenes[] = 'data:' . $mime . ';base64,' . base64_encode(Storage::disk('s3')->get($fallbackPath));
                 } else {
                     $imagenes[] = null;
                 }
@@ -19165,16 +19165,16 @@ class SeerController extends Controller
                 continue;
             }
         
-            $path = storage_path("app/documentos_notificacion/{$id_solicitud}/{$img}");
-        
-            if (file_exists($path)) {
-                $mime = mime_content_type($path);
-                $imagenes[] = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($path));
+            $path = "documentos_notificacion/{$id_solicitud}/{$img}";
+
+            if (Storage::disk('s3')->exists($path)) {
+                $mime = Storage::disk('s3')->mimeType($path);
+                $imagenes[] = 'data:' . $mime . ';base64,' . base64_encode(Storage::disk('s3')->get($path));
             } else {
-                $fallbackPath = storage_path("app/documentos_notificacion/{$img}");
-                if (file_exists($fallbackPath)) {
-                    $mime = mime_content_type($fallbackPath);
-                    $imagenes[] = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($fallbackPath));
+                $fallbackPath = "documentos_notificacion/{$img}";
+                if (Storage::disk('s3')->exists($fallbackPath)) {
+                    $mime = Storage::disk('s3')->mimeType($fallbackPath);
+                    $imagenes[] = 'data:' . $mime . ';base64,' . base64_encode(Storage::disk('s3')->get($fallbackPath));
                 } else {
                     $imagenes[] = null;
                 }
@@ -19233,16 +19233,16 @@ class SeerController extends Controller
                 continue;
             }
         
-            $path = storage_path("app/documentos_notificacion/{$id_solicitud}/{$img}");
-        
-            if (file_exists($path)) {
-                $mime = mime_content_type($path);
-                $imagenes[] = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($path));
+            $path = "documentos_notificacion/{$id_solicitud}/{$img}";
+
+            if (Storage::disk('s3')->exists($path)) {
+                $mime = Storage::disk('s3')->mimeType($path);
+                $imagenes[] = 'data:' . $mime . ';base64,' . base64_encode(Storage::disk('s3')->get($path));
             } else {
-                $fallbackPath = storage_path("app/documentos_notificacion/{$img}");
-                if (file_exists($fallbackPath)) {
-                    $mime = mime_content_type($fallbackPath);
-                    $imagenes[] = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($fallbackPath));
+                $fallbackPath = "documentos_notificacion/{$img}";
+                if (Storage::disk('s3')->exists($fallbackPath)) {
+                    $mime = Storage::disk('s3')->mimeType($fallbackPath);
+                    $imagenes[] = 'data:' . $mime . ';base64,' . base64_encode(Storage::disk('s3')->get($fallbackPath));
                 } else {
                     $imagenes[] = null;
                 }

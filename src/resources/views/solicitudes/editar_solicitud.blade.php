@@ -686,7 +686,9 @@ select[name="municipio_citado"] option {
                                                                 @else
                                                                     <label>*Acta Constitutiva</label><br>
                                                                 @endif
-                                                                <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->ineDocumento]) }}">Existente</a>
+                                                                @if(!empty($solicitante->poder->ineDocumento))
+                                                                    <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->ineDocumento]) }}">Existente</a>
+                                                                @endif
                                                                 <div class="invalid-feedback">
                                                                     La Identificación es obligatoria.
                                                                 </div>
@@ -731,7 +733,9 @@ select[name="municipio_citado"] option {
                                                         <div class="col-xs-12 col-sm-12 col-md-6">
                                                             <div class="form-group">
                                                                 <label>*Identificación del Empleador</label><br>
-                                                                <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->ineDocumento]) }}">Existente</a>
+                                                                @if(!empty($solicitante->poder->ineDocumento))
+                                                                    <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->ineDocumento]) }}">Existente</a>
+                                                                @endif
                                                                 <div class="invalid-feedback">
                                                                     La Identificación es obligatoria.
                                                                 </div>
@@ -1279,7 +1283,9 @@ select[name="municipio_citado"] option {
                                                                 @else
                                                                     <label>*Acta Constitutiva</label><br>
                                                                 @endif
-                                                                <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->ineDocumento]) }}">Existente</a>
+                                                                @if(!empty($solicitante->poder->ineDocumento))
+                                                                    <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->ineDocumento]) }}">Existente</a>
+                                                                @endif
                                                                 <div class="invalid-feedback">
                                                                     La Identificación es obligatoria.
                                                                 </div>
@@ -1324,7 +1330,9 @@ select[name="municipio_citado"] option {
                                                         <div class="col-xs-12 col-sm-12 col-md-6">
                                                             <div class="form-group">
                                                                 <label>*Identificación del Empleador</label><br>
-                                                                <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->ineDocumento]) }}">Existente</a>
+                                                                @if(!empty($solicitante->poder->ineDocumento))
+                                                                    <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->ineDocumento]) }}">Existente</a>
+                                                                @endif
                                                                 <div class="invalid-feedback">
                                                                     La Identificación es obligatoria.
                                                                 </div>

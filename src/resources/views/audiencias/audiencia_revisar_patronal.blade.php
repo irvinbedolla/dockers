@@ -1403,7 +1403,9 @@
                                 <div class="form-group">
                                     <label>*Acta Constitutiva</label><br>
                                     <input type="file" name="documentoIne_Moral" id="documentoIne_Moral" class="form-control" accept=".pdf">
-                                    <a target="_blank" class="btn btn-primary mt-1" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->ineDocumento]) }}">Existente</a>
+                                    @if(!empty($solicitante->poder->ineDocumento))
+                                        <a target="_blank" class="btn btn-primary mt-1" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->ineDocumento]) }}">Existente</a>
+                                    @endif
                                     <div class="invalid-feedback">La Identificación es obligatoria.</div>
                                 </div>
                             </div>
@@ -1763,7 +1765,9 @@
                                     <div class="form-group">
                                         <label>*Identificación del Empleador</label><br>
                                         <input type="file" name="documentoIne_pF" class="form-control" accept=".pdf">
-                                        <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->ineDocumento]) }}">Existente</a>
+                                        @if(!empty($solicitante->poder->ineDocumento))
+                                            <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->ineDocumento]) }}">Existente</a>
+                                        @endif
                                         <div class="invalid-feedback">La Identificación es obligatoria.</div>
                                     </div>
                                 </div>
@@ -1846,7 +1850,9 @@
                                     <div class="form-group">
                                         <label>*Identificación Oficial</label><br>
                                         <input type="file" name="documentoIne_pFSR" id="documentoIne_pFSR" class="form-control" accept=".pdf">
-                                        <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->ineDocumento]) }}">Existente</a>
+                                        @if(!empty($solicitante->poder->ineDocumento))
+                                            <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->ineDocumento]) }}">Existente</a>
+                                        @endif
                                         <div class="invalid-feedback">La Identificación es obligatoria.</div>
                                     </div>
                                 </div>

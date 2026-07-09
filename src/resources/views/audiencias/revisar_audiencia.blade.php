@@ -696,7 +696,9 @@
                                                                 @else
                                                                     <label>*Acta Constitutiva</label><br>
                                                                 @endif
-                                                                <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $audienciaCurrent->poder->idAbogado, 'archivo' => $audienciaCurrent->poder->ineDocumento]) }}">Existente</a>
+                                                                @if(!empty($audienciaCurrent->poder->ineDocumento))
+                                                                    <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $audienciaCurrent->poder->idAbogado, 'archivo' => $audienciaCurrent->poder->ineDocumento]) }}">Existente</a>
+                                                                @endif
                                                                 <div class="invalid-feedback">
                                                                     La Identificación es obligatoria.
                                                                 </div>
@@ -741,7 +743,9 @@
                                                         <div class="col-xs-12 col-sm-12 col-md-6">
                                                             <div class="form-group">
                                                                 <label>*Identificación del Empleador</label><br>
-                                                                <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $audienciaCurrent->poder->idAbogado, 'archivo' => $audienciaCurrent->poder->ineDocumento]) }}">Existente</a>
+                                                                @if(!empty($audienciaCurrent->poder->ineDocumento))
+                                                                    <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $audienciaCurrent->poder->idAbogado, 'archivo' => $audienciaCurrent->poder->ineDocumento]) }}">Existente</a>
+                                                                @endif
                                                                 <div class="invalid-feedback">
                                                                     La Identificación es obligatoria.
                                                                 </div>

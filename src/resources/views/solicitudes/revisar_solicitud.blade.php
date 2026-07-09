@@ -711,7 +711,9 @@
 
                                         <div class="col-xs-12 col-sm-12 col-md-6">
                                             <label for="password">Identificación Oficial</label><br>
-                                            <a target='_blank' href="{{ route('documentos.ver', ['tipo' => 'solicitud', 'id' => $id, 'archivo' => $solicitante->documentoIdentificacion]) }}">PDF</a><br>
+                                            @if(!empty($solicitante->documentoIdentificacion))
+                                                <a target='_blank' href="{{ route('documentos.ver', ['tipo' => 'solicitud', 'id' => $id, 'archivo' => $solicitante->documentoIdentificacion]) }}">PDF</a><br>
+                                            @endif
                                             <input type="file" name="documentoIdentificacion" accept=".pdf" class="form-control">
                                         </div>
                                         <br>

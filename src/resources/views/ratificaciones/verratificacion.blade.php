@@ -287,29 +287,37 @@
                                     <div class="col-xs-12 col-sm-6 col-md-6">
                                         <div class="form-group">
                                             <label for="email">*INE</label><br>
-                                            <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => $tipo_doc_abogado, 'id' => $id_doc_abogado, 'archivo' => $folio->ine]) }}">Existente</a>
-                                            <input type="file" name="documentoIne" class="form-control-file" accept=".pdf">        
+                                            @if(!empty($folio->ine))
+                                                <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => $tipo_doc_abogado, 'id' => $id_doc_abogado, 'archivo' => $folio->ine]) }}">Existente</a>
+                                            @endif
+                                            <input type="file" name="documentoIne" class="form-control-file" accept=".pdf">
                                         </div>
                                     </div>
                                     <div class="col-xs-12 col-sm-6 col-md-6">
                                         <div class="form-group">
                                             <label>*Documento que acredite la representación</label><br>
-                                            <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => $tipo_doc_abogado, 'id' => $id_doc_abogado, 'archivo' => $folio->representacion]) }}">Existente</a>
+                                            @if(!empty($folio->representacion))
+                                                <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => $tipo_doc_abogado, 'id' => $id_doc_abogado, 'archivo' => $folio->representacion]) }}">Existente</a>
+                                            @endif
                                             <input type="file" name="documentoRepresentacion" class="form-control-file" accept=".pdf">
                                         </div>
                                     </div>
                                     <div class="col-xs-12 col-sm-6 col-md-6">
                                         <div class="form-group">
                                             <label for="email">*Documento curp</label><br>
-                                            <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'ratificacion', 'id' => $folio->id, 'archivo' => $folio->documentoCurp]) }}">Existente</a>
-                                            <input type="file" name="documentoCurp" class="form-control-file" accept=".pdf">        
+                                            @if(!empty($folio->documentoCurp))
+                                                <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'ratificacion', 'id' => $folio->id, 'archivo' => $folio->documentoCurp]) }}">Existente</a>
+                                            @endif
+                                            <input type="file" name="documentoCurp" class="form-control-file" accept=".pdf">
                                         </div>
                                     </div>
                                     <div class="col-xs-12 col-sm-6 col-md-6">
                                         <div class="form-group">
                                             <label for="email">*Documento identificación</label><br>
-                                            <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'ratificacion', 'id' => $folio->id, 'archivo' => $folio->documentoidentificacion]) }}">Existente</a>
-                                            <input type="file" name="documentoidentificacion" class="form-control-file" accept=".pdf">        
+                                            @if(!empty($folio->documentoidentificacion))
+                                                <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'ratificacion', 'id' => $folio->id, 'archivo' => $folio->documentoidentificacion]) }}">Existente</a>
+                                            @endif
+                                            <input type="file" name="documentoidentificacion" class="form-control-file" accept=".pdf">
                                         </div>
                                     </div>
 
