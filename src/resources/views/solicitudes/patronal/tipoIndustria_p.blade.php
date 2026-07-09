@@ -360,7 +360,7 @@
                 </div>
                 <div id="pdfContainer" style="overflow: auto; max-height: 600px;">
                     <img id="pdfImg"
-                        src="{{ asset('storage/app/public/pdf/terminos_condiciones.jpg') }}" alt="PDF como imagen"
+                        src="{{ asset('storage/pdf/terminos_condiciones.jpg') }}" alt="PDF como imagen"
                         style="width: 100%; max-width: none; transition: width 0.2s ease;" />
                 </div>
                 <div class="form-check mt-3">

@@ -256,5 +256,5 @@
     </script>
 
     @section('scripts')
-        <script src="../public/assets/js/turnos/turnos.js"></script>
+        <script src="{{ asset('assets/js/turnos/turnos.js') }}"></script>
     @endsection

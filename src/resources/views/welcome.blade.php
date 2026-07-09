@@ -6,7 +6,7 @@
         <meta name="description" content="">
         <meta name="author" content="Mark Otto, Jacob Thornton, and Bootstrap contributors">
         <meta name="generator" content="Ing. ISBM">
-        <link href="public/assets/css/carousel.css" rel="stylesheet">
+        <link href="{{ asset('assets/css/carousel.css') }}" rel="stylesheet">
         <title>Si Concilio</title>
         <!-- Bootstrap core CSS -->
         
@@ -14,13 +14,13 @@
         <!-- CARRUSEL -->
         <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
-        <link rel="stylesheet" href="public/assets/css/owl.carousel.css">
-        <link rel="stylesheet" href="public/assets/css/owl.carousel.min.css">
-        <link rel="stylesheet" href="public/assets/css/owl.theme.default.min.css">
-        <script src="public/assets/js/owl.carousel.min.js"></script>
+        <link rel="stylesheet" href="{{ asset('assets/css/owl.carousel.css') }}">
+        <link rel="stylesheet" href="{{ asset('assets/css/owl.carousel.min.css') }}">
+        <link rel="stylesheet" href="{{ asset('assets/css/owl.theme.default.min.css') }}">
+        <script src="{{ asset('assets/js/owl.carousel.min.js') }}"></script>
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
         
-        <link rel="icon" href="public/assets/images/logo-ccl.png" type="image/x-icon">
+        <link rel="icon" href="{{ asset('assets/images/logo-ccl.png') }}" type="image/x-icon">
         <style>
           /*CARRUSEL*/
           .owl-carousel.owl-loaded{
@@ -114,7 +114,7 @@
     <body>
     <nav class="navbar navbar-expand-lg navbar-light bg-light fixed-top">
         <div class="">
-          <a href="#"><img src="public/assets/images/Logos 2.png" class="img" width="250" height="90"></a>&nbsp;&nbsp;
+          <a href="#"><img src="{{ asset('assets/images/Logos 2.png') }}" class="img" width="250" height="90"></a>&nbsp;&nbsp;
         </div>
         <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
@@ -141,8 +141,8 @@
     </div>
   <!-- CARRUSEL-->
   <div class="owl-carousel owl-theme">
-    <img src="public/assets/images/Baner.png" class="d-block w-100" alt="" loading="lazy">
-    <!--<img src="public/assets/images/carusel/carrusel_2.png" class="d-block w-100" alt="" loading="lazy">-->
+    <img src="{{ asset('assets/images/Baner.png') }}" class="d-block w-100" alt="" loading="lazy">
+    <!--<img src="{{ asset('assets/images/carusel/carrusel_2.png') }}" class="d-block w-100" alt="" loading="lazy">-->
   </div>
   <!-- FIN CARRUSEL-->	
   <div class="container">
@@ -159,7 +159,7 @@
             <div class="flip-box-inner">
               <div class="flip-box-front" >
                 <h2 style="font-size: 22px; font-family: Arial; color:#000000;">Asesoría virtual<br><br></h2>
-                <img src="public/assets/images/ASESORIA.png" alt="Descripción de la imagen"
+                <img src="{{ asset('assets/images/ASESORIA.png') }}" alt="Descripción de la imagen"
                   style="width: 120px; height:120px; position: absolute; top: 60%; left: 50%; transform: translate(-50%, -50%);">
               </div>
               <div class="flip-box-back">
@@ -176,7 +176,7 @@
             <div class="flip-box-inner">
               <div class="flip-box-front">
                 <h2 style="font-size: 22px; font-family: Arial; color:#000000">Calculadora de <br>prestaciones</h2>
-                <img src="public/assets/images/CALCULADORA.png" alt="Descripción de la imagen"
+                <img src="{{ asset('assets/images/CALCULADORA.png') }}" alt="Descripción de la imagen"
                     style="width: 120px; height:120px; position: absolute; top: 60%; left: 50%; transform: translate(-50%, -50%);">
               </div>
               <div class="flip-box-back">
@@ -193,7 +193,7 @@
             <div class="flip-box-inner">
               <div class="flip-box-front">
                 <h2 style="font-size: 22px; font-family: Arial; color: #000000">Solicitud en línea<br></h2> <img
-                  src="public/assets/images/SOLICITUD.png" alt="Descripción de la imagen"
+                  src="{{ asset('assets/images/SOLICITUD.png') }}" alt="Descripción de la imagen"
                   style="width: 120px; height:120px; position: absolute; top: 60%; left: 50%; transform: translate(-50%, -50%);">
               </div>
               <div class="flip-box-back">
@@ -214,7 +214,7 @@
             <div class="flip-box-inner">
               <div class="flip-box-front">
                 <h2 style="font-size: 22px; font-family: Arial; color:#000000">Citas de ratificación de convenios</h2> <img
-                  src="public/assets/images/RATIFICACION.png" alt="Descripción de la imagen"
+                  src="{{ asset('assets/images/RATIFICACION.png') }}" alt="Descripción de la imagen"
                   style="width: 120px; height:120px; position: absolute; top: 60%; left: 50%; transform: translate(-50%, -50%);">
               </div>
               <div class="flip-box-back">
@@ -231,7 +231,7 @@
             <div class="flip-box-inner">
               <div class="flip-box-front">
                 <h2 style="font-size: 22px; font-family: Arial; color:#000000">Registro de <br>representación legal patronal</h2> <img
-                  src="public/assets/images/REGISTROPA.png" alt="Descripción de la imagen"
+                  src="{{ asset('assets/images/REGISTROPA.png') }}" alt="Descripción de la imagen"
                   style="width: 120px; height:120px; position: absolute; top: 60%; left: 50%; transform: translate(-50%, -50%);">
               </div>
               <div class="flip-box-back">
@@ -248,7 +248,7 @@
             <div class="flip-box-inner">
               <div class="flip-box-front">
                 <h2 style="font-size: 22px; font-family: Arial; color:#000000">Cursos y capacitaciones<br><br></h2>
-                <img src="public/assets/images/CURSOSYCA.png" alt="Descripción de la imagen"
+                <img src="{{ asset('assets/images/CURSOSYCA.png') }}" alt="Descripción de la imagen"
                   style="width: 120px; height:120px; position: absolute; top: 60%; left: 50%; transform: translate(-50%, -50%);">
               </div>
               <div class="flip-box-back">
@@ -269,7 +269,7 @@
             <div class="flip-box-inner">
               <div class="flip-box-front">
                 <h2 style="font-size: 22px; font-family: Arial; color:#000000">Buzón electrónico</h2>
-                <img src="public/assets/images/Audiencias e.png" alt="Descripción de la imagen"
+                <img src="{{ asset('assets/images/Audiencias e.png') }}" alt="Descripción de la imagen"
                     style="width: 120px; height: 120px; position: absolute; top: 60%; left: 50%; transform: translate(-50%, -50%);">
               </div>
               <div class="flip-box-back">
@@ -286,7 +286,7 @@
             <div class="flip-box-inner">
               <div class="flip-box-front">
                 <h2 style="font-size: 22px; font-family: Arial; color:#000000">Seer</h2>
-                <img src="public/assets/images/ccl-r.png" alt="Descripción de la imagen"
+                <img src="{{ asset('assets/images/ccl-r.png') }}" alt="Descripción de la imagen"
                     style="width: 180px; height: auto; position: absolute; top: 60%; left: 50%; transform: translate(-50%, -50%);">
               </div>
               <div class="flip-box-back">
@@ -304,15 +304,15 @@
   </main> 
       <!-- CARRUSEL-->
       <div class="owl-carousel owl-theme">
-        <img src="public/assets/images/carusel/carrusel_1.png" class="d-block w-100" alt="" loading="lazy">
-        <img src="public/assets/images/carusel/carrusel_2.png" class="d-block w-100" alt="" loading="lazy">
-        <img src="public/assets/images/carusel/carrusel_3.png" class="d-block w-100" alt="" loading="lazy">
-        <img src="public/assets/images/carusel/carrusel_4.png" class="d-block w-100" alt="" loading="lazy">
-        <img src="public/assets/images/carusel/carrusel_5.png" class="d-block w-100" alt="" loading="lazy">
-        <img src="public/assets/images/carusel/carrusel_6.png" class="d-block w-100" alt="" loading="lazy">
-        <img src="public/assets/images/carusel/carrusel_7.png" class="d-block w-100" alt="" loading="lazy">
-        <img src="public/assets/images/carusel/carrusel_8.png" class="d-block w-100" alt="" loading="lazy">
-        <img src="public/assets/images/carusel/carrusel_9.png" class="d-block w-100" alt="" loading="lazy">
+        <img src="{{ asset('assets/images/carusel/carrusel_1.png') }}" class="d-block w-100" alt="" loading="lazy">
+        <img src="{{ asset('assets/images/carusel/carrusel_2.png') }}" class="d-block w-100" alt="" loading="lazy">
+        <img src="{{ asset('assets/images/carusel/carrusel_3.png') }}" class="d-block w-100" alt="" loading="lazy">
+        <img src="{{ asset('assets/images/carusel/carrusel_4.png') }}" class="d-block w-100" alt="" loading="lazy">
+        <img src="{{ asset('assets/images/carusel/carrusel_5.png') }}" class="d-block w-100" alt="" loading="lazy">
+        <img src="{{ asset('assets/images/carusel/carrusel_6.png') }}" class="d-block w-100" alt="" loading="lazy">
+        <img src="{{ asset('assets/images/carusel/carrusel_7.png') }}" class="d-block w-100" alt="" loading="lazy">
+        <img src="{{ asset('assets/images/carusel/carrusel_8.png') }}" class="d-block w-100" alt="" loading="lazy">
+        <img src="{{ asset('assets/images/carusel/carrusel_9.png') }}" class="d-block w-100" alt="" loading="lazy">
         
       </div>
       <!-- FIN CARRUSEL-->	
@@ -325,10 +325,10 @@
       </div>
       <div class="col-md-4 d-flex align-items-center">
         <div class="col-md-3, mx-auto, my-auto">
-          <a href="https://x.com/cclmichoacan?s=21"><img src="public/assets/images/X.png" style="width: 8%"></a>
-          &ensp;<a href="https://www.instagram.com/cclmichoacan/"><img src="public/assets/images/IG.png" style="width:10%"></a>
-          &ensp;<a href="https://www.facebook.com/conciliacionlaboralmich/?locale=es_LA"><img src="public/assets/images/FC.png" style="width:8%"></a>
-          &ensp;<a href="https://www.tiktok.com/@cclmichoacan0?_t=ZM-8uooi2eSI1V&_r=1"><img src="public/assets/images/TK.png" style="width:8%"></a>
+          <a href="https://x.com/cclmichoacan?s=21"><img src="{{ asset('assets/images/X.png') }}" style="width: 8%"></a>
+          &ensp;<a href="https://www.instagram.com/cclmichoacan/"><img src="{{ asset('assets/images/IG.png') }}" style="width:10%"></a>
+          &ensp;<a href="https://www.facebook.com/conciliacionlaboralmich/?locale=es_LA"><img src="{{ asset('assets/images/FC.png') }}" style="width:8%"></a>
+          &ensp;<a href="https://www.tiktok.com/@cclmichoacan0?_t=ZM-8uooi2eSI1V&_r=1"><img src="{{ asset('assets/images/TK.png') }}" style="width:8%"></a>
         </div>
       </div>
     </footer> 

@@ -84,7 +84,7 @@
     <main>
         <div id="app">
             <form class="needs-validation novalidate" method="POST" style="position: relative; top:10px;" action="{{route('RespuestasChat.storeUno')}}">   
-                &nbsp;&nbsp;<img src="../public/assets/images/Logos 2.png" class="img" width="240" height="90">
+                &nbsp;&nbsp;<img src="{{ asset('assets/images/Logos 2.png') }}" class="img" width="240" height="90">
                 @csrf
                 <div class="chat-box" style="position: relative; top:10px; right:0px; left:0px;">
                     <h1>Asistente Centro de Conciliación</h1>

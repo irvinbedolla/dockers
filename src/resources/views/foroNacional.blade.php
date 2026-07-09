@@ -7,15 +7,15 @@
     <meta content='width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no' name='viewport'>
     
     <!-- Bootstrap 5.3.3 -->
-    <link href="public/assets/css/bootstrap.min.css" rel="stylesheet" type="text/css"/>
+    <link href="{{ asset('assets/css/bootstrap.min.css') }}" rel="stylesheet" type="text/css"/>
     
     <!-- Fuentes y Estilos Base -->
-    <link rel="icon" href="public/assets/images/ccl-r.png" type="image/x-icon">
+    <link rel="icon" href="{{ asset('assets/images/ccl-r.png') }}" type="image/x-icon">
     <link href="//fonts.googleapis.com/css?family=Lato&display=swap" rel="stylesheet">
-    <link href="public/assets/css/all.css" rel="stylesheet" type="text/css">
-    <link href="public/assets/css/iziToast.min.css" rel="stylesheet">
-    <link href="public/assets/css/sweetalert.css" rel="stylesheet" type="text/css"/>
-    <link href="public/assets/css/select2.min.css" rel="stylesheet" type="text/css"/>
+    <link href="{{ asset('assets/css/all.css') }}" rel="stylesheet" type="text/css">
+    <link href="{{ asset('assets/css/iziToast.min.css') }}" rel="stylesheet">
+    <link href="{{ asset('assets/css/sweetalert.css') }}" rel="stylesheet" type="text/css"/>
+    <link href="{{ asset('assets/css/select2.min.css') }}" rel="stylesheet" type="text/css"/>
     
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
@@ -101,14 +101,14 @@
 
     <!-- Loader (Se activa solo al confirmar) -->
     <div id="crear_poder" class="loader-container">
-        <img src="public/assets/images/pageLoader.gif" class="loader-img" alt="Cargando...">
+        <img src="{{ asset('assets/images/pageLoader.gif') }}" class="loader-img" alt="Cargando...">
     </div>
 
     <!-- Navbar -->
     <nav class="navbar navbar-light fixed-top navbar-custom">
         <div class="container justify-content-center">
             <a class="navbar-brand m-0" href="https://foro-nacional.cclmichoacan.gob.mx/">
-                <img src="public/assets/images/registro-foro-nacional-consolidacion-justicia-laboral.png" alt="Logo Foro Nacional">
+                <img src="{{ asset('assets/images/registro-foro-nacional-consolidacion-justicia-laboral.png') }}" alt="Logo Foro Nacional">
             </a>
         </div> 
     </nav>
@@ -246,9 +246,9 @@
     </main>
 
     <!-- Scripts -->
-    <script src="public/assets/js/jquery.min.js"></script>
+    <script src="{{ asset('assets/js/jquery.min.js') }}"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="public/assets/js/sweetalert.min.js"></script>
+    <script src="{{ asset('assets/js/sweetalert.min.js') }}"></script>
 
     <script>
         // Manejo del envío con Alerta y Loader

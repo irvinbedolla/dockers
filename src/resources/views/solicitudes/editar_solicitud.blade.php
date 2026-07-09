@@ -1121,7 +1121,7 @@ select[name="municipio_citado"] option {
                                                         $hasRefImg1 = (!empty($citado->imagen_domicilio1) && $citado->imagen_domicilio1 !== 'Sin documento');
                                                     @endphp
                                                     @if ($hasRefImg1)
-                                                        <a target='_blank' href="../storage/app/documentosSolicitud/{{$general->id}}/{{$citado->imagen_domicilio1}}">VER IMAGEN</a><br>
+                                                        <a target='_blank' href="{{ route('documentos.ver', ['tipo' => 'solicitud', 'id' => $general->id, 'archivo' => $citado->imagen_domicilio1]) }}">VER IMAGEN</a><br>
                                                     @else
                                                         <span class="text-muted">No se subió imagen</span>
                                                     @endif
@@ -1133,7 +1133,7 @@ select[name="municipio_citado"] option {
                                                 <div class="col-xs-12 col-sm-12 col-md-5">
                                                     <label for="password">Referencia Imagen 2</label><br>
                                                     @if (!empty($citado->imagen_domicilio2) && $citado->imagen_domicilio2 !== 'Sin documento')
-                                                        <a target='_blank' href="../storage/app/documentosSolicitud/{{$general->id}}/{{$citado->imagen_domicilio2}}">VER IMAGEN</a><br>
+                                                        <a target='_blank' href="{{ route('documentos.ver', ['tipo' => 'solicitud', 'id' => $general->id, 'archivo' => $citado->imagen_domicilio2]) }}">VER IMAGEN</a><br>
                                                     @else
                                                         <span class="text-muted">No se subió imagen</span>
                                                     @endif

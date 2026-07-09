@@ -87,19 +87,16 @@ class TurnosController extends Controller
         $pathNew = 'documentos_ratificacion/' . $doc->id_solicitud . '/' . $doc->nombre_documento;
         $pathOld = 'documentosSolicitud/' . $doc->nombre_documento;
 
-        if (Storage::exists($pathNew)) {
+        if (Storage::disk('s3')->exists($pathNew)) {
             $path = $pathNew;
-        } elseif (Storage::exists($pathOld)) {
+        } elseif (Storage::disk('s3')->exists($pathOld)) {
             $path = $pathOld;
         } else {
             abort(404, 'Documento no encontrado en almacenamiento.');
         }
 
         $downloadName = $doc->tipo_documentos ?: $doc->nombre_documento;
-        return response()->file(Storage::path($path), [
-            'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="' . $downloadName . '"',
-        ]);
+        return Storage::disk('s3')->response($path, $downloadName);
     }
     public function destroy($id)
     {
@@ -1605,12 +1602,16 @@ class TurnosController extends Controller
         $representante = Poder::find($folio["idAbogado"]);
         if(isset($representante)){
             $ruta_abogado = 'documentos_abogados';
+            $tipo_doc_abogado = 'poder';
+            $id_doc_abogado = $folio->idAbogado;
         }
         else{
             $ruta_abogado = 'documentos_ratificacion';
+            $tipo_doc_abogado = 'ratificacion';
+            $id_doc_abogado = $folio->id;
         }
         //dd($ruta_abogado);
-        return view('/ratificaciones/verratificacion',compact('folio','ruta_abogado','userRole','representante'));
+        return view('/ratificaciones/verratificacion',compact('folio','ruta_abogado','tipo_doc_abogado','id_doc_abogado','userRole','representante'));
     }
 
     public function editar_ratificaciones(Request $request){

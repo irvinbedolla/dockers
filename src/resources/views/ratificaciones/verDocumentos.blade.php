@@ -22,12 +22,12 @@
                                         <tr>
                                             <td>CURP del Trabajador</td>
                                             <td>{{$documento_general->trabajador_curp}}</td>
-                                            <td><a target='_blank' href="../storage/app/documentos_ratificacion/{{$documento_general->documentoCurp}}">PDF</a><br></td>
+                                            <td><a target='_blank' href="{{ route('documentos.ver', ['tipo' => 'ratificacion', 'id' => $documento_general->id, 'archivo' => $documento_general->documentoCurp]) }}">PDF</a><br></td>
                                         </tr>
                                         <tr>
                                             <td>Identificación del Trabajador</td>
                                             <td>{{$documento_general->tipo_identificacion}}</td>
-                                            <td><a target='_blank' href="../storage/app/documentos_ratificacion/{{$documento_general->documentoidentificacion}}">PDF</a></td>
+                                            <td><a target='_blank' href="{{ route('documentos.ver', ['tipo' => 'ratificacion', 'id' => $documento_general->id, 'archivo' => $documento_general->documentoidentificacion]) }}">PDF</a></td>
                                         </tr>
                                         <tr>
                                             <td colspan="3" style="text-align: center; background-color:#7c7c7b">REPRESENTANTE LEGAL</td>
@@ -35,22 +35,22 @@
                                         <tr>
                                             <td>Identificación de Citado:{{$documento_abogado->nombres_patronal}}</td>
                                             <td>{{$documento_abogado->ineDocumento}}</td>
-                                            <td><a target='_blank' href="../storage/app/documentos_abogados/{{$documento_abogado->ineDocumento}}">PDF</a></td>
+                                            <td><a target='_blank' href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $documento_abogado->idAbogado, 'archivo' => $documento_abogado->ineDocumento]) }}">PDF</a></td>
                                         </tr>
                                         <tr>
                                             <td>Poder de Citado:{{$documento_abogado->nombres_patronal}}</td>
                                             <td>{{$documento_abogado->representacionDocumento}}</td>
-                                            <td><a target='_blank' href="../storage/app/documentos_abogados/{{$documento_abogado->representacionDocumento}}">PDF</a></td>
+                                            <td><a target='_blank' href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $documento_abogado->idAbogado, 'archivo' => $documento_abogado->representacionDocumento]) }}">PDF</a></td>
                                         </tr>
                                             <tr>
                                             <td>Anexo de Citado:{{$documento_abogado->nombres_patronal}}</td>
                                             <td>{{$documento_abogado->cedulaDocumento}}</td>
-                                            <td><a target='_blank' href="../storage/app/documentos_abogados/{{$documento_abogado->cedulaDocumento}}">PDF</a></td>
+                                            <td><a target='_blank' href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $documento_abogado->idAbogado, 'archivo' => $documento_abogado->cedulaDocumento]) }}">PDF</a></td>
                                         </tr>
                                         <tr>
                                             <td>Anexo de Citado:{{$documento_abogado->nombres_patronal}}</td>
                                             <td>{{$documento_abogado->anexo_documeto}}</td>
-                                            <td><a target='_blank' href="../storage/app/documentos_abogados/{{$documento_abogado->anexo_documeto}}">PDF</a></td>
+                                            <td><a target='_blank' href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $documento_abogado->idAbogado, 'archivo' => $documento_abogado->anexo_documeto]) }}">PDF</a></td>
                                         </tr>
                                         
                                         @if(count($documento_subidos) != 0)
@@ -82,5 +82,5 @@
 
 
 @section('scripts')
-    <script src="../public/assets/js/turnos/turnos.js"></script>
+    <script src="{{ asset('assets/js/turnos/turnos.js') }}"></script>
 @endsection

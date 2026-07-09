@@ -300,17 +300,17 @@
                         $('#tipo_identificacion').val(data.tipo_identificacion || '');
                         $('#numero_identificacion').val(data.num_identificacion || '');
 
-                        var url = '../../storage/app/documentos_abogados/' + data.ineDocumento;
-                        $('#link_acta_constitutiva').removeClass('d-none').attr('href', url);
+                        var docUrlTemplate = "{{ route('documentos.ver', ['tipo' => 'poder', 'id' => '__ID__', 'archivo' => '__ARCHIVO__']) }}";
+                        function docUrl(archivo) {
+                            return docUrlTemplate
+                                .replace('__ID__', encodeURIComponent(data.id_abogado))
+                                .replace('__ARCHIVO__', encodeURIComponent(archivo));
+                        }
 
-                        var url1 = '../../storage/app/documentos_abogados/' + data.representacionDocumento;
-                        $('#link_identificacion_representante').removeClass('d-none').attr('href', url1);
-
-                        var url1 = '../../storage/app/documentos_abogados/' + data.cedulaDocumento;
-                        $('#link_poder_representante').removeClass('d-none').attr('href', url1);
-
-                        var url1 = '../../storage/app/documentos_abogados/' + data.anexo_documeto;
-                        $('#link_anexo_representante').removeClass('d-none').attr('href', url1);
+                        $('#link_acta_constitutiva').removeClass('d-none').attr('href', docUrl(data.ineDocumento));
+                        $('#link_identificacion_representante').removeClass('d-none').attr('href', docUrl(data.representacionDocumento));
+                        $('#link_poder_representante').removeClass('d-none').attr('href', docUrl(data.cedulaDocumento));
+                        $('#link_anexo_representante').removeClass('d-none').attr('href', docUrl(data.anexo_documeto));
 
                     },
                     error: function (xhr) {

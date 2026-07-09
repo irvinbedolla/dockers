@@ -6,16 +6,16 @@
     <title>Si concilio</title>
     <meta content='width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no' name='viewport'>
     <!-- Bootstrap 5.3.3 -->
-    <link href="../public/assets/css/bootstrap.min.css" rel="stylesheet" type="text/css"/>
+    <link href="{{ asset('assets/css/bootstrap.min.css') }}" rel="stylesheet" type="text/css"/>
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/index.global.min.js'></script>
 
     <!-- Ionicons -->
-    <link rel="icon" href="public/assets/images/ccl-r.png" type="image/x-icon">
+    <link rel="icon" href="{{ asset('assets/images/ccl-r.png') }}" type="image/x-icon">
     <link href="//fonts.googleapis.com/css?family=Lato&display=swap" rel="stylesheet">
-    <link href="../public/assets/css/all.css" rel="stylesheet" type="text/css">
-    <link href="../public/assets/css/iziToast.min.css" rel="stylesheet">
-    <link href="../public/assets/css/sweetalert.css" rel="stylesheet" type="text/css"/>
-    <link href="../public/assets/css/select2.min.css" rel="stylesheet" type="text/css"/>
+    <link href="{{ asset('assets/css/all.css') }}" rel="stylesheet" type="text/css">
+    <link href="{{ asset('assets/css/iziToast.min.css') }}" rel="stylesheet">
+    <link href="{{ asset('assets/css/sweetalert.css') }}" rel="stylesheet" type="text/css"/>
+    <link href="{{ asset('assets/css/select2.min.css') }}" rel="stylesheet" type="text/css"/>
     
     <!-- Agregados para los Select del Formulario Personas-->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -120,12 +120,12 @@
 
     @yield('page_css')
     <!-- Template CSS <img src="public/assets_seer/images/ccl.png" width="180" height="90" style="position: absolute; left: 100px; top: 10px; right:0px;"/>  -->
-    <link rel="stylesheet" href="../public/assets/css/components.css">
+    <link rel="stylesheet" href="{{ asset('assets/css/components.css') }}">
     @yield('page_css')
 </head>
 <nav class="navbar navbar-expand-lg navbar-light bg-light fixed-top">
     <div class="">
-        <img src="../public/assets/images/Logos 2.png" class="img" width="260" height="90">
+        <img src="{{ asset('assets/images/Logos 2.png') }}" class="img" width="260" height="90">
     </div> 
 </nav>
 <body>
@@ -228,23 +228,23 @@
 </div>
 
 @section('scripts')
-    <script src="public/assets/js/validaciones-ratificacion.js"></script> 
-    <script src="public/assets/js/poderes/general.js"></script>
+    <script src="{{ asset('assets/js/validaciones-ratificacion.js') }}"></script> 
+    <script src="{{ asset('assets/js/poderes/general.js') }}"></script>
 @endsection
 
-    <script src="public/assets/js/jquery.min.js"></script>
-    <script src="public/assets/js/popper.min.js"></script>
-    <script src="public/assets/js/bootstrap.min.js"></script>
-    <script src="public/assets/js/sweetalert.min.js"></script>
-    <script src="public/assets/js/select2.min.js"></script>
-    <script src="public/assets/js/jquery.nicescroll.js"></script>
+    <script src="{{ asset('assets/js/jquery.min.js') }}"></script>
+    <script src="{{ asset('assets/js/popper.min.js') }}"></script>
+    <script src="{{ asset('assets/js/bootstrap.min.js') }}"></script>
+    <script src="{{ asset('assets/js/sweetalert.min.js') }}"></script>
+    <script src="{{ asset('assets/js/select2.min.js') }}"></script>
+    <script src="{{ asset('assets/js/jquery.nicescroll.js') }}"></script>
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/locales-all.min.js"></script>
 
     <!-- Template JS File -->
-    <script src="public/assets/js/stisla.js"></script>
-    <script src="public/assets/js/scripts.js"></script>
-    <script src="public/assets/js/profile.js"></script>
-    <script src="public/assets/js/custom.js"></script>
+    <script src="{{ asset('assets/js/stisla.js') }}"></script>
+    <script src="{{ asset('assets/js/scripts.js') }}"></script>
+    <script src="{{ asset('assets/js/profile.js') }}"></script>
+    <script src="{{ asset('assets/js/custom.js') }}"></script>
 
     <script src="https://cdn.datatables.net/2.1.5/js/dataTables.js"></script>
     <!--script src="https://cdn.datatables.net/2.1.5/js/dataTables.bootstrap4.js"></script-->

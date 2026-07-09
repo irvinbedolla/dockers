@@ -180,7 +180,7 @@
 
 
 @section('scripts')
-    <script src="../../public/assets/js/turnos/turnos.js"></script>
+    <script src="{{ asset('assets/js/turnos/turnos.js') }}"></script>
     <script>
         document.getElementById("folio").style.display="none";
         document.getElementById("link").style.display="none";

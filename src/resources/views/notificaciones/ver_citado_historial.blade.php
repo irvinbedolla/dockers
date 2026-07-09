@@ -229,7 +229,7 @@
                                     <div class="col-xs-12 col-sm-12 col-md-6">
                                         <label for="password">Referencia 1 <span style="color:red;">(*)</span></label><br>
                                         @if (!empty($folio->imagen_domicilio1) && $folio->imagen_domicilio1 !== 'Sin documento')
-                                            <a target='_blank' href="{{ asset('storage/app/documentosSolicitud/'. $folio->id_solicitud . '/' . $folio->imagen_domicilio1) }}">VER IMAGEN</a>
+                                            <a target='_blank' href="{{ route('documentos.ver', ['tipo' => 'solicitud', 'id' => $folio->id_solicitud, 'archivo' => $folio->imagen_domicilio1]) }}">VER IMAGEN</a>
                                         @else
                                             <span class="text-muted">No se subió imagen</span>
                                         @endif
@@ -240,7 +240,7 @@
                                     <div class="col-xs-12 col-sm-12 col-md-6">
                                         <label for="password">Referencia 2</label><br>
                                         @if (!empty($folio->imagen_domicilio2) && $folio->imagen_domicilio2 !== 'Sin documento')
-                                            <a target='_blank' href="{{ asset('storage/app/documentosSolicitud/'. $folio->id_solicitud . '/' . $folio->imagen_domicilio2) }}">VER IMAGEN</a><br>
+                                            <a target='_blank' href="{{ route('documentos.ver', ['tipo' => 'solicitud', 'id' => $folio->id_solicitud, 'archivo' => $folio->imagen_domicilio2]) }}">VER IMAGEN</a><br>
                                         @else
                                             <span class="text-muted">No se subió imagen</span>
                                         @endif
@@ -311,21 +311,21 @@
 </div>
 
 @section('scripts')
-    <script src="../../public/assets/js/poderes/general.js"></script>
+    <script src="{{ asset('assets/js/poderes/general.js') }}"></script>
 @endsection
-    <script src="../public/assets/js/validaciones.js"></script> 
-    <script src="../../public/assets/js/jquery.min.js"></script>
-    <script src="../../public/assets/js/popper.min.js"></script>
-    <script src="../../public/assets/js/bootstrap.min.js"></script>
-    <script src="../../public/assets/js/sweetalert.min.js"></script>
-    <script src="../../public/assets/js/select2.min.js"></script>
-    <script src="../../public/assets/js/jquery.nicescroll.js"></script>
+    <script src="{{ asset('assets/js/validaciones.js') }}"></script> 
+    <script src="{{ asset('assets/js/jquery.min.js') }}"></script>
+    <script src="{{ asset('assets/js/popper.min.js') }}"></script>
+    <script src="{{ asset('assets/js/bootstrap.min.js') }}"></script>
+    <script src="{{ asset('assets/js/sweetalert.min.js') }}"></script>
+    <script src="{{ asset('assets/js/select2.min.js') }}"></script>
+    <script src="{{ asset('assets/js/jquery.nicescroll.js') }}"></script>
 
     <!-- Template JS File -->
-    <script src="../../public/assets/js/stisla.js"></script>
-    <script src="../../public/assets/js/scripts.js"></script>
-    <script src="../../public/assets/js/profile.js"></script>
-    <script src="../../public/assets/js/custom.js"></script>
+    <script src="{{ asset('assets/js/stisla.js') }}"></script>
+    <script src="{{ asset('assets/js/scripts.js') }}"></script>
+    <script src="{{ asset('assets/js/profile.js') }}"></script>
+    <script src="{{ asset('assets/js/custom.js') }}"></script>
 
     <script src="https://cdn.datatables.net/2.1.5/js/dataTables.js"></script>
     <script src="https://cdn.datatables.net/2.1.5/js/dataTables.bootstrap4.js"></script>

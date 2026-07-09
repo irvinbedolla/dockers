@@ -56,5 +56,5 @@
 
 
 @section('scripts')
-    <script src="../public/assets/js/general/menu.js"></script>
+    <script src="{{ asset('assets/js/general/menu.js') }}"></script>
 @endsection

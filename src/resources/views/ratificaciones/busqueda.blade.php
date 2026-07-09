@@ -278,5 +278,5 @@
             document.getElementById('modal-id').value = id;
         });
     </script>
-    <script src="../public/assets/js/poderes/general.js"></script>
+    <script src="{{ asset('assets/js/poderes/general.js') }}"></script>
 @endsection

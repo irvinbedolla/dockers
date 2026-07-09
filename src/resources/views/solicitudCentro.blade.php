@@ -6,7 +6,7 @@
         <meta name="description" content="">
         <meta name="author" content="Mark Otto, Jacob Thornton, and Bootstrap contributors">
         <meta name="generator" content="Ing. ISBM">
-        <link rel="icon" href="public/assets/images/logo-ccl.png" type="image/x-icon">
+        <link rel="icon" href="{{ asset('assets/images/logo-ccl.png') }}" type="image/x-icon">
         <title>Si Concilio</title>
         <!-- Bootstrap core CSS -->
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
@@ -76,7 +76,7 @@
     <body>
         <nav class="navbar navbar-expand-lg navbar-light bg-light fixed-top">
             <div class="">
-                &nbsp;&nbsp;<img src="public/assets/images/Logos 2.png" class="img" width="250" height="90">
+                &nbsp;&nbsp;<img src="{{ asset('assets/images/Logos 2.png') }}" class="img" width="250" height="90">
             </div> 
         </nav>
         <div class="container">
@@ -85,7 +85,7 @@
         <main>
             <div>
                 <h2 style="color: #4A001F; text-align: center;">Realiza tu solicitud en línea</h2>
-                <center><img src="public/assets/images/Baner.png" class="responsive-img" width="750" height="350" alt="Descripción de la imagen"></center>
+                <center><img src="{{ asset('assets/images/Baner.png') }}" class="responsive-img" width="750" height="350" alt="Descripción de la imagen"></center>
             </div>
             <br>
             <center><div class="card-group">
@@ -129,10 +129,10 @@
             </div>
             <div class="col-md-4 d-flex align-items-center">
                 <div class="col-md-3, mx-auto, my-auto">
-                    <a href="https://x.com/cclmichoacan/status/1902452234568265892"><img src="public/assets/images/X.png" style="width: 8%"></a>
-                    &ensp;<a href="https://www.instagram.com/cclmichoacan/"><img src="public/assets/images/IG.png" style="width:10%"></a>
-                    &ensp;<a href="https://www.facebook.com/conciliacionlaboralmich/?locale=es_LA"><img src="public/assets/images/FC.png" style="width:8%"></a>
-                    &ensp;<a href="https://www.tiktok.com/@cclmichoacan0?_t=ZM-8uooi2eSI1V&_r=1"><img src="public/assets/images/TK.png" style="width:8%"></a>
+                    <a href="https://x.com/cclmichoacan/status/1902452234568265892"><img src="{{ asset('assets/images/X.png') }}" style="width: 8%"></a>
+                    &ensp;<a href="https://www.instagram.com/cclmichoacan/"><img src="{{ asset('assets/images/IG.png') }}" style="width:10%"></a>
+                    &ensp;<a href="https://www.facebook.com/conciliacionlaboralmich/?locale=es_LA"><img src="{{ asset('assets/images/FC.png') }}" style="width:8%"></a>
+                    &ensp;<a href="https://www.tiktok.com/@cclmichoacan0?_t=ZM-8uooi2eSI1V&_r=1"><img src="{{ asset('assets/images/TK.png') }}" style="width:8%"></a>
                 </div>
             </div>
         </footer>

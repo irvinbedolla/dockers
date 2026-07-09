@@ -200,19 +200,19 @@
                                     <div class="col-xs-12 col-sm-12 col-md-6">
                                         <div class="form-group">
                                             <label for="name">Imagen 1 <span style="color:red;">(*)</span></label>
-                                            <img src="../../storage/app/documentos_notificacion/<?=$folio["documento"];?>" style="width: 100%;"/>
+                                            <img src="<?= $folio['documento'] ? route('documentos.ver', ['tipo' => 'notificacion', 'id' => $folio['id_solicitud'], 'archivo' => $folio['documento']]) : ''; ?>" style="width: 100%;"/>
                                         </div>
                                     </div>
                                     <div class="col-xs-12 col-sm-12 col-md-6">
                                         <div class="form-group">
                                             <label for="name">Imagen 2</label>
-                                            <img src="../../storage/app/documentos_notificacion/<?=$folio["documento1"];?>" style="width: 100%;"/>
+                                            <img src="<?= $folio['documento1'] ? route('documentos.ver', ['tipo' => 'notificacion', 'id' => $folio['id_solicitud'], 'archivo' => $folio['documento1']]) : ''; ?>" style="width: 100%;"/>
                                         </div>
                                     </div>
                                     <div class="col-xs-12 col-sm-12 col-md-6">
                                         <div class="form-group">
                                             <label for="name">Imagen 3</label>
-                                            <img src="../../storage/app/documentos_notificacion/<?=$folio["documento2"];?>" style="width: 100%;"/>
+                                            <img src="<?= $folio['documento2'] ? route('documentos.ver', ['tipo' => 'notificacion', 'id' => $folio['id_solicitud'], 'archivo' => $folio['documento2']]) : ''; ?>" style="width: 100%;"/>
                                         </div>
                                     </div>  
 
@@ -236,21 +236,21 @@
 </div>
 
 @section('scripts')
-    <script src="../../public/assets/js/poderes/general.js"></script>
+    <script src="{{ asset('assets/js/poderes/general.js') }}"></script>
 @endsection
 
-    <script src="../../public/assets/js/jquery.min.js"></script>
-    <script src="../../public/assets/js/popper.min.js"></script>
-    <script src="../../public/assets/js/bootstrap.min.js"></script>
-    <script src="../../public/assets/js/sweetalert.min.js"></script>
-    <script src="../../public/assets/js/select2.min.js"></script>
-    <script src="../../public/assets/js/jquery.nicescroll.js"></script>
+    <script src="{{ asset('assets/js/jquery.min.js') }}"></script>
+    <script src="{{ asset('assets/js/popper.min.js') }}"></script>
+    <script src="{{ asset('assets/js/bootstrap.min.js') }}"></script>
+    <script src="{{ asset('assets/js/sweetalert.min.js') }}"></script>
+    <script src="{{ asset('assets/js/select2.min.js') }}"></script>
+    <script src="{{ asset('assets/js/jquery.nicescroll.js') }}"></script>
 
     <!-- Template JS File -->
-    <script src="../../public/assets/js/stisla.js"></script>
-    <script src="../../public/assets/js/scripts.js"></script>
-    <script src="../../public/assets/js/profile.js"></script>
-    <script src="../../public/assets/js/custom.js"></script>
+    <script src="{{ asset('assets/js/stisla.js') }}"></script>
+    <script src="{{ asset('assets/js/scripts.js') }}"></script>
+    <script src="{{ asset('assets/js/profile.js') }}"></script>
+    <script src="{{ asset('assets/js/custom.js') }}"></script>
 
     <script src="https://cdn.datatables.net/2.1.5/js/dataTables.js"></script>
     <script src="https://cdn.datatables.net/2.1.5/js/dataTables.bootstrap4.js"></script>

@@ -29,7 +29,7 @@
                                                 <tr>
                                                     <td>{{ $doc->nombre }}</td>
                                                     <td>{{ $doc->documento }}</td>
-                                                    <td><a target="_blank" class="btn btn-info" href="../../storage/app/documentos_personal/{{$doc->id_usuario}}/{{$doc->documento}}">PDF</a></td>
+                                                    <td><a target="_blank" class="btn btn-info" href="{{ route('documentos.ver', ['tipo' => 'personal', 'id' => $doc->id_usuario, 'archivo' => $doc->documento]) }}">PDF</a></td>
                                                     @if($rol != "Capacitacion Admin")
                                                     <td>
                                                         <form method="POST" action="{{ route('expedientes.delete', $doc->id) }} ">

@@ -838,7 +838,7 @@ body {font-family: Arial;}
                                                 <div class="col-xs-12 col-sm-12 col-md-5">
                                                     <label for="password">Referencia Imagen 1<span style="color:red;"> (*)</span></label><br>
                                                     @if (!empty($citado->imagen_domicilio1) && $citado->imagen_domicilio1 !== 'Sin documento')
-                                                        <a target='_blank' href="../storage/app/documentosSolicitud/{{$citado->imagen_domicilio1}}">VER IMAGEN</a><br>
+                                                        <a target='_blank' href="{{ route('documentos.ver', ['tipo' => 'solicitud', 'id' => $id, 'archivo' => $citado->imagen_domicilio1]) }}">VER IMAGEN</a><br>
                                                     @else
                                                         <span class="text-muted">No se subió imagen</span>
                                                     @endif
@@ -848,7 +848,7 @@ body {font-family: Arial;}
                                                 <div class="col-xs-12 col-sm-12 col-md-5">
                                                     <label for="password">Referencia Imagen 2</label><br>
                                                     @if (!empty($citado->imagen_domicilio2) && $citado->imagen_domicilio2 !== 'Sin documento')
-                                                        <a target='_blank' href="../storage/app/documentosSolicitud/{{$citado->imagen_domicilio2}}">VER IMAGEN</a><br>
+                                                        <a target='_blank' href="{{ route('documentos.ver', ['tipo' => 'solicitud', 'id' => $id, 'archivo' => $citado->imagen_domicilio2]) }}">VER IMAGEN</a><br>
                                                     @else
                                                         <span class="text-muted">No se subió imagen</span>
                                                     @endif
@@ -881,7 +881,7 @@ body {font-family: Arial;}
 
                                             <div class="col-xs-12 col-sm-12 col-md-6">
                                                 <label for="password">Identificación Oficial <span style="color:red;">(*)</span></label><br>
-                                                <a target='_blank' class="btn btn-primary" href="../storage/app/documentosSolicitud/{{$solicitante->documentoIdentificacion}}">Consultar Documento PDF</a><br>
+                                                <a target='_blank' class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'solicitud', 'id' => $id, 'archivo' => $solicitante->documentoIdentificacion]) }}">Consultar Documento PDF</a><br>
                                             </div>
 
                                             @if($general['estatus'] == 'Prevencion')

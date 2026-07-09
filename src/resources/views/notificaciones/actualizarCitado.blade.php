@@ -74,7 +74,7 @@
                                     <div class="col-xs-12 col-sm-12 col-md-6 mb-3">
                                         <label for="name">Referencia 1</label><br>
                                         @if (!empty($citado->imagen_domicilio1) && $citado->imagen_domicilio1 !== 'Sin documento')
-                                            <a target='_blank' href="{{ asset('storage/app/documentosSolicitud/'. $citado->id_solicitud . '/' . $citado->imagen_domicilio1) }}">VER IMAGEN</a>
+                                            <a target='_blank' href="{{ route('documentos.ver', ['tipo' => 'solicitud', 'id' => $citado->id_solicitud, 'archivo' => $citado->imagen_domicilio1]) }}">VER IMAGEN</a>
                                         @else
                                             <span class="text-muted">No se subió imagen</span>
                                         @endif
@@ -83,7 +83,7 @@
                                     <div class="col-xs-12 col-sm-12 col-md-6 mb-3">
                                         <label for="name">Referencia 2</label><br>
                                         @if (!empty($citado->imagen_domicilio2) && $citado->imagen_domicilio2 !== 'Sin documento')
-                                            <a target='_blank' href="{{ asset('storage/app/documentosSolicitud/'.$citado->imagen_domicilio2) }}">VER IMAGEN</a><br>
+                                            <a target='_blank' href="{{ route('documentos.ver', ['tipo' => 'solicitud', 'id' => $citado->id_solicitud, 'archivo' => $citado->imagen_domicilio2]) }}">VER IMAGEN</a><br>
                                         @else
                                             <span class="text-muted">No se subió imagen</span>
                                         @endif
@@ -802,7 +802,7 @@
 </div>
 
 @section('scripts')
-    <script src="../../public/assets/js/estadistica/estadistica.js"></script>
+    <script src="{{ asset('assets/js/estadistica/estadistica.js') }}"></script>
 @endsection
 
 @push('scripts')

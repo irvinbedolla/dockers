@@ -391,6 +391,10 @@ class SeerController extends Controller
         $carpetas = [
             'solicitud' => 'documentosSolicitud',
             'poder'  => 'documentos_abogados',
+            'notificacion' => 'documentos_notificacion',
+            'ratificacion' => 'documentos_ratificacion',
+            'personal' => 'documentos_personal',
+            'modulo' => 'documentos_modulo',
         ];
 
         if (!array_key_exists($tipo, $carpetas)) {

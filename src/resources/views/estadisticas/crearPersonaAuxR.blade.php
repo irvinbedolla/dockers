@@ -256,6 +256,6 @@
             });
         });
     </script>
-    <script src="../public/assets/js/estadistica/estadistica.js"></script>
+    <script src="{{ asset('assets/js/estadistica/estadistica.js') }}"></script>
 @endsection
 

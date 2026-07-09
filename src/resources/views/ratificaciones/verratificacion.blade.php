@@ -287,28 +287,28 @@
                                     <div class="col-xs-12 col-sm-6 col-md-6">
                                         <div class="form-group">
                                             <label for="email">*INE</label><br>
-                                            <a target="_blank" class="btn btn-primary" href="../../storage/app/{{$ruta_abogado}}/{{$folio->ine}}">Existente</a>
+                                            <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => $tipo_doc_abogado, 'id' => $id_doc_abogado, 'archivo' => $folio->ine]) }}">Existente</a>
                                             <input type="file" name="documentoIne" class="form-control-file" accept=".pdf">        
                                         </div>
                                     </div>
                                     <div class="col-xs-12 col-sm-6 col-md-6">
                                         <div class="form-group">
                                             <label>*Documento que acredite la representación</label><br>
-                                            <a target="_blank" class="btn btn-primary" href="../../storage/app/{{$ruta_abogado}}/{{$folio->representacion}}">Existente</a>
+                                            <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => $tipo_doc_abogado, 'id' => $id_doc_abogado, 'archivo' => $folio->representacion]) }}">Existente</a>
                                             <input type="file" name="documentoRepresentacion" class="form-control-file" accept=".pdf">
                                         </div>
                                     </div>
                                     <div class="col-xs-12 col-sm-6 col-md-6">
                                         <div class="form-group">
                                             <label for="email">*Documento curp</label><br>
-                                            <a target="_blank" class="btn btn-primary" href="../../storage/app/documentos_ratificacion/{{$folio->documentoCurp}}">Existente</a>
+                                            <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'ratificacion', 'id' => $folio->id, 'archivo' => $folio->documentoCurp]) }}">Existente</a>
                                             <input type="file" name="documentoCurp" class="form-control-file" accept=".pdf">        
                                         </div>
                                     </div>
                                     <div class="col-xs-12 col-sm-6 col-md-6">
                                         <div class="form-group">
                                             <label for="email">*Documento identificación</label><br>
-                                            <a target="_blank" class="btn btn-primary" href="../../storage/app/documentos_ratificacion/{{$folio->documentoidentificacion}}">Existente</a>
+                                            <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'ratificacion', 'id' => $folio->id, 'archivo' => $folio->documentoidentificacion]) }}">Existente</a>
                                             <input type="file" name="documentoidentificacion" class="form-control-file" accept=".pdf">        
                                         </div>
                                     </div>
@@ -380,21 +380,21 @@
 </div>
 
 @section('scripts')
-    <script src="../../public/assets/js/poderes/general.js"></script>
+    <script src="{{ asset('assets/js/poderes/general.js') }}"></script>
 @endsection
 
-    <script src="../../public/assets/js/jquery.min.js"></script>
-    <script src="../../public/assets/js/popper.min.js"></script>
-    <script src="../../public/assets/js/bootstrap.min.js"></script>
-    <script src="../../public/assets/js/sweetalert.min.js"></script>
-    <script src="../../public/assets/js/select2.min.js"></script>
-    <script src="../../public/assets/js/jquery.nicescroll.js"></script>
+    <script src="{{ asset('assets/js/jquery.min.js') }}"></script>
+    <script src="{{ asset('assets/js/popper.min.js') }}"></script>
+    <script src="{{ asset('assets/js/bootstrap.min.js') }}"></script>
+    <script src="{{ asset('assets/js/sweetalert.min.js') }}"></script>
+    <script src="{{ asset('assets/js/select2.min.js') }}"></script>
+    <script src="{{ asset('assets/js/jquery.nicescroll.js') }}"></script>
 
     <!-- Template JS File -->
-    <script src="../../public/assets/js/stisla.js"></script>
-    <script src="../../public/assets/js/scripts.js"></script>
-    <script src="../../public/assets/js/profile.js"></script>
-    <script src="../../public/assets/js/custom.js"></script>
+    <script src="{{ asset('assets/js/stisla.js') }}"></script>
+    <script src="{{ asset('assets/js/scripts.js') }}"></script>
+    <script src="{{ asset('assets/js/profile.js') }}"></script>
+    <script src="{{ asset('assets/js/custom.js') }}"></script>
 
     <script src="https://cdn.datatables.net/2.1.5/js/dataTables.js"></script>
     <script src="https://cdn.datatables.net/2.1.5/js/dataTables.bootstrap4.js"></script>

@@ -322,7 +322,7 @@
 @endsection
 
 @section('scripts')
-    <script src="../public/assets/js/estadistica/estadistica.js"></script>
+    <script src="{{ asset('assets/js/estadistica/estadistica.js') }}"></script>
     <script>
         $(document).ready(function() {
             // Prevenir congelamiento de fondo gris moviendo el modal al final del body
