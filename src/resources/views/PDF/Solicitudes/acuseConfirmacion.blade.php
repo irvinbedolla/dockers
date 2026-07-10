@@ -13,6 +13,7 @@
         
         <style>
             @page {
+                size: letter portrait;
                 /* Definimos márgenes globales para que el texto nunca toque los bordes */
                 /* 3cm arriba para dejar espacio al logo/membrete en cada página */
                 margin: 3cm 2cm 3cm 2cm; 
@@ -30,8 +31,8 @@
                 position: fixed;
                 top: -3cm; /* Compensa el margen del @page */
                 left: -2cm;
-                width: 21cm; /* Ancho estándar A4 */
-                height: 29.7cm; /* Alto estándar A4 */
+                width: 21.59cm;  /* 💡 Ajustado a ancho Carta */
+                height: 27.94cm; /* 💡 Ajustado a alto Carta */
                 z-index: -1;
             }
 
@@ -102,7 +103,10 @@
                             <td>{{ $solicitud->NUE }} </td>
                         </tr> 
                     </table>
-                </div><br><br><br>
+                </div>
+                <!-- Ajustamos los brincos excesivos para que no empujen el título -->
+                <br style="clear:both;"><br>
+
                 <div class="col-lg-12">
                     <p><center><b>CENTRO DE CONCILIACIÓN LABORAL DEL ESTADO DE MICHOACÁN DE OCAMPO<br>
                           ACUSE DE SOLICITUD CONFIRMADA</b></center>
@@ -119,9 +123,11 @@
                             }
                             $longitud_citados = strlen($texto_citados);
                         @endphp
-                        CITADO (S): @foreach($citados as $citado)
-                                        {{ $citado->nombre }} {{ $citado->primer_apellido}} {{ $citado->segundo_apellido}} <br>
-                                    @endforeach
+                        CITADO (S): 
+                        @foreach($citados as $index => $citado)
+                            {{ $citado->nombre }} {{ $citado->primer_apellido }} {{ $citado->segundo_apellido }} <br>
+                            @if(!$loop->last)  @endif
+                        @endforeach
                     </b></p>
                     
                     <p><b>{{ $solicitante->nombre }}</b>, ha confirmado exitosamente la solicitud de conciliación con folio <b>{{ $solicitud->NUE }}</b>.<br><br>
@@ -140,27 +146,29 @@
                             artículo 692 de la Ley Federal del Trabajo.
                             
                             <br><br>
-                            En el caso de personas morales empleadoras, se deberá comparecer a través de un representante legal con facultades suficientes y apegándose al artículo señalado con anterioridad.<br><br>
-                            @if($longitud_citados > 720)
-                                <div class="page-break"></div> 
-                                {{-- Esto forzará que lo que sigue (el texto legal) empiece en una hoja limpia --}}
-                            @endif
-                            De conformidad con la fracción X del artículo 684-E de la Ley Federal del Trabajo, si a la audiencia de conciliación, sólo comparece el citado, se archivará el expediente por falta 
-                            de interés del solicitante, reanudándose los plazos de prescripción a partir de día siguiente a la fecha de la audiencia.
+                            En el caso de personas morales empleadoras, se deberá comparecer a través de un representante legal con facultades suficientes y apegándose al artículo señalado con anterioridad.
+                          
+                            <p style="page-break-inside: avoid;">
+                                De conformidad con la fracción X del artículo 684-E de la Ley Federal del Trabajo, si a la audiencia de conciliación, sólo comparece el citado, se archivará el expediente por falta 
+                                de interés del solicitante, reanudándose los plazos de prescripción a partir de día siguiente a la fecha de la audiencia.
+                            </p>
                         @else
                             Atendiendo la fracción VI del artículo 684-E de la Ley Federal del Trabajo, deberán acudir personalmente a la audiencia de conciliación, sin perjuicio de comparecer
                             acompañado por una persona de su confianza, pero no se reconocerá a ésta como apoderado por tratarse de un
                             procedimiento de conciliación y no de un juicio, o asistido por un licenciado en derecho, abogado o Procurador de la
-                            Defensa del Trabajo. <br><br>
-                        
+                            Defensa del Trabajo.    
+                            <p>
                             Ahora bien, en el caso de personas morales empleadoras, deberán comparecer a través de un representante legal con
                             facultades suficientes para actuar en su representación y cumplir con los requisitos establecidos en el artículo 692 de la
                             Ley Federal del Trabajo; por lo que respecta a las personas físicas empleadoras podrán comparecer por su propio
                             derecho o a través de un representante legal con facultades suficientes para actuar en su representación y deberán
-                            cumplir con los requisitos del artículo anteriormente señalado.<br><br>
+                            cumplir con los requisitos del artículo anteriormente señalado.
+                            </p>
+                            <p style="page-break-inside: avoid;">
                             Finalmente, en el caso de no comparecer a la audiencia respectiva, su solicitud se archivará por falta de interés de
                             conformidad con la fracción X del artículo 684-E de la Ley Federal del Trabajo, sin perjuicio de que continúen los plazos
                             de prescripción previstos en dicha Ley
+                            </p>
                         @endif
                     </p>
                 </div>

@@ -159,9 +159,9 @@
                     <td>{{ $a->no_conciliacion}}</td>
                     <td>{{ $a->achivada }}</td>
                     <td>{{ $a->incompetencia ?? 0 }}</td>
-                    <td>{{ $a->convenios }}</td>
-                    <td>{{ $a->convenios }}</td>
-                    <td>{{ $a->convenios }}</td>
+                    <td>{{ $a->una_audiencia }}</td>
+                    <td>{{ $a->dos_audiencias }}</td>
+                    <td>{{ $a->tres_audiencias }}</td>
                 </tr>
                 @endforeach
             </tbody>
