@@ -193,6 +193,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('concepto/import',                  [HomeController::class, 'importConcepto'])->name('concecto.import');
         Route::post('turnos/import',                    [HomeController::class, 'importTurnos'])->name('turnos.import');
 
+        //Reportes conciliciador, auxiliares y notificaciones
+        Route::get('/indexConciliadores/Reportes',          [SeerController::class, 'indexCAN'])->name('reportes_conciliador');
+        Route::post('indexConciliadores/generar',           [SeerController::class, 'generaReporteUsuario'])->name('generaReporteUsuario');
+
         // Configuración Avanzada de Sedes y Retrocesos de Estatus
         Route::get('administracion/configuracion',          [AdministracionController::class, 'configuracion'])->name('configuracion');
         Route::get('administracion/sedes',                  [AdministracionController::class, 'configuracion_sedes'])->name('configuracion_sedes');

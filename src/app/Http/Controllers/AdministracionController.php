@@ -213,7 +213,7 @@ class AdministracionController extends Controller{
         }
     }
 
-    public function hacer_retroceso($id){
+    public function hacer_retroceso_cumplimiento($id){
         Pagos::find($id)->update(['estatus'  => "Concluir"]);
         return redirect()->back()->with('success', 'Puedes realizar tu cumplimiento nuevamente.');
     }

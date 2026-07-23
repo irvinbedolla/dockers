@@ -174,9 +174,11 @@
             <a class="nav-link" href="{{ route('todas_audiencias') }}">
                 <i class="bi bi-file-person"></i><span class="text-dark" >Audiencias</span>
             </a>
+            {{-- 
             <a class="nav-link" href="{{ route('reportes_conciliador') }}">
                 <i class="bi bi-clipboard-data-fill"></i><span class="text-dark" onclick="estadistica()">Estadisticas</span>
             </a>
+            --}}
             <a class="nav-link" href="{{ route('plantillas_index') }}">
                 <i class="bi bi-file-text-fill"></i><span class="text-dark" onclick="estadistica()">Plantillas</span>
             </a>
