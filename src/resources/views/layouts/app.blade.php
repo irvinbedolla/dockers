@@ -165,11 +165,13 @@
             var errorMsg = @json(session('error'));
             try {
                 if (typeof swal === 'function') {
+                    // SweetAlert 1.x: la opción es "type", no "icon"; y el botón
+                    // se controla con "confirmButtonText", no con "button".
                     swal({
                         title: 'Error',
                         text: errorMsg,
-                        icon: 'error',
-                        button: 'OK'
+                        type: 'error',
+                        confirmButtonText: 'OK'
                     });
                 } else {
                     alert('Error: ' + errorMsg);
