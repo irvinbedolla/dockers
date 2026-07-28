@@ -50,6 +50,7 @@
             <link rel="icon"       href="{{ asset('assets/images/ccl-r.png') }}" type="image/x-icon">
             <link rel="stylesheet" href="{{ asset('assets/css/style.css') }}">
             <link rel="stylesheet" href="{{ asset('assets/css/components.css') }}">
+            <link rel="stylesheet" href="{{ asset('assets/css/custom.css') }}">
         @yield('page_css')
 
         @yield('page_css')
