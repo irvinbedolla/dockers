@@ -42,10 +42,7 @@
                                     </div>
                                 </div>
 
-                                <div class="d-flex flex-wrap gap-2 mb-3">
-                                    <a class="btn btn-info" href="{{ route('nueva_cita') }}" onclick="crear_turnos();">Nuevo</a>
-                                    <a class="btn btn-info" href="{{ route('turnos.listado') }}" onclick="crear_turnos();">Turnos de Hoy</a>
-                                </div>
+                                
                             @endcan
                         </div>
                     </div>
@@ -62,5 +59,5 @@
 
 
 @section('scripts')
-    <script src="{{ asset('assets/js/turnos/turnos.js') }}"></script>
+    <script src="../public/assets/js/turnos/turnos.js"></script>
 @endsection

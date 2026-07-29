@@ -79,9 +79,11 @@
             <a class="nav-link" href="{{ route('solicitudes_pendientes') }}">
                 <i class="bi bi-file-person"></i><span class="text-dark" onclick="consultar_estadistica()">Solicitudes Pendientes</span>
             </a>
-            <a class="nav-link" href="{{ route('turnos') }}">
-                <i class="bi bi-file-person"></i><span class="text-dark" onclick="turnos()">Turnos</span>
+            <a class="nav-link" href="{{ route('turnos.listado') }}">
+                <i class="bi bi-book" aria-hidden="true"></i><span class="text-dark" onclick="turnos()">Turnos</span>
             </a>
+            <a class="nav-link" href="{{ route('turnos') }}">
+                <i class="bi bi-file-earmark-ruled"></i><span class="text-dark" onclick="turnos()">Turnos Totales</span>
             <a class="nav-link" href="{{ route('usuarios') }}">
                 <i class="bi bi-people-fill"></i><span class="text-dark" onclick="usuarios()">Usuarios</span>
             </a>
