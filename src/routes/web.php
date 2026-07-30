@@ -372,12 +372,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
     /*
-     |-- RETROCESO DE RATIFICACIONES (acción destructiva: solo mandos)
+     |-- RETROCESOS (acciones destructivas: solo mandos)
      |*/
     Route::middleware(['role:Super Usuario|Administrador|Delegado'])->group(function () {
         Route::get('/ratificaciones/retroceso',             [TurnosController::class, 'retroceso_ratificacion_index'])->name('retroceso_ratificacion');
         Route::post('/ratificaciones/retroceso/buscar',     [TurnosController::class, 'buscar_retroceso_ratificacion'])->name('retroceso_ratificacion_buscar');
         Route::post('/ratificaciones/retroceso/{id}',       [TurnosController::class, 'aplicar_retroceso_ratificacion'])->name('retroceso_ratificacion_aplicar');
+
+        Route::get('/solicitudes/retroceso',                [SeerController::class, 'retroceso_solicitud_index'])->name('retroceso_solicitud');
+        Route::post('/solicitudes/retroceso/buscar',        [SeerController::class, 'buscar_retroceso_solicitud'])->name('retroceso_solicitud_buscar');
+        Route::post('/solicitudes/retroceso/{id}',          [SeerController::class, 'aplicar_retroceso_solicitud'])->name('retroceso_solicitud_aplicar');
     });
 
     /*

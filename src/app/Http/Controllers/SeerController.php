@@ -10853,6 +10853,168 @@ class SeerController extends Controller
         return view('solicitudes/index',compact('auxiliares','conciliadores'));
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | RETROCESO DE SOLICITUDES
+    |--------------------------------------------------------------------------
+    */
+
+    public function retroceso_solicitud_index()
+    {
+        $delegaciones = ['Morelia', 'Zamora', 'Uruapan', 'Zitácuaro', 'Sahuayo', 'Lázaro Cárdenas'];
+
+        return view('solicitudes.retroceso', compact('delegaciones'));
+    }
+
+    public function buscar_retroceso_solicitud(Request $request)
+    {
+        $delegaciones = ['Morelia', 'Zamora', 'Uruapan', 'Zitácuaro', 'Sahuayo', 'Lázaro Cárdenas'];
+
+        $request->validate([
+            'delegacion'  => 'required|string|in:' . implode(',', $delegaciones),
+            'anio'        => 'required|integer|min:' . (date('Y') - 5) . '|max:' . date('Y'),
+            'consecutivo' => 'required|integer|min:1',
+        ], [
+            'delegacion.required'  => 'Debe seleccionar la delegación.',
+            'delegacion.in'        => 'La delegación seleccionada no es válida.',
+            'anio.required'        => 'Debe seleccionar el año.',
+            'anio.min'             => 'El año seleccionado está fuera del rango permitido.',
+            'anio.max'             => 'El año seleccionado está fuera del rango permitido.',
+            'consecutivo.required' => 'El consecutivo es obligatorio.',
+            'consecutivo.integer'  => 'El consecutivo debe ser un número entero.',
+            'consecutivo.min'      => 'El consecutivo debe ser mayor a 0.',
+        ]);
+
+        $solicitudes = SeerPerGeneral::where('consecutivo', $request->consecutivo)
+            ->where('año', $request->anio)
+            ->where('delegacion', $request->delegacion)
+            ->get();
+
+        if ($solicitudes->isEmpty()) {
+            return back()->withErrors(
+                "No se encontró ninguna solicitud con el consecutivo {$request->consecutivo} del año {$request->anio} en {$request->delegacion}."
+            );
+        }
+
+        $resultados = $solicitudes->map(function ($solicitud) {
+            $audiencias = Audiencias::where('id_solicitud', $solicitud->id)
+                ->orderBy('numero_audiencia')
+                ->orderBy('id')
+                ->get();
+
+            $ultima = $audiencias->last();
+
+            $solicitante = SeerSolicitante::where('id_solicitud', $solicitud->id)->first();
+
+            $conceptos   = Concepto::where('id_solicitud', $solicitud->id)->where('tipo_pago', 'Audiencia')->count();
+            $deducciones = Deducciones::where('id_solicitud', $solicitud->id)->where('tipo_pago', 'Audiencia')->count();
+            $pagos       = Pagos::where('id_solicitud', $solicitud->id)->where('tipo_pago', 'Audiencia')->count();
+            $pagados     = Pagos::where('id_solicitud', $solicitud->id)
+                ->where('tipo_pago', 'Audiencia')
+                ->whereIn('estatus', ['Pagado', 'Pagado con pena convencional'])
+                ->count();
+
+            return [
+                'id'                => $solicitud->id,
+                'NUE'               => $solicitud->NUE,
+                'consecutivo'       => $solicitud->consecutivo,
+                'anio'              => $solicitud->año,
+                'fecha'             => $solicitud->fecha,
+                'delegacion'        => $solicitud->delegacion,
+                'estatus'           => $solicitud->estatus,
+                'solicitante'       => $solicitante->nombre ?? 'N/A',
+                'total_audiencias'  => $audiencias->count(),
+                'ultima_audiencia'  => $ultima ? [
+                    'id'      => $ultima->id,
+                    'numero'  => $ultima->numero_audiencia,
+                    'folio'   => $ultima->folio_audiencia,
+                    'fecha'   => $ultima->fecha ? $ultima->fecha->format('d/m/Y') : null,
+                    'estatus' => $ultima->estatus,
+                ] : null,
+                'conceptos'         => $conceptos,
+                'deducciones'       => $deducciones,
+                'pagos'             => $pagos,
+                'pagados'           => $pagados,
+                'retrocedible'      => $ultima !== null && $ultima->estatus !== 'Pendiente',
+            ];
+        })->toArray();
+
+        return back()
+            ->with('message', "Solicitud localizada: {$request->delegacion} / {$request->anio} / {$request->consecutivo}")
+            ->with('resultados_retroceso_solicitud', $resultados);
+    }
+
+    public function aplicar_retroceso_solicitud($id)
+    {
+        $solicitud = SeerPerGeneral::find($id);
+
+        if (!$solicitud) {
+            return back()->withErrors('La solicitud no existe.');
+        }
+
+        $audiencias = Audiencias::where('id_solicitud', $id)
+            ->orderBy('numero_audiencia')
+            ->orderBy('id')
+            ->get();
+
+        $ultima = $audiencias->last();
+
+        if (!$ultima) {
+            return back()->withErrors('La solicitud no tiene audiencias que retroceder.');
+        }
+
+        if ($ultima->estatus === 'Pendiente') {
+            return back()->withErrors('La última audiencia ya está en estatus Pendiente; no hay nada que retroceder.');
+        }
+
+        $totalAudiencias = $audiencias->count();
+        $estatusPrevioS  = $solicitud->estatus;
+        $estatusPrevioA  = $ultima->estatus;
+
+        DB::transaction(function () use ($id, $solicitud, $ultima, $estatusPrevioS, $estatusPrevioA, $totalAudiencias) {
+
+            $borrado = [
+                'conceptos'   => Concepto::where('id_solicitud', $id)->where('tipo_pago', 'Audiencia')->get()->toArray(),
+                'deducciones' => Deducciones::where('id_solicitud', $id)->where('tipo_pago', 'Audiencia')->get()->toArray(),
+                'pagos'       => Pagos::where('id_solicitud', $id)->where('tipo_pago', 'Audiencia')->get()->toArray(),
+            ];
+
+            Concepto::where('id_solicitud', $id)->where('tipo_pago', 'Audiencia')->delete();
+            Deducciones::where('id_solicitud', $id)->where('tipo_pago', 'Audiencia')->delete();
+            Pagos::where('id_solicitud', $id)->where('tipo_pago', 'Audiencia')->delete();
+
+            $ultima->update([
+                'estatus'            => 'Pendiente',
+                'proxima_audiencia'  => null,
+                'pena_convencional'  => null,
+                'direccion_convenio' => null,
+            ]);
+
+            $solicitud->update([
+                'estatus'           => 'Confirmado',
+                'fecha_terminacion' => null,
+            ]);
+
+            Log::warning('Retroceso de solicitud aplicado', [
+                'solicitud_id'         => $id,
+                'NUE'                  => $solicitud->NUE,
+                'estatus_previo'       => $estatusPrevioS,
+                'audiencia_id'         => $ultima->id,
+                'audiencia_numero'     => $ultima->numero_audiencia,
+                'audiencia_estatus'    => $estatusPrevioA,
+                'total_audiencias'     => $totalAudiencias,
+                'user_id'              => auth()->id(),
+                'user'                 => auth()->user()->name ?? null,
+                'borrado'              => $borrado,
+            ]);
+        });
+
+        return back()->with(
+            'success',
+            "Retroceso aplicado al NUE {$solicitud->NUE}. La audiencia puede desahogarse nuevamente."
+        );
+    }
+
     public function solicitudes_busqueda(Request $request){
         $data = $request->all();
         $bandera_fechas         = 0;
