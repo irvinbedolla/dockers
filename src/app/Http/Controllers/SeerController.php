@@ -6131,13 +6131,13 @@ class SeerController extends Controller
             if ($request->hasFile("foto1.$i")) {
                 $file = $request->file("foto1")[$i];
                 $foto1 = $data["id"] . "-citado_foto1_" . Str::random(8) . "." . $file->getClientOriginalExtension();
-                Storage::putFileAs('documentosSolicitud', $file, $foto1);
+                Storage::putFileAs('documentosSolicitud/' . $data["id"], $file, $foto1);
             }
-        
+
             if ($request->hasFile("foto2.$i")) {
                 $file = $request->file("foto2")[$i];
                 $foto2 = $data["id"] . "-citado_foto2_" . Str::random(8) . "." . $file->getClientOriginalExtension();
-                Storage::putFileAs('documentosSolicitud', $file, $foto2);
+                Storage::putFileAs('documentosSolicitud/' . $data["id"], $file, $foto2);
             }
             $data_insert=array(
                 'id_solicitud'      => $data["id"],
@@ -6183,25 +6183,35 @@ class SeerController extends Controller
         $solActual = SeerSolicitante::where('id_solicitud', $data['id'])->first();
         $curpBase = $data['curp_solicitante'] ?? ($data['curp'] ?? ($solActual->curp ?? ('solicitud_' . $data['id'])));
 
+        $docsDir = 'documentosSolicitud/' . $data['id'];
+
         if ($request->hasFile('documentoCurp')) {
             $prev = $solActual->documentoCurp ?? null;
             $documento = $curpBase . '_CURP_' . time() . '.pdf';
-            Storage::putFileAs('documentosSolicitud', $request->file('documentoCurp'), $documento);
+            Storage::putFileAs($docsDir, $request->file('documentoCurp'), $documento);
             SeerSolicitante::where('id_solicitud', $data['id'])->update(['documentoCurp' => $documento]);
 
             if ($prev && $prev !== 'Sin documento') {
-                Storage::delete('documentosSolicitud/' . $prev);
+                if (Storage::exists("{$docsDir}/{$prev}")) {
+                    Storage::delete("{$docsDir}/{$prev}");
+                } elseif (Storage::exists("documentosSolicitud/{$prev}")) {
+                    Storage::delete("documentosSolicitud/{$prev}");
+                }
             }
         }
 
         if ($request->hasFile('documentoIdentificacion')) {
             $prev = $solActual->documentoIdentificacion ?? null;
             $documentoidentificacion = $curpBase . '_Identificacion_' . time() . '.pdf';
-            Storage::putFileAs('documentosSolicitud', $request->file('documentoIdentificacion'), $documentoidentificacion);
+            Storage::putFileAs($docsDir, $request->file('documentoIdentificacion'), $documentoidentificacion);
             SeerSolicitante::where('id_solicitud', $data['id'])->update(['documentoIdentificacion' => $documentoidentificacion]);
 
             if ($prev && $prev !== 'Sin documento') {
-                Storage::delete('documentosSolicitud/' . $prev);
+                if (Storage::exists("{$docsDir}/{$prev}")) {
+                    Storage::delete("{$docsDir}/{$prev}");
+                } elseif (Storage::exists("documentosSolicitud/{$prev}")) {
+                    Storage::delete("documentosSolicitud/{$prev}");
+                }
             }
         }
         
@@ -6600,12 +6610,12 @@ class SeerController extends Controller
 
         if ($request->hasFile('foto1')) {
             $imagen_domicilio1 = $data["id"] . "-domicilio_Citado1_" . Str::random(8) . ".jpg";
-            Storage::putFileAs('documentosSolicitud', $request->file('foto1'), $imagen_domicilio1);
+            Storage::putFileAs('documentosSolicitud/' . $data["id"], $request->file('foto1'), $imagen_domicilio1);
         }
-        
+
         if ($request->hasFile('foto2')) {
             $imagen_domicilio2 = $data["id"] . "-domicilio_Citado2_" . Str::random(8) . ".jpg";
-            Storage::putFileAs('documentosSolicitud', $request->file('foto2'), $imagen_domicilio2);
+            Storage::putFileAs('documentosSolicitud/' . $data["id"], $request->file('foto2'), $imagen_domicilio2);
         }
         $foto1 = $imagen_domicilio1;
         $foto2 = $imagen_domicilio2;
