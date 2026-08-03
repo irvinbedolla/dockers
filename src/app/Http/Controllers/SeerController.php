@@ -414,12 +414,7 @@ class SeerController extends Controller
             }
         }
 
-        $urlTemporal = Storage::disk('s3_public')->temporaryUrl(
-            $rutaS3,
-            now()->addMinutes(3)
-        );
-
-        return redirect()->away($urlTemporal);
+        return Storage::disk('s3')->response($rutaS3);
     }
 
     public function index()
@@ -15017,12 +15012,12 @@ class SeerController extends Controller
             $query->where('id_conciliador', $user->id);
             $permisos = PermisosConciliador::where('id_conciliador', $user->id)->select('tipo')->first();
             
-            if ($permisos && $permisos->tipo === "Ambos") {
+            /*if ($permisos && $permisos->tipo === "Ambos") {
                 $delegaciones = $mapaDelegaciones[$user->delegacion] ?? [$user->delegacion];
                 $query->whereIn('delegacion', $delegaciones);
             } else {
                 $query->where('delegacion', $user->delegacion);
-            }
+            }*/
         } 
         elseif ($userRole === "Delegado") {
             $delegaciones = $mapaDelegaciones[$user->delegacion] ?? [$user->delegacion];

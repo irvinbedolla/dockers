@@ -44,27 +44,19 @@ return [
             'throw' => false,
         ],
 
+        // Antes apuntaban a S3/MinIO. El proyecto ahora guarda todo en disco local
+        // (EC2 con 300GB), así que ambos discos se redirigen al mismo almacenamiento
+        // local que 'local', para no tener que tocar cada Storage::disk('s3') del código.
         's3' => [
-            'driver' => 's3',
-            'key' => env('AWS_ACCESS_KEY_ID'),
-            'secret' => env('AWS_SECRET_ACCESS_KEY'),
-            'region' => env('AWS_DEFAULT_REGION'),
-            'bucket' => env('AWS_BUCKET'),
-            'url' => env('AWS_URL'),
-            'endpoint' => env('AWS_ENDPOINT'),
-            'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),
+            'driver' => 'local',
+            'root' => storage_path('app'),
             'throw' => false,
         ],
 
         's3_public' => [
-            'driver' => 's3',
-            'key' => env('AWS_ACCESS_KEY_ID'),
-            'secret' => env('AWS_SECRET_ACCESS_KEY'),
-            'region' => env('AWS_DEFAULT_REGION'),
-            'bucket' => env('AWS_BUCKET'),
-            'url' => env('AWS_URL'),
-            'endpoint' => env('AWS_URL', env('AWS_ENDPOINT')),
-            'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),
+            'driver' => 'local',
+            'root' => storage_path('app'),
+            'visibility' => 'public',
             'throw' => false,
         ],
 
