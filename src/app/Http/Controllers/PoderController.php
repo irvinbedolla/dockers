@@ -921,6 +921,7 @@ class PoderController extends Controller
                         'cp_patronal'               => $data["cp_pF"],
                         'estatus'                   => "Pendiente",
                         'reprecentante'             => "No",
+                        'idUsuario'                     => $id_user_historial,
                         'tipo_identificacion'       => $data["tipo_identificacion_pF"],
                         'num_identificacion'        => $data["num_identificacion_pF"],
 						'ineDocumento'               => 'PENDIENTE',
@@ -1006,6 +1007,7 @@ class PoderController extends Controller
                         'tipo'                          => $data["tipoPersona"],
                         'estatus'                       => "Pendiente",
                         'reprecentante'                 => "Si",
+                        'idUsuario'                     => $id_user_historial,
                         'tipo_identificacion'           => $data["tipo_identificacion_pFCR"],
                         'num_identificacion'            => $data["num_identificacion_pFCR"]
                 );
@@ -1101,6 +1103,7 @@ class PoderController extends Controller
                     'tipo'                          => $data["tipoPersona"],
                     'estatus'                       => "Pendiente",
                     'reprecentante'                 => "Si",
+                    'idUsuario'                     => $id_user_historial,
                     'tipo_identificacion'           => $data["tipo_identificacion_Moral"],
                     'num_identificacion'            => $data["num_identificacion_Moral"]
             );       
