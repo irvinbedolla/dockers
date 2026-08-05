@@ -14721,8 +14721,20 @@ class SeerController extends Controller
             return response()->json([], 200);
         }
 
-        $rangos = DiasInhabiles::where('centro', $centro)
-            ->get(['fecha_inicio', 'fecha_final', 'horario_inicio', 'horario_final', 'user_id', 'centro']);
+        $query = DiasInhabiles::where('centro', $centro)
+            ->whereNull('user_id')
+            ->where('descripcion', 'Inhabil');
+
+        $fechaConfirmacion = $request->query('fecha_confirmacion');
+        if ($fechaConfirmacion) {
+            $fechaInicioVentana = (new \DateTime($fechaConfirmacion))->setTime(0, 0, 0);
+            $fechaFinVentana = (clone $fechaInicioVentana)->modify('+45 days')->setTime(23, 59, 59);
+
+            $query->where('fecha_inicio', '<=', $fechaFinVentana)
+                ->where('fecha_final', '>=', $fechaInicioVentana);
+        }
+
+        $rangos = $query->get(['fecha_inicio', 'fecha_final', 'horario_inicio', 'horario_final', 'user_id', 'centro', 'descripcion']);
 
         return response()->json($rangos);
     }
