@@ -12697,6 +12697,306 @@ class SeerController extends Controller
         return $pdf->stream('Convenio_PTU.pdf');           
     }
 
+    // Convenio de PTU
+    public function VerPDFConvenioPTULabora($id, Request $request){
+        $solicitud = SeerPerGeneral::find($id);
+        $inicialesConcluye = $this->inicialesDeSeerGeneral($solicitud);
+        $etiquetaIniciales = $this->etiquetaDelegacionSeer($solicitud->delegacion ?? null);
+
+        // Priorizar datos temporales de la vista previa guardados en sesión
+        $sessionKey = 'audiencia_conclucion_data_' . $id;
+        $sessionData = session()->get($sessionKey);
+        if ($sessionData && is_array($sessionData)) {
+            $datosAudiencia = (object) [
+                'resolicion_primera' => $sessionData['primera'] ?? '',
+                'resolucion_primera' => $sessionData['primera'] ?? '',
+                'resolicion_justificacion' => $sessionData['justificacion'] ?? '',
+                'resolucion_justificacion' => $sessionData['justificacion'] ?? '',
+                'resolicion_segunda' => $sessionData['segunda'] ?? '',
+                'resolucion_segunda' => $sessionData['segunda'] ?? '',
+                'vacaciones' => $sessionData['vacaciones'] ?? null,
+                'aguinaldo' => $sessionData['aguinaldo'] ?? null,
+                'otros' => $sessionData['otros'] ?? null,
+                'horario' => $sessionData['horario'] ?? null,
+                'comida' => $sessionData['comida'] ?? null,
+                'tipo_audiencia' => $sessionData['tipo_audiencia'] ?? null,
+                'conclucion' => $sessionData['conclucion'] ?? null,
+                'pena_convencional' =>  $sessionData['pena_convencional'] ?? null,
+                'direccion_convenio'    =>  $sessionData['direccion_convenio'] ?? null,
+                'year_ptu' => !empty($sessionData['year_ptu']) ? $sessionData['year_ptu'][array_key_first($sessionData['year_ptu'])] : null,
+            ];
+        } else {
+            $datosAudiencia = SeerPerConciliador::where('id_solicitud', $id)
+                ->orderBy('numero_audiencias', 'DESC')
+                ->first();
+            $datosExtraAudiencia = Audiencias::where('id_solicitud', $id)->orderBy('numero_audiencia', 'DESC')->first();
+            if($datosAudiencia){
+                $datosAudiencia->pena_convencional = $datosExtraAudiencia ? $datosExtraAudiencia->pena_convencional : '';
+                $datosAudiencia->direccion_convenio = $datosExtraAudiencia ? $datosExtraAudiencia->direccion_convenio : '';
+            }
+            elseif(!$datosAudiencia && $datosExtraAudiencia){
+                $datosAudiencia = (object)[
+                    'pena_convencional' =>  $datosExtraAudiencia->pena_convencional,
+                    'direccion_convenio'    =>  $datosExtraAudiencia->direccion_convenio,
+                ];
+
+            }
+        }
+        $pagos = Pagos::where('id_solicitud', $id)->where('tipo_pago','Audiencia')->get();
+        $municipio = Municipios::find($solicitud->municipio_rat);
+        $municipioEmpresa = $municipio ? $municipio->nombre : 'No definido';
+        $estado = Estados::find($solicitud->estado_rat);
+        $estadoEmpresa = $estado ? $estado->nombre : 'No definido';
+        $abogado = null;
+        $abogadosConvenio = collect();
+        $descripcionIdentificacionPMap = [];
+        $delegacion = $solicitud->delegacion;
+        $delegado = User::where('delegacion', $delegacion)
+            ->whereHas('roles', function ($query) {
+                $query->where('name', 'Delegado');
+            })
+            ->select('users.id', 'users.name', 'users.delegacion')
+            ->first();
+        $conceptosTexto = [];
+        $deduccionesTexto = [];
+
+        if ($sessionData && is_array($sessionData)) {
+            $prestaciones = collect();
+            $tipos = $sessionData['tipo_pago'] ?? [];
+            $montos_p = $sessionData['monto_pago'] ?? [];
+            $otras = $sessionData['otra_prestacion'] ?? [];
+            $countPrest = max(count($tipos), count($montos_p));
+            for ($i = 0; $i < $countPrest; $i++) {
+                $descripcion = $tipos[$i] ?? '';
+                if ($descripcion === 'Otras' && isset($otras[$i]) && trim($otras[$i]) !== '') {
+                    $descripcion = trim($otras[$i]);
+                }
+                $montoVal = isset($montos_p[$i]) ? floatval($montos_p[$i]) : 0;
+                $obj = (object) [
+                    'id' => 's_p_'.$i,
+                    'descripcion' => $descripcion,
+                    'monto' => $montoVal,
+                ];
+                $prestaciones->push($obj);
+            }
+
+            $deducciones = collect();
+            $descDed = $sessionData['descripcion_deduccion'] ?? [];
+            $montosDed = $sessionData['monto_deduccion'] ?? [];
+            $countDed = max(count($descDed), count($montosDed));
+            for ($i = 0; $i < $countDed; $i++) {
+                $montoVal = isset($montosDed[$i]) ? floatval($montosDed[$i]) : 0;
+                $obj = (object) [
+                    'id' => 's_d_'.$i,
+                    'descripcion' => $descDed[$i] ?? '',
+                    'monto' => $montoVal,
+                ];
+                $deducciones->push($obj);
+            }
+
+            // pagos desde sesión
+            $pagos = collect();
+            $dias = $sessionData['dias_pagos'] ?? [];
+            $horas = $sessionData['hora_pagos'] ?? [];
+            $montosPag = $sessionData['monto_pagos'] ?? [];
+            $descPag = $sessionData['descripcion_pagos'] ?? [];
+            $countPag = max(count($dias), count($montosPag));
+            for ($i = 0; $i < $countPag; $i++) {
+                $obj = (object) [
+                    'id_solicitud' => $id,
+                    'fecha' => $dias[$i] ?? null,
+                    'hora' => $horas[$i] ?? null,
+                    'monto' => isset($montosPag[$i]) ? floatval($montosPag[$i]) : 0,
+                    'descripcion' => $descPag[$i] ?? '',
+                ];
+                $pagos->push($obj);
+            }
+
+            foreach ($prestaciones as $concepto) {
+                $conceptosTexto[$concepto->id] = $this->convertirNumerosALetras($concepto->monto);
+            }
+            foreach ($deducciones as $deduccion) {
+                $deduccionesTexto[$deduccion->id] = $this->convertirNumerosALetras($deduccion->monto);
+            }
+
+            $totalPrestaciones = collect($prestaciones)->sum('monto');
+            $totalDeducciones = collect($deducciones)->sum('monto');
+            $pagoTotal = $totalPrestaciones - $totalDeducciones;
+        } else {
+            $prestaciones = Concepto::where('id_solicitud', $id)->where('tipo_pago','Audiencia')->get();
+            $deducciones = Deducciones::where('id_solicitud', $id)->where('tipo_pago','Audiencia')->get();
+
+            foreach ($prestaciones as $concepto) {
+                $conceptosTexto[$concepto->id] = $this->convertirNumerosALetras($concepto->monto);
+            }
+
+            foreach ($deducciones as $deduccion) {
+                $deduccionesTexto[$deduccion->id] = $this->convertirNumerosALetras($deduccion->monto);
+            }
+
+            $totalPrestaciones = $prestaciones->sum('monto');
+            $totalDeducciones = $deducciones->sum('monto');
+            $pagoTotal = $totalPrestaciones - $totalDeducciones;
+        }
+
+        // Asegurar que $datosAudiencia tenga la propiedad monto (si se uso sesión puede no existir)
+        if (isset($datosAudiencia) && is_object($datosAudiencia) && !property_exists($datosAudiencia, 'monto')) {
+            $datosAudiencia->monto = isset($sessionData) && is_array($sessionData) && isset($sessionData['monto']) ? $sessionData['monto'] : $pagoTotal;
+        }
+
+        $pagosCount = $pagos instanceof \Illuminate\Support\Collection ? $pagos->count() : (is_countable($pagos) ? count($pagos) : 0);
+        $pagosDif = (object) [
+            'C_pagos' => max(1, (int) $pagosCount),
+        ];
+
+        $conciliador = User::join("seer_general", "seer_general.conciliador_id", "=", "users.id")
+        ->where("seer_general.id", "=", $id)
+        ->select("users.name")
+        ->first();
+
+        $solicitante  = SeerPerGeneral::join("seer_solicitante","seer_solicitante.id_solicitud","=","seer_general.id");
+        $solicitante = $solicitante->where("seer_solicitante.id_solicitud", "=", $solicitud["id"])
+        ->first();
+
+        //dd($solicitante);
+
+        $salario_diario = $this->calcularSalarioDiario($solicitante->pago, $solicitante->periodo_pago);
+        $salario_mensual = $salario_diario * 30;
+        $diarioTexto = $this->convertirNumerosALetras($salario_diario);
+        $mensualTexto = $this->convertirNumerosALetras($salario_mensual);
+        $montoTexto = $this->convertirNumerosALetras($datosAudiencia->monto);
+        $montoPena = is_numeric($datosAudiencia->pena_convencional ?? null) ? $datosAudiencia->pena_convencional : 0;
+        $penaTexto = $this->convertirNumerosALetras($montoPena);
+
+        $idsSession = session()->get('convenio_citados_' . $id);
+        $audienciaId = $request->query->get('audiencia_id');
+        if (is_array($audienciaId)) {
+            $audienciaId = $audienciaId[0] ?? null;
+        }
+
+        if ($idsSession !== null) {
+            // Si existen en sesión, filtramos por esos IDs específicos
+            $citados = SeerCitados::whereIn('id', $idsSession)
+                        ->where('id_solicitud', $id)
+                        ->get();
+        } else {
+            $citados = SeerCitados::where('id_solicitud', $id)
+                        ->where('audiencia_id', $audienciaId)
+                        ->where('tipo_notificacion', '!=', 'Multa')
+                        ->where('aparece_convenio', 1)
+                        ->get();
+        }
+
+        // Obtener TODOS los representantes/abogados distintos que correspondan a los citados incluidos en el convenio
+        // (pueden ser varios citados, cada uno con una representación distinta)
+        $citadoIdsParaConvenio = $citados instanceof \Illuminate\Support\Collection ? $citados->pluck('id')->filter()->values()->all() : [];
+
+        if (!empty($citadoIdsParaConvenio)) {
+            $citadosConHist = $citados->filter(fn($c) => !empty($c->id_historial));
+            $citadosSinHist = $citados->filter(fn($c) => empty($c->id_historial));
+
+            $abogadosConvenio = collect();
+
+            if ($citadosConHist->isNotEmpty()) {
+                $idsConHist = $citadosConHist->pluck('id')->filter()->values()->all();
+
+                $abogadosHist = \App\Models\HistorialAbogado::join('seer_citados as sc', 'sc.id_historial', '=', 'historial_abogados.id')
+                    ->where('sc.id_solicitud', $id)
+                    ->whereIn('sc.id', $idsConHist)
+                    ->select(
+                        'historial_abogados.id',
+                        'historial_abogados.nombres_patronal',
+                        'historial_abogados.primer_apellido_patronal',
+                        'historial_abogados.segundo_apellido_patronal',
+                        'historial_abogados.descipcion_poder',
+                        'historial_abogados.tipo_identificacion',
+                        'historial_abogados.num_identificacion',
+                        'historial_abogados.nombre_representante',
+                        'historial_abogados.primer_apellido_representante',
+                        'historial_abogados.segundo_apellido_representante',
+                        'historial_abogados.estado_patronal',
+                        'historial_abogados.municipio_patronal',
+                        'historial_abogados.tipo_vialidad_patronal',
+                        'historial_abogados.vialidad_patronal',
+                        'historial_abogados.num_ext_patronal',
+                        'historial_abogados.mun_int_patronal',
+                        'historial_abogados.colonia_patronal',
+                        'historial_abogados.cp_patronal',
+                        'historial_abogados.id_abogado as idAbogado'
+                    )
+                    ->distinct()
+                    ->get();
+
+                $abogadosConvenio = $abogadosConvenio->merge($abogadosHist);
+            }
+
+            if ($citadosSinHist->isNotEmpty()) {
+                $idsSinHist = $citadosSinHist->pluck('id')->filter()->values()->all();
+
+                $abogadosPoder = Poder::join('seer_citados as sc', 'sc.id_abogado', '=', 'abogados.idAbogado')
+                    ->where('sc.id_solicitud', $id)
+                    ->whereIn('sc.id', $idsSinHist)
+                    ->select(
+                        'abogados.idAbogado',
+                        'abogados.nombres_patronal',
+                        'abogados.primer_apellido_patronal',
+                        'abogados.segundo_apellido_patronal',
+                        'abogados.descipcion_poder',
+                        'abogados.tipo_identificacion',
+                        'abogados.num_identificacion',
+                        'abogados.nombre_representante',
+                        'abogados.primer_apellido_representante',
+                        'abogados.segundo_apellido_representante',
+                        'abogados.estado_patronal',
+                        'abogados.municipio_patronal',
+                        'abogados.tipo_vialidad_patronal',
+                        'abogados.vialidad_patronal',
+                        'abogados.num_ext_patronal',
+                        'abogados.mun_int_patronal',
+                        'abogados.colonia_patronal',
+                        'abogados.cp_patronal'
+                    )
+                    ->distinct()
+                    ->get();
+
+                $abogadosConvenio = $abogadosConvenio->merge($abogadosPoder);
+            }
+
+            $abogadosConvenio = $abogadosConvenio->unique('idAbogado')->values();
+
+            $abogado = $abogadosConvenio->first();
+            foreach ($abogadosConvenio as $rep) {
+                $repId = $rep->idAbogado ?? null;
+                if ($repId !== null) {
+                    $descripcionIdentificacionPMap[$repId] = $this->descripcionIdentificacion($rep->tipo_identificacion);
+                }
+            }
+        }
+
+        // Descripción del tipo de identificación para los solicitantes y poderes
+        $identificacionSolicitante = $solicitante->identificacion;
+        $descripcionIdentificacionS = $this->descripcionIdentificacion($identificacionSolicitante);
+        $identificacionPoder = $abogado->tipo_identificacion ?? null;
+        $descripcionIdentificacionP = $this->descripcionIdentificacion($identificacionPoder);
+
+        $audiencia  = SeerPerGeneral::join("audiencias","audiencias.id_solicitud","=","seer_general.id");
+        $audiencia = $audiencia->where("audiencias.id_solicitud", "=", $solicitud["id"])
+        ->latest('audiencias.created_at')
+        ->first();
+
+        $html = view('PDF/Solicitudes/convenioPTU',
+        compact('id', 'solicitud', 'salario_diario','salario_mensual','pagos','diarioTexto','mensualTexto','montoTexto','penaTexto','prestaciones','deducciones','pagoTotal','delegado',
+        'pagosDif','conciliador','solicitante','citados','abogado','abogadosConvenio','descripcionIdentificacionPMap','datosAudiencia','descripcionIdentificacionS','descripcionIdentificacionP','audiencia','conceptosTexto','deduccionesTexto',
+        'municipioEmpresa','estadoEmpresa','inicialesConcluye','etiquetaIniciales'))
+        ->render();
+        $pdf = \PDF::loadHTML($html)
+            ->setPaper('a4', 'portrait')
+            ->setOption('isHtml5ParserEnabled', true)
+            ->setOption('isPhpEnabled', true);
+
+        return $pdf->stream('Convenio_PTU.pdf');
+    }
+
     public function Historial_Solicitante(){ //ANA
         return view('solicitudes.solicitud_revision');
     }
@@ -13096,6 +13396,7 @@ class SeerController extends Controller
             $conciliadores->horario = '';
             $conciliadores->comida = '';
             $conciliadores->tipo_audiencia = '';
+            $conciliadores->year_ptu = null;
         }
 
         if(session()->has($sessionKey)){
@@ -13157,6 +13458,9 @@ class SeerController extends Controller
             $conciliadores->tipo = $conciliadores->tipo_audiencia;
             $conciliadores->pena_convencional = $sData['pena_convencional'] ?? null;
             $conciliadores->direccion_convenio = $sData['direccion_convenio'] ?? null;
+            if (!empty($sData['year_ptu'])) {
+                $conciliadores->year_ptu = $sData['year_ptu'][array_key_first($sData['year_ptu'])];
+            }
         }
         // --------------------------
 
@@ -13642,6 +13946,7 @@ class SeerController extends Controller
                 'otros'                 =>  (isset($data["otros"]) && $data["otros"] !== '') ? $data["otros"] : ($conciliadorRecord->otros ?? 0),
                 'horario'               =>  $data["horario"] ?? ($conciliadorRecord->horario ?? ''),
                 'comida'                =>  $data["comida"] ?? ($conciliadorRecord->comida ?? ''),
+                'year_ptu'              =>  !empty($data["year_ptu"]) ? (int) $data["year_ptu"][array_key_first($data["year_ptu"])] : ($conciliadorRecord->year_ptu ?? null),
                 'tipo_audiencia'        =>  $data["tipo_audiencia"],
                 'fecha'                 => $fecha_actual,
                 'hora'                  => $hora_actual,
@@ -14231,18 +14536,32 @@ class SeerController extends Controller
         audiencia en este sistema, sea formato viejo o el grid actual de parte3.*/
         $duracionCitaExistenteMinutos = 75;
 
-        /* Las audiencias EXISTENTES cuya hora coincide exactamente con un slot corto (11:30 o 13:45)
-        se asumen de 30 min (no 75) al calcular traslapes contra los slots largos vecinos (12:00 y 14:15),
-        para que una audiencia agendada en el slot corto no bloquee falsamente el siguiente slot largo.
-        Solo aplica al grid NUEVO: en el grid legacy el 11:30 es un slot largo normal de 75 min.*/
-        $horasSlotCorto = ['11:30:00', '13:45:00'];
+        /* Las audiencias EXISTENTES cuya hora coincide exactamente con un slot corto (del grid
+        "actual" o del "nuevo") se asumen de 30 min (no 75) al calcular traslapes contra los slots
+        largos vecinos, para que una audiencia agendada en el slot corto no bloquee falsamente el
+        siguiente slot largo. No aplica al grid legacy: ahí el 11:30 es un slot largo normal de 75 min.*/
+        $horasSlotCortoActual = ['11:30:00', '13:45:00'];
 
-        /* A partir de esta fecha rige el grid de horarios "nuevo". Antes de esta fecha se usa el
-        grid "legacy" (mismo corte que en ObtenerAudiencia). */
-        $fechaCorteHorario = '2026-08-10';
+        $horasSlotCortoNuevo = ['08:30:00', '13:15:00'];
 
-        // Grid vigente a partir de $fechaCorteHorario.
-        $horariosConfigNuevo = [
+        /* A partir de esta fecha rige el grid "actual" (el que hoy se conoce como "nuevo"). Antes de
+        esta fecha se usa el grid legacy (mismo corte que en ObtenerAudiencia). Este corte sigue siendo
+        global para todas las sedes. */
+        $fechaCorteHorarioLegacy = '2026-08-10';
+
+        // A partir de esta fecha, por sede, rige el horario "nuevo".
+        $fechaCorteHorarioNuevoPorSede = [
+            'Morelia' => '2026-10-04',
+            'Zitácuaro' => '2026-10-04',
+            'Zamora' => '2026-10-04',
+            'Sahuayo' => '2026-10-04',
+            'Uruapan' => '2026-10-04',
+            'Lázaro Cárdenas' => '2026-10-04',
+        ];
+        $fechaCorteHorarioNuevo = $fechaCorteHorarioNuevoPorSede[$sede] ?? null;
+
+        // Grid "actual" (hoy "nuevo"), vigente entre $fechaCorteHorarioLegacy y el corte por sede.
+        $horariosConfigActual = [
             ['hora' => [9, 0],   'duracion' => $duracionSlotLargo,   'permite_empalme' => true],
             ['hora' => [10, 15], 'duracion' => $duracionSlotLargo,   'permite_empalme' => true],
             ['hora' => [11, 30], 'duracion' => $duracionSlotMinutos, 'permite_empalme' => false],
@@ -14252,7 +14571,7 @@ class SeerController extends Controller
             ['hora' => [15, 30], 'duracion' => $duracionSlotLargo,   'permite_empalme' => true],
         ];
 
-        /* Grid legacy (vigente antes de $fechaCorteHorario): 5 slots largos de 75 min, todos con
+        /* Grid legacy (vigente antes de $fechaCorteHorarioLegacy): 5 slots largos de 75 min, todos con
         empalme permitido (máximo 2 audiencias por slot), sin slots cortos. */
         $horariosConfigLegacy = [
             ['hora' => [9, 0],   'duracion' => $duracionSlotLargo, 'permite_empalme' => true],
@@ -14260,6 +14579,19 @@ class SeerController extends Controller
             ['hora' => [11, 30], 'duracion' => $duracionSlotLargo, 'permite_empalme' => true],
             ['hora' => [12, 45], 'duracion' => $duracionSlotLargo, 'permite_empalme' => true],
             ['hora' => [14, 0],  'duracion' => $duracionSlotLargo, 'permite_empalme' => true],
+        ];
+
+        /* Grid "nuevo" (vigente por sede a partir de $fechaCorteHorarioNuevo): misma forma que el
+        grid "actual" pero con los slots cortos reubicados a 8:30 y 13:15; 11:30 y 13:45 pasan a ser
+        slots largos normales de 75 min. */
+        $horariosConfigNuevo = [
+            ['hora' => [8, 30],  'duracion' => $duracionSlotMinutos, 'permite_empalme' => false],
+            ['hora' => [9, 0],   'duracion' => $duracionSlotLargo,   'permite_empalme' => true],
+            ['hora' => [10, 15], 'duracion' => $duracionSlotLargo,   'permite_empalme' => true],
+            ['hora' => [11, 30], 'duracion' => $duracionSlotLargo,   'permite_empalme' => true],
+            ['hora' => [13, 15], 'duracion' => $duracionSlotMinutos, 'permite_empalme' => false],
+            ['hora' => [13, 45], 'duracion' => $duracionSlotLargo,   'permite_empalme' => true],
+            ['hora' => [15, 0],  'duracion' => $duracionSlotLargo,   'permite_empalme' => true],
         ];
 
         /* Traemos cada audiencia existente (no agrupada por coincidencia exacta) para poder
@@ -14287,8 +14619,23 @@ class SeerController extends Controller
             if ($fecha->format('N') < 6) { // Saltar fines de semana
 
                 $fechaDia = $fecha->format('Y-m-d');
-                $esDiaLegacy = $fechaDia < $fechaCorteHorario;
-                $horariosConfig = $esDiaLegacy ? $horariosConfigLegacy : $horariosConfigNuevo;
+                if ($fechaDia < $fechaCorteHorarioLegacy) {
+                    $nivelHorario = 'legacy';
+                } elseif ($fechaCorteHorarioNuevo !== null && $fechaDia >= $fechaCorteHorarioNuevo) {
+                    $nivelHorario = 'nuevo';
+                } else {
+                    $nivelHorario = 'actual';
+                }
+                $horariosConfig = match ($nivelHorario) {
+                    'legacy' => $horariosConfigLegacy,
+                    'nuevo' => $horariosConfigNuevo,
+                    default => $horariosConfigActual,
+                };
+                $horasSlotCortoVigente = match ($nivelHorario) {
+                    'legacy' => [],
+                    'nuevo' => $horasSlotCortoNuevo,
+                    default => $horasSlotCortoActual,
+                };
 
                 foreach ($horariosConfig as $config) {
                     $slot = (clone $fecha)->setTime($config['hora'][0], $config['hora'][1], 0);
@@ -14300,7 +14647,7 @@ class SeerController extends Controller
                     $audienciasEnSlot = 0;
                     foreach ($audienciasPorFecha[$fechaDia] ?? [] as $horaExistente) {
                         $existenteInicio = new \DateTime($fechaDia . ' ' . $horaExistente);
-                        $duracionExistente = (!$esDiaLegacy && in_array($horaExistente, $horasSlotCorto, true))
+                        $duracionExistente = ($nivelHorario !== 'legacy' && in_array($horaExistente, $horasSlotCortoVigente, true))
                             ? $duracionSlotMinutos
                             : $duracionCitaExistenteMinutos;
                         $existenteFin = (clone $existenteInicio)->modify("+{$duracionExistente} minutes");
@@ -14449,15 +14796,35 @@ class SeerController extends Controller
 
         $duracionSlotMinutos = 75;
 
-        /* A partir de esta fecha rige el grid de horarios "nuevo". Antes de esta fecha se usa el
-        grid "legacy" (mismo corte que en ObtenerAudiencia y en obtenerAudienciasParte2). */
-        $fechaCorteHorario = '2026-08-10';
+        /* A partir de esta fecha rige el grid "actual" (el que hoy se conoce como "nuevo"). Antes de
+        esta fecha se usa el grid legacy (mismo corte que en ObtenerAudiencia y en obtenerAudienciasParte2).
+        Este corte sigue siendo global para todas las sedes. */
+        $fechaCorteHorarioLegacy = '2026-08-10';
 
-        // Horas de inicio vigentes a partir de $fechaCorteHorario.
-        $horasNuevo = [[9, 0], [10, 15], [12, 0], [14, 15], [15, 30]];
+        /* A partir de esta fecha, por sede, rige el horario "nuevo". Mientras una sede no tenga fecha
+        aquí, se queda indefinidamente en el grid "actual". obtenerAudienciasParte3 NUNCA muestra los
+        slots cortos de 30 min (esos solo existen en obtenerAudienciasParte2); aquí lo único que puede
+        cambiar entre "actual" y "nuevo" son las horas de inicio de los slots largos. */
+        $fechaCorteHorarioNuevoPorSede = [
+            'Morelia' => '2026-10-04',
+            'Zitácuaro' => '2026-10-04',
+            'Zamora' => '2026-10-04',
+            'Sahuayo' => '2026-10-04',
+            'Uruapan' => '2026-10-04',
+            'Lázaro Cárdenas' => '2026-10-04',
+        ];
+        $fechaCorteHorarioNuevo = $fechaCorteHorarioNuevoPorSede[$sede] ?? null;
 
-        // Horas de inicio del grid legacy (vigente antes de $fechaCorteHorario).
+        // Horas de inicio del grid legacy (vigente antes de $fechaCorteHorarioLegacy).
         $horasLegacy = [[9, 0], [10, 15], [11, 30], [12, 45], [14, 0]];
+
+        // Horas de inicio del grid "actual" (vigente entre $fechaCorteHorarioLegacy y el corte por sede).
+        $horasActual = [[9, 0], [10, 15], [12, 0], [14, 15], [15, 30]];
+
+        /* Horas de inicio de los slots largos del grid "nuevo" (vigente por sede a partir de
+        $fechaCorteHorarioNuevo). Deben coincidir con los horarios largos de $horariosConfigNuevo en
+        obtenerAudienciasParte2 (los slots cortos de 8:30 y 13:15 se excluyen a propósito). */
+        $horasNuevo = [[9, 0], [10, 15], [11, 30], [13, 45], [15, 0]];
 
         /* Traemos cada audiencia existente (no agrupada por coincidencia exacta) para poder
         detectar traslapes de horario, incluyendo citas agendadas con el formato de horarios anterior
@@ -14484,8 +14851,18 @@ class SeerController extends Controller
             if ($fecha->format('N') < 6) { // Saltar fines de semana
 
                 $fechaDia = $fecha->format('Y-m-d');
-                $esDiaLegacy = $fechaDia < $fechaCorteHorario;
-                $horasBase = $esDiaLegacy ? $horasLegacy : $horasNuevo;
+                if ($fechaDia < $fechaCorteHorarioLegacy) {
+                    $nivelHorario = 'legacy';
+                } elseif ($fechaCorteHorarioNuevo !== null && $fechaDia >= $fechaCorteHorarioNuevo) {
+                    $nivelHorario = 'nuevo';
+                } else {
+                    $nivelHorario = 'actual';
+                }
+                $horasBase = match ($nivelHorario) {
+                    'legacy' => $horasLegacy,
+                    'nuevo' => $horasNuevo,
+                    default => $horasActual,
+                };
 
                 $horarios = array_map(
                     fn ($h) => (clone $fecha)->setTime($h[0], $h[1], 0),
@@ -15004,7 +15381,8 @@ class SeerController extends Controller
                 $sub->whereNull('incidencia')->orWhere('incidencia', 0);
             });
         })
-        ->select('id', 'id_solicitud', 'fecha', 'hora', 'id_conciliador', 'estatus', 'delegacion', 'created_at');
+        ->select('id', 'id_solicitud', 'fecha', 'hora', 'id_conciliador', 'estatus', 'delegacion', 'created_at')
+        ->withExists('conceptoPtu');
 
         // Filtro de búsqueda global en el Servidor
         if ($request->filled('buscar')) {
@@ -15034,10 +15412,10 @@ class SeerController extends Controller
             $query->where('id_conciliador', $user->id);
             $permisos = PermisosConciliador::where('id_conciliador', $user->id)->select('tipo')->first();
             
-            /*if ($permisos && $permisos->tipo === "Ambos") {
+            //if ($permisos && $permisos->tipo === "Ambos") {
                 $delegaciones = $mapaDelegaciones[$user->delegacion] ?? [$user->delegacion];
                 $query->whereIn('delegacion', $delegaciones);
-            } else {
+            /*} else {
                 $query->where('delegacion', $user->delegacion);
             }*/
         } 
@@ -15062,6 +15440,7 @@ class SeerController extends Controller
             $audiencia->estatus = $audiencia->expediente->estatus ?? 'Sin estatus';
             $audiencia->conciliador_nombre = $audiencia->conciliador->name ?? 'Sin Conciliador';
             $audiencia->constancia = $audiencia->pagos->count() > 0 ? 1 : 0;
+            $audiencia->tienePTU = (bool) $audiencia->concepto_ptu_exists;
             return $audiencia;
         });
         
