@@ -1,1239 +1,815 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}"/>
-    <title></title>
-    <meta content='width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no' name='viewport'>
-    <!-- Bootstrap 5.3.3 -->
-    <link href="{{ asset('assets/css/bootstrap.min.css') }}" rel="stylesheet" type="text/css"/>
-    <!-- Ionicons -->
-    <link rel="icon" href="{{ asset('assets/images/ccl-r.png') }}" type="image/x-icon">
-    <link href="//fonts.googleapis.com/css?family=Lato&display=swap" rel="stylesheet">
-    <link href="{{ asset('assets/css/all.css') }}" rel="stylesheet" type="text/css">
-    <link href="{{ asset('assets/css/iziToast.min.css') }}" rel="stylesheet">
-    <link href="{{ asset('assets/css/sweetalert.css') }}" rel="stylesheet" type="text/css"/>
-    <link href="{{ asset('assets/css/select2.min.css') }}" rel="stylesheet" type="text/css"/>
+    <meta name="description" content="SiConcilio - Datos del Solicitante">
+    <meta name="author" content="Centro de Conciliación Laboral de Michoacán">
+    <link rel="icon" href="{{ asset('public/assets/images/ccl-r.png') }}" type="image/x-icon">
     
-    <!-- Agregados para los Select del Formulario Personas-->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <title>SiConcilio - Datos del Solicitante</title>
+
+    <!-- Bootstrap 5.3 CSS & Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    
+    <!-- Select2 & SweetAlert2 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
     <style>
-        .loader {
+        :root {
+            --primary-guinda: #6A0F49;
+            --primary-hover: #4a0a33;
+            --accent-dorado: #CEA845;
+            --accent-hover: #b8933b;
+            --bg-light: #f4f6f9;
+            --text-dark: #2c3e50;
+        }
+
+        body {
+            background-color: var(--bg-light);
+            color: var(--text-dark);
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Navbar */
+        .navbar-institutional {
+            background-color: #ffffff;
+            border-bottom: 3px solid var(--accent-dorado);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .nav-link-custom {
+            color: var(--text-dark) !important;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: color 0.2s ease;
+        }
+
+        .nav-link-custom:hover {
+            color: var(--primary-guinda) !important;
+        }
+
+        /* Tarjeta Principal */
+        .main-card {
+            background: #ffffff;
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+            padding: 2rem;
+        }
+
+        .title-header {
+            color: var(--primary-guinda);
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        /* Banners de Subsecciones */
+        .section-banner {
+            background: linear-gradient(135deg, var(--primary-guinda), var(--primary-hover));
+            color: #ffffff;
+            border-radius: 8px;
+            padding: 0.6rem 1rem;
+            margin-top: 1.5rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .section-banner h5 {
+            margin: 0;
+            font-size: 1.05rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        /* Labels y Form */
+        .form-label {
+            font-weight: 600;
+            color: #333;
+            font-size: 0.88rem;
+            margin-bottom: 0.35rem;
+        }
+
+        .text-required {
+            color: #dc3545;
+            font-weight: bold;
+        }
+
+        /* Indicador de CURP */
+        #resultado {
+            font-size: 0.8rem;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            margin-top: 0.25rem;
+            display: none;
+        }
+
+        /* Botones */
+        .btn-dorado {
+            background-color: var(--accent-dorado);
+            border-color: var(--accent-dorado);
+            color: #ffffff !important;
+            font-weight: 700;
+            padding: 0.6rem 2.5rem;
+            border-radius: 6px;
+            box-shadow: 0 4px 10px rgba(206, 168, 69, 0.25);
+            transition: all 0.2s ease;
+        }
+
+        .btn-dorado:hover {
+            background-color: var(--accent-hover);
+            border-color: var(--accent-hover);
+            transform: translateY(-1px);
+        }
+
+        /* Overlay Loader */
+        .loader-overlay {
             position: fixed;
-            left: 0px;
-            top: 0px;
+            left: 0;
+            top: 0;
             width: 100%;
             height: 100%;
             z-index: 9999;
-            background: url('{{ asset('assets/images/pageLoader.gif') }}') 50% 50% no-repeat rgb(249,249,249);
-           /* background-color: #6A0F49;/<p style="color: #CEA845 */
-            opacity: .8;
-        }
-        #resultado {
-            background-color: red;
-            color: white;
-            font-weight: bold;
-        }
-        #resultado.ok {
-            background-color: green;
+            background: rgba(255, 255, 255, 0.85) url('{{ asset("assets/images/pageLoader.gif") }}') 50% 50% no-repeat;
         }
     </style>
-    <nav class="navbar navbar-expand-lg navbar-light bg-light fixed-top">
-        <div class="">
-            <img src="{{ asset('assets/images/Logos 2.png') }}" class="img" style="" width="250" height="90"></a>&nbsp;&nbsp;
-        </div> 
-        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-        <div class="collapse navbar-collapse" id="navbarSupportedContent" >
-            <ul class="navbar-nav ml-auto">
-                <li class="nav-item active">
-                    <a class="nav-link" href="{{ route('publico') }}" style="color: black;">INICIO<span class="sr-only"></span></a>
-                </li>
-            </ul>
-        </div>
-    </nav>
-    <div class="container">
-        <br><br><br><br>
-    </div>
 </head>
 <body>
-    <div id="app">  
-        <section class="section">
-            <div class="section-body">
-                <div class="row"> 
-                    <div class="col-lg-12" >
-                        <div class="card">
-                            <div class="card-body">
-                                    @if(session()->has('success'))
-                                        <div class="alert alert-success alert-dismissible fade show" role="alert">
-                                            <strong>¡Registro correcto!</strong>
-                                            {{ session()->get('success') }}
-                                            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                                                <span aria-hidden="true">&times;</span>
-                                            </button>
-                                        </div>
-                                    @endif
 
-                                    <!--Se realiza la validación de campos para ver si dejó alguno vacío-->
-                                    @if ($errors->any())
-                                        <div class="alert alert-dark alert-dismissible fade show" role="alert">
-                                            <strong>¡Revise los campos!</strong>
-                                            <ul>
-                                                @foreach ($errors->all() as $error)
-                                                    <li>{{ $error }}</li>
-                                                    <!--<span class="badge badge-danger">{{ $error }}</span>-->
-                                                @endforeach
-                                            </ul>
-                                            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                                                <span aria-hidden="true">&times;</span>
-                                            </button>
-                                        </div>
-                                    @endif
-                                    <div style="background-color:#D2D3D5; width:100%; height:40px;">
-                                        <h3 class="text-center" style="color:black">Datos del Solicitante</h3>
-                                    </div>    
-                                    <!--Se realiza el envío de datos con formulario de Laravel Collective-->
-                                    <form id="form-solicitante" novalidate method="POST" action="{{route('parte2')}}" enctype='multipart/form-data'>
-                                        @csrf
-                                        <input type="hidden" name="id" value="{{$id}}">
-                                        <input type="hidden" name="draft_id" value="{{ $draftId ?? request('draft_id') }}">
-                                        <div class="row">
-                                            <input type="hidden" name="tipo" value="Fisica">
-                                            <!--<div class="col-xs-12 col-sm-12 col-md-4">
-                                                <label for="name">Tipo de Persona (*)</label>
-                                                <select name="tipo" class="form-control" required>
-                                                    <option value="">SELECCIONE</option>
-                                                    <option value="Fisica">FÍSICA</option>
-                                                    <option value="Moral">MORAL</option>
-                                                </select>
-                                            </div>-->
-                                            <div class="col-xs-12 col-sm-12 col-md-8">
-                                                <div class="form-group">
-                                                    <label for="name">Nombre(s) y Apellidos del Solicitante <span style="color:red;">(*)</span></label>
-                                                    <input type="text" name="nombre" maxlength="150" class="form-control" oninput="this.value = this.value.toUpperCase()" required> 
-                                                    <div class="invalid-feedback">
-                                                        El campo nombre es obligatorio.
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            
-                                            <div class="col-xs-12 col-sm-12 col-md-4">
-                                                <div class="form-group">
-                                                    <label for="name">CURP/No. de Migración <span style="color:red;">(*)</span></label>
-                                                    <input type="text" name="curp" maxlength="18" id="curp_input" oninput="validarInput(this)"class="form-control" required> 
-                                                    <pre id="resultado"></pre>
-                                                    <div class="invalid-feedback">
-                                                        El campo curp es obligatorio.
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div id="div1" class="col-xs-12 col-sm-12 col-md-2">
-                                                <div class="form-group">
-                                                    <label for="name">Fecha de Nacimiento <span style="color:red;">(*)</span></label>
-                                                    <input type="date" id="fecha_nacimiento" name="fecha_nacimiento" onchange="validarfechaNacimiento(this)" class="form-control" required> 
-                                                    <div class="invalid-feedback">
-                                                        El campo fecha de nacimiento es obligatoria.
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div id="div1" class="col-xs-12 col-sm-12 col-md-2">
-                                                <div class="form-group">
-                                                    <label for="name">Edad<span style="color:red;">(*)</span></label>
-                                                    <input type="number" min="0" name="edad" class="form-control" id="años_edad" required> 
-                                                    <div class="invalid-feedback">
-                                                        El campo edad es obligatoria.
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-xs-12 col-sm-12 col-md-4">
-                                                <div class="form-group">
-                                                    <label for="name">RFC del Solicitante (Campo opcional)</label>
-                                                    <input type="text" name="rfc" class="form-control" minlength="13" maxlength="13" oninput="this.value = this.value.toUpperCase()"> 
-                                                </div>
-                                            </div>
-                                            <div class="col-xs-12 col-sm-12 col-md-2">
-                                                <div class="form-group">
-                                                    <label for="name">Sexo <span style="color:red;">(*)</span></label>
-                                                    <select name="genero" class="form-control" required>
-                                                        <option value="">SELECCIONE</option>
-                                                        <option value="H">HOMBRE</option>
-                                                        <option value="M">MUJER</option>
-                                                        <option value="NC">PREFIERO NO CONTESTAR</option>
-                                                    </select>
-                                                    <div class="invalid-feedback">
-                                                        El campo sexo es obligatorio.
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-xs-12 col-sm-12 col-md-2">
-                                                <div class="form-group">
-                                                    <label for="name">Nacionalidad <span style="color:red;">(*)</span></label>
-                                                    <select name="nacionalidad" class="form-control" required>
-                                                        <option value="">SELECCIONE</option>
-                                                        <option value="Mexicana">MEXICANA</option>
-                                                        <option value="Otra">OTRA</option>
-                                                    </select>
-                                                    <div class="invalid-feedback">
-                                                        El campo nacionalidad es obligatoria.
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-xs-12 col-sm-12 col-md-3">
-                                                <div class="form-group">
-                                                    <label for="name">Entidad Federativa de Nacimiento <span style="color:red;">(*)</span></label>
-                                                    <select id="estado_nacimiento" name="estado_nacimiento" class="form-control" required>
-                                                        <option value="">Seleccione</option>
-                                                        @foreach($estados as $est)
-                                                            <option value="{{$est['id']}}">{{$est['nombre']}}</option>
-                                                        @endforeach
-                                                    </select>
-                                                    <div class="invalid-feedback">
-                                                        El campo entidad federativa de nacimiento es obligatoria.
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-xs-6 col-sm-12 col-md-3"><br>
-                                                <spam for="btncheck1">¿Requiere traductor?</spam>
-                                                <input type="checkbox" class="btn-check" id="check_lenguaje" name="traductor" autocomplete="off">
-                                            </div>
-                                            <div class="col-xs-6 col-sm-12 col-md-6" id="lenguaje_señas">
-                                                <div class="form-group">
-                                                    <label for="name">¿Qué tipo de lenguaje require?</label>
-                                                    <input type="text" name="lenguaje" class="form-control" id="lenguajeRequerido" oninput="this.value = this.value.toUpperCase()">
-                                                    <div class="invalid-feedback">
-                                                        Debe especificar el idioma o lengua requerida.
-                                                    </div>
-                                                </div>
-                                            </div> 
-                                            <div class="col-xs-6 col-sm-12 col-md-3"><br>
-                                                <spam for="btncheck1">¿Tiene alguna discapacidad?</spam>
-                                                <input type="checkbox" class="btn-check" id="check_discapacidad" name="discapacidad" autocomplete="off">
-                                            </div>   
-                                            <div class="col-xs-6 col-sm-12 col-md-6" id="discapacidad">
-                                                <div class="form-group">
-                                                    <label for="name">¿Cuál es su discapacidad?</label>
-                                                    <input type="text" name="tipo_discapacidad" class="form-control" id="discapacidadRequerida" oninput="this.value = this.value.toUpperCase()">
-                                                    <div class="invalid-feedback">
-                                                        Debe especificar la discapacidad.
-                                                    </div>
-                                                </div>
-                                            </div> 
-                                            <div class="col-xs-12 col-sm-12 col-md-12" style="background-color:#D2D3D5; width:100%; height:40px;">
-                                                <h3 class="text-center" style="color:black">Contacto</h3>
-                                            </div>  
-                                            <div class="col-xs-12 col-sm-12 col-md-4">
-                                                <div class="form-group">
-                                                    <label for="name">Teléfono Celular <span style="color:red;">(*)</span></label>
-                                                    <input type="text" name="telefono1" class="form-control numeroTelefonico" required>
-                                                    <div class="invalid-feedback">
-                                                        El campo teléfono es obligatorio.
-                                                    </div>
-                                                </div>   
-                                            </div>
-                                            <div class="col-xs-12 col-sm-12 col-md-4">
-                                                <div class="form-group">
-                                                    <label for="name">Teléfono Fijo (Campo opcional)</label>
-                                                    <input type="text" name="telefono2" class="form-control numeroTelefonico"> 
-                                                </div>
-                                            </div>
-                                            <div class="col-xs-12 col-sm-12 col-md-4">
-                                                <div class="form-group">
-                                                    <label for="name">Correo Electrónico <span style="color:red;">(*)</span></label>
-                                                    <input type="mail" name="correo" maxlength="50" class="form-control correoElectronico" required> 
-                                                    <div class="invalid-feedback">
-                                                        El campo correo electrónico es obligatorio.
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-xs-12 col-sm-12 col-md-12" style="background-color:#D2D3D5; width:100%; height:40px;">
-                                                <h3 class="text-center" style="color:black">Domicilio</h3>
-                                            </div>
-                                            
-                                            <div class="col-xs-12 col-sm-12 col-md-3">
-                                                <div class="form-group">
-                                                    <label for="name">Tipo de Vialidad <span style="color:red;">(*)</span></label><br>
-                                                    <select name="vialidad" class="form-control" required>
-                                                        <option value="">SELECCIONE</option>
-                                                        <option value="AMPLIACIÓN">Ampliación</option>
-                                                        <option value="ANDADOR">Andador</option>
-                                                        <option value="AUTOPISTA">Autopista</option>
-                                                        <option value="AVENIDA">Avenida</option>
-                                                        <option value="BOULEVARD">Boulevard</option>
-                                                        <option value="CALLE">Calle</option>
-                                                        <option value="CALLEJÓN">Callejón</option>
-                                                        <option value="CALZADA">Calzada</option>
-                                                        <option value="CARRETERA">Carretera</option>
-                                                        <option value="CERRADA">Cerrada</option>
-                                                        <option value="CIRCUITO">Circuito</option>
-                                                        <option value="CIRCUNVALACIÓN">Circunvalación</option>
-                                                        <option value="CONTINUACIÓN">Continuación</option>
-                                                        <option value="CORREDOR">Corredor</option>
-                                                        <option value="DIAGONAL">Diagonal</option>
-                                                        <option value="EJE VIAL">Eje vial</option>
-                                                        <option value="PERIFÉRICO">Periférico</option>
-                                                        <option value="PROLONGACIÓN">Prolongación</option>
-                                                        <option value="PRIVADA">Privada</option>
-                                                        <option value="RETORNO">Retorno</option>
-                                                        <option value="VIADUCTO">Viaducto</option>
-                                                        <option value="PASEO">Paseo</option>
-                                                    </select>
-                                                    <div class="invalid-feedback">
-                                                        El campo vialidad es obligatorio.
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-xs-12 col-sm-12 col-md-3">
-                                                <div class="form-group">
-                                                    <label for="name">Nombre de la Vialidad <span style="color:red;">(*)</span></label>
-                                                    <input type="text" name="vialidad_calle" maxlength="50" class="form-control" oninput="this.value = this.value.toUpperCase()" required> 
-                                                    <div class="invalid-feedback">
-                                                        El campo vialidad o calle es obligatorio.
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            
-                                            <div class="col-xs-12 col-sm-12 col-md-3">
-                                                <div class="form-group">
-                                                    <label for="name">Número Exterior <span style="color:red;">(*)</span></label><br>
-                                                    <input type="text" name="numExt" maxlength="50" class="form-control" oninput="this.value = this.value.toUpperCase()" required> 
-                                                    <div class="invalid-feedback">
-                                                        El campo número exterior es obligatorio.
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-xs-12 col-sm-12 col-md-3">
-                                                <div class="form-group">
-                                                    <label for="name">Número Interior (Campo opcional)</label>
-                                                    <input type="text" name="numInt" maxlength="50" class="form-control" oninput="this.value = this.value.toUpperCase()"> 
-                                                </div>
-                                            </div>
+    <!-- Loader de Envíos -->
+    <div id="crear_poder" class="loader-overlay" style="display: none;"></div>
 
-                                            <div class="col-xs-12 col-sm-12 col-md-3">
-                                                <div class="form-group">
-                                                    <label for="name">Colonia <span style="color:red;">(*)</span></label>
-                                                    <input type="text" name="colonia_solicitante" maxlength="50" class="form-control" oninput="this.value = this.value.toUpperCase()" required> 
-                                                    <div class="invalid-feedback">
-                                                        El campo colonia es obligatorio.
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-xs-12 col-sm-6 col-md-3">
-                                                <div class="form-group">
-                                                    <label for="password">Estado <span style="color:red;">(*)</span></label>
-                                                    <select id="estado_solicitante" class="form-control" name="estado_solicitante" required>
-                                                        <option value="">Seleccione</option>
-                                                        @foreach($estados as $est)
-                                                            <option value="{{$est['id']}}">{{$est['nombre']}}</option>
-                                                        @endforeach
-                                                    </select>
-                                                    <div class="invalid-feedback">
-                                                        El campo entidad federativa es obligatorio.
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            
-                                            <div class="col-xs-12 col-sm-12 col-md-3">
-                                                <div class="form-group">
-                                                    <label for="name">Municipio o Alcaldía <span style="color:red;">(*)</span></label>
-                                                    <select id="municipio_solicitante" class="form-control" name="municipio_solicitante" required>
-                                                        <option value="">Seleccione</option>
-                                                        @foreach($municipios as $mun)
-                                                            <option value="{{$mun['id']}}">{{$mun['nombre']}}</option>
-                                                        @endforeach
-                                                    </select>
-                                                    <div class="invalid-feedback">
-                                                        El campo municipio o alcaldía es obligatorio.
-                                                    </div>
-                                                </div>
-                                            </div>
+    <!-- Navegación Fija -->
+    <nav class="navbar navbar-expand-lg navbar-institutional fixed-top py-2">
+        <div class="container-fluid px-4">
+            <a class="navbar-brand py-0" href="{{ route('login') }}">
+                <img src="{{ asset('assets/images/Logos 2.png') }}" alt="Logo CCL Michoacán" height="55">
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link nav-link-custom d-flex align-items-center gap-1" href="{{ route('login') }}">
+                            <i class="bi bi-house-door-fill"></i> INICIO
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
 
-                                            <div class="col-xs-12 col-sm-12 col-md-3">
-                                                <div class="form-group">
-                                                    <label for="name">Código Postal <span style="color:red;">(*)</span></label>
-                                                    <input type="text" name="cp" class="form-control soloNumeros" minlength="5" maxlength="5" required> 
-                                                    <div class="invalid-feedback">
-                                                        El campo código postal es obligatorio.
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-xs-12 col-sm-12 col-md-6">
-                                                <div class="form-group">
-                                                    <label for="name">Entre calle (Opcional)</span></label>
-                                                    <input type="text" name="calle1" maxlength="30" class="form-control" oninput="this.value = this.value.toUpperCase()"> 
-                                                    <div class="invalid-feedback">
-                                                        El campo entre calle es obligatoria.
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-xs-12 col-sm-12 col-md-6">
-                                                <div class="form-group">
-                                                    <label for="name">y calle (Opcional)</label>
-                                                    <input type="text" name="calle2" maxlength="30" class="form-control" oninput="this.value = this.value.toUpperCase()"> 
-                                                    <div class="invalid-feedback">
-                                                        El campo calle es obligatoria.
-                                                    </div>                                    
-                                                </div>
-                                            </div>
-                                            <div class="col-xs-12 col-sm-12 col-md-12">
-                                                <div class="form-group">
-                                                    <label for="name">Referencias (Opcional)</label>
-                                                    <textarea class="form-control" placeholder="Ingresa alguna referencia de como llegar" name="referencias"></textarea>
-                                                    <div class="invalid-feedback">
-                                                        El campo referencia es obligatorio.
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-xs-12 col-sm-12 col-md-12" style="background-color:#D2D3D5; width:100%; height:40px;">
-                                                <h3 class="text-center" style="color:black">Datos laborales</h3>
-                                            </div>  
-                                            <div class="col-xs-12 col-sm-12 col-md-3">
-                                                <div class="form-group">
-                                                    <label for="name">Número de Seguro Social (Opcional)</label>
-                                                    <input type="text" name="seguro" minlength="11" maxlength="12" class="form-control soloNumeros"> 
-                                                    <div class="invalid-feedback">
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-xs-12 col-sm-12 col-md-3">
-                                                <div class="form-group">
-                                                    <label for="name">Puesto <span style="color:red;">(*)</span></label>
-                                                    <input type="text" name="puesto" maxlength="50" class="form-control" oninput="this.value = this.value.toUpperCase()" required> 
-                                                    <div class="invalid-feedback">
-                                                        El campo puesto es obligatorio.
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-xs-12 col-sm-12 col-md-3">
-                                                <div class="form-group">
-                                                    <label for="name">Frecuencia de pago <span style="color:red;">(*)</span></label>
-                                                    <select name="periodo_pago" class="form-control" required>
-                                                        <option value="">SELECCIONE</option>
-                                                        <option value="Diario">DIARIO</option>
-                                                        <option value="Semanal">SEMANAL</option>
-                                                        <option value="Quincenal">QUINCENAL</option>
-                                                        <option value="Mensual">MENSUAL</option>-->
-                                                    </select>
-                                                    <div class="invalid-feedback">
-                                                        El campo frecuencia de pago es obligatorio.
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-xs-12 col-sm-12 col-md-3">
-                                                <div class="form-group">
-                                                    <label for="name">Salario <span style="color:red;">(*)</span></label>
-                                                    <input type="text" inputmode="decimal" name="pago" class="form-control soloMontos" required>
-                                                    <div class="invalid-feedback">
-                                                        El campo salario es obligatorio.
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-xs-12 col-sm-12 col-md-3">
-                                                <div class="form-group">
-                                                    <label for="name">Total de horas trabajadas por semana <span style="color:red;">(*)</span></label>
-                                                    <input type="number" name="horas" min="0" class="form-control" required> 
-                                                    <div class="invalid-feedback">
-                                                        El campo cantidad de horas trabajadas es obligatorio.
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-xs-12 col-sm-12 col-md-1">
-                                                <div class="form-group">
-                                                    <label for="btncheck1">¿Laboras actualmente?</label><br>
-                                                    <input name="labora" type="checkbox" class="btn-check" id="check_fecha" autocomplete="off"/>
-                                                </div>
-                                            </div>
-                                            <div class="col-xs-12 col-sm-12 col-md-6">
-                                                <div class="form-group">
-                                                    <label for="name">Horario laboral <span style="color:red;">(*)</span></label>
-                                                    <input type="text" name="jornada" maxlength="200" class="form-control" placeholder="Ejemplo: De lunes a viernes de 9AM a 5PM y Sábados de 9 AM a 2 PM" required>
-                                                    <div class="invalid-feedback">
-                                                        El campo jornada laboral es obligatoria.
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-xs-12 col-sm-12 col-md-2"> 
-                                                <div class="form-group">
-                                                    <label for="name">Fecha de Ingreso <span style="color:red;">(*)</span></label>
-                                                    <input type="date" name="fecha_ingreso" class="form-control" required> 
-                                                    <div class="invalid-feedback">
-                                                        El campo fecha de ingreso es obligatoria.
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-xs-12 col-sm-12 col-md-2" id="fecha_fin">
-                                                <div class="form-group">
-                                                    <label for="name">Fecha de Salida</label>
-                                                    <input type="date" name="fecha_salida" class="form-control"> 
-                                                </div>
-                                            </div>
-                                            <div class="col-xs-12 col-sm-12 col-md-10">
-                                                <div class="form-group">
-                                                    <label for="name">Describe brevemente el motivo de tu solicitud <span style="color:red;">(*)</span></label>
-                                                    <textarea class="form-control" name="descripcionSolicitud" required></textarea>
-                                                    <div class="invalid-feedback">
-                                                        El campo descripción del motivo de la solicitud es obligatorio.
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-xs-12 col-sm-12 col-md-12" style="background-color:#D2D3D5; width:100%; height:40px;">
-                                                <h3 class="text-center" style="color:black">Documentos</h3>
-                                            </div>
-                                            
-                                            <!--<div class="col-xs-12 col-sm-12 col-md-4">
-                                                <div class="form-group">
-                                                    <label>CURP/No. de Migración <span style="color:red;">(*)</span></label>
-                                                    <input type="file" name="documentoCurp" class="form-control" accept=".pdf" required>
-                                                    <div class="invalid-feedback">
-                                                        El campo curp es obligatorio.
-                                                    </div>
-                                                </div>
-                                            </div>-->
-                                            <div class="col-xs-12 col-sm-12 col-md-12">
-                                                <div class="form-group">
-                                                    <h4 class="text-center">En caso de ser mayor de edad subir su identificación y en caso de ser menor su identificación es su Acta de Nacimiento</h4>
-                                                </div>
-                                            </div>
-                                            <div class="col-xs-12 col-sm-12 col-md-4">
-                                                <div class="form-group">
-                                                    <label for="name">Tipo de identificación <span style="color:red;">(*)</span></label>
-                                                    <select name="identificacion" class="form-control" required>
-                                                        <option value="">SELECCIONE</option>
-                                                        <option value="Credencial de elector">CREDENCIAL DE ELECTOR</option>
-                                                        <option value="Pasaporte">PASAPORTE</option>
-                                                        <option value="Cédula profesional">CÉDULA PROFESIONAL</option>
-                                                        <option value="Licencia de conducir">LICENCIA DE CONDUCIR</option>
-                                                        <option value="Credencial de inapam">CREDENCIAL DE INAPAM</option>
-                                                        <option value="Cartilla militar">CARTILLA MILITAR</option>
-                                                        <option value="Documento migratorio">DOCUMENTO MIGRATORIO</option>
-                                                        <option value="Constancia de identidad">CONSTANCIA DE IDENTIDAD</option>
-                                                        <option value="Otro">OTROS</option>
-                                                    </select>
-                                                    <div class="invalid-feedback">
-                                                        El tipo de identificaión es obligatorio.
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-xs-12 col-sm-12 col-md-4">
-                                                <div class="form-group">
-                                                    <label for="name">Núm de identificación <span style="color:red;">(*)</span> <span data-bs-toggle="modal" data-bs-target="#helpModal" style="cursor: pointer;">❓</span></label>
-                                                    <input type="text" name="num_identificacion" maxlength="50" class="form-control" oninput="this.value = this.value.toUpperCase()" required> 
-                                                    <div class="invalid-feedback">
-                                                        El campo núm. de identificación es obligatorio.
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-xs-12 col-sm-12 col-md-4">
-                                                <div class="form-group">
-                                                    <label>Subir Identificación oficial <span style="color:red;">(*)</span></label>
-                                                    <input type="file" id="documentoIdentificacion" name="documentoIdentificacion" class="form-control" accept=".pdf" required>
-                                                    <div class="invalid-feedback">
-                                                        La Identificación es obligatoria.
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <!--<div class="col-xs-12 col-sm-12 col-md-12">
-                                                <div class="form-group">
-                                                    <h4 class="text-center">En caso de ser menor de edad Acta de nacimiento</h4>
-                                                </div>
-                                            </div>
-                                            <div id="documentacionMenor" class="col-xs-12 col-sm-12 col-md-6">
-                                                <div class="form-group">
-                                                    <label>Acta de nacimiento</label>
-                                                    <input type="file" name="documentoActa" class="form-control" accept=".pdf">
-                                                    <div class="invalid-feedback">
-                                                        La Identificación es obligatoria.
-                                                    </div>
-                                                </div>
-                                            </div>-->
-                                            <div class="col-xs-12 col-sm-12 col-md-4" style="display:none;">
-                                                <label for="excepcion">Posible caso de excepción <span style="color:red;">(*)</span>
-                                                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#exampleModal">
-                                                        ?
-                                                    </button>
-                                                </label>
-                                                
-                                                <input type="hidden" name="excepcion" value="No">
-                                                <!--
-                                                <select name="excepcion" class="form-control" onchange="cambiaExcepcion(this)" required>
-                                                    <option value="">Seleccione</option>
-                                                    <option value="Si">Si</option>
-                                                    <option value="No">No</option>
-                                                </select>
-                                                -->
-                                                <div class="invalid-feedback">
-                                                    El campo es obligatorio.
-                                                </div>
-                                            </div>
+    <div style="margin-top: 90px;"></div>
 
-                                            <div id="tipoPersona_razon" class="row" style="margin-top:20px; width:100%;">
-                                                <div class="col-xs-12 col-sm-6 col-md-6">
-                                                    <div class="form-group">
-                                                        <label for="frecuencia_hechos">Frecuencia con la que han sucedido los hechos <span style="color:red;">(*)</span></label>
-                                                        <select name="frecuencia_hechos" class="form-control">
-                                                            <option value="">Seleccione</option>
-                                                            <option value="Una vez">Una vez</option>
-                                                            <option value="Varias veces">Varias veces</option>
-                                                            <option value="De manera continua, hasta la fecha actual">De manera continua, hasta la fecha actual</option>
-                                                            <div class="invalid-feedback">
-                                                                El campo es obligatorio.
-                                                            </div>
-                                                        </select>
-                                                    </div>
-                                                </div>
+    <!-- Contenedor Principal -->
+    <main class="container my-4 flex-grow-1">
+        <div id="app">
+            <section class="section">
+                <div class="main-card">
 
-                                                <div class="col-xs-12 col-sm-6 col-md-6">
-                                                    <div class="form-group">
-                                                        <label for="cambios_situacionL">Cambios que se dieron en su situación laboral después de los hechos <span style="color:red;">(*)</span></label>
-                                                        <select name="cambios_situacionL" class="form-control">
-                                                            <option value="">Seleccione</option>
-                                                            <option value="Sigue igual">Menores de edad</option>
-                                                            <option value="Tensión, estrés e incomodidad en el área de trabajo">Adultos mayores</option>
-                                                            <option value="Le cambiarón de área">Personas con discapacidad</option>
-                                                            <option value="Otro">Población indígena</option>
-                                                        </select>
-                                                        <div class="invalid-feedback">
-                                                            El campo es obligatorio.
-                                                        </div>
-                                                    </div>
-                                                </div>
+                    <div class="text-center mb-3">
+                        <h2 class="title-header h3 mb-1">Solicitud de Conciliación</h2>
+                    </div>
 
-                                                <div class="col-xs-12 col-sm-6 col-md-6">
-                                                    <div class="form-group">
-                                                        <label for="comunico_hechos">¿La persona afectada comunicó los hechos a alguien más de su área de trabajo?<br>Describir a quién o a quiénes <span style="color:red;">(*)</span></label>
-                                                        <textarea name="comunico_hechos" class="form-control"></textarea>
-                                                        <div class="invalid-feedback">
-                                                            El campo es obligatorio.
-                                                        </div>
-                                                    </div>
-                                                </div>
+                    <!-- Mensajes de Alertas -->
+                    @if(session()->has('success'))
+                        <div class="alert alert-success alert-dismissible fade show d-flex align-items-center" role="alert">
+                            <i class="bi bi-check-circle-fill me-2 fs-5"></i>
+                            <div><strong>¡Registro correcto!</strong> {{ session()->get('success') }}</div>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    @endif
 
-                                                <div class="col-xs-12 col-sm-6 col-md-6">
-                                                    <div class="form-group"><br>
-                                                        <label for="descripcion_conducta">Descripción de las conductas manifestadas <span style="color:red;">(*)</span></label>
-                                                        <textarea name="descripcion_conducta" class="form-control"></textarea>
-                                                        <div class="invalid-feedback">
-                                                            El campo es obligatorio.
-                                                        </div>
-                                                    </div>                                                 
-                                                </div>
-                                                <div class="col-xs-12 col-sm-6 col-md-6">
-                                                    <div class="form-group">
-                                                        <label for="responsable_cargo">¿Quién o quiénes ejercieron los actos de acoso y hostigamiento sexual o laboral, discriminación y violencia laboral?<br>Especificar cargo y 
-                                                            nombres <span style="color:red;">(*)</span></label>
-                                                        <textarea name="responsable_cargo" class="form-control"></textarea>
-                                                        <div class="invalid-feedback">
-                                                            El campo es obligatorio.
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div class="col-xs-12 col-sm-6 col-md-6">
-                                                    <div class="form-group"><br>
-                                                        <label for="actos_cometidos">¿Qué actos se cometieron? <span style="color:red;">(*)</span></label>
-                                                        <textarea name="actos_cometidos" class="form-control"></textarea>
-                                                        <div class="invalid-feedback">
-                                                            El campo es obligatorio.
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div class="col-xs-12 col-sm-6 col-md-6">
-                                                    <div class="form-group">
-                                                        <label for="momento_hechos">¿Cuándo sucedieron los hechos? <span style="color:red;">(*)</span></label>
-                                                        <textarea name="momento_hechos" class="form-control"></textarea>
-                                                        <div class="invalid-feedback">
-                                                            El campo es obligatorio.
-                                                        </div>
-                                                    </div>                                        
-                                                </div>
-                                                <div class="col-xs-12 col-sm-6 col-md-6">
-                                                    <div class="form-group">
-                                                        <label for="lugar_hechos">¿Donde ocurrieron los actos de acoso y hostigamiento sexual o laboral, discriminación y violencia laboral? <span style="color:red;">(*)</span></label>
-                                                        <textarea name="lugar_hechos" class="form-control"></textarea>
-                                                        <div class="invalid-feedback">
-                                                            El campo es obligatorio.
-                                                        </div>
-                                                    </div>                                         
-                                                </div>
-                                                <div class="col-xs-12 col-sm-6 col-md-4">
-                                                    <div class="form-group">
-                                                        <label for="constancia_hechos">¿Los actos han ocurrido anteriormente o de manera reiterada? <span style="color:red;">(*)</span></label>
-                                                        <textarea name="constancia_hechos" class="form-control"></textarea>
-                                                        <div class="invalid-feedback">
-                                                            El campo es obligatorio.
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div class="col-xs-12 col-sm-6 col-md-5">
-                                                    <div class="form-group">
-                                                        <label for="solicito_apoyo">
-                                                            ¿Ha acudido a su respectivo sindicato, o alguna unidad administrativa en búsqueda de apoyo? 
-                                                            <span style="color:red;">(*)</span>
-                                                        </label>
+                    @if ($errors->any())
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <div class="d-flex align-items-center mb-1">
+                                <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i>
+                                <strong>¡Por favor revise los siguientes campos!</strong>
+                            </div>
+                            <ul class="mb-0 ps-4 small">
+                                @foreach ($errors->all() as $error)
+                                    <li>{{ $error }}</li>
+                                @endforeach
+                            </ul>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    @endif
 
-                                                        <select name="solicito_apoyo" id="solicito_apoyo" class="form-control">
-                                                            <option value="">Seleccione</option>
-                                                            <option value="Si">Si</option>
-                                                            <option value="No">No</option>
-                                                        </select>
+                    <!-- Formulario Principal -->
+                    <form id="form-solicitante" class="needs-validation" novalidate method="POST" action="{{ route('parte2') }}" enctype="multipart/form-data">
+                        @csrf
+                        <input type="hidden" name="id" value="{{ $id }}">
+                        <input type="hidden" name="draft_id" value="{{ $draftId ?? request('draft_id') }}">
+                        <input type="hidden" name="tipo" value="Fisica">
+                        <input type="hidden" name="excepcion" value="No">
 
-                                                        <div class="invalid-feedback">
-                                                            El campo es obligatorio.
-                                                        </div>
-                                                    </div>                                       
-                                                </div>
-                                                <div class="col-xs-12 col-sm-6 col-md-3" id="resultado_container">
-                                                    <div class="form-group">
-                                                        <label for="continuacion_solicto_apoyo">
-                                                            ¿Qué resultado obtuvo? <span style="color:red;">(*)</span>
-                                                        </label>
+                        <!-- SECCIÓN 1: DATOS PERSONALES -->
+                        <div class="section-banner shadow-sm">
+                            <h5><i class="bi bi-person-fill me-2"></i>1. Datos Personales del Solicitante</h5>
+                        </div>
 
-                                                        <textarea name="continuacion_solicto_apoyo" id="continuacion_solicto_apoyo" class="form-control"></textarea>
+                        <div class="row g-3">
+                            <div class="col-12 col-md-8">
+                                <div class="form-group">
+                                    <label for="nombre" class="form-label">Nombre(s) y Apellidos del Solicitante <span class="text-required">(*)</span></label>
+                                    <input type="text" name="nombre" id="nombre" maxlength="150" class="form-control" value="{{ old('nombre') }}" required>
+                                    <div class="invalid-feedback">El nombre es obligatorio.</div>
+                                </div>
+                            </div>
 
-                                                        <div class="invalid-feedback">
-                                                            El campo es obligatorio.
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div class="col-xs-12 col-sm-6 col-md-8">
-                                                    <div class="form-group">
-                                                        <label for="incidencia_directa">¿Los hechos ocurridos han incidido en su centro de trabajo de manera directa(sobrecarga de trabajo, humillaciones, tratos indignos, negación de 
-                                                            prestaciones, entre otros)? <span style="color:red;">(*)</span></label>
-                                                        <textarea name="incidencia_directa" class="form-control"></textarea>
-                                                        <div class="invalid-feedback">
-                                                            El campo es obligatorio.
-                                                        </div>
-                                                    </div>                                      
-                                                </div>
-                                                <div class="col-xs-12 col-sm-6 col-md-4">
-                                                    <div class="form-group">
-                                                        <label for="recibio_atencion">Derivado de la problemática, ¿Ha recibido atención médica o de algún otro tipo? <span style="color:red;">(*)</span></label>
-                                                        <textarea name="recibio_atencion" class="form-control"></textarea>
-                                                        <div class="invalid-feedback">
-                                                            El campo es obligatorio.
-                                                        </div>
-                                                    </div>                                             
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-xs-12 col-sm-12 col-md-12">
-                                            <div align="center">
-                                                <button type="submit" class="btn btn-primary" style="background-color:#CEA845; border-color:#CEA845;">Guardar</button>   
-                                            </div>
-                                        </div>     
-                                    </form>
+                            <div class="col-12 col-md-4">
+                                <div class="form-group">
+                                    <label for="curp_input" class="form-label">CURP / No. de Migración <span class="text-required">(*)</span></label>
+                                    <input type="text" name="curp" id="curp_input" maxlength="18" class="form-control" value="{{ old('curp') }}" required>
+                                    <div id="resultado"></div>
+                                    <div class="invalid-feedback">La CURP debe ser válida (18 caracteres).</div>
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-md-3">
+                                <div class="form-group">
+                                    <label for="fecha_nacimiento" class="form-label">Fecha de Nacimiento <span class="text-required">(*)</span></label>
+                                    <input type="date" id="fecha_nacimiento" name="fecha_nacimiento" class="form-control" value="{{ old('fecha_nacimiento') }}" onchange="validarfechaNacimiento()" required>
+                                    <div class="invalid-feedback">La fecha de nacimiento es obligatoria.</div>
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-md-2">
+                                <div class="form-group">
+                                    <label for="años_edad" class="form-label">Edad <span class="text-required">(*)</span></label>
+                                    <input type="number" min="0" name="edad" class="form-control" id="años_edad" value="{{ old('edad') }}" required readonly>
+                                    <div class="invalid-feedback">La edad es obligatoria.</div>
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-md-4">
+                                <div class="form-group">
+                                    <label for="rfc" class="form-label">RFC del Solicitante <span class="text-muted">(Opcional)</span></label>
+                                    <input type="text" name="rfc" id="rfc" class="form-control" minlength="13" maxlength="13" value="{{ old('rfc') }}">
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-md-3">
+                                <div class="form-group">
+                                    <label for="genero" class="form-label">Sexo <span class="text-required">(*)</span></label>
+                                    <select name="genero" id="genero" class="form-select" required>
+                                        <option value="">SELECCIONE...</option>
+                                        <option value="H" {{ old('genero') == 'H' ? 'selected' : '' }}>HOMBRE</option>
+                                        <option value="M" {{ old('genero') == 'M' ? 'selected' : '' }}>MUJER</option>
+                                        <option value="NC" {{ old('genero') == 'NC' ? 'selected' : '' }}>PREFIERO NO CONTESTAR</option>
+                                    </select>
+                                    <div class="invalid-feedback">El sexo es obligatorio.</div>
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-md-3">
+                                <div class="form-group">
+                                    <label for="nacionalidad" class="form-label">Nacionalidad <span class="text-required">(*)</span></label>
+                                    <select name="nacionalidad" id="nacionalidad" class="form-select" required>
+                                        <option value="">SELECCIONE...</option>
+                                        <option value="Mexicana" {{ old('nacionalidad', 'Mexicana') == 'Mexicana' ? 'selected' : '' }}>MEXICANA</option>
+                                        <option value="Otra" {{ old('nacionalidad') == 'Otra' ? 'selected' : '' }}>OTRA</option>
+                                    </select>
+                                    <div class="invalid-feedback">La nacionalidad es obligatoria.</div>
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-md-4">
+                                <div class="form-group">
+                                    <label for="estado_nacimiento" class="form-label">Entidad Federativa de Nacimiento <span class="text-required">(*)</span></label>
+                                    <select id="estado_nacimiento" name="estado_nacimiento" class="form-select" required>
+                                        <option value="">SELECCIONE...</option>
+                                        @foreach($estados as $est)
+                                            <option value="{{ $est['id'] }}" {{ old('estado_nacimiento') == $est['id'] ? 'selected' : '' }}>{{ $est['nombre'] }}</option>
+                                        @endforeach
+                                    </select>
+                                    <div class="invalid-feedback">La entidad de nacimiento es obligatoria.</div>
+                                </div>
+                            </div>
+
+                            <!-- Switches / Checkboxes Adaptados -->
+                            <div class="col-12 col-md-5 d-flex align-items-center pt-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="check_lenguaje" name="traductor" value="Si">
+                                    <label class="form-check-label fw-semibold" for="check_lenguaje">¿Requiere traductor o intérprete?</label>
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-md-7" id="lenguaje_señas" style="display: none;">
+                                <div class="form-group">
+                                    <label for="lenguajeRequerido" class="form-label">Especifique el tipo de lenguaje / idioma <span class="text-required">(*)</span></label>
+                                    <input type="text" name="lenguaje" id="lenguajeRequerido" class="form-control" value="{{ old('lenguaje') }}">
+                                    <div class="invalid-feedback">Debe especificar el idioma o lengua requerida.</div>
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-md-5 d-flex align-items-center pt-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="check_discapacidad" name="discapacidad" value="Si">
+                                    <label class="form-check-label fw-semibold" for="check_discapacidad">¿Tiene alguna discapacidad?</label>
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-md-7" id="discapacidad_container" style="display: none;">
+                                <div class="form-group">
+                                    <label for="discapacidadRequerida" class="form-label">Especifique la discapacidad <span class="text-required">(*)</span></label>
+                                    <input type="text" name="tipo_discapacidad" id="discapacidadRequerida" class="form-control" value="{{ old('tipo_discapacidad') }}">
+                                    <div class="invalid-feedback">Debe especificar el tipo de discapacidad.</div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                </div>
-            </div>
-            <!-- Modal para la captura de la ine-->
-            <div class="modal fade" id="helpModal" aria-labelledby="helpModalLabel" aria-hidden="true">
-                <div class="modal-dialog modal-dialog-centered" style="max-height: 80vh;">
-                  <div class="modal-content" style="height: 100%;">
-                    <div class="modal-header">
-                      <h5 class="modal-title" id="helpModalLabel">Ubicación de núm. de identificación</h5>
-                      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
-                    </div>
-                    <div class="modal-body text-center">
-                      <img src="{{ asset('assets/images/capturaIne.png') }}" alt="Instrucciones" class="img-fluid">
-                    </div>
-                  </div>
-                </div>
-            </div>
 
-            <div class="modal fade" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-                <div class="modal-dialog" role="document">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title" id="exampleModalLabel">Posibles Casos</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                        <!-- SECCIÓN 2: CONTACTO -->
+                        <div class="section-banner shadow-sm">
+                            <h5><i class="bi bi-telephone-fill me-2"></i>2. Información de Contacto</h5>
                         </div>
-                        <div class="modal-body">
-                            La Ley Federal del Trabajo en el articulo 685-Ter establece que no estas obligado a agotar la etapa conciliatoria en estos supuestos<br>
-                            - Discriminación<br>
-                            - Acoso u hostigamiento sexual<br>
-                            - Designación de beneficiarios<br>
-                            - Prestaciones de Seguridad Social
+
+                        <div class="row g-3">
+                            <div class="col-12 col-md-4">
+                                <div class="form-group">
+                                    <label for="telefono1" class="form-label">Teléfono Celular <span class="text-required">(*)</span></label>
+                                    <input type="tel" name="telefono1" id="telefono1" maxlength="10" class="form-control" value="{{ old('telefono1') }}" required>
+                                    <div class="invalid-feedback">El teléfono celular debe tener 10 dígitos.</div>
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-md-4">
+                                <div class="form-group">
+                                    <label for="telefono2" class="form-label">Teléfono Fijo <span class="text-muted">(Opcional)</span></label>
+                                    <input type="tel" name="telefono2" id="telefono2" maxlength="10" class="form-control" value="{{ old('telefono2') }}">
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-md-4">
+                                <div class="form-group">
+                                    <label for="correo" class="form-label">Correo Electrónico <span class="text-required">(*)</span></label>
+                                    <input type="email" name="correo" id="correo" maxlength="60" class="form-control" value="{{ old('correo') }}" required>
+                                    <div class="invalid-feedback">Ingrese un correo electrónico válido.</div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+
+                        <!-- SECCIÓN 3: DOMICILIO -->
+                        <div class="section-banner shadow-sm">
+                            <h5><i class="bi bi-geo-alt-fill me-2"></i>3. Domicilio del Solicitante</h5>
                         </div>
-                    </div>
+
+                        <div class="row g-3">
+                            <div class="col-12 col-md-3">
+                                <div class="form-group">
+                                    <label for="vialidad" class="form-label">Tipo de Vialidad <span class="text-required">(*)</span></label>
+                                    <select name="vialidad" id="vialidad" class="form-select" required>
+                                        <option value="">SELECCIONE...</option>
+                                        @foreach(['AMPLIACIÓN','ANDADOR','AUTOPISTA','AVENIDA','BOULEVARD','CALLE','CALLEJÓN','CALZADA','CARRETERA','CERRADA','CIRCUITO','CIRCUNVALACIÓN','CONTINUACIÓN','CORREDOR','DIAGONAL','EJE VIAL','PERIFÉRICO','PROLONGACIÓN','PRIVADA','RETORNO','VIADUCTO','PASEO'] as $vial)
+                                            <option value="{{ $vial }}" {{ old('vialidad') == $vial ? 'selected' : '' }}>{{ $vial }}</option>
+                                        @endforeach
+                                    </select>
+                                    <div class="invalid-feedback">El tipo de vialidad es obligatorio.</div>
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-md-4">
+                                <div class="form-group">
+                                    <label for="vialidad_calle" class="form-label">Nombre de la Calle / Vialidad <span class="text-required">(*)</span></label>
+                                    <input type="text" name="vialidad_calle" id="vialidad_calle" maxlength="100" class="form-control" value="{{ old('vialidad_calle') }}" required>
+                                    <div class="invalid-feedback">El nombre de la vialidad es obligatorio.</div>
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-md-2">
+                                <div class="form-group">
+                                    <label for="numExt" class="form-label">Num. Exterior <span class="text-required">(*)</span></label>
+                                    <input type="text" name="numExt" id="numExt" maxlength="20" class="form-control" value="{{ old('numExt') }}" required>
+                                    <div class="invalid-feedback">El número exterior es obligatorio.</div>
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-md-3">
+                                <div class="form-group">
+                                    <label for="numInt" class="form-label">Num. Interior <span class="text-muted">(Opcional)</span></label>
+                                    <input type="text" name="numInt" id="numInt" maxlength="20" class="form-control" value="{{ old('numInt') }}">
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-md-4">
+                                <div class="form-group">
+                                    <label for="colonia_solicitante" class="form-label">Colonia <span class="text-required">(*)</span></label>
+                                    <input type="text" name="colonia_solicitante" id="colonia_solicitante" maxlength="80" class="form-control" value="{{ old('colonia_solicitante') }}" required>
+                                    <div class="invalid-feedback">La colonia es obligatoria.</div>
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-md-3">
+                                <div class="form-group">
+                                    <label for="estado_solicitante" class="form-label">Estado <span class="text-required">(*)</span></label>
+                                    <select id="estado_solicitante" name="estado_solicitante" class="form-select" required>
+                                        <option value="">SELECCIONE...</option>
+                                        @foreach($estados as $est)
+                                            <option value="{{ $est['id'] }}" {{ old('estado_solicitante') == $est['id'] ? 'selected' : '' }}>{{ $est['nombre'] }}</option>
+                                        @endforeach
+                                    </select>
+                                    <div class="invalid-feedback">El estado es obligatorio.</div>
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-md-3">
+                                <div class="form-group">
+                                    <label for="municipio_solicitante" class="form-label">Municipio / Alcaldía <span class="text-required">(*)</span></label>
+                                    <select id="municipio_solicitante" name="municipio_solicitante" class="form-select" required>
+                                        <option value="">SELECCIONE...</option>
+                                        @foreach($municipios as $mun)
+                                            <option value="{{ $mun['id'] }}" {{ old('municipio_solicitante') == $mun['id'] ? 'selected' : '' }}>{{ $mun['nombre'] }}</option>
+                                        @endforeach
+                                    </select>
+                                    <div class="invalid-feedback">El municipio es obligatorio.</div>
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-md-2">
+                                <div class="form-group">
+                                    <label for="cp" class="form-label">Código Postal <span class="text-required">(*)</span></label>
+                                    <input type="text" name="cp" id="cp" maxlength="5" minlength="5" class="form-control" value="{{ old('cp') }}" required>
+                                    <div class="invalid-feedback">El CP debe tener 5 dígitos.</div>
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-md-6">
+                                <div class="form-group">
+                                    <label for="calle1" class="form-label">Entre Calle <span class="text-muted">(Opcional)</span></label>
+                                    <input type="text" name="calle1" id="calle1" maxlength="50" class="form-control" value="{{ old('calle1') }}">
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-md-6">
+                                <div class="form-group">
+                                    <label for="calle2" class="form-label">Y Calle <span class="text-muted">(Opcional)</span></label>
+                                    <input type="text" name="calle2" id="calle2" maxlength="50" class="form-control" value="{{ old('calle2') }}">
+                                </div>
+                            </div>
+
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label for="referencias" class="form-label">Referencias del Domicilio <span class="text-muted">(Opcional)</span></label>
+                                    <textarea class="form-control" id="referencias" name="referencias" rows="2" placeholder="Describa fachada, color de casa, comercios cercanos...">{{ old('referencias') }}</textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- SECCIÓN 4: DATOS LABORALES -->
+                        <div class="section-banner shadow-sm">
+                            <h5><i class="bi bi-briefcase-fill me-2"></i>4. Datos Laborales</h5>
+                        </div>
+
+                        <div class="row g-3">
+                            <div class="col-12 col-md-3">
+                                <div class="form-group">
+                                    <label for="seguro" class="form-label">Número de Seguro Social (NSS) <span class="text-muted">(Opcional)</span></label>
+                                    <input type="text" name="seguro" id="seguro" minlength="11" maxlength="11" class="form-control" value="{{ old('seguro') }}">
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-md-3">
+                                <div class="form-group">
+                                    <label for="puesto" class="form-label">Puesto o Cargo <span class="text-required">(*)</span></label>
+                                    <input type="text" name="puesto" id="puesto" maxlength="80" class="form-control" value="{{ old('puesto') }}" required>
+                                    <div class="invalid-feedback">El campo puesto es obligatorio.</div>
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-md-3">
+                                <div class="form-group">
+                                    <label for="periodo_pago" class="form-label">Frecuencia de Pago <span class="text-required">(*)</span></label>
+                                    <select name="periodo_pago" id="periodo_pago" class="form-select" required>
+                                        <option value="">SELECCIONE...</option>
+                                        <option value="Diario" {{ old('periodo_pago') == 'Diario' ? 'selected' : '' }}>DIARIO</option>
+                                        <option value="Semanal" {{ old('periodo_pago') == 'Semanal' ? 'selected' : '' }}>SEMANAL</option>
+                                        <option value="Quincenal" {{ old('periodo_pago') == 'Quincenal' ? 'selected' : '' }}>QUINCENAL</option>
+                                        <option value="Mensual" {{ old('periodo_pago') == 'Mensual' ? 'selected' : '' }}>MENSUAL</option>
+                                    </select>
+                                    <div class="invalid-feedback">La frecuencia de pago es obligatoria.</div>
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-md-3">
+                                <div class="form-group">
+                                    <label for="pago" class="form-label">Salario / Percepción ($) <span class="text-required">(*)</span></label>
+                                    <input type="number" step="0.01" min="0" name="pago" id="pago" class="form-control" value="{{ old('pago') }}" placeholder="0.00" required>
+                                    <div class="invalid-feedback">El salario es obligatorio.</div>
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-md-3">
+                                <div class="form-group">
+                                    <label for="horas" class="form-label">Horas trabajadas por semana <span class="text-required">(*)</span></label>
+                                    <input type="number" name="horas" id="horas" min="1" max="168" class="form-control" value="{{ old('horas') }}" required>
+                                    <div class="invalid-feedback">Las horas trabajadas son obligatorias.</div>
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-md-3 d-flex align-items-center pt-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="check_fecha" name="labora" value="1">
+                                    <label class="form-check-label fw-semibold" for="check_fecha">¿Labora actualmente?</label>
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-md-6">
+                                <div class="form-group">
+                                    <label for="jornada" class="form-label">Horario Laboral / Jornada <span class="text-required">(*)</span></label>
+                                    <input type="text" name="jornada" id="jornada" maxlength="200" class="form-control" placeholder="Ej: Lunes a Viernes de 9:00 AM a 5:00 PM" value="{{ old('jornada') }}" required>
+                                    <div class="invalid-feedback">El horario laboral es obligatorio.</div>
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-md-3">
+                                <div class="form-group">
+                                    <label for="fecha_ingreso" class="form-label">Fecha de Ingreso <span class="text-required">(*)</span></label>
+                                    <input type="date" name="fecha_ingreso" id="fecha_ingreso" class="form-control" value="{{ old('fecha_ingreso') }}" required>
+                                    <div class="invalid-feedback">La fecha de ingreso es obligatoria.</div>
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-md-3" id="fecha_fin">
+                                <div class="form-group">
+                                    <label for="fecha_salida" class="form-label">Fecha de Salida / Despido</label>
+                                    <input type="date" name="fecha_salida" id="fecha_salida" class="form-control" value="{{ old('fecha_salida') }}">
+                                </div>
+                            </div>
+
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label for="descripcionSolicitud" class="form-label">Describa brevemente el motivo de su solicitud <span class="text-required">(*)</span></label>
+                                    <textarea class="form-control" name="descripcionSolicitud" id="descripcionSolicitud" rows="3" required>{{ old('descripcionSolicitud') }}</textarea>
+                                    <div class="invalid-feedback">La descripción del motivo es obligatoria.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- SECCIÓN 5: SOPORTE Y APOYO -->
+                        <div class="row g-3 mt-1">
+                            <div class="col-12 col-md-6">
+                                <div class="form-group">
+                                    <label for="solicito_apoyo" class="form-label">¿Ha acudido a su sindicato o unidad administrativa en búsqueda de apoyo? <span class="text-required">(*)</span></label>
+                                    <select name="solicito_apoyo" id="solicito_apoyo" class="form-select" required>
+                                        <option value="">SELECCIONE...</option>
+                                        <option value="Si" {{ old('solicito_apoyo') == 'Si' ? 'selected' : '' }}>SÍ</option>
+                                        <option value="No" {{ old('solicito_apoyo') == 'No' ? 'selected' : '' }}>NO</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-md-6" id="resultado_container" style="display: none;">
+                                <div class="form-group">
+                                    <label for="continuacion_solicto_apoyo" class="form-label">¿Qué resultado obtuvo? <span class="text-required">(*)</span></label>
+                                    <textarea name="continuacion_solicto_apoyo" id="continuacion_solicto_apoyo" class="form-control" rows="2">{{ old('continuacion_solicto_apoyo') }}</textarea>
+                                    <div class="invalid-feedback">Especifique el resultado obtenido.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- SECCIÓN 6: DOCUMENTOS DE IDENTIFICACIÓN -->
+                        <div class="section-banner shadow-sm">
+                            <h5><i class="bi bi-file-earmark-pdf-fill me-2"></i>5. Identificación Oficial</h5>
+                        </div>
+
+                        <div class="alert alert-info py-2" role="alert">
+                            <i class="bi bi-info-circle-fill me-1"></i> En caso de ser mayor de edad adjuntar su identificación oficial vigente. Si es menor de edad, adjuntar Acta de Nacimiento.
+                        </div>
+
+                        <div class="row g-3">
+                            <div class="col-12 col-md-4">
+                                <div class="form-group">
+                                    <label for="identificacion" class="form-label">Tipo de Identificación <span class="text-required">(*)</span></label>
+                                    <select name="identificacion" id="identificacion" class="form-select" required>
+                                        <option value="">SELECCIONE...</option>
+                                        <option value="Credencial de elector">CREDENCIAL DE ELECTOR (INE)</option>
+                                        <option value="Pasaporte">PASAPORTE</option>
+                                        <option value="Cédula profesional">CÉDULA PROFESIONAL</option>
+                                        <option value="Licencia de conducir">LICENCIA DE CONDUCIR</option>
+                                        <option value="Credencial de inapam">CREDENCIAL DE INAPAM</option>
+                                        <option value="Cartilla militar">CARTILLA MILITAR</option>
+                                        <option value="Documento migratorio">DOCUMENTO MIGRATORIO</option>
+                                        <option value="Constancia de identidad">CONSTANCIA DE IDENTIDAD / ACTA DE NACIONALIDAD</option>
+                                        <option value="Otro">OTROS</option>
+                                    </select>
+                                    <div class="invalid-feedback">El tipo de identificación es obligatorio.</div>
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-md-4">
+                                <div class="form-group">
+                                    <label for="num_identificacion" class="form-label">
+                                        Número de Identificación / Clave <span class="text-required">(*)</span> 
+                                        <i class="bi bi-question-circle-fill text-primary ms-1" style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#helpModal" title="¿Dónde encontrar este número?"></i>
+                                    </label>
+                                    <input type="text" name="num_identificacion" id="num_identificacion" maxlength="50" class="form-control" value="{{ old('num_identificacion') }}" required>
+                                    <div class="invalid-feedback">El número de identificación es obligatorio.</div>
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-md-4">
+                                <div class="form-group">
+                                    <label for="documentoIdentificacion" class="form-label">Subir Documento (PDF, máx. 5MB) <span class="text-required">(*)</span></label>
+                                    <input type="file" id="documentoIdentificacion" name="documentoIdentificacion" class="form-control" accept=".pdf" required>
+                                    <div class="invalid-feedback">El archivo en formato PDF es obligatorio.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Botón Guardar -->
+                        <div class="d-flex justify-content-end align-items-center gap-3 mt-4 pt-3 border-top">
+                            <a href="{{ route('publico') }}" class="btn btn-secondary px-4">Cancelar</a>
+                            <button type="submit" class="btn btn-dorado">
+                                Guardar y Continuar <i class="bi bi-arrow-right-circle-fill ms-1"></i>
+                            </button>
+                        </div>
+                    </form>
+
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- MODALES DE AYUDA -->
+    <div class="modal fade" id="helpModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold" id="helpModalLabel"><i class="bi bi-card-heading me-2"></i>Ubicación de Número de Identificación</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <img src="{{ asset('public/assets/images/capturaIne.png') }}" alt="Guía Identificación" class="img-fluid rounded border">
                 </div>
             </div>
-        </section>
+        </div>
     </div>
+
+    <!-- Bootstrap 5 JS Bundle & SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <!-- LÓGICA JAVASCRIPT REFACTORIZADA -->
     <script>
-        document.getElementById("tipoPersona_razon").style.display="none";
-        
-        function cambiaExcepcion(elemento){
-            // Intencionalmente no mostramos los campos adicionales cuando se selecciona 'Si'
-            // El flujo requiere solo seleccionar Si o No; los campos extras permanecen ocultos.
-            var el = document.getElementById("tipoPersona_razon");
-            if(el) el.style.display = "none";
-        }
-
-        // Casos de excepción "Oculta el campo que resultado obtuvo al solicitar apoyo, cuando se elige la opción no"
-        document.addEventListener('DOMContentLoaded', function () {
-            const selectApoyo = document.getElementById('solicito_apoyo');
-            const resultadoContainer = document.getElementById('resultado_container');
-            const resultadoField = document.getElementById('continuacion_solicto_apoyo');
-
-            resultadoContainer.style.display = 'none';
-            selectApoyo.addEventListener('change', function () {
-                if (this.value === 'Si') {
-                    resultadoContainer.style.display = 'block';
-                    resultadoField.setAttribute('required', 'required');
-                } else {
-                    resultadoContainer.style.display = 'none';
-                    resultadoField.value = '';
-                    resultadoField.removeAttribute('required');
-                }
-            });
-
-        });
-
-        // Función genérica para convertir todo el texto a mayúsculas
-        function convertirAMayusculas() {
-            const elementos = document.querySelectorAll('input[type="text"], textarea');
-
-            elementos.forEach(elemento => {
-                elemento.addEventListener('input', function() {
+        // Convertir automáticamente inputs a mayúsculas
+        document.addEventListener('DOMContentLoaded', () => {
+            const inputsText = document.querySelectorAll('input[type="text"], textarea');
+            inputsText.forEach(el => {
+                el.addEventListener('input', function() {
                     this.value = this.value.toUpperCase();
                 });
-                if (elemento.value) {
-                    elemento.value = elemento.value.toUpperCase();
-                }
             });
-        }
 
-        // Ejecutar la función cuando el DOM esté completamente cargado
-        document.addEventListener('DOMContentLoaded', (event) => {
-            convertirAMayusculas();
-            (function () {
-                'use strict'
-                var forms = document.querySelectorAll('.needs-validation')
-                Array.prototype.slice.call(forms)
-                    .forEach(function (form) {
-                        form.addEventListener('submit', function (event) {
-                            if (!form.checkValidity()) {
-                                event.preventDefault()
-                                event.stopPropagation()
-                            }
-                            form.classList.add('was-validated')
-                        }, false)
-                    })
-            })()
-        });
-    </script>
-</body>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+            // Toggle para traductores y discapacidad
+            const checkLenguaje = document.getElementById('check_lenguaje');
+            const boxLenguaje = document.getElementById('lenguaje_señas');
+            const inputLenguaje = document.getElementById('lenguajeRequerido');
 
-    <div id="crear_poder" style ="display: none;">
-        <div>.</div>
-        <div class="loader"></div>
-    </div>
-
-    @section('scripts')
-        <script src="{{ asset('assets/js/poderes/general.js') }}"></script>
-    @endsection
-
-    <script src="{{ asset('assets/js/jquery.min.js') }}"></script>
-    <script src="{{ asset('assets/js/popper.min.js') }}"></script>
-    <script src="{{ asset('assets/js/bootstrap.min.js') }}"></script>
-    <script src="{{ asset('assets/js/sweetalert.min.js') }}"></script>
-    <script src="{{ asset('assets/js/select2.min.js') }}"></script>
-    <script src="{{ asset('assets/js/jquery.nicescroll.js') }}"></script>
-    <script src="{{ asset('assets/js/moment.js') }}"></script>
-
-    <!-- Template JS File -->
-    <script src="{{ asset('assets/js/stisla.js') }}"></script>
-    <script src="{{ asset('assets/js/scripts.js') }}"></script>
-    <script src="{{ asset('assets/js/profile.js') }}"></script>
-    <script src="{{ asset('assets/js/custom.js') }}"></script>
-
-    <script src="https://cdn.datatables.net/2.1.5/js/dataTables.js"></script>
-    <script src="https://cdn.datatables.net/2.1.5/js/dataTables.bootstrap4.js"></script>
-    @yield('page_js')
-
-
-    @yield('scripts')
-    <script src="{{ asset('assets/js/validaciones.js') }}"></script> 
-    <script> 
-        function sedes(){
-            document.getElementById("fecha").removeAttribute("disabled");
-        }
-        function diaSemana() {
-            var dia_semana  = document.getElementById("fecha").value;
-            var sede        = document.getElementById("sede").value;
-
-            $.get('api/obtenerHorario/'+dia_semana+'/'+sede, function (data){
-                var html_select = '<option value="">--Seleccione un horario --</option>';  
-                for(var i=0; i<data.length; ++i)
-                    html_select += '<option value= "'+data[i].hora+'">'+data[i].hora+'</option>';
-                    $('#horarios').html(html_select);
-
-            });
-        }
-        //Fechas inicio y fin
-        document.addEventListener("DOMContentLoaded", function () {
-            const inicio = document.querySelector('input[name="fecha_ingreso"]');
-            const termino = document.querySelector('input[name="fecha_salida"]');
-
-            // Función para obtener hoy en formato 'YYYY-MM-DD'
-            function obtenerFechaHoyFormato() {
-                const hoy = new Date();
-                const año = hoy.getFullYear();
-                const mes = String(hoy.getMonth() + 1).padStart(2, '0');
-                const dia = String(hoy.getDate()).padStart(2, '0');
-                return `${año}-${mes}-${dia}`;
-            }
-            function esFechaValida(fechaStr) {
-                return /^\d{4}-\d{2}-\d{2}$/.test(fechaStr) && !isNaN(new Date(fechaStr).getTime());
-            }
-            function validarFechas() {
-                const fechaHoyStr = obtenerFechaHoyFormato();
-                const fechaHoy = new Date(fechaHoyStr);
-                const fechaInicioStr = inicio.value;
-                const fechaTerminoStr = termino.value;
-
-                if (!esFechaValida(fechaInicioStr) && fechaInicioStr !== "") return;
-                if (!esFechaValida(fechaTerminoStr) && fechaTerminoStr !== "") return;
-
-                const fechaInicio = new Date(fechaInicioStr);
-                const fechaTermino = new Date(fechaTerminoStr);
-                // Validar que fecha inicio no sea la fecha de hoy
-                if (fechaInicioStr === fechaHoyStr) {
-                    swal("Error", "La fecha de ingreso no puede ser la fecha actual.", "error");
-                    inicio.value = "";
-                    return;
-                }
-
-                if (fechaInicio > fechaHoy) {
-                    swal("Error", "La fecha de ingreso no puede ser mayor a la fecha actual.", "error");
-                    inicio.value = "";
-                    return;
-                }
-
-                if (fechaTerminoStr && fechaTermino > fechaHoy) {
-                    swal("Error", "La fecha de término no puede ser mayor a la fecha actual.", "error");
-                    termino.value = "";
-                    return;
-                }
-
-                if (fechaInicioStr && fechaTerminoStr && fechaInicio > fechaTermino) {
-                    swal("Error", "La fecha de ingreso no puede ser mayor que la fecha de término.", "error");
-                    termino.value = "";
-                    return;
-                }
-            }
-
-            inicio.addEventListener("blur", validarFechas);
-            termino.addEventListener("blur", validarFechas);
-
-            const form = document.querySelector('form#form-solicitante');
-
-            function getFeedback(input) {
-                const group = input.closest('.form-group');
-                if (!group) return null;
-                return group.querySelector('.invalid-feedback');
-            }
-
-            function markInvalid(input, message) {
-                const fb = getFeedback(input);
-                if (fb) {
-                    fb.textContent = message || fb.textContent || 'Campo obligatorio';
-                    fb.style.display = 'block';
-                }
-                input.classList.add('is-invalid');
-                input.classList.remove('is-valid');
-            }
-
-            function markValid(input) {
-                const fb = getFeedback(input);
-                if (fb) {
-                    fb.style.display = 'none';
-                }
-                input.classList.remove('is-invalid');
-                input.classList.add('is-valid');
-            }
-
-            function requiredFilled(input) {
-                return input && input.value && input.value.trim() !== '';
-            }
-
-            function validateEmail(input) {
-                const val = input.value.trim();
-                if (!val) return false;
-                const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                return re.test(val);
-            }
-
-            function validateCurp(input) {
-                const val = input.value.trim();
-                return val.length === 18;
-            }
-
-            function validateCP(input) {
-                const val = input.value.trim();
-                return val.length === 5 && /^\d{5}$/.test(val);
-            }
-
-            function validateTelefono(input) {
-                const val = input.value.trim();
-                return val.length === 10 && /^\d{10}$/.test(val);
-            }
-
-            form.addEventListener('submit', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                let ok = true;
-                let firstInvalid = null;
-
-                function checkAndMark(input, validator, message) {
-                    if (!validator(input)) {
-                        ok = false;
-                        markInvalid(input, message);
-                        if (!firstInvalid) firstInvalid = input;
-                    } else {
-                        markValid(input);
-                    }
-                }
-
-                const curp = form.querySelector('input[name="curp"]');
-                checkAndMark(curp, validateCurp, 'La CURP debe tener 18 caracteres.');
-
-                const nombre = form.querySelector('input[name="nombre"]');
-                checkAndMark(nombre, requiredFilled);
-
-                const fechaN = form.querySelector('input[name="fecha_nacimiento"]');
-                checkAndMark(fechaN, requiredFilled);
-
-                const edad = form.querySelector('input[name="edad"]');
-                checkAndMark(edad, requiredFilled);
-
-                const genero = form.querySelector('select[name="genero"]');
-                checkAndMark(genero, requiredFilled);
-
-                const nacionalidad = form.querySelector('select[name="nacionalidad"]');
-                checkAndMark(nacionalidad, requiredFilled);
-
-                const estadoN = form.querySelector('select[name="estado_nacimiento"]');
-                checkAndMark(estadoN, requiredFilled);
-
-                const telefono1 = form.querySelector('input[name="telefono1"]');
-                checkAndMark(telefono1, validateTelefono, 'El teléfono debe tener exactamente 10 dígitos.');
-
-                const correo = form.querySelector('input[name="correo"]');
-                checkAndMark(correo, validateEmail, 'Debe ingresar un correo válido.');
-
-                const estadoDom = form.querySelector('select[name="estado_solicitante"]');
-                checkAndMark(estadoDom, requiredFilled);
-
-                const municipio = form.querySelector('select[name="municipio_solicitante"]');
-                checkAndMark(municipio, requiredFilled);
-
-                const vialidad = form.querySelector('select[name="vialidad"]');
-                checkAndMark(vialidad, requiredFilled);
-
-                const calle = form.querySelector('input[name="vialidad_calle"]');
-                checkAndMark(calle, requiredFilled);
-
-                const numExt = form.querySelector('input[name="numExt"]');
-                checkAndMark(numExt, requiredFilled);
-
-                const colonia = form.querySelector('input[name="colonia_solicitante"]');
-                checkAndMark(colonia, requiredFilled);
-
-                const cp = form.querySelector('input[name="cp"]');
-                checkAndMark(cp, validateCP, 'El código postal debe tener 5 dígitos.');
-
-                const puesto = form.querySelector('input[name="puesto"]');
-                checkAndMark(puesto, requiredFilled);
-
-                const periodoPago = form.querySelector('select[name="periodo_pago"]');
-                checkAndMark(periodoPago, requiredFilled);
-
-                const pago = form.querySelector('input[name="pago"]');
-                checkAndMark(pago, requiredFilled);
-
-                const horas = form.querySelector('input[name="horas"]');
-                checkAndMark(horas, requiredFilled);
-
-                const fechaIngreso = form.querySelector('input[name="fecha_ingreso"]');
-                checkAndMark(fechaIngreso, requiredFilled);
-
-                const jornada = form.querySelector('input[name="jornada"]');
-                checkAndMark(jornada, requiredFilled);
-
-                const identificacion = form.querySelector('select[name="identificacion"]');
-                checkAndMark(identificacion, requiredFilled);
-
-                const numIdent = form.querySelector('input[name="num_identificacion"]');
-                checkAndMark(numIdent, requiredFilled);
-
-                const docIdent = form.querySelector('input[name="documentoIdentificacion"]');
-                if (!docIdent || !docIdent.files || docIdent.files.length === 0) {
-                    ok = false;
-                    markInvalid(docIdent, 'La Identificación es obligatoria.');
-                    if (!firstInvalid) firstInvalid = docIdent;
+            checkLenguaje.addEventListener('change', function() {
+                if(this.checked) {
+                    boxLenguaje.style.display = 'block';
+                    inputLenguaje.setAttribute('required', 'required');
                 } else {
-                    markValid(docIdent);
-                }
-
-                const descripcion = form.querySelector('textarea[name="descripcionSolicitud"]');
-                checkAndMark(descripcion, requiredFilled);
-
-                // const excepcion = form.querySelector('select[name="excepcion"]');
-                // checkAndMark(excepcion, requiredFilled);
-
-                // Nota: no validamos ni mostramos campos adicionales de excepción.
-                // El requisito actual es únicamente seleccionar Si o No en el campo 'excepcion'.
-
-                const solicitoApoyo = form.querySelector('select[name="solicito_apoyo"]');
-                const requiereApoyo = solicitoApoyo && solicitoApoyo.value === 'Si';
-                if (requiereApoyo) {
-                    const incidencia = form.querySelector('textarea[name="incidencia_directa"]');
-                    checkAndMark(incidencia, requiredFilled);
-                }
-
-                const checkLanguage = document.getElementById('check_lenguaje');
-                const lenguajeInput = document.getElementById('lenguajeRequerido');
-                if (checkLanguage && checkLanguage.checked) {
-                    checkAndMark(lenguajeInput, requiredFilled);
-                } else if (lenguajeInput) {
-                    markValid(lenguajeInput);
-                }
-
-                const checkDisability = document.getElementById('check_discapacidad');
-                const discapacidadInput = document.getElementById('discapacidadRequerida');
-                if (checkDisability && checkDisability.checked) {
-                    checkAndMark(discapacidadInput, requiredFilled);
-                } else if (discapacidadInput) {
-                    markValid(discapacidadInput);
-                }
-
-                if (!ok) {
-                    if (firstInvalid) {
-                        firstInvalid.focus();
-                        firstInvalid.scrollIntoView({behavior: 'smooth', block: 'center'});
-                    }
-                } else {
-                    $('#crear_poder').show();
-                    form.submit();
+                    boxLenguaje.style.display = 'none';
+                    inputLenguaje.removeAttribute('required');
+                    inputLenguaje.value = '';
                 }
             });
-        });
-    </script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            function cargarMunicipiosSolicitante(estadoId) {
-                var $municipio = $('#municipio_solicitante');
-                if (!$municipio.length) return;
-                $municipio.html('<option value="">Cargando...</option>');
-                if (!estadoId) {
-                    $municipio.html('<option value="">Seleccione</option>');
-                    return;
+
+            const checkDiscapacidad = document.getElementById('check_discapacidad');
+            const boxDiscapacidad = document.getElementById('discapacidad_container');
+            const inputDiscapacidad = document.getElementById('discapacidadRequerida');
+
+            checkDiscapacidad.addEventListener('change', function() {
+                if(this.checked) {
+                    boxDiscapacidad.style.display = 'block';
+                    inputDiscapacidad.setAttribute('required', 'required');
+                } else {
+                    boxDiscapacidad.style.display = 'none';
+                    inputDiscapacidad.removeAttribute('required');
+                    inputDiscapacidad.value = '';
                 }
-                $.get(base_url + '/api/munSolicitante/' + estadoId, function (data) {
-                    var html = '<option value="">Seleccione</option>';
-                    data.forEach(function (m) {
-                        html += '<option value="' + m.id + '">' + m.nombre + '</option>';
-                    });
-                    $municipio.html(html);
-                }).fail(function (jqXHR, textStatus, errorThrown) {
-                    $.get(base_url + '/munSolicitante/' + estadoId, function (data) {
-                        var html = '<option value="">Seleccione</option>';
-                        data.forEach(function (m) {
-                            html += '<option value="' + m.id + '">' + m.nombre + '</option>';
-                        });
-                        $municipio.html(html);
-                    }).fail(function (jq2, t2, e2) {
-                        $municipio.html('<option value="">Error cargando municipios</option>');
-                        if (typeof iziToast !== 'undefined') {
-                            iziToast.error({
-                                title: 'Error',
-                                message: 'No se pudieron cargar los municipios. HTTP: ' + (jqXHR.status || jq2.status || 'N/A') + ' - ' + (errorThrown || e2 || textStatus),
-                                position: 'topRight'
-                            });
-                        } else {
-                            alert('No se pudieron cargar los municipios.');
-                        }
-                    });
-                });
-            }
+            });
 
-            var $estadoSolicitante = $('#estado_solicitante');
-            var base_url = "{{ url('') }}";
+            // Toggle Solicitó Apoyo
+            const selectApoyo = document.getElementById('solicito_apoyo');
+            const containerResultado = document.getElementById('resultado_container');
+            const fieldResultado = document.getElementById('continuacion_solicto_apoyo');
 
-            if ($estadoSolicitante.length) {
-                $estadoSolicitante.on('change', function () {
-                    cargarMunicipiosSolicitante(this.value);
-                });
-                var inicial = $estadoSolicitante.val();
-                if (inicial) cargarMunicipiosSolicitante(inicial);
-            }
-        });
-    </script>
-    <script>
-        // Esperamos a que el DOM esté listo para evitar el error "Cannot read properties of null"
-        document.addEventListener('DOMContentLoaded', function() {
-            const inputDocumento = document.querySelector('input[name="documentoIdentificacion"]');
-            if (inputDocumento) {
-                inputDocumento.addEventListener('change', function(e) {
-                    // Accedemos al archivo cargado
+            selectApoyo.addEventListener('change', function() {
+                if (this.value === 'Si') {
+                    containerResultado.style.display = 'block';
+                    fieldResultado.setAttribute('required', 'required');
+                } else {
+                    containerResultado.style.display = 'none';
+                    fieldResultado.removeAttribute('required');
+                    fieldResultado.value = '';
+                }
+            });
+
+            // Validar tamaño máximo de PDF a 5MB
+            const docInput = document.getElementById('documentoIdentificacion');
+            if (docInput) {
+                docInput.addEventListener('change', function(e) {
                     const archivo = e.target.files[0];
-
                     if (archivo) {
-                        // Aquí puedes ejecutar tu validación de 10MB
-                        const limite = 5 * 1024 * 1024;
+                        const limite = 5 * 1024 * 1024; // 5 MB
                         if (archivo.size > limite) {
-                            alert("El archivo no puede pasar de 5 MB");
-                            this.value = ""; // Limpiar el input
+                            Swal.fire('Archivo muy pesado', 'El archivo PDF no puede exceder el límite de 5 MB.', 'warning');
+                            this.value = '';
                         }
                     }
                 });
             }
-        });
-    </script>
 
-    <script>
-        function validarfechaNacimiento(){
-            var fechaNacimiento = document.getElementById("fecha_nacimiento").value;
-            if(!fechaNacimiento){
-                $('#años_edad').val('');
+            // Carga de Municipios dinámica por Estado
+            const estadoSelect = document.getElementById('estado_solicitante');
+            const municipioSelect = document.getElementById('municipio_solicitante');
+            const baseUrl = "{{ url('') }}";
+
+            if (estadoSelect && municipioSelect) {
+                estadoSelect.addEventListener('change', function() {
+                    const estadoId = this.value;
+                    if (!estadoId) {
+                        municipioSelect.innerHTML = '<option value="">SELECCIONE...</option>';
+                        return;
+                    }
+                    municipioSelect.innerHTML = '<option value="">Cargando...</option>';
+
+                    $.get(baseUrl + '/api/munSolicitante/' + estadoId, function(data) {
+                        let options = '<option value="">SELECCIONE...</option>';
+                        data.forEach(m => {
+                            options += `<option value="${m.id}">${m.nombre}</option>`;
+                        });
+                        municipioSelect.innerHTML = options;
+                    }).fail(function() {
+                        municipioSelect.innerHTML = '<option value="">Error al cargar municipios</option>';
+                    });
+                });
+            }
+        });
+
+        // Función para calcular la edad automáticamente según la Fecha de Nacimiento
+        function validarfechaNacimiento() {
+            const fechaNacStr = document.getElementById("fecha_nacimiento").value;
+            const campoEdad = document.getElementById("años_edad");
+
+            if (!fechaNacStr) {
+                campoEdad.value = '';
                 return;
             }
 
-            var hoy = new Date();
-            var nac = new Date(fechaNacimiento + 'T00:00:00');
-            var anios = hoy.getFullYear() - nac.getFullYear();
-            var m = hoy.getMonth() - nac.getMonth();
+            const hoy = new Date();
+            const nac = new Date(fechaNacStr + 'T00:00:00');
+            let edad = hoy.getFullYear() - nac.getFullYear();
+            const m = hoy.getMonth() - nac.getMonth();
+
             if (m < 0 || (m === 0 && hoy.getDate() < nac.getDate())) {
-                anios--;
+                edad--;
             }
-            
-            //document.getElementById("documentacionAdulto").style.display = "none";
-            //document.getElementById("documentacionMenor").style.display = "none";
-        
-            //document.getElementById("años_edad").value = edad;
-            //Si la fecha de nacimiento es menos a 15 años
-            if(anios <= 15) {
-            alert("Requieres tener al menos 15 años de edad. Debes presentarte con tu tutor legal.");
+
+            campoEdad.value = edad;
+
+            if (edad < 15) {
+                Swal.fire('Atención', 'Debes tener al menos 15 años cumplidos para iniciar la solicitud.', 'info');
+            } else if (edad >= 15 && edad < 18) {
+                Swal.fire('Aviso', 'Por ser menor de edad, deberás presentarte acompañado de tu padre, madre o tutor legal.', 'info');
             }
-            if(anios > 15 && anios < 18){
-            alert("Debes presentarte con tu tutor legal.");
-            //document.getElementById("documentacionMenor").style.display = "block";
-            }
-            else{
-            //document.getElementById("documentacionAdulto").style.display = "block";
-            }
-            $('#años_edad').val(anios);
         }
+
+        // Interceptación y validación del formulario
+        (function() {
+            'use strict';
+            const form = document.getElementById('form-solicitante');
+
+            form.addEventListener('submit', function(event) {
+                if (!form.checkValidity()) {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    // Hacer scroll hacia el primer campo no válido
+                    const invalidInput = form.querySelector(':invalid');
+                    if (invalidInput) {
+                        invalidInput.focus();
+                        invalidInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                } else {
+                    document.getElementById('crear_poder').style.display = 'block';
+                }
+
+                form.classList.add('was-validated');
+            }, false);
+        })();
     </script>
+</body>
+</html>

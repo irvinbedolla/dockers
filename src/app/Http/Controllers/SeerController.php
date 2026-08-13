@@ -3586,34 +3586,6 @@ class SeerController extends Controller
     }
     //Fin registro para solicitudes
     
-    //Solicitud en línea trabajador
-    public function trabajador($tipo_solicitud){  
-        if ($tipo_solicitud == "1") {
-            $mostrarMotivos = SolicitudMotivo::where('catalogo_motivos.tipo_solicitud', '1') ->get();
-        }
-        elseif ($tipo_solicitud == "2") {
-            $mostrarMotivos = SolicitudMotivo::where('catalogo_motivos.tipo_solicitud', '2') ->get();
-        }
-        elseif ($tipo_solicitud == "3") {
-            $mostrarMotivos = SolicitudMotivo::where('catalogo_motivos.tipo_solicitud', '3') ->get();
-        }
-        elseif ($tipo_solicitud == "4") {
-            $mostrarMotivos = SolicitudMotivo::where('catalogo_motivos.tipo_solicitud', '4') ->get();
-        }
-        $ramas = SolicitudRama::all();
-       // $actividad=SolicitudEconomica::all();
-        $del=Sedes::all();
-        $municipios=Municipios::where('estado',16)->get();
-       /* if($tipo_solicitud[0] == "1"){
-            //$personas = null;
-            $motivos = SolicitudMotivo::where('catalogo_motivos.tipo_solicitud', '1')
-            ->select('catalogo_motivos.motivo','seer_general.NUE','seer_general.solicitante','seer_citados.nombre','seer_citados.direccion','seer_citados.estatus')
-            ->get();
-        }*/
-        $draftId = request('draft_id') ?? (string) Str::uuid();
-        return view('solicitudes.solicitud_trabajador', compact('ramas','del','municipios','tipo_solicitud','mostrarMotivos','draftId'));
-    }
-
     //Solicitud en línea para los Centros de Conciliación
     public function trabajadorCentro($tipo_solicitud){
           
@@ -3645,99 +3617,6 @@ class SeerController extends Controller
     /* public function obtenerActEconomica($id){
         return SolicitudEconomica::where('id_rama', $id)->get();
     }*/
-
-    public function solicitud_parte1(Request $request){
-        $data = $request->all();
-
-        // Cada pestaña/proceso debe traer su propio draft_id desde el primer POST.
-        // Si no viene, generamos uno y lo usamos para este flujo.
-        $draftId = $data['draft_id'] ?? (string) Str::uuid();
-        /*
-        if($data["delegacion"] == "Lázaro Cárdenas"){
-            $data["delegacion"] = "Uruapan";
-        }
-        if($data["delegacion"] == "Zitácuaro"){
-            $data["delegacion"] = "Morelia";
-        }
-        if($data["delegacion"] == "Sahuayo"){
-            $data["delegacion"] = "Zamora";
-        }
-        */
-        //validando información
-        
-        $request->validate([
-            'ramaIndustrial'      => 'required',
-            'actividad_economica' => 'required',
-            'motivo_solicitud'    => 'required',
-
-        ]);
-        
-        $año_actual = date('Y');
-        $numero_consecutivo = 0;
-        $consecutivo  = SeerPerGeneral::latest('consecutivo')
-        ->where('delegacion',$data["delegacion"])
-        ->where('año',$año_actual)->
-        first();
-
-        if(empty($consecutivo)){
-            $numero_consecutivo = 1;
-        }
-        else{
-            $numero_consecutivo = $consecutivo["consecutivo"];
-            $numero_consecutivo++;
-        }
-
-        $data_insert=array(
-            'id_rama'         =>  $data["ramaIndustrial"],
-            'actividad'       =>  $data["actividad_economica"],
-            'delegacion'      =>  $data["delegacion"],
-            'tipo_solicitud'  =>  $data["tipo_solicitud"],
-            'tipo_generacion' => 0,
-            'consecutivo'    => $numero_consecutivo,    
-            'año'            => $año_actual,
-        );
-       
-        /*SeerPerGeneral::create($data_insert); 
-        $id_general  = SeerPerGeneral::latest('id')->first();
-        $id=$id_general["id"];
-        $tipo_generacion=$id_general->tipo_generacion;
-
-        if (!empty($data["motivo_solicitud"])) {
-            foreach ($data["motivo_solicitud"] as $motivoId) {
-                SeerMotivo::create([
-                    'id_solicitud'    => $id_general["id"],
-                    'id_motivo'       => $motivoId,
-                    
-                ]);
-            }
-        }*/
-
-        // Guardar en sesión
-        $solicitud_data = array(
-            'id_rama'         =>  $data["ramaIndustrial"],
-            'actividad'       =>  $data["actividad_economica"],
-            'delegacion'      =>  $data["delegacion"],
-            'tipo_solicitud'  =>  $data["tipo_solicitud"],
-            'tipo_generacion' => 0,
-            'consecutivo'     => $numero_consecutivo,
-            'año'             => $año_actual,
-            'motivo_solicitud' => $data["motivo_solicitud"] ?? []
-        );
-       
-    session([$this->draftSessionKey('solicitud_data', $draftId) => $solicitud_data]);
-    // Nota: no limpiamos solicitante/citados globales porque rompería otras pestañas.
-
-        $id = 'session';
-
-        $estados = Estados::all();
-        $municipios = Municipios::all();
-
-        /*if($tipo_generacion != 0){
-            return view('solicitudes.auxiliares.solicitanteAux', compact('estados','municipios','id'));
-        }*/
-    return view('solicitudes.solicitante', compact('estados','municipios','id', 'draftId'));
-        //return redirect()->route('parte2.ver', ['id' => $id]);
-    }
 
     public function solicitud_parte1Centro(Request $request){
         $data = $request->all();
@@ -4117,241 +3996,6 @@ class SeerController extends Controller
         return redirect()->route('agregar_citadoCentro', ['id' => $id] ); 
     }
     
-    public function solicitud_parte2(Request $request){
-        $data = $request->all();
-        $id = $data['id'];
-
-        // DraftId por pestaña/proceso (debe venir como hidden input en los forms)
-        $draftId = $data['draft_id'] ?? $this->resolveSolicitudDraftId(null);
-
-        //validando información
-       /*$request->validate([
-            //'tipo'                      => 'required|in:Fisica,Moral',
-            'curp'                      => 'required|min:18|max:18',
-            'nombre'                    => 'required',
-            'fecha_nacimiento'          => 'required|date',
-            'edad'                      => 'required|numeric',
-            'genero'                    => 'required|in:H,M,NC',
-            'nacionalidad'              => 'required|in:Mexicana,Otra',
-            'estado_nacimiento'         => 'required',
-            'telefono1'                 => 'required|min:10|max:10',
-            'correo'                    => 'required',
-            'estado_solicitante'        => 'required',
-            'vialidad'                  => 'required',
-            'vialidad_calle'            => 'required',
-            'numExt'                    => 'required',
-            'colonia_solicitante'       => 'required',
-            'municipio_solicitante'     => 'required',
-            'cp'                        => 'required|numeric',
-            //'referencias'               => 'required|string|max:300',
-            //'calle1'                    => 'required',
-            //'calle2'                    => 'required',
-            'puesto'                    => 'required', 
-            'periodo_pago'              => 'required',
-            'pago'                      => 'required',
-            'horas'                     => 'required',
-            'fecha_ingreso'             => 'required',
-            'jornada'                   => 'required',
-            'identificacion'            => 'required',
-            //'documentoCurp'             => 'required',
-            'documentoIdentificacion'   => 'required',
-            'num_identificacion'        => 'required',
-            'descripcionSolicitud'      => 'required',
-            'excepcion'                 => 'required',
-            'frecuencia_hechos' => 'required_if:excepcion,Si',
-            'cambios_situacionL' => 'required_if:excepcion,Si',
-            'comunico_hechos' => 'required_if:excepcion,Si',
-            'descripcion_conducta' => 'required_if:excepcion,Si',
-            'responsable_cargo' => 'required_if:excepcion,Si',
-            'actos_cometidos' => 'required_if:excepcion,Si',
-            'momento_hechos' => 'required_if:excepcion,Si',
-            'lugar_hechos' => 'required_if:excepcion,Si',
-            'constancia_hechos' => 'required_if:excepcion,Si',
-            'solicito_apoyo' => 'required_if:excepcion,Si',
-            'continuacion_solicto_apoyo' => 'required_if:excepcion,Si',
-            'incidencia_directa' => 'required_if:solicito_apoyo,Si',
-            'recibio_atencion' => 'required_if:excepcion,Si',
-        ]);*/
-        
-        $data_insert=array(
-            'id_solicitud'         => $data["id"],
-            /*'tipo_persona'         => $data["tipo"],*/
-            'curp'                 => $data["curp"],
-            'nombre'               => $data["nombre"],
-            'fecha_nacimiento'     => $data["fecha_nacimiento"],
-            'sexo'                 => $data["genero"],
-            'nacionalidad'         => $data["nacionalidad"],
-            'estado'               => $data["estado_nacimiento"],
-            'edad'                 => $data["edad"],
-            'telefono1'            => $data["telefono1"],
-            'email'                => $data["correo"],
-            'estado_domicilio'     => $data["estado_solicitante"],
-            'tipo_vialidad'        => $data["vialidad"],
-            'calle'                => $data["vialidad_calle"],
-            'num_ext'              => $data["numExt"],
-            'colonia'              => $data["colonia_solicitante"],
-            'municipio_domicilio'  => $data["municipio_solicitante"],
-            'codigo_postal'        => $data["cp"],
-            /*'referencia'           => $data["referencias"],
-            'calle2'               => $data["calle1"],
-            'calle3'               => $data["calle2"],*/
-            'puesto'               => $data["puesto"],
-            'pago'                 => $data["pago"],
-            'periodo_pago'         => $data["periodo_pago"],
-            'horas_semana'         => $data["horas"],
-            'fecha_ingreso'        => $data["fecha_ingreso"],
-            'jornada'              => $data["jornada"],
-            'identificacion'       => $data["identificacion"],
-            'num_identificacion'   => $data["num_identificacion"],
-            'descripcionSolicitud' => $data["descripcionSolicitud"],
-        ); 
-
-        if(isset($data["rfc"])){
-            $data_insert["rfc"] =  $data["rfc"];
-        }
-        if(isset($data["traductor"])){
-            $val = $data["traductor"];
-            $requires = ($val === 'Si' || $val === '1' || $val === 1 || $val === 'on' || $val === true);
-            $data_insert["traductor"] = $requires ? 1 : 0;
-            if (isset($data["lenguaje"])) {
-                if (is_array($data["lenguaje"])) {
-                    $data_insert["lenguaje"] = $data["lenguaje"][0] ?? null;
-                } else {
-                    $data_insert["lenguaje"] = $data["lenguaje"] ?? null;
-                }
-            } else {
-                $data_insert["lenguaje"] = null;
-            }
-        }
-        if(isset($data["numInt"])){
-            $data_insert["num_int"] =  $data["numInt"];
-        }
-        if(isset($data["discapacidad"])){
-            $data_insert["discapacidad"] =  "Si";
-            $data_insert["tipo_discapacidad"] =  $data["tipo_discapacidad"];
-        }
-        if(isset($data["labora"])){
-            $data_insert["labora"] =  "Si";
-            //$data_insert["fecha_salida"]  =  $data["fecha_salida"];
-        }
-        if(isset($data["telefono2"])){
-            $data_insert["telefono2"] =  $data["telefono2"];
-        }
-        if(isset($data["seguro"])){
-            $data_insert["nss"] =  $data["seguro"];
-        }
-        if(isset($data["fecha_salida"])){
-            $data_insert["fecha_salida"] =  $data["fecha_salida"];
-        }
-        if(isset($data["referencias"])){
-            $data_insert["referencia"] =  $data["referencias"];
-        }
-        if(isset($data["calle1"])){
-            $data_insert["calle2"] =  $data["calle1"];
-        }
-        if(isset($data["calle2"])){
-            $data_insert["calle3"] =  $data["calle2"];
-        } 
-        //CURP
-        $documento = $data["curp"]."_CURP.pdf";
-        /*$path = Storage::putFileAs(
-            'documentosSolicitud', $request->file('documentoCurp'), $documento
-        );*/
-        // Acta de nacimiento / Identificación
-        // Si el flujo es "session", guardamos temporalmente en documentosSolicitud/tmp/{sessionId}
-        // y lo movemos a documentosSolicitud/{new_id}/ en guardar_solicitud().
-    $destDir = ($id === 'session') ? $this->documentosSolicitudTmpDir($draftId) : 'documentosSolicitud';
-
-        if(isset($data["documentoIdentificacion"])){
-            $documentoidentificacion = $data["curp"]."_Identificacion.pdf";
-            Storage::putFileAs(
-                $destDir,
-                $request->file('documentoIdentificacion'),
-                $documentoidentificacion
-            );
-        }
-        else{
-            $documentoidentificacion = $data["curp"]."_Acta.pdf";
-            Storage::putFileAs(
-                $destDir,
-                $request->file('documentoActa'),
-                $documentoidentificacion
-            );
-        }
-
-        //$data_insert["documentoCurp"] = $documento;
-        $data_insert["documentoIdentificacion"] = $documentoidentificacion;
-       
-        /*SeerSolicitante::create($data_insert);
-        SeerPerGeneral::where('id', $id)
-        ->update([
-            'caso_excepcion' => $data["excepcion"]
-        ]);
-        
-        if ($data["excepcion"] === "Si") {
-            SeerCasosExcepcion::create([
-                'id_solicitud' => $id,
-                'frecuencia_hechos' => $data["frecuencia_hechos"] ?? null,
-                'cambios_situacionL' => $data["cambios_situacionL"] ?? null,
-                'comunico_hechos' => $data["comunico_hechos"] ?? null,
-                'descripcion_conducta' => $data["descripcion_conducta"] ?? null,
-                'responsable_cargo' => $data["responsable_cargo"] ?? null,
-                'actos_cometidos' => $data["actos_cometidos"] ?? null,
-                'momento_hechos' => $data["momento_hechos"] ?? null,
-                'lugar_hechos' => $data["lugar_hechos"] ?? null,
-                'constancia_hechos' => $data["constancia_hechos"] ?? null,
-                'solicito_apoyo' => $data["solicito_apoyo"] ?? null,
-                'continuacion_solicto_apoyo' => $data["continuacion_solicto_apoyo"] ?? null,
-                'incidencia_directa' => $data["incidencia_directa"] ?? null,
-                'recibio_atencion' => $data["recibio_atencion"] ?? null,
-            ]);
-        }*/
-
-        // Guardar en sesión
-    // Guardar por draft para permitir varias pestañas
-    session([$this->draftSessionKey('solicitante_data', $draftId) => $data_insert]);
-        
-    // Actualizar datos de solicitud en sesión con caso_excepcion (por draft)
-    $solicitudData = session($this->draftSessionKey('solicitud_data', $draftId), []);
-    $solicitudData['caso_excepcion'] = $data["excepcion"];
-    session([$this->draftSessionKey('solicitud_data', $draftId) => $solicitudData]);
-
-        // Guardar datos de excepción si aplica
-        if ($data["excepcion"] === "Si") {
-             $excepcionData = [
-                'frecuencia_hechos' => $data["frecuencia_hechos"] ?? null,
-                'cambios_situacionL' => $data["cambios_situacionL"] ?? null,
-                'comunico_hechos' => $data["comunico_hechos"] ?? null,
-                'descripcion_conducta' => $data["descripcion_conducta"] ?? null,
-                'responsable_cargo' => $data["responsable_cargo"] ?? null,
-                'actos_cometidos' => $data["actos_cometidos"] ?? null,
-                'momento_hechos' => $data["momento_hechos"] ?? null,
-                'lugar_hechos' => $data["lugar_hechos"] ?? null,
-                'constancia_hechos' => $data["constancia_hechos"] ?? null,
-                'solicito_apoyo' => $data["solicito_apoyo"] ?? null,
-                'continuacion_solicto_apoyo' => $data["continuacion_solicto_apoyo"] ?? null,
-                'incidencia_directa' => $data["incidencia_directa"] ?? null,
-                'recibio_atencion' => $data["recibio_atencion"] ?? null,
-            ];
-            session([$this->draftSessionKey('excepcion_data', $draftId) => $excepcionData]);
-        }
-
-       /* $id_general  = SeerPerGeneral::latest('id')->first();
-        $id=$id_general["id"];
-        $tipo_generacion=$id_general->tipo_generacion;
-        
-        //return view('solicitudes.aviso',compact('folio'));
-        if($tipo_generacion != 0){
-            return redirect()->route('agrega_citadoAux', ['id' => $id] );
-        }
-        //$estados=Estados::all();*/
-        if ($id === 'session') {
-            $url = route('agregar_citado', ['id' => $id]) . '?draft_id=' . urlencode((string) $draftId);
-            return redirect()->to($url);
-        }
-        return redirect()->route('agregar_citado', ['id' => $id] ); 
-    }
-
     public function guardar_citadoCentro(Request $request){
         $data = $request->all();
         //$imagen_domicilio1 = "Sin documento";
@@ -5630,15 +5274,6 @@ class SeerController extends Controller
 
             $mensaje = '';
         
-        return view('solicitudes.aviso',compact('id','mensaje','delegacion'));
-    }
-
-    public function aviso(Request $request){
-        $data = $request->all();
-        $id = $data["id"];
-        $mensaje = $data["mensaje"];
-        $delegacion = $data["delegacion"];
-
         return view('solicitudes.aviso',compact('id','mensaje','delegacion'));
     }
 
@@ -20203,5 +19838,454 @@ class SeerController extends Controller
             'inicialesConcluye' => mb_strtolower($iniciales, 'UTF-8'),
             'etiquetaIniciales' => $this->etiquetaDelegacionSeer($delegacion),
         ];
+    }
+
+    public function trabajador($tipo_solicitud){  
+        if ($tipo_solicitud == "1") {
+            $mostrarMotivos = SolicitudMotivo::where('catalogo_motivos.tipo_solicitud', '1') ->get();
+        }
+        elseif ($tipo_solicitud == "2") {
+            $mostrarMotivos = SolicitudMotivo::where('catalogo_motivos.tipo_solicitud', '2') ->get();
+        }
+        elseif ($tipo_solicitud == "3") {
+            $mostrarMotivos = SolicitudMotivo::where('catalogo_motivos.tipo_solicitud', '3') ->get();
+        }
+        elseif ($tipo_solicitud == "4") {
+            $mostrarMotivos = SolicitudMotivo::where('catalogo_motivos.tipo_solicitud', '4') ->get();
+        }
+        $ramas = SolicitudRama::all();
+        $del=Sedes::all();
+        $municipios=Municipios::where('estado',16)->get();
+        $draftId = request('draft_id') ?? (string) Str::uuid();
+        
+        return view('solicitudes.solicitud_trabajador', compact('ramas','del','municipios','tipo_solicitud','mostrarMotivos','draftId'));
+    }
+
+    public function solicitud_parte1(Request $request)
+    {
+        // 1. Validar la solicitud
+        $validatedData = $request->validate([
+            'dSolicitud'          => 'required',
+            'delegacion'          => 'required|string',
+            'ramaIndustrial'      => 'required',
+            'actividad_economica' => 'required|string|max:255',
+            'motivo_solicitud'    => 'required|array|min:1',
+            'tipo_solicitud'      => 'required',
+        ], [
+            'required' => 'El campo :attribute es obligatorio.',
+            'motivo_solicitud.min' => 'Debe agregar al menos un motivo a la solicitud.',
+        ], [
+            'dSolicitud'          => 'Municipio de la fuente de empleo',
+            'delegacion'          => 'Delegación asignada',
+            'ramaIndustrial'      => 'Rama industrial',
+            'actividad_economica' => 'Actividad económica',
+            'motivo_solicitud'    => 'Objeto de la solicitud',
+            'tipo_solicitud'      => 'Tipo de solicitud',
+        ]);
+
+        // 2. Draft ID único por pestaña/instancia
+        $draftId = $request->input('draft_id') ?? (string) Str::uuid();
+
+        // 3. Obtener el número consecutivo
+        $año_actual = date('Y');
+        
+        $consecutivo = SeerPerGeneral::where('delegacion', $validatedData['delegacion'])
+            ->where('año', $año_actual)
+            ->latest('consecutivo')
+            ->first();
+
+        $numero_consecutivo = $consecutivo ? ($consecutivo->consecutivo + 1) : 1;
+
+        // 4. Estructurar y guardar datos de la solicitud
+        $solicitud_data = [
+            'id_rama'          => $validatedData['ramaIndustrial'],
+            'actividad'        => $validatedData['actividad_economica'],
+            'delegacion'       => $validatedData['delegacion'],
+            'municipio_id'     => $validatedData['dSolicitud'],
+            'tipo_solicitud'   => $validatedData['tipo_solicitud'],
+            'tipo_generacion'  => 0,
+            'consecutivo'      => $numero_consecutivo,
+            'año'              => $año_actual,
+            'fecha'            => date('Y-m-d')
+        ];
+
+        // Guardar solicitud base en sesión
+        session([$this->draftSessionKey('solicitud_data', $draftId) => $solicitud_data]);
+
+        $motivos = [];
+        foreach ($validatedData['motivo_solicitud'] as $motivo) {
+            $motivos[] = [
+                'id_motivo' => $motivo, // O el nombre del campo que maneje tu tabla (ej: 'motivo', 'id_motivo', etc.)
+            ];
+        }
+
+        // Almacenar en la clave que espera la función aviso()
+        session([$this->draftSessionKey('motivos_data', $draftId) => $motivos]);
+        
+        $id = 'session';
+        $estados = Estados::all();
+        $municipios = Municipios::all();
+
+        return view('solicitudes.solicitante', compact('estados', 'municipios', 'id', 'draftId'));
+    }
+
+    public function solicitud_parte2(Request $request)
+    {
+        // 1. Validar toda la información recibida del formulario
+        $validatedData = $request->validate([
+            'id'                        => 'required',
+            'nombre'                    => 'required|string|max:150',
+            'curp'                      => 'required|string|size:18',
+            'fecha_nacimiento'          => 'required|date_format:Y-m-d|before_or_equal:today',
+            'edad'                      => 'required|numeric|min:15',
+            'genero'                    => 'required|in:H,M,NC',
+            'nacionalidad'              => 'required|in:Mexicana,Otra',
+            'estado_nacimiento'         => 'required',
+            'telefono1'                 => 'required|digits:10',
+            'correo'                    => 'required|email|max:60',
+            'vialidad'                  => 'required|string',
+            'vialidad_calle'            => 'required|string|max:100',
+            'numExt'                    => 'required|string|max:20',
+            'colonia_solicitante'      => 'required|string|max:80',
+            'estado_solicitante'       => 'required',
+            'municipio_solicitante'    => 'required',
+            'cp'                        => 'required|digits:5',
+            'puesto'                    => 'required|string|max:80',
+            'periodo_pago'              => 'required|string',
+            'pago'                      => 'required|numeric|min:0',
+            'horas'                     => 'required|integer|min:1|max:168',
+            'jornada'                   => 'required|string|max:200',
+            
+            // VALIDACIÓN DE FECHAS DE EMPLEO
+            'fecha_ingreso' => [
+                'required',
+                'date_format:Y-m-d',
+                'before_or_equal:today'
+            ],
+            'fecha_salida' => [
+                'nullable',
+                'required_if:labora,null', // Obligatoria si no está marcado "labora actualmente"
+                'date_format:Y-m-d',
+                'after_or_equal:fecha_ingreso',
+                'before_or_equal:today'
+            ],
+
+            'descripcionSolicitud'      => 'required|string',
+            'identificacion'            => 'required|string',
+            'num_identificacion'        => 'required|string|max:50',
+            'documentoIdentificacion'   => 'nullable|file|mimes:pdf|max:5120', // Máx 5MB
+            'documentoActa'             => 'nullable|file|mimes:pdf|max:5120',
+            'excepcion'                 => 'required|in:Si,No',
+
+            // Campos condicionales de excepción
+            'frecuencia_hechos'         => 'required_if:excepcion,Si',
+            'cambios_situacionL'        => 'required_if:excepcion,Si',
+            'comunico_hechos'           => 'required_if:excepcion,Si',
+            'descripcion_conducta'      => 'required_if:excepcion,Si',
+            'responsable_cargo'         => 'required_if:excepcion,Si',
+            'actos_cometidos'           => 'required_if:excepcion,Si',
+            'momento_hechos'            => 'required_if:excepcion,Si',
+            'lugar_hechos'              => 'required_if:excepcion,Si',
+            'constancia_hechos'         => 'required_if:excepcion,Si',
+            'solicito_apoyo'            => 'required_if:excepcion,Si',
+            'continuacion_solicto_apoyo'=> 'required_if:solicito_apoyo,Si',
+            'incidencia_directa'        => 'required_if:solicito_apoyo,Si',
+            'recibio_atencion'          => 'required_if:excepcion,Si',
+        ], [
+            'required'                       => 'El campo :attribute es obligatorio.',
+            'date_format'                    => 'El campo :attribute debe tener un formato de fecha válido (AAAA-MM-DD).',
+            'fecha_ingreso.before_or_equal' => 'La fecha de ingreso no puede ser posterior al día de hoy.',
+            'fecha_salida.after_or_equal'   => 'La fecha de salida no puede ser anterior a la fecha de ingreso.',
+            'fecha_salida.before_or_equal'  => 'La fecha de salida no puede ser posterior al día de hoy.',
+            'fecha_salida.required_if'       => 'La fecha de salida es obligatoria si no labora actualmente.',
+            'documentoIdentificacion.mimes' => 'La identificación debe ser un archivo en formato PDF.',
+            'documentoIdentificacion.max'   => 'El documento PDF no debe pesar más de 5MB.',
+        ], [
+            'fecha_ingreso'        => 'Fecha de ingreso',
+            'fecha_salida'         => 'Fecha de salida',
+            'fecha_nacimiento'     => 'Fecha de nacimiento',
+            'nombre'               => 'Nombre(s) y Apellidos',
+            'curp'                 => 'CURP',
+            'telefono1'            => 'Teléfono celular',
+            'correo'               => 'Correo electrónico',
+            'cp'                   => 'Código postal',
+            'puesto'               => 'Puesto',
+            'pago'                 => 'Salario',
+            'documentoIdentificacion' => 'Identificación oficial'
+        ]);
+
+        $data = $request->all();
+        $id = $data['id'];
+
+        // DraftId por pestaña/proceso
+        $draftId = $data['draft_id'] ?? $this->resolveSolicitudDraftId(null);
+
+        // 2. Mapear datos a guardar
+        $data_insert = [
+            'id_solicitud'         => $id,
+            'curp'                 => $data["curp"],
+            'nombre'               => $data["nombre"],
+            'fecha_nacimiento'     => $data["fecha_nacimiento"],
+            'sexo'                 => $data["genero"],
+            'nacionalidad'         => $data["nacionalidad"],
+            'estado'               => $data["estado_nacimiento"],
+            'edad'                 => $data["edad"],
+            'telefono1'            => $data["telefono1"],
+            'email'                => $data["correo"],
+            'estado_domicilio'     => $data["estado_solicitante"],
+            'tipo_vialidad'        => $data["vialidad"],
+            'calle'                => $data["vialidad_calle"],
+            'num_ext'              => $data["numExt"],
+            'colonia'              => $data["colonia_solicitante"],
+            'municipio_domicilio'  => $data["municipio_solicitante"],
+            'codigo_postal'        => $data["cp"],
+            'puesto'               => $data["puesto"],
+            'pago'                 => $data["pago"],
+            'periodo_pago'         => $data["periodo_pago"],
+            'horas_semana'         => $data["horas"],
+            'fecha_ingreso'        => $data["fecha_ingreso"],
+            'jornada'              => $data["jornada"],
+            'identificacion'       => $data["identificacion"],
+            'num_identificacion'   => $data["num_identificacion"],
+            'descripcionSolicitud' => $data["descripcionSolicitud"],
+        ];
+
+        // Datos opcionales
+        if (!empty($data["rfc"])) {
+            $data_insert["rfc"] = $data["rfc"];
+        }
+
+        if (isset($data["traductor"])) {
+            $val = $data["traductor"];
+            $requires = ($val === 'Si' || $val === '1' || $val === 1 || $val === 'on' || $val === true);
+            $data_insert["traductor"] = $requires ? 1 : 0;
+            $data_insert["lenguaje"]  = $requires ? ($data["lenguaje"] ?? null) : null;
+        }
+
+        if (!empty($data["numInt"])) {
+            $data_insert["num_int"] = $data["numInt"];
+        }
+
+        if (isset($data["discapacidad"])) {
+            $data_insert["discapacidad"]       = "Si";
+            $data_insert["tipo_discapacidad"]  = $data["tipo_discapacidad"] ?? null;
+        }
+
+        if (isset($data["labora"])) {
+            $data_insert["labora"] = "Si";
+        }
+
+        if (!empty($data["fecha_salida"])) {
+            $data_insert["fecha_salida"] = $data["fecha_salida"];
+        }
+
+        if (!empty($data["telefono2"])) {
+            $data_insert["telefono2"] = $data["telefono2"];
+        }
+
+        if (!empty($data["seguro"])) {
+            $data_insert["nss"] = $data["seguro"];
+        }
+
+        if (!empty($data["referencias"])) {
+            $data_insert["referencia"] = $data["referencias"];
+        }
+
+        if (!empty($data["calle1"])) {
+            $data_insert["calle2"] = $data["calle1"];
+        }
+
+        if (!empty($data["calle2"])) {
+            $data_insert["calle3"] = $data["calle2"];
+        }
+
+        // 3. Manejo y guardado de archivos PDF
+        $destDir = ($id === 'session') ? $this->documentosSolicitudTmpDir($draftId) : 'documentosSolicitud';
+
+        if ($request->hasFile('documentoIdentificacion')) {
+            $documentoidentificacion = $data["curp"] . "_Identificacion.pdf";
+            Storage::putFileAs(
+                $destDir,
+                $request->file('documentoIdentificacion'),
+                $documentoidentificacion
+            );
+            $data_insert["documentoIdentificacion"] = $documentoidentificacion;
+        } elseif ($request->hasFile('documentoActa')) {
+            $documentoidentificacion = $data["curp"] . "_Acta.pdf";
+            Storage::putFileAs(
+                $destDir,
+                $request->file('documentoActa'),
+                $documentoidentificacion
+            );
+            $data_insert["documentoIdentificacion"] = $documentoidentificacion;
+        }
+
+        // 4. Guardar datos en la sesión por draftId
+        session([$this->draftSessionKey('solicitante_data', $draftId) => $data_insert]);
+
+        // Actualizar caso_excepcion en la solicitud
+        $solicitudData = session($this->draftSessionKey('solicitud_data', $draftId), []);
+        $solicitudData['caso_excepcion'] = $data["excepcion"];
+        session([$this->draftSessionKey('solicitud_data', $draftId) => $solicitudData]);
+
+        // Datos de caso de excepción
+        if ($data["excepcion"] === "Si") {
+            $excepcionData = [
+                'frecuencia_hechos'         => $data["frecuencia_hechos"] ?? null,
+                'cambios_situacionL'        => $data["cambios_situacionL"] ?? null,
+                'comunico_hechos'           => $data["comunico_hechos"] ?? null,
+                'descripcion_conducta'      => $data["descripcion_conducta"] ?? null,
+                'responsable_cargo'         => $data["responsable_cargo"] ?? null,
+                'actos_cometidos'           => $data["actos_cometidos"] ?? null,
+                'momento_hechos'            => $data["momento_hechos"] ?? null,
+                'lugar_hechos'              => $data["lugar_hechos"] ?? null,
+                'constancia_hechos'         => $data["constancia_hechos"] ?? null,
+                'solicito_apoyo'            => $data["solicito_apoyo"] ?? null,
+                'continuacion_solicto_apoyo'=> $data["continuacion_solicto_apoyo"] ?? null,
+                'incidencia_directa'        => $data["incidencia_directa"] ?? null,
+                'recibio_atencion'          => $data["recibio_atencion"] ?? null,
+            ];
+            session([$this->draftSessionKey('excepcion_data', $draftId) => $excepcionData]);
+        }
+
+        // 5. Redireccionar al siguiente paso
+        if ($id === 'session') {
+            // Almacenar el draft_id en la sesión activa
+            session(['active_draft_id' => $draftId]);
+            
+            // Redirigir limpiamente sin query params
+            return redirect()->route('agregar_citado', ['id' => $id]);
+        }
+
+        return redirect()->route('agregar_citado', ['id' => $id]);
+    }
+
+    public function aviso(Request $request)
+    {
+        $data = $request->all();
+        $id = $data["id"] ?? null;
+        $draftId = $request->input('draft_id') ?? $data['draft_id'] ?? null;
+
+        // Si el proceso proviene del flujo de sesión ('session')
+        if ($id === 'session') {
+            
+            // Recuperar las claves de sesión usando la variable $draftId ya definida
+            $solicitudData   = session($this->draftSessionKey('solicitud_data', $draftId));
+            $solicitanteData = session($this->draftSessionKey('solicitante_data', $draftId));
+            $citadosData     = session($this->draftSessionKey('citados_data', $draftId), []);
+            $motivosData     = session($this->draftSessionKey('motivos_data', $draftId), []);
+
+
+            // 2. FALLBACK: Si no encuentra la solicitud con el draftId recibido, rastrea las claves activas en la sesión
+            if (!$solicitudData) {
+                foreach (session()->all() as $key => $value) {
+                    if (str_starts_with($key, 'solicitud_data_') && !empty($value)) {
+                        $solicitudData = $value;
+                        $draftIdReal = str_replace('solicitud_data_', '', $key);
+                        
+                        // Recuperar el resto de las colecciones asociadas a ese draftId real
+                        $solicitanteData = $solicitanteData ?: session("solicitante_data_{$draftIdReal}");
+                        if (empty($citadosData)) {
+                            $citadosData = session("citados_data_{$draftIdReal}", []);
+                        }
+                        if (empty($motivosData)) {
+                            $motivosData = session("motivos_data_{$draftIdReal}", []);
+                        }
+                        
+                        $draftId = $draftIdReal;
+                        break;
+                    }
+                }
+            }
+
+            // 3. Validar que la solicitud base exista
+            if (!$solicitudData) {
+                return redirect()->back()->withErrors(['msg' => 'No se encontraron datos activos de la solicitud en la sesión.']);
+            }
+
+            DB::beginTransaction();
+                try {
+                    // A) Insertar Solicitud Principal (seer_genera)
+                    $solicitud = SeerPerGeneral::create($solicitudData);
+                    $realId = $solicitud->id; // ID autoincrementable / Folio real
+
+                    // B) Insertar Solicitante (seer_solicitantes)
+                    if (!empty($solicitanteData)) {
+                        $solicitanteData['id_solicitud'] = $realId;
+                        SeerSolicitante::create($solicitanteData);
+                    }
+
+                    // C) Insertar lista de Citados (seer_citados)
+                    foreach ($citadosData as $citado) {
+                        $citado['id_solicitud'] = $realId;
+                        SeerCitados::create($citado);
+                    }
+
+                    // D) Insertar lista de Motivos/Conflicto (seer_motivos)
+                    foreach ($motivosData as $motivo) {
+                        if (is_array($motivo)) {
+                            $motivo['id_solicitud'] = $realId;
+                            SeerMotivo::create($motivo);
+                        } else {
+                            // Si el motivo proviene como un valor simple o descripción directa
+                            SeerMotivo::create([
+                                'id_solicitud' => $realId,
+                                'motivo'       => $motivo
+                            ]);
+                        }
+                    }
+
+                    // E) Mover archivos subidos desde la carpeta temporal tmp a la carpeta definitiva de la solicitud
+                    $tmpDir = $this->documentosSolicitudTmpDir($draftId);
+                    $finalDir = "documentosSolicitud/{$realId}";
+
+                    if (Storage::exists($tmpDir)) {
+                        $files = Storage::allFiles($tmpDir);
+                        foreach ($files as $file) {
+                            $filename = basename($file);
+                            Storage::move($file, "{$finalDir}/{$filename}");
+                        }
+                        Storage::deleteDirectory($tmpDir);
+                    }
+
+                    DB::commit();
+
+                    // F) Formatear respuesta y mensaje de buzón
+                    $id = $realId;
+                    $mensaje = "Usuario: " . ($solicitud->curp ?? $solicitud->rfc ?? '') . " / Clave: " . ($solicitud->clave_buzon ?? $solicitud->folio ?? '');
+                    $delegacionInput = $solicitud->delegacion ?? $data["delegacion"] ?? 'Morelia';
+
+                    // G) Limpieza completa de las claves de la sesión
+                    foreach (session()->all() as $key => $val) {
+                        if (str_contains($key, 'solicitud_data_') || 
+                            str_contains($key, 'solicitante_data_') || 
+                            str_contains($key, 'citados_data_') ||
+                            str_contains($key, 'motivos_data_')) {
+                            session()->forget($key);
+                        }
+                    }
+
+                } catch (\Exception $e) {
+                    DB::rollBack();
+                    Log::error("Error al guardar solicitud, citados y motivos en aviso: " . $e->getMessage());
+                    return redirect()->back()->withErrors(['msg' => 'Ocurrió un error al guardar la solicitud: ' . $e->getMessage()]);
+                }
+            } else {
+                $mensaje = $data["mensaje"] ?? '';
+                $delegacionInput = $data["delegacion"] ?? 'Morelia';
+            }
+
+            if (is_numeric($delegacionInput)) {
+                $delegacion = Delegaciones::find($delegacionInput);
+            } else {
+                $delegacion = $delegacionInput;
+            }
+        $folioMostrado = $solicitud->consecutivo ?? $realId;
+
+        return redirect()->route('solicitud.completada')->with([
+            'id'         => $folioMostrado,
+            'mensaje'    => $mensaje,
+            'delegacion' => $delegacion
+        ]);
     }
 }
