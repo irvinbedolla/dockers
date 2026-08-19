@@ -161,11 +161,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/notificaciones/editar',               [HomeController::class, 'contraseña_update'])->name('contraseña_update'); 
 
     // Calendario Compartido
-    Route::get('/calendario',                           [CalendarController::class, 'index'])->name('calendario.index');
-    Route::get('/citas/eventos',                        [CitaController::class, 'citas'])->name('citas.eventos');
-    Route::get('/pagos/eventos',                        [CitaController::class, 'pagos'])->name('pagos.eventos');
-    Route::get('/recepcion/eventos',                    [RecepcionController::class, 'eventosRolTurnos'])->name('recepcion.eventos');
-    Route::get('/obtenerBloqueosCalendario',            [AdministracionController::class, 'obtenerBloqueosCalendario'])->name('calendario.bloqueos');
+    Route::get('/calendario',                   [App\Http\Controllers\CalendarController::class, 'index'])->name('calendario.index');
+    Route::get('/citas/eventos',                [App\Http\Controllers\CitaController::class, 'citas'])->name('citas.eventos');
+    Route::get('/pagos/eventos',                [App\Http\Controllers\CitaController::class, 'pagos'])->name('pagos.eventos');
+    Route::get('/pagos/conciliadores',          [App\Http\Controllers\CitaController::class, 'conciliadores'])->name('conciliador.eventos');
+    Route::get('/audiencias/eventos',           [App\Http\Controllers\AudienciasController::class, 'audiencias'])->name('audiencias.eventos');
+    Route::get('/ratificaciones/eventos',       [App\Http\Controllers\AudienciasController::class, 'ratificaciones'])->name('ratificaciones.eventos');
+    Route::get('citas/exportar-excel',          [CitaController::class, 'exportarExcel']);
+    Route::get('/obtenerBloqueosCalendario',    [AdministracionController::class, 'obtenerBloqueosCalendario'])->name('calendario.bloqueos');
 
     /*
      |-- SUB-GRUPO DE CONTROL DE ACCESO: SUPER USUARIO / ADMINISTRADORES

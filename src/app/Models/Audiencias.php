@@ -41,4 +41,8 @@ class Audiencias extends Model
     public function poder() {
         return $this->belongsTo(Poder::class, 'poder_id', 'idAbogado');
     }
+    public function citado() {
+        return $this->hasOne(SeerCitados::class, 'id_solicitud', 'id_solicitud')
+                    ->oldest('id');
+    }
 }

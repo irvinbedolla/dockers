@@ -1,7 +1,7 @@
 <?php
 
 namespace App\Http\Controllers;
-
+use Carbon\Carbon;
 use App\Models\Cita;
 use App\Models\Pagos;
 use App\Models\Turnos;
@@ -19,11 +19,12 @@ class AudienciasController extends Controller
 
     public function audiencias(Request $request) {
         $sedeFiltro = $request->input('sede');
+        $fecha_inicio = Carbon::parse($request->input('start'))->format('Y-m-d');
+        $fecha_final = Carbon::parse($request->input('end'))->format('Y-m-d');
         $conciliadorFiltro = $request->input('conciliador');
         $user = auth()->user();
         $userID = Auth::user()->id;
         $userRole = Auth::user()->roles->pluck('name')->all();
-
         // 1. Mapeo de Sedes y Oficinas de Apoyo (Consistente con tus otros módulos)
         $mapaSedes = [
             'Morelia' => ['Morelia', 'Zitácuaro'],
@@ -35,10 +36,11 @@ class AudienciasController extends Controller
         $sedesAconsultar = $mapaSedes[$user->delegacion] ?? [$user->delegacion];
 
         // Iniciamos la consulta base
-        $query = Audiencias::join('seer_general','seer_general.id','audiencias.id_solicitud')
-        ->join('users','users.id','audiencias.id_conciliador')
-        ->join('seer_solicitante','seer_solicitante.id_solicitud','seer_general.id')
-        ->select('audiencias.*','seer_general.NUE','seer_solicitante.nombre','users.name');
+        $query = Audiencias::with('citado')->whereBetween('audiencias.fecha', [$fecha_inicio, $fecha_final])
+            ->join('seer_general','seer_general.id','audiencias.id_solicitud')
+            ->join('users','users.id','audiencias.id_conciliador')
+            ->join('seer_solicitante','seer_solicitante.id_solicitud','seer_general.id')
+            ->select('audiencias.*','seer_general.NUE','seer_solicitante.nombre','users.name');
 
         if($userRole[0] != "Super Usuario"){
             if ($sedeFiltro != "Todos") {
@@ -73,9 +75,9 @@ class AudienciasController extends Controller
         else if ($userRole[0] == "Conciliador") {
             $query->where('audiencias.id_conciliador', $userID);
         }
-
+        
         $audiencias = $query->get();
-
+       
         $eventos = [];
             foreach ($audiencias as $audiencia) {
 
@@ -84,21 +86,22 @@ class AudienciasController extends Controller
                 if ($audiencia->estatus === 'Archivada') {
                     $color = '#DA0909';
                 } elseif ($audiencia->estatus === 'Pendiente') {
-                    $color = '#EAE300';
+                    $color = '#d4ad00';
                 } elseif ($audiencia->estatus === 'Conciliacion') {
                     $color = '#00CE1C';
                 } elseif ($audiencia->estatus === 'No conciliacion') {
                     $color = '#3D71FF';
                 } elseif ($audiencia->estatus === 'Reagendada' || $audiencia->estatus === 'No conciliacion reagendada'){
-                    $color = '#FFA93D';
+                    $color = '#ff8330';
                 } else {
                     $color = '#CCCCCC';
                 }
 
-                    $citado = SeerCitados::where('id_solicitud', $audiencia->id_solicitud)->first();
-                    $citadoNombre = $citado
-                        ? trim($citado->nombre . " " . ($citado->primer_apellido ?? "") . " " . ($citado->segundo_apellido ?? ""))
-                        : 'S/N';
+                if ($audiencia->citado) {
+                    $citadoNombre = trim($audiencia->citado->nombre . " " . $audiencia->citado->primer_apellido . " " . $audiencia->citado->segundo_apellido);
+                } else {
+                    $citadoNombre = 'S/N';
+                }
 
                     $eventos[] = [
                         
@@ -296,6 +299,8 @@ class AudienciasController extends Controller
 
     public function ratificaciones(Request $request) {
         $sedeFiltro = $request->input('sede');
+        $fecha_inicio = Carbon::parse($request->input('start'))->format('Y-m-d');
+        $fecha_final = Carbon::parse($request->input('end'))->format('Y-m-d');
         $conciliadorFiltro = $request->input('conciliador');
         $userID = Auth::user()->id;
         $userRole = Auth::user()->roles->pluck('name')->all();
@@ -312,7 +317,7 @@ class AudienciasController extends Controller
         $sedesAconsultar = $mapaSedes[$user->delegacion] ?? [$user->delegacion];
 
         // Iniciamos la consulta base
-        $query = Turnos::leftjoin('users','users.id','turnos.id_conciliador')
+        $query = Turnos::whereBetween('turnos.fecha', [$fecha_inicio, $fecha_final])->leftjoin('users','users.id','turnos.id_conciliador')
         ->select('turnos.*','users.name');
 
         if($userRole[0] != "Super Usuario"){
@@ -352,7 +357,7 @@ class AudienciasController extends Controller
                 if ($rati->estatus === 'Incumplimiento') {
                     $color = '#DA0909';
                 } elseif ($rati->estatus === 'Archivada') {
-                    $color = '#EAE300';
+                    $color = '#d4ad00';
                 } elseif ($rati->estatus === 'Concluida') {
                     $color = '#00CE1C';
                 } elseif ($rati->estatus === 'Concluida Pagos') {
