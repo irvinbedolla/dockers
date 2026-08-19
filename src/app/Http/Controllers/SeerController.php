@@ -4277,6 +4277,7 @@ class SeerController extends Controller
     }
 
     public function guardar_citado(Request $request){
+
         $data = $request->all();
         $imagen_domicilio1 = "Sin documento";
         $imagen_domicilio2 = "Sin documento";
@@ -4286,8 +4287,14 @@ class SeerController extends Controller
         // Usar ID temporal si es sesión
         $tempId = ($data['id'] == 'session') ? uniqid('session_') : $data['id'];
 
+        // Si ya no hay datos en sesión (porque ya concluyó), no permite editar y lo manda al inicio
+        if ($data['id']  !== 'session') {
+            return redirect()->route('solicitudEnLinea')
+                ->with('info', 'El trámite ya ha sido concluido o la sesión ha expirado.');
+        }
+
         // Si es flujo "session", guardar en tmp para luego mover a documentosSolicitud/{new_id}/ en guardar_solicitud()
-    $destDir = ($data['id'] == 'session') ? $this->documentosSolicitudTmpDir($draftId) : 'documentosSolicitud';
+        $destDir = ($data['id'] == 'session') ? $this->documentosSolicitudTmpDir($draftId) : 'documentosSolicitud';
 
         if ($request->hasFile('foto1')) {
             $imagen_domicilio1 = $tempId . "-domicilio_Citado1.jpg" . Str::random(8) . ".jpg";
@@ -4442,159 +4449,14 @@ class SeerController extends Controller
             }
         }
         
-        /*if ($data['id'] == 'session') {
-            $citados_list = session('citados_trabajador_data', []);
-            
-            $citado_original = array(
-                'id_solicitud'      => $data["id"],
-                'colonia'           => $data["colonia"],
-                'cp'                => $data["cp"],
-                'n_ext'             => $data["exterior"],
-                'calle'             => $data["calle"],
-                'tipo_vialidad'     => $data["vialidad"],
-                'referencia'        => $data["referencia"],
-                'municipio_citado'  => $data["municipio_citado"],
-                'imagen_domicilio1' => $foto1,
-                'imagen_domicilio2' => $foto2, 
-                'estado_citado'     => $data["estado_citado"],
-                'notificacion'      => $data["notificacion"],
-                'resulte_responsable' => 'No'
-            );
-            
-            if(isset($data["rfc"])) $citado_original["rfc"] = $data["rfc"];
-            if(isset($data["curp"])) $citado_original["curp"] = $data["curp"];
-            if(isset($data["traductor"])) {
-                $val = $data["traductor"];
-                $requires = ($val === 'Si' || $val === '1' || $val === 1 || $val === 'on' || $val === true);
-                $citado_original["traductor"] = $requires ? 1 : 0;
-                $citado_original["lenguaje"] = isset($data["lenguaje"]) ? (is_array($data["lenguaje"]) ? ($data["lenguaje"][0] ?? null) : $data["lenguaje"]) : null;
-            }
-            if(isset($data["interior"])) $citado_original["n_int"] = $data["interior"];
-            if(isset($data["calle1"])) $citado_original["calle1"] = $data["calle1"];
-            if(isset($data["calle2"])) $citado_original["calle2"] = $data["calle2"];
-            
-            if (isset($data["tipo"])) {
-                $citado_original["tipo_persona"] = $data["tipo"];
-                if ($data["tipo"] == "Moral" && isset($data["razon"])) {
-                    $citado_original["nombre"] = $data["razon"];
-                }
-                if ($data["tipo"] == "Fisica" && isset($data["nombre"])) {
-                    $citado_original["nombre"] = $data["nombre"];
-                    if(isset($data["primer_apellido"])) $citado_original["primer_apellido"] = $data["primer_apellido"];
-                    if(isset($data["segundo_apellido"])) $citado_original["segundo_apellido"] = $data["segundo_apellido"];
-                }
-            } else {
-                 if(isset($data["nombre"])) $citado_original["nombre"] = $data["nombre"];
-                 if(isset($data["primer_apellido"])) $citado_original["primer_apellido"] = $data["primer_apellido"];
-                 if(isset($data["segundo_apellido"])) $citado_original["segundo_apellido"] = $data["segundo_apellido"];
-            }
+        // REDIRIGIR EXPLÍCITAMENTE CON EL DRAFT_ID:
+        session(['active_draft_id' => $draftId]);
 
-            $citados_list[] = $citado_original;
-
-            // Verificar si existe "quien resulte" en la sesión
-            $existe = false;
-            foreach ($citados_list as $c) {
-                if (isset($c['resulte_responsable']) && $c['resulte_responsable'] == 'Si' && $c['nombre'] == $direccionNombre) {
-                    $existe = true;
-                    break;
-                }
-            }
-            
-            if (!$existe) {
-                $citados_list[] = $data_insert; // Este ya tiene el nombre modificado y resulte_responsable='Si'
-            }
-            
-            session(['citados_trabajador_data' => $citados_list]);
-            
-        } else {
-            // Lógica original BD
-            // Reconstruir data_insert original para guardar el primero
-             $citado_original_bd = array(
-                'id_solicitud'      => $data["id"],
-                'colonia'           => $data["colonia"],
-                'cp'                => $data["cp"],
-                'n_ext'             => $data["exterior"],
-                'calle'             => $data["calle"],
-                'tipo_vialidad'     => $data["vialidad"],
-                'referencia'        => $data["referencia"],
-                'municipio_citado'  => $data["municipio_citado"],
-                'imagen_domicilio1' => $foto1,
-                'imagen_domicilio2' => $foto2, 
-                'estado_citado'     => $data["estado_citado"],
-                'notificacion'      => $data["notificacion"],
-                'resulte_responsable' => 'No'
-            );
-             
-             if (isset($data["tipo"])) {
-                $citado_original_bd["tipo_persona"] = $data["tipo"];
-                if ($data["tipo"] == "Moral" && isset($data["razon"])) {
-                    $citado_original_bd["nombre"] = $data["razon"];
-                }
-                if ($data["tipo"] == "Fisica" && isset($data["nombre"])) {
-                    $citado_original_bd["nombre"] = $data["nombre"];
-                }
-            }
-            
-             $data_insert_bd = array(
-                'id_solicitud'      => $data["id"],
-                'colonia'           => $data["colonia"],
-                'cp'                => $data["cp"],
-                'n_ext'             => $data["exterior"],
-                'calle'             => $data["calle"],
-                'tipo_vialidad'     => $data["vialidad"],
-                'referencia'        => $data["referencia"],
-                'municipio_citado'  => $data["municipio_citado"],
-                'imagen_domicilio1' => $foto1,
-                'imagen_domicilio2' => $foto2, 
-                'estado_citado'     => $data["estado_citado"],
-                'notificacion'      => $data["notificacion"],
-                'resulte_responsable' => 'No'
-            );
-
-            if(isset($data["rfc"])) $data_insert_bd["rfc"] = $data["rfc"];
-            if(isset($data["curp"])) $data_insert_bd["curp"] = $data["curp"];
-            if(isset($data["traductor"])) {
-                $val = $data["traductor"];
-                $requires = ($val === 'Si' || $val === '1' || $val === 1 || $val === 'on' || $val === true);
-                $data_insert_bd["traductor"] = $requires ? 1 : 0;
-                $data_insert_bd["lenguaje"] = isset($data["lenguaje"]) ? (is_array($data["lenguaje"]) ? ($data["lenguaje"][0] ?? null) : $data["lenguaje"]) : null;
-            }
-            if(isset($data["interior"])) $data_insert_bd["n_int"] = $data["interior"];
-            if(isset($data["calle1"])) $data_insert_bd["calle1"] = $data["calle1"];
-            if(isset($data["calle2"])) $data_insert_bd["calle2"] = $data["calle2"];
-            if(isset($data["nombre"])) $data_insert_bd["nombre"] = $data["nombre"];
-            if(isset($data["primer_apellido"])) $data_insert_bd["primer_apellido"] = $data["primer_apellido"];
-            if(isset($data["segundo_apellido"])) $data_insert_bd["segundo_apellido"] = $data["segundo_apellido"];
-            
-             if (isset($data["tipo"])) {
-                $data_insert_bd["tipo_persona"] = $data["tipo"];
-                if ($data["tipo"] == "Moral" && isset($data["razon"])) {
-                    $data_insert_bd["nombre"] = $data["razon"];
-                }
-                if ($data["tipo"] == "Fisica" && isset($data["nombre"])) {
-                    $data_insert_bd["nombre"] = $data["nombre"];
-                }
-            }
-            
-            SeerCitados::create($data_insert_bd);
-            
-            $existe = SeerCitados::where('id_solicitud', $data['id'])
-                    ->where('nombre', $direccionNombre)
-                    ->where('resulte_responsable', 'Si')
-                    ->exists();
-            if (!$existe) {
-                SeerCitados::create($data_insert); // Este usa el $data_insert modificado con el nombre largo
-            }
-        }
-        $existe = SeerCitados::where('id_solicitud', $data['id'])
-                    ->where('nombre', $direccionNombre)
-                    ->where('resulte_responsable', 'Si')
-                    ->exists();
-        if (!$existe) {
-            SeerCitados::create($data_insert);
-        }*/
-
-        return back()->with('success', 'Citado agregado correctamente, puedes agregar otro o continuar.');
+        return redirect()->route('agregar_citado', [
+            'id'       => $data['id'],
+            'draft_id' => $draftId
+        ])->with('success', 'Citado agregado correctamente, puedes agregar otro o continuar.');
+        
     }
 
     public function vista_citadoCentro($id){
@@ -8491,6 +8353,25 @@ class SeerController extends Controller
         ->get();
 
         return view('solicitudes.solicitudes', compact('solicitudes'));
+    }
+    
+    private function obtenerHorariosPorSedeYFecha($oficina, $fecha)
+    {
+        // Define aquí la fecha límite de corte para cada sede principal
+        $fechasCortePorSede = [
+            'Morelia' => '2026-09-07',
+            'Uruapan' => '2026-08-04', // Ejemplo: Cambia en otra fecha
+            'Zamora'  => '2026-09-31', // Ejemplo: Cambia en otra fecha
+        ];
+
+        // Fecha por defecto si la sede no está explícitamente en el mapa
+        $fechaCorte = $fechasCortePorSede[$oficina] ?? '2026-09-01';
+
+        // Esquemas de horarios
+        $horariosNuevo = ["08:00:00", "09:15:00", "12:00:00", "14:15:00", "15:30:00"];
+        $horariosViejo = ["09:00:00", "10:15:00", "11:30:00", "12:45:00", "14:00:00"];
+
+        return ($fecha > $fechaCorte) ? $horariosNuevo : $horariosViejo;
     }
     
     public function ObtenerAudiencia($delegacion, $notificion) {
@@ -20148,16 +20029,13 @@ class SeerController extends Controller
             session([$this->draftSessionKey('excepcion_data', $draftId) => $excepcionData]);
         }
 
-        // 5. Redireccionar al siguiente paso
-        if ($id === 'session') {
-            // Almacenar el draft_id en la sesión activa
-            session(['active_draft_id' => $draftId]);
-            
-            // Redirigir limpiamente sin query params
-            return redirect()->route('agregar_citado', ['id' => $id]);
-        }
+        // 5. Redireccionar al siguiente paso llevando el draft_id
+        session(['active_draft_id' => $draftId]);
 
-        return redirect()->route('agregar_citado', ['id' => $id]);
+        return redirect()->route('agregar_citado', [
+            'id'       => $id,
+            'draft_id' => $draftId
+        ]);
     }
 
     public function aviso(Request $request)
@@ -20166,24 +20044,24 @@ class SeerController extends Controller
         $id = $data["id"] ?? null;
         $draftId = $request->input('draft_id') ?? $data['draft_id'] ?? null;
 
-        // Si el proceso proviene del flujo de sesión ('session')
+        $realId = null;
+        $solicitud = null;
+
+        // 1. Si el proceso proviene del flujo de sesión ('session')
         if ($id === 'session') {
             
-            // Recuperar las claves de sesión usando la variable $draftId ya definida
             $solicitudData   = session($this->draftSessionKey('solicitud_data', $draftId));
             $solicitanteData = session($this->draftSessionKey('solicitante_data', $draftId));
             $citadosData     = session($this->draftSessionKey('citados_data', $draftId), []);
             $motivosData     = session($this->draftSessionKey('motivos_data', $draftId), []);
 
-
-            // 2. FALLBACK: Si no encuentra la solicitud con el draftId recibido, rastrea las claves activas en la sesión
+            // FALLBACK: Si no encuentra la solicitud con el draftId recibido
             if (!$solicitudData) {
                 foreach (session()->all() as $key => $value) {
                     if (str_starts_with($key, 'solicitud_data_') && !empty($value)) {
                         $solicitudData = $value;
                         $draftIdReal = str_replace('solicitud_data_', '', $key);
                         
-                        // Recuperar el resto de las colecciones asociadas a ese draftId real
                         $solicitanteData = $solicitanteData ?: session("solicitante_data_{$draftIdReal}");
                         if (empty($citadosData)) {
                             $citadosData = session("citados_data_{$draftIdReal}", []);
@@ -20198,88 +20076,92 @@ class SeerController extends Controller
                 }
             }
 
-            // 3. Validar que la solicitud base exista
             if (!$solicitudData) {
                 return redirect()->back()->withErrors(['msg' => 'No se encontraron datos activos de la solicitud en la sesión.']);
             }
 
             DB::beginTransaction();
-                try {
-                    // A) Insertar Solicitud Principal (seer_genera)
-                    $solicitud = SeerPerGeneral::create($solicitudData);
-                    $realId = $solicitud->id; // ID autoincrementable / Folio real
+            try {
+                // A) Insertar Solicitud Principal
+                $solicitud = SeerPerGeneral::create($solicitudData);
+                $realId = $solicitud->id;
 
-                    // B) Insertar Solicitante (seer_solicitantes)
-                    if (!empty($solicitanteData)) {
-                        $solicitanteData['id_solicitud'] = $realId;
-                        SeerSolicitante::create($solicitanteData);
-                    }
-
-                    // C) Insertar lista de Citados (seer_citados)
-                    foreach ($citadosData as $citado) {
-                        $citado['id_solicitud'] = $realId;
-                        SeerCitados::create($citado);
-                    }
-
-                    // D) Insertar lista de Motivos/Conflicto (seer_motivos)
-                    foreach ($motivosData as $motivo) {
-                        if (is_array($motivo)) {
-                            $motivo['id_solicitud'] = $realId;
-                            SeerMotivo::create($motivo);
-                        } else {
-                            // Si el motivo proviene como un valor simple o descripción directa
-                            SeerMotivo::create([
-                                'id_solicitud' => $realId,
-                                'motivo'       => $motivo
-                            ]);
-                        }
-                    }
-
-                    // E) Mover archivos subidos desde la carpeta temporal tmp a la carpeta definitiva de la solicitud
-                    $tmpDir = $this->documentosSolicitudTmpDir($draftId);
-                    $finalDir = "documentosSolicitud/{$realId}";
-
-                    if (Storage::exists($tmpDir)) {
-                        $files = Storage::allFiles($tmpDir);
-                        foreach ($files as $file) {
-                            $filename = basename($file);
-                            Storage::move($file, "{$finalDir}/{$filename}");
-                        }
-                        Storage::deleteDirectory($tmpDir);
-                    }
-
-                    DB::commit();
-
-                    // F) Formatear respuesta y mensaje de buzón
-                    $id = $realId;
-                    $mensaje = "Usuario: " . ($solicitud->curp ?? $solicitud->rfc ?? '') . " / Clave: " . ($solicitud->clave_buzon ?? $solicitud->folio ?? '');
-                    $delegacionInput = $solicitud->delegacion ?? $data["delegacion"] ?? 'Morelia';
-
-                    // G) Limpieza completa de las claves de la sesión
-                    foreach (session()->all() as $key => $val) {
-                        if (str_contains($key, 'solicitud_data_') || 
-                            str_contains($key, 'solicitante_data_') || 
-                            str_contains($key, 'citados_data_') ||
-                            str_contains($key, 'motivos_data_')) {
-                            session()->forget($key);
-                        }
-                    }
-
-                } catch (\Exception $e) {
-                    DB::rollBack();
-                    Log::error("Error al guardar solicitud, citados y motivos en aviso: " . $e->getMessage());
-                    return redirect()->back()->withErrors(['msg' => 'Ocurrió un error al guardar la solicitud: ' . $e->getMessage()]);
+                // B) Insertar Solicitante
+                if (!empty($solicitanteData)) {
+                    $solicitanteData['id_solicitud'] = $realId;
+                    SeerSolicitante::create($solicitanteData);
                 }
-            } else {
-                $mensaje = $data["mensaje"] ?? '';
-                $delegacionInput = $data["delegacion"] ?? 'Morelia';
-            }
 
-            if (is_numeric($delegacionInput)) {
-                $delegacion = Delegaciones::find($delegacionInput);
-            } else {
-                $delegacion = $delegacionInput;
+                // C) Insertar Citados
+                foreach ($citadosData as $citado) {
+                    $citado['id_solicitud'] = $realId;
+                    SeerCitados::create($citado);
+                }
+
+                // D) Insertar Motivos
+                foreach ($motivosData as $motivo) {
+                    if (is_array($motivo)) {
+                        $motivo['id_solicitud'] = $realId;
+                        SeerMotivo::create($motivo);
+                    } else {
+                        SeerMotivo::create([
+                            'id_solicitud' => $realId,
+                            'motivo'       => $motivo
+                        ]);
+                    }
+                }
+
+                // E) Mover archivos temporales
+                $tmpDir = $this->documentosSolicitudTmpDir($draftId);
+                $finalDir = "documentosSolicitud/{$realId}";
+
+                if (Storage::exists($tmpDir)) {
+                    $files = Storage::allFiles($tmpDir);
+                    foreach ($files as $file) {
+                        $filename = basename($file);
+                        Storage::move($file, "{$finalDir}/{$filename}");
+                    }
+                    Storage::deleteDirectory($tmpDir);
+                }
+
+                DB::commit();
+
+                $id = $realId;
+                $mensaje = "Usuario: " . ($solicitud->curp ?? $solicitud->rfc ?? '') . " / Clave: " . ($solicitud->clave_buzon ?? $solicitud->folio ?? '');
+                $delegacionInput = $solicitud->delegacion ?? $data["delegacion"] ?? 'Morelia';
+
+                // Limpieza de claves de sesión
+                foreach (session()->all() as $key => $val) {
+                    if (str_contains($key, 'solicitud_data_') || 
+                        str_contains($key, 'solicitante_data_') || 
+                        str_contains($key, 'citados_data_') ||
+                        str_contains($key, 'motivos_data_')) {
+                        session()->forget($key);
+                    }
+                }
+
+            } catch (\Exception $e) {
+                DB::rollBack();
+                Log::error("Error al guardar en aviso: " . $e->getMessage());
+                return redirect()->back()->withErrors(['msg' => 'Ocurrió un error al guardar la solicitud: ' . $e->getMessage()]);
             }
+        } else {
+            // 2. Si no viene de 'session', recuperamos la solicitud existente por su ID
+            $realId = $id;
+            $solicitud = SeerPerGeneral::find($realId);
+
+            $mensaje = $data["mensaje"] ?? '';
+            $delegacionInput = $solicitud->delegacion ?? $data["delegacion"] ?? 'Morelia';
+        }
+
+        // Resolviendo la delegación
+        if (is_numeric($delegacionInput)) {
+            $delegacion = Delegaciones::find($delegacionInput);
+        } else {
+            $delegacion = $delegacionInput;
+        }
+
+        // Calculando el consecutivo/folio a mostrar de forma segura
         $folioMostrado = $solicitud->consecutivo ?? $realId;
 
         return redirect()->route('solicitud.completada')->with([
@@ -20287,5 +20169,113 @@ class SeerController extends Controller
             'mensaje'    => $mensaje,
             'delegacion' => $delegacion
         ]);
+    }
+
+    public function solicitud_completada()
+    {
+        $id = session('id');
+        $mensaje = session('mensaje');
+        $delegacion = session('delegacion');
+
+        if (!$id) {
+            return redirect()->route('todas_solicitudes')->withErrors(['msg' => 'No se encontró información de la solicitud completada.']);
+        }
+
+        return view('solicitudes.aviso', compact('id', 'mensaje', 'delegacion'));
+    }
+
+    public function verImagenDocumento($id_solicitud, $filename)
+    {
+        // 1. Ruta relativa estándar a la raíz de storage/app/
+        $relativePath = "documentosSolicitud/{$id_solicitud}/{$filename}";
+
+        // 2. Comprobar si existe el archivo exacto
+        if (Storage::exists($relativePath)) {
+            return response()->file(Storage::path($relativePath));
+        }
+
+        // 3. Si el archivo viene con el prefijo 'session_...', limpiamos el nombre
+        $cleanFilename = preg_replace('/^session_[a-f0-9]+-/', '', $filename);
+        $cleanPath = "documentosSolicitud/{$id_solicitud}/{$cleanFilename}";
+
+        if (Storage::exists($cleanPath)) {
+            return response()->file(Storage::path($cleanPath));
+        }
+
+        // 4. Búsqueda flexible dentro de la carpeta /5038/
+        $folder = "documentosSolicitud/{$id_solicitud}";
+        if (Storage::exists($folder)) {
+            $files = Storage::files($folder);
+            
+            foreach ($files as $file) {
+                $baseName = basename($file);
+                
+                // Si coincide parcialmente con el nombre del archivo
+                if (
+                    str_contains($filename, $baseName) || 
+                    str_contains($baseName, $cleanFilename) ||
+                    (str_contains($filename, 'domicilio') && str_contains($baseName, 'domicilio'))
+                ) {
+                    return response()->file(Storage::path($file));
+                }
+            }
+
+            // Si no lo encuentra, te enlista en pantalla qué archivos SÍ hay en esa carpeta
+            $archivosReales = array_map(fn($f) => basename($f), $files);
+            abort(404, "El archivo '{$filename}' no se encontró en la carpeta '{$folder}'. Los archivos reales en esta carpeta son: " . implode(', ', $archivosReales));
+        }
+
+        // 5. Fallback por si la solicitud sigue en borrador (tmp)
+        $tmpPath = "documentosSolicitud/tmp/{$filename}";
+        if (Storage::exists($tmpPath)) {
+            return response()->file(Storage::path($tmpPath));
+        }
+
+        abort(404, "No existe la carpeta de documentos para la solicitud ID: {$id_solicitud}");
+    }
+    
+    public function documento_identificacion_solicitante_ver($id)
+    {
+        // 1. Obtener los datos de la solicitud o del solicitante si requieres el nombre de archivo guardado en DB
+        // $solicitud = Solicitud::find($id);
+        // $filename = $solicitud->imagen_identificacion ?? 'identificacion_solicitante.pdf';
+
+        $folder = "documentosSolicitud/{$id}";
+
+        // Si existe la carpeta de la solicitud
+        if (Storage::exists($folder)) {
+            $files = Storage::files($folder);
+
+            // A) Buscar un archivo que coincida con "identificacion", "ine", "cedula" o sea PDF
+            foreach ($files as $file) {
+                $baseName = basename($file);
+                if (
+                    str_contains(strtolower($baseName), 'identificacion') || 
+                    str_contains(strtolower($baseName), 'solicitante') ||
+                    str_contains(strtolower($baseName), 'ine') ||
+                    pathinfo($baseName, PATHINFO_EXTENSION) === 'pdf'
+                ) {
+                    return response()->file(Storage::path($file), [
+                        'Content-Type' => 'application/pdf',
+                        'Content-Disposition' => 'inline; filename="' . $baseName . '"'
+                    ]);
+                }
+            }
+
+            // B) Si no hay filtro específico, abrir el primer archivo encontrado en la carpeta
+            if (count($files) > 0) {
+                return response()->file(Storage::path($files[0]));
+            }
+        }
+
+        // 2. Fallback: Buscar en la carpeta temporal (tmp) si la solicitud aún no concluye
+        $filesTmp = Storage::exists("documentosSolicitud/tmp") ? Storage::files("documentosSolicitud/tmp") : [];
+        foreach ($filesTmp as $fileTmp) {
+            if (str_contains(strtolower(basename($fileTmp)), 'identificacion')) {
+                return response()->file(Storage::path($fileTmp));
+            }
+        }
+
+        abort(404, "El documento de identificación no se encontró para la solicitud ID: {$id}");
     }
 }

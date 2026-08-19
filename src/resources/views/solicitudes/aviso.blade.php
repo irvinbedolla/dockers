@@ -5,13 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="Sistema Integral Concilio">
     <meta name="generator" content="Ing. ISBM">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Si Concilio - Solicitud Registrada</title>
 
+    
     <!-- Bootstrap 5.3.3 CSS -->
-    <link href="public/assets/css/bootstrap.min.css" rel="stylesheet" type="text/css"/>
-    <link rel="icon" href="public/assets/images/ccl-r.png" type="image/x-icon">
+    <link href="{{ asset('assets/css/bootstrap.min.css') }}" rel="stylesheet" type="text/css"/>
+    <link rel="icon" href="{{ asset('assets/images/ccl-r.png') }}" type="image/x-icon">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link href="public/assets/css/all.css" rel="stylesheet" type="text/css">
+    <link href="{{ asset('assets/css/all.css') }}" rel="stylesheet" type="text/css">
 
     <style>
         :root {
@@ -151,7 +155,7 @@
     <nav class="navbar navbar-expand-lg navbar-light navbar-custom fixed-top">
         <div class="container-fluid">
             <a class="navbar-brand" href="{{ route('publico') }}">
-                <img src="public/assets/images/Logos 2.png" alt="Logo Si Concilio">
+                <img src="{{ asset('assets/images/Logos 2.png') }}" alt="Logo Si Concilio">
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
@@ -229,7 +233,30 @@
     </div>
 
     <!-- Scripts Bootstrap 5 -->
-    <script src="../public/assets/js/jquery.min.js"></script>
-    <script src="../public/assets/js/bootstrap.min.js"></script>
+    
+    @section('scripts')
+        <script src="{{ asset('assets/js/jquery.min.js') }}"></script>
+        <script src="{{ asset('assets/js/bootstrap.min.js') }}"></script>
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                // 1. Deshabilitar el botón atrás en el navegador
+                history.pushState(null, null, location.href);
+
+                window.onpopstate = function () {
+                    // Vuelve a forzar la posición en la vista de aviso
+                    history.pushState(null, null, location.href);
+                    
+                    // Opcional: Si intenta forzar el regreso, puedes mostrar un mensaje o redirigirlo al inicio
+                    Swal.fire({
+                        title: 'Trámite Concluido',
+                        text: 'Su solicitud ya ha sido registrada correctamente y no es posible regresar a editar los datos.',
+                        icon: 'info',
+                        confirmButtonColor: '#6A0F49',
+                        confirmButtonText: 'Aceptar'
+                    });
+                };
+            });
+        </script>
+    @endsection
 </body>
 </html>

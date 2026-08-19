@@ -506,33 +506,37 @@
                                             <i class="fas fa-plus-circle me-1"></i> Agregar citado
                                         </button>
                                     </div>
-                        </form>
-                                    <div class="d-flex flex-column align-items-end">
-                                        {{-- Si ya hay al menos 1 citado registrado, mostrar el botón para Concluir --}}
-                                        @if(($citados ?? 0) > 0)
-                                            <form method="POST" action="{{ route('aviso') }}" class="d-inline">
-                                                @csrf
-                                                <input type="hidden" name="id" value="{{ $id }}">
-                                                <input type="hidden" name="draft_id" value="{{ $draftId ?? request('draft_id') }}">
-                                                <!-- Si tienes la delegación o mensaje en variables/sesión, pásalos aquí -->
-                                                <input type="hidden" name="delegacion" value="{{ $delegacion ?? 'Morelia' }}">
-                                                <input type="hidden" name="mensaje" value="{{ $mensaje ?? '' }}">
-
-                                                <button type="submit" id="btn-conclude" class="btn btn-gold">
-                                                    <i class="fas fa-check-circle me-1"></i> Concluir solicitud
-                                                </button>
-                                            </form>
-
-                                            <div id="conclude-warning" class="text-danger small mt-2" style="display:none;">
-                                                <i class="fas fa-exclamation-circle me-1"></i> Guarde los cambios del citado actual antes de concluir.
-                                            </div>
-                                        @endif
-                                    </div>
                                 </div>
                             </div>
-                       
+                        </form> {{-- Se cierra el formulario principal de captura aquí --}}
+                            
+                        <div class="d-flex flex-column align-items-end">
+                            {{-- Evalúa citados desde el parámetro enviado o directamente desde la sesión con el fallback --}}
+                            @php
+                                $currentDraft = $draftId ?? request('draft_id') ?? session('active_draft_id');
+                                $totalCitados = $citados ?? count(session('citados_data_' . $currentDraft, []));
+                            @endphp
 
+                            @if($totalCitados > 0)
+                                <form method="POST" action="{{ route('aviso') }}" class="d-inline">
+                                    @csrf
+                                    <input type="hidden" name="id" value="{{ $id }}">
+                                    <input type="hidden" name="draft_id" value="{{ $currentDraft }}">
+                                    <input type="hidden" name="delegacion" value="{{ $delegacion ?? 'Morelia' }}">
+                                    <input type="hidden" name="mensaje" value="{{ $mensaje ?? '' }}">
+
+                                    <button type="submit" id="btn-conclude" class="btn btn-gold">
+                                        <i class="fas fa-check-circle me-1"></i> Concluir solicitud ({{ $totalCitados }})
+                                    </button>
+                                </form>
+
+                                <div id="conclude-warning" class="text-danger small mt-2" style="display:none;">
+                                    <i class="fas fa-exclamation-circle me-1"></i> Guarde los cambios del citado actual antes de concluir.
+                                </div>
+                            @endif
+                        </div>
                     </div>
+
                 </div>
             </div>
         </div>

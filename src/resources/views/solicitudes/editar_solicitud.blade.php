@@ -1125,7 +1125,7 @@ select[name="municipio_citado"] option {
                                                         $hasRefImg1 = (!empty($citado->imagen_domicilio1) && $citado->imagen_domicilio1 !== 'Sin documento');
                                                     @endphp
                                                     @if ($hasRefImg1)
-                                                        <a target='_blank' href="{{ route('documentos.ver', ['tipo' => 'solicitud', 'id' => $general->id, 'archivo' => $citado->imagen_domicilio1]) }}">VER IMAGEN</a><br>
+                                                        <a target="_blank" href="{{ route('documentos.ver_imagen', ['id_solicitud' => $citado->id_solicitud ?? $id, 'filename' => $citado->imagen_domicilio1]) }}">VER IMAGEN</a><br>
                                                     @else
                                                         <span class="text-muted">No se subió imagen</span>
                                                     @endif
