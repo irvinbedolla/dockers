@@ -6,7 +6,7 @@ use App\Models\User;
 use Illuminate\Contracts\View\View;
 use Maatwebsite\Excel\Concerns\FromView;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB; // IMPORTANTE: Agregar esto
+use Illuminate\Support\Facades\DB;
 
 class SolicitudesExport implements FromView
 {
@@ -22,97 +22,103 @@ class SolicitudesExport implements FromView
     }
 
     public function view(): View
-    {
+    {        
         $user = Auth::user();
         $sedeUsuario = $user->delegacion ?? '';
         
-        $grupos = [
-            'Morelia' => ['Morelia', 'Zitácuaro'],
-            'Uruapan' => ['Uruapan', 'Lázaro Cárdenas'],
-            'Zamora'  => ['Zamora', 'Sahuayo']
-        ];
+        $delegacionesFiltro = [$this->sede];
+        if ($this->sede === "TodosDelegado") {
+            $grupos = [
+                'Morelia' => ['Morelia', 'Zitácuaro'],
+                'Uruapan' => ['Uruapan', 'Lázaro Cárdenas'],
+                'Zamora'  => ['Zamora', 'Sahuayo']
+            ];
+            $delegacionesFiltro = $grupos[$sedeUsuario] ?? [$sedeUsuario];
+        }
+
+        $motivosSub = DB::table('seer_motivos')
+            ->join('catalogo_motivos', 'catalogo_motivos.id', '=', 'seer_motivos.id_motivo')
+            ->select('id_solicitud', DB::raw('GROUP_CONCAT(catalogo_motivos.motivo SEPARATOR ", ") as motivos'))
+            ->groupBy('id_solicitud');
+
+
+        $primerCitadoSub = DB::table('seer_citados')
+            ->select('id_solicitud', DB::raw('MIN(id) as primer_citado_id'))
+            ->groupBy('id_solicitud');
+
+
+        $pagosSub = DB::table('pago_solicitud')
+            ->select('id_solicitud')
+            ->selectRaw("COUNT(CASE WHEN estatus = 'Pagado' THEN id END) as cantidad_pagados")
+            ->selectRaw("COUNT(CASE WHEN estatus = 'Pendiente' THEN id END) as cantidad_pendientes")
+            ->selectRaw("SUM(CASE WHEN estatus = 'Pagado' THEN monto ELSE 0 END) as monto_pagado")
+            ->selectRaw("SUM(CASE WHEN estatus = 'Pendiente' THEN monto ELSE 0 END) as monto_pendiente")
+            ->whereIn('tipo_pago', ["Audiencia", "Conciliador"])
+            ->groupBy('id_solicitud');
+
+        // Subconsulta D (Opcional): Audiencias (La preparo por si quieres descomentarla después)
+        /*
+        $audienciasSub = DB::table('audiencias')
+            ->select('id_solicitud')
+            ->selectRaw("COUNT(id) as total_audiencias")
+            ->selectRaw("GROUP_CONCAT(estatus ORDER BY fecha ASC SEPARATOR ', ') as detalle_audiencias")
+            ->groupBy('id_solicitud');
+        */
+
 
         $detalleSolicitantes = DB::table('seer_general')
-        ->join('users', 'users.id', '=', 'seer_general.user_id')
-        ->join('seer_motivos', 'seer_motivos.id_solicitud', '=', 'seer_general.id')
-        ->join('catalogo_motivos', 'catalogo_motivos.id', '=', 'seer_motivos.id_motivo')
-        ->join('seer_solicitante', 'seer_solicitante.id_solicitud', '=', 'seer_general.id')
-        ->leftJoin('seer_citados', 'seer_citados.id_solicitud', '=', 'seer_general.id')
-        ->where(function($query) {
+            ->whereBetween('seer_general.fecha', [$this->fecha_inicial, $this->fecha_final])
+            ->where(function($query) {
                 $query->where('seer_general.incidencia', 0)
-                    ->orWhereNull('seer_general.incidencia');
+                      ->orWhereNull('seer_general.incidencia');
             })
-        
-        // Join para Pagos (Filtrado por tipo)
-        ->leftJoin('pago_solicitud', function($join) {
-            $join->on('pago_solicitud.id_solicitud', '=', 'seer_general.id')
-                ->whereIn('pago_solicitud.tipo_pago', ["Audiencia", "Conciliador"]);
-        })
+            ->when($this->sede !== "Todos", function ($q) use ($delegacionesFiltro) {
+                return $q->whereIn('seer_general.delegacion', $delegacionesFiltro);
+            })
+            
 
-        // --- NUEVO JOIN PARA AUDIENCIAS ---
-        //->leftJoin('audiencias', 'audiencias.id_solicitud', '=', 'seer_general.id')
-        // ----------------------------------
-        
-        ->whereBetween('seer_general.fecha', [$this->fecha_inicial, $this->fecha_final])
-        ->when($this->sede !== "Todos", function ($q) use ($sedeUsuario, $grupos) {
-            if ($this->sede === "TodosDelegado") {
-                $delegaciones = $grupos[$sedeUsuario] ?? [$sedeUsuario];
-                return $q->whereIn('seer_general.delegacion', $delegaciones);
-            }
-            return $q->where("seer_general.delegacion", $this->sede);
-        })
-        ->select(
-            'users.name as auxiliar',
-            'seer_general.consecutivo as folio',
-            'seer_general.fecha',
-            'seer_general.fecha_confirmacion',
-            'seer_general.NUE',
-            'seer_general.estatus',
-            'seer_general.delegacion',
-            'seer_general.actividad',
-            'seer_solicitante.nombre as solicitante_nombre',
-            'seer_general.tipo_solicitud',
-            'seer_solicitante.sexo',
-            'seer_solicitante.sexo as detalle_audiencias',
-            DB::raw('GROUP_CONCAT(DISTINCT catalogo_motivos.motivo SEPARATOR ", ") as motivos'),            
-            DB::raw('SUBSTRING_INDEX(GROUP_CONCAT(DISTINCT 
-                CONCAT_WS(" ", seer_citados.nombre, seer_citados.primer_apellido, seer_citados.segundo_apellido) 
-                ORDER BY seer_citados.id ASC SEPARATOR "|"), "|", 1) as primer_citado'),
-
-            // Lógica de Pagos
-            DB::raw("COUNT(DISTINCT CASE WHEN pago_solicitud.estatus = 'Pagado' THEN pago_solicitud.id END) as cantidad_pagados"),
-            DB::raw("COUNT(DISTINCT CASE WHEN pago_solicitud.estatus = 'Pendiente' THEN pago_solicitud.id END) as cantidad_pendientes"),
-            DB::raw("SUM(DISTINCT CASE WHEN pago_solicitud.estatus = 'Pagado' THEN pago_solicitud.monto ELSE 0 END) as monto_pagado"),
-            DB::raw("SUM(DISTINCT CASE WHEN pago_solicitud.estatus = 'Pendiente' THEN pago_solicitud.monto ELSE 0 END) as monto_pendiente"),
-
-            // --- LÓGICA DE AUDIENCIAS POR REGISTRO ---
-            // Contamos el total de audiencias
-            //DB::raw("COUNT(DISTINCT audiencias.id) as total_audiencias"),
-            // Formateamos como: FECHA (ESTATUS) y separamos cada audiencia con una coma
-            //DB::raw("GROUP_CONCAT(DISTINCT 
-            //CONCAT(audiencias.estatus) 
-            //ORDER BY audiencias.fecha ASC SEPARATOR ', ') as detalle_audiencias")
-            //DB::raw("GROUP_CONCAT(DISTINCT audiencias.estatus SEPARATOR ', ') as estados_audiencias")
-        )
-        ->groupBy(
-            'users.name', 
-            'seer_general.id', 
-            'seer_general.NUE',
-            'seer_general.consecutivo', 
-            'seer_general.fecha', 
-            'seer_general.fecha_confirmacion',
-            'seer_general.estatus', 
-            'seer_general.delegacion', 
-            'seer_general.actividad', 
-            'seer_solicitante.nombre',
-            'seer_general.tipo_solicitud',
-            'seer_solicitante.sexo'
-        )
-        ->orderBy('seer_general.consecutivo', 'desc')
-        ->get();
+            ->join('users', 'users.id', '=', 'seer_general.user_id')
+            ->leftJoin('seer_solicitante', 'seer_solicitante.id_solicitud', '=', 'seer_general.id')
+            
+            ->leftJoinSub($motivosSub, 'motivos_agrupados', 'motivos_agrupados.id_solicitud', '=', 'seer_general.id')
+            ->leftJoinSub($pagosSub, 'pagos_agrupados', 'pagos_agrupados.id_solicitud', '=', 'seer_general.id')
+            // Para el citado, unimos la subconsulta del ID mínimo, y luego unimos la tabla real para sacar sus datos
+            ->leftJoinSub($primerCitadoSub, 'citado_minimo', 'citado_minimo.id_solicitud', '=', 'seer_general.id')
+            ->leftJoin('seer_citados', 'seer_citados.id', '=', 'citado_minimo.primer_citado_id')
+            
+            // ->leftJoinSub($audienciasSub, 'audiencias_agrupadas', 'audiencias_agrupadas.id_solicitud', '=', 'seer_general.id')
+            
+            ->select(
+                'users.name as auxiliar',
+                'seer_general.consecutivo as folio',
+                'seer_general.fecha',
+                'seer_general.fecha_confirmacion',
+                'seer_general.NUE',
+                'seer_general.estatus',
+                'seer_general.delegacion',
+                'seer_general.actividad',
+                'seer_general.tipo_solicitud',
+                'seer_solicitante.nombre as solicitante_nombre',
+                'seer_solicitante.sexo',
+                'seer_solicitante.telefono1',
+                
+                'motivos_agrupados.motivos',
+                DB::raw('CONCAT_WS(" ", seer_citados.nombre, seer_citados.primer_apellido, seer_citados.segundo_apellido) as primer_citado'),
+                DB::raw("COALESCE(pagos_agrupados.cantidad_pagados, 0) as cantidad_pagados"),
+                DB::raw("COALESCE(pagos_agrupados.cantidad_pendientes, 0) as cantidad_pendientes"),
+                DB::raw("COALESCE(pagos_agrupados.monto_pagado, 0) as monto_pagado"),
+                DB::raw("COALESCE(pagos_agrupados.monto_pendiente, 0) as monto_pendiente")
+                
+                /* Datos de audiencias si lo descomentas:
+                DB::raw("COALESCE(audiencias_agrupadas.total_audiencias, 0) as total_audiencias"),
+                'audiencias_agrupadas.detalle_audiencias'
+                */
+            )
+            ->orderBy('seer_general.consecutivo', 'desc')
+            ->get();
 
         return view('excel.solicitudes', [
-            'Solicitudes' => $detalleSolicitantes, // Corregido el nombre de la variable
+            'Solicitudes' => $detalleSolicitantes,
         ]);
     }
 }

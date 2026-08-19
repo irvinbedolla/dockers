@@ -1466,9 +1466,8 @@
             async function addNaturalAndInhabilDays(fechaConfirmacionStr, n, centro) {
                 let inhabiles = [];
                 try {
-                    const res = await fetch(`{{ url('/api/dias-inhabiles-centro') }}?centro=${encodeURIComponent(centro)}`);
-                    const data = await res.json();
-                    inhabiles = data.filter(r => r.user_id === null);
+                    const res = await fetch(`{{ url('/api/dias-inhabiles-centro') }}?centro=${encodeURIComponent(centro)}&fecha_confirmacion=${encodeURIComponent(fechaConfirmacionStr)}`);
+                    inhabiles = await res.json();
                 } catch(e) {
                     console.error("Error fetching dias inhabiles", e);
                 }
@@ -1520,7 +1519,7 @@
                 if (fechaConfirmacion && sede) {
                     fechaLimite = await addNaturalAndInhabilDays(fechaConfirmacion, 46, sede);
                 } else if (fechaConfirmacion) {
-                    fechaLimite = addDaysYMD(fechaConfirmacion, 45); // fallback
+                    fechaLimite = addDaysYMD(fechaConfirmacion, 46); // fallback
                 }
 
 

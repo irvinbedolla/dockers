@@ -5,7 +5,7 @@
 @section('content')
     <section class="section">
         <div class="section-header">
-            <h3 class="page__heading">Audiencias</h3>
+            <h3 class="page__heading">Índice de Audiencias</h3>
         </div>
         <div class="section-body">
             <!-- Muestra los mensajes de éxito y/o error según sea el caso, al subir el expediente -->
