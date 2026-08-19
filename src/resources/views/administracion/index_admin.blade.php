@@ -52,7 +52,7 @@
                                     </div>
                                     <div class="col-xs-4 col-sm-4 col-md-3">
                                         <div align="center" class="mb-2">
-                                            <a href="{{ route('genera_retroceso') }}" class="btn btn-primary" style="width: 100%">Retrocesos</a>
+                                            <a href="{{ route('index_retroceso') }}" class="btn btn-primary" style="width: 100%">Retrocesos</a>
                                         </div>
                                     </div>
                                     <div class="col-xs-4 col-sm-4 col-md-3">
