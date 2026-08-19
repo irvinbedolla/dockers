@@ -193,6 +193,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('concepto/import',                  [HomeController::class, 'importConcepto'])->name('concecto.import');
         Route::post('turnos/import',                    [HomeController::class, 'importTurnos'])->name('turnos.import');
 
+        //Reportes conciliciador, auxiliares y notificaciones
+        Route::get('/indexConciliadores/Reportes',          [SeerController::class, 'indexCAN'])->name('reportes_conciliador');
+        Route::post('indexConciliadores/generar',           [SeerController::class, 'generaReporteUsuario'])->name('generaReporteUsuario');
+
         // Configuración Avanzada de Sedes y Retrocesos de Estatus
         Route::get('administracion/configuracion',          [AdministracionController::class, 'configuracion'])->name('configuracion');
         Route::get('administracion/sedes',                  [AdministracionController::class, 'configuracion_sedes'])->name('configuracion_sedes');
@@ -365,6 +369,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/seer/mostrar',                        [SeerController::class, 'mostrar_reporte'])->name('seer.mostar');
         Route::post('/notificacion/editar',                 [SeerController::class, 'mostrar_citado'])->name('editar_citado_historial');
         Route::post('notificaciones/actualizarH',           [SeerController::class, 'editar_citados_historial'])->name('actualizar_enlace_hitorial');  
+    });
+
+    /*
+     |-- RETROCESOS (acciones destructivas: solo mandos)
+     |*/
+    Route::middleware(['role:Super Usuario|Administrador|Delegado'])->group(function () {
+        Route::get('/ratificaciones/retroceso',             [TurnosController::class, 'retroceso_ratificacion_index'])->name('retroceso_ratificacion');
+        Route::post('/ratificaciones/retroceso/buscar',     [TurnosController::class, 'buscar_retroceso_ratificacion'])->name('retroceso_ratificacion_buscar');
+        Route::post('/ratificaciones/retroceso/{id}',       [TurnosController::class, 'aplicar_retroceso_ratificacion'])->name('retroceso_ratificacion_aplicar');
+
+        Route::get('/solicitudes/retroceso',                [SeerController::class, 'retroceso_solicitud_index'])->name('retroceso_solicitud');
+        Route::post('/solicitudes/retroceso/buscar',        [SeerController::class, 'buscar_retroceso_solicitud'])->name('retroceso_solicitud_buscar');
+        Route::post('/solicitudes/retroceso/{id}',          [SeerController::class, 'aplicar_retroceso_solicitud'])->name('retroceso_solicitud_aplicar');
     });
 
     /*

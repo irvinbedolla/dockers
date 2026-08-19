@@ -50,6 +50,7 @@
             <link rel="icon"       href="{{ asset('assets/images/ccl-r.png') }}" type="image/x-icon">
             <link rel="stylesheet" href="{{ asset('assets/css/style.css') }}">
             <link rel="stylesheet" href="{{ asset('assets/css/components.css') }}">
+            <link rel="stylesheet" href="{{ asset('assets/css/custom.css') }}">
         @yield('page_css')
 
         @yield('page_css')
@@ -165,11 +166,13 @@
             var errorMsg = @json(session('error'));
             try {
                 if (typeof swal === 'function') {
+                    // SweetAlert 1.x: la opción es "type", no "icon"; y el botón
+                    // se controla con "confirmButtonText", no con "button".
                     swal({
                         title: 'Error',
                         text: errorMsg,
-                        icon: 'error',
-                        button: 'OK'
+                        type: 'error',
+                        confirmButtonText: 'OK'
                     });
                 } else {
                     alert('Error: ' + errorMsg);

@@ -125,11 +125,27 @@ class AdministracionController extends Controller{
     }
 
     public function consultar_retroceso(Request $request){
+        $request->validate([
+            'tipo'  => 'required|string|in:Cumplimiento,Ratificación,Solicitudes',
+            'folio' => 'required|integer|min:1',
+            'año'   => 'required|integer|min:' . (date('Y') - 3) . '|max:' . date('Y'),
+        ], [
+            'tipo.required'  => 'Debe seleccionar un tipo de retroceso.',
+            'tipo.in'        => 'El tipo de retroceso seleccionado no es válido.',
+            'folio.required' => 'El folio es obligatorio.',
+            'folio.integer'  => 'El folio debe ser un número entero.',
+            'folio.min'      => 'El folio debe ser un número positivo mayor a 0.',
+            'año.required'   => 'Debe seleccionar un año.',
+            'año.integer'    => 'El año debe ser un número válido.',
+            'año.min'        => 'El año seleccionado está fuera del rango permitido.',
+            'año.max'        => 'El año seleccionado está fuera del rango permitido.',
+        ]);
+
         $data = $request->all();
         if($data["tipo"] == "Cumplimiento"){
             $folios = Pagos::where("id_solicitud",$data["folio"])
             ->whereYear("fecha",$data["año"])
-            ->select('id','NUE','fecha','descripcion','estatus')
+            ->select('id','NUE','fecha','descripcion','estatus','delegacion','nombre_trabajador')
             ->get()
             ->map(function ($folio) {
                 return [
@@ -137,6 +153,8 @@ class AdministracionController extends Controller{
                     'NUE' => $folio->NUE,
                     'fecha' => $folio->fecha->format('Y-m-d H:i:s'),
                     'descripcion' => $folio->descripcion,
+                    'solicitante' => $folio->nombre_trabajador,
+                    'delegacion' => $folio->delegacion,
                     'estatus' => $folio->estatus,
                 ];
             })
@@ -155,7 +173,7 @@ class AdministracionController extends Controller{
         else if($data["tipo"] == "Ratificación"){
             $folios = Turnos::where('consecutivo',$data["folio"])
             ->whereYear("fecha",$data["año"])
-            ->select('id','NUE','fecha','estatus')
+            ->select('id','NUE','fecha','estatus','delegacion')
             ->selectRaw("CONCAT(empresa,' ',primero_empresa,' ',segundo_empresa) as empresa")
             ->selectRaw("CONCAT(trabajador,' ',primero_trabajador,' ',segundo_trabajador) as trabajador")
             ->get()
@@ -165,7 +183,8 @@ class AdministracionController extends Controller{
                     'NUE' => $folio->NUE,
                     'fecha' => $folio->fecha,
                     'empresa' => $folio->empresa,
-                    'trabajador' => $folio->trabajador,
+                    'solicitante' => $folio->trabajador,
+                    'delegacion' => $folio->delegacion,
                     'estatus' => $folio->estatus,
                 ];
             })
@@ -185,7 +204,7 @@ class AdministracionController extends Controller{
             $folios = SeerPerGeneral::where('seer_general.id',$data["folio"])
             ->join('seer_solicitante','seer_solicitante.id_solicitud','seer_general.id')
             ->whereYear("fecha",$data["año"])
-            ->select('seer_general.id','seer_general.NUE','seer_general.fecha','seer_general.estatus','seer_general.estatus','seer_solicitante.nombre')
+            ->select('seer_general.id','seer_general.NUE','seer_general.fecha','seer_general.estatus','seer_solicitante.nombre','seer_general.delegacion')
             //->selectRaw("CONCAT(empresa,' ',primero_empresa,' ',segundo_empresa) as empresa")
             //->selectRaw("CONCAT(trabajador,' ',primero_trabajador,' ',segundo_trabajador) as trabajador")
             ->get()
@@ -195,7 +214,8 @@ class AdministracionController extends Controller{
                     'NUE' => $folio->NUE,
                     'fecha' => $folio->fecha,
                     'empresa' => "Citados",
-                    'trabajador' => $folio->nombre,
+                    'solicitante' => $folio->nombre,
+                    'delegacion' => $folio->delegacion,
                     'estatus' => $folio->estatus,
                 ];
             })
@@ -213,7 +233,7 @@ class AdministracionController extends Controller{
         }
     }
 
-    public function hacer_retroceso($id){
+    public function hacer_retroceso_cumplimiento($id){
         Pagos::find($id)->update(['estatus'  => "Concluir"]);
         return redirect()->back()->with('success', 'Puedes realizar tu cumplimiento nuevamente.');
     }
