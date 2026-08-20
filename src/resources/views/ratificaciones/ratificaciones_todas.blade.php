@@ -90,7 +90,8 @@
                                                                         <li><a class="dropdown-item" href="{{ route('PDFconvenioratificacion', $solicitud->id) }}"  target="_blank">Convenio</a></li>
                                                                     @endif
                                                                     <li><a class="dropdown-item" href="{{ route('PDFaudiencia', $solicitud->id) }}"  target="_blank">Acta de audiencia</a></li>
-                                                                    <li><a class="dropdown-item" href="{{ route('PDFCaratulaInfo', ['tipo' => 'ratificacion', 'id' => $solicitud->id]) }}"  target="_blank">Imprimir solicitud</a></li>
+                                                                    <li><a class="dropdown-item" href="{{ route('PDFCaratulaInfo', ['tipo' => 'ratificacion', 'id' => $solicitud->id]) }}"  target="_blank">Formato de Solicitud</a></li>
+                                                                    <li><a class="dropdown-item" href="{{ route('PDFCaratulaInfoConcilioR', ['id' => $solicitud->id]) }}"  target="_blank">Caratula de Ratificaciones</a></li>
                                                                     @if($solicitud->constancia == 0)
                                                                         <li><a class="dropdown-item" href="{{ route('PDFcumplimientoR', $solicitud->id) }}"  target="_blank">Constancia de cumplimiento</a></li>
                                                                     @endif
@@ -108,7 +109,8 @@
                                                                         <li><a class="dropdown-item" href="{{ route('PDFconvenioratificacion', $solicitud->id) }}"  target="_blank">Convenio</a></li>
                                                                     @endif
                                                                     <li><a class="dropdown-item" href="{{ route('PDFaudiencia', $solicitud->id) }}"  target="_blank">Acta de audiencia</a></li>
-                                                                    <li><a class="dropdown-item" href="{{ route('PDFCaratulaInfo', ['tipo' => 'ratificacion', 'id' => $solicitud->id]) }}"  target="_blank">Imprimir solicitud</a></li>
+                                                                    <li><a class="dropdown-item" href="{{ route('PDFCaratulaInfo', ['tipo' => 'ratificacion', 'id' => $solicitud->id]) }}"  target="_blank">Formato de Solicitud</a></li>
+                                                                    <li><a class="dropdown-item" href="{{ route('PDFCaratulaInfoConcilioR', ['id' => $solicitud->id]) }}"  target="_blank">Caratula de Ratificaciones</a></li>
                                                                 </ul>
                                                             </div>
                                                         @elseif($solicitud->estatus == "Confirmado")
@@ -264,5 +266,5 @@
             document.getElementById('expediente_audiencia_id').value = idRegistro;
         });
     </script>
-    <script src="{{ asset('assets/js/poderes/general.js') }}"></script>
+    <script src="../public/assets/js/poderes/general.js"></script>
 @endsection

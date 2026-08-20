@@ -226,6 +226,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/administracion/borrarCumplimientos',   [AdministracionController::class, 'consular_cumplimientos'])->name('configuracion_borrar_cumpli');
         Route::post('/administracion/borrarCumplimiento',   [AdministracionController::class, 'borrar_cumplimeinto'])->name('borrar_cumplimeinto');
         Route::delete('/administracion/borrar/{id}',        [AdministracionController::class, 'destroy_cumplimientoA'])->name('borrar_cumplimeintoA');
+        Route::get('/administracion/cambiarFecha',          [AdministracionController::class, 'cambio_audiencia'])->name('cambio_fecha_audiencia');
+        Route::post('/administracion/cambiarFecha/buscar',  [AdministracionController::class, 'fecha_audiencia_buscar'])->name('fecha_audiencia_buscar');
+        Route::get('/administracion/cambiarFecha/cambio',   [AdministracionController::class, 'cambiar_fecha'])->name('cambiar_fecha');
+        Route::post('/administracion/cambiarFecha/cambioFecha',[AdministracionController::class, 'cambio_fecha'])->name('cambio_fecha');
+        
 
         //Direccion General
         Route::get('/DireccionGeneral/index',           [CitaDireccionController::class, 'index'])->name('indexDireccionGeneral');
@@ -518,6 +523,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/VerpdfactaAudiencia/{id}',                         [SeerController::class, 'VerPDFAudiencia'])->name('VerPDFAudiencia');
         Route::get('/VerpdfmultaNot/{id}/{id_solicitud}',               [SeerController::class, 'VerPDFMultaNotificacion'])->name('PDFmultaNotificacion'); // Notificación de multa cuando finaliza exitosamente
         Route::get('/PDF/captura/{id}/{tipo}',                          [SeerController::class, 'VerPDFCaratula'])->name('PDFCaratulaInfo'); //Formato llenado por los solicitantes
+        Route::get('/PDF/capturaConcilio/{id}/{tipo}',                  [SeerController::class, 'VerPDFCaratulaConcilio'])->name('PDFCaratulaInfoConcilio'); //Formato llenado por los solicitantes
+        Route::get('/PDF/capturaConcilioR/{id}',                        [SeerController::class, 'VerPDFCaratulaConcilioR'])->name('PDFCaratulaInfoConcilioR'); //Formato llenado por los solicitantes
         Route::get('/VerPDFNoConciliacionIndividual/{id}',              [SeerController::class, 'VerPDFNoConciliacionIndividual'])->name('PDFnoConciliacionIndividual'); //Genera las constancias de no conciliación para mostrar de manera invividual por achivo
         Route::get('/VerpdfmultaInst/{id}/{id_solicitud}',              [SeerController::class, 'VerPDFMultaInstructivo'])->name('VerPDFMultaInstructivo'); // Notificación de multa por
         Route::get('/VerpdfmultaNConst/{id}/{id_solicitud}',            [SeerController::class, 'VerPDFMultaNoExitConstituye'])->name('VerPDFMultaNoExitConstituye'); // Notificación de multa NO Exitosa Se Constituye

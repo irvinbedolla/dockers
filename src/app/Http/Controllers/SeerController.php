@@ -14760,7 +14760,7 @@ class SeerController extends Controller
         $isAudiencia = 'No';
 
         // 1. Iniciamos el Query base optimizado con Eager Loading selectivo
-        $query = SeerPerGeneral::with('solicitante:id,id_solicitud,nombre')
+        $query = SeerPerGeneral::with('solicitante:id,id_solicitud,nombre,telefono1')
             ->where('estatus', '!=', 'Pendiente')
             ->where(function ($q) {
                 $q->whereNull('incidencia')
@@ -14839,7 +14839,7 @@ class SeerController extends Controller
         $solicitudes->through(function ($solicitud) use ($citadosSolicitud) { 
             // Nombre del solicitante
             $solicitud->nombre = $solicitud->solicitante->nombre ?? 'Sin solicitante';
-            
+            $solicitud->telefono = $solicitud->solicitante->telefono1 ?? 'Sin número';
             // Listado consolidado de citados
             if (isset($citadosSolicitud[$solicitud->id])) {
                 $solicitud->lista_citados = $citadosSolicitud[$solicitud->id]
@@ -14854,6 +14854,7 @@ class SeerController extends Controller
 
             return $solicitud;
         });
+        
 
         return view('solicitudes.solicitudes_todas', compact('solicitudes', 'isAudiencia', 'userRole'));
     }
@@ -17949,6 +17950,126 @@ class SeerController extends Controller
 
             $html = view('PDF/Caratula', compact('id','solicitud','solicitante','citados','motivos','notifica','bandera'))->render();
         }
+        
+        $pdf = \PDF::loadHTML($html)
+            ->setPaper('a4', 'portrait')
+            ->setOption('isHtml5ParserEnabled', true)
+            ->setOption('isPhpEnabled', true); 
+
+        $nombreArchivo = 'Captura_caratula' .'.pdf';
+        return $pdf->stream($nombreArchivo);  
+    }
+    public function VerPDFCaratulaConcilio($id, $tipo){
+       
+            $solicitud = SeerPerGeneral::find($id);
+            $solicitante = SeerSolicitante::where('id_solicitud', $solicitud["id"])
+            ->leftJoin('municipios', 'seer_solicitante.municipio_domicilio', '=', 'municipios.id')
+            ->leftJoin('estados', 'seer_solicitante.estado_domicilio', '=', 'estados.id')
+            ->select(
+                'seer_solicitante.*', 
+                'municipios.nombre as nombre_municipio_sol', 
+                'estados.nombre as nombre_estado_sol'
+            )
+            ->first();
+            $citados = SeerCitados::where("id_solicitud", $id)
+            ->leftJoin('municipios', 'seer_citados.municipio_citado', '=', 'municipios.id')
+            ->leftJoin('estados', 'seer_citados.estado_citado', '=', 'estados.id')
+            ->select('seer_citados.*', 'municipios.nombre as nombre_municipio', 'estados.nombre as nombre_estado')
+            ->get();
+            $notifica = \DB::table('seer_citados')
+            ->where('id_solicitud', $id)
+            ->pluck('notificacion');
+            $motivos = \DB::table('seer_motivos')
+            ->join('catalogo_motivos', 'seer_motivos.id_motivo', '=', 'catalogo_motivos.id')
+            ->where('seer_motivos.id_solicitud', $id)
+            ->select('catalogo_motivos.motivo')
+            ->get();
+            $user = User::where('id', $solicitud->user_id)->first();
+            
+            $audiencias= \DB::table('audiencias')->where('id_solicitud', $id)->get();
+            $ultima_audiencia= \DB::table('audiencias')->where('id_solicitud', $id)->orderByDesc('id')->first();
+            $conciliador = User::where('id', $ultima_audiencia->id_conciliador)->first();
+            if($conciliador){
+                $conciliador_name = $conciliador->name;
+            }
+            else{
+                $conciliador_name = " ";
+            }
+            $pagos = Pagos::where('id_solicitud', $id)->where('tipo_pago','Audiencia')->get();
+            
+            $multas = \DB::table('seer_citados')
+                ->leftJoin('seer_general', 'seer_citados.id_solicitud', '=', 'seer_general.id')
+                ->where('seer_citados.id_solicitud', $id)
+                ->whereIn('seer_general.estatus', ['Archivada', 'No conciliacion'])
+                ->where('seer_citados.notificacion', 'Centro') 
+                ->where('seer_citados.tipo_notificacion', 'Multa') 
+                ->whereIn('seer_citados.estatus', ['Notificada', 'Finalizado exitosamente', 'Recibe pero no firma', 'Exitosa por Instructivo']) 
+                ->exists();     
+                    
+            $monto = \DB::table('concepto_pago')->where('id_solicitud', $id)->where('tipo_pago','Audiencia')->sum('monto');
+            $conciliadores = SeerPerConciliador::where('id_solicitud', $id)->first();
+            if($conciliadores?->fecha)
+                $solicitud->dias = Carbon::parse($solicitud->fecha_confirmacion)->diffInDays(Carbon::parse($conciliadores->fecha));
+            else
+                $solicitud->dias = ' ';
+            $html = view('PDF/CaratulaConcilio', compact('id','solicitud','solicitante','citados','motivos','notifica', 'ultima_audiencia', 'audiencias','conciliador_name','pagos','multas','monto', 'conciliadores','tipo'))->render();
+        
+        
+        $pdf = \PDF::loadHTML($html)
+            ->setPaper('a4', 'portrait')
+            ->setOption('isHtml5ParserEnabled', true)
+            ->setOption('isPhpEnabled', true); 
+
+        $nombreArchivo = 'Captura_caratula' .'.pdf';
+        return $pdf->stream($nombreArchivo);  
+    }
+    public function VerPDFCaratulaConcilioR($id){
+       
+        $ratificacion = Turnos::where('turnos.id', $id)
+        ->leftJoin('municipios', 'turnos.municipio_rat', '=', 'municipios.id')
+        ->leftJoin('estados', 'turnos.estado_rat', '=', 'estados.id')
+        ->select(
+            'turnos.*', 
+            'municipios.nombre as municipio_domicilio', 
+            'estados.nombre as estado_domicilio'
+        )
+        ->first();
+
+        if($ratificacion->id_historial){
+            $abogado = HistorialAbogado::join("turnos", "turnos.id_historial", "=", "historial_abogados.id")
+            ->where("turnos.id", "=", $id)
+            ->select(
+                "historial_abogados.*",
+                "turnos.tipo_identificacion as tipo_identificacion_turno",
+                "turnos.num_identificacion as num_identificacion_turno"
+            )
+            ->first();
+        } else {
+            $abogado = Poder::join("turnos", "turnos.idAbogado", "=", "abogados.idAbogado")
+            ->where("turnos.id", "=", $id)
+            ->select(
+                "abogados.*",
+                "turnos.tipo_identificacion as tipo_identificacion_turno",
+                "turnos.num_identificacion as num_identificacion_turno"
+            )
+            ->first();
+        }
+   
+        if($ratificacion->id_conciliador){
+            
+            $conciliador = User::where('id', $ratificacion->id_conciliador)->pluck('name')->first();
+        }
+        else{
+            $conciliador = " ";
+        }
+        if($ratificacion->fecha)
+                $ratificacion->dias = intval($ratificacion->created_at->diffInDays($ratificacion->updated_at)) + 1;
+            else
+                $ratificacion->dias = ' ';
+        $pagos = Pagos::where('id_solicitud', $id)->where('tipo_pago','Ratificacion')->get();
+        $monto = \DB::table('concepto_pago')->where('id_solicitud', $id)->where('tipo_pago','Ratificación')->sum('monto');
+        $ratificacion->nombre_auxiliar = User::where('id', $ratificacion->user_id)->pluck('name')->first();
+        $html = view('PDF/CaratulaConcilioR', compact('id','ratificacion','abogado','conciliador','pagos','monto'))->render();
         
         $pdf = \PDF::loadHTML($html)
             ->setPaper('a4', 'portrait')
