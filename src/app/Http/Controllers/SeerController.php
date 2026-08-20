@@ -3367,6 +3367,31 @@ class SeerController extends Controller
         return redirect()->route('notificaciones');
     }
 
+    public function asignar_notificador_busqueda(Request $request){
+        $request->validate([
+            'id'              => 'required|exists:seer_citados,id',
+            'id_notificador'  => 'required|exists:users,id',
+        ]);
+
+        $citado = SeerCitados::findOrFail($request->id);
+        $delegacion = SeerPerGeneral::where('id', $citado->id_solicitud)->value('delegacion');
+
+        $esNotificadorValido = User::where('id', $request->id_notificador)
+            ->where('delegacion', $delegacion)
+            ->whereHas('roles', function ($query) {
+                $query->where('name', 'Notificador');
+            })
+            ->exists();
+
+        if (!$esNotificadorValido) {
+            return redirect()->back()->with('error', 'El usuario seleccionado no es un Notificador válido para la sede de este registro.');
+        }
+
+        $citado->update(['id_notificador' => $request->id_notificador]);
+
+        return redirect()->back()->with('success', 'Notificador asignado correctamente.');
+    }
+
     public function create_asesoria(){
         return view('estadisticas.crearAsesorias');
     }
@@ -13512,11 +13537,14 @@ class SeerController extends Controller
         $query = SeerCitados::join('seer_general', 'seer_general.id', '=', 'seer_citados.id_solicitud')
             ->leftJoin('municipios', 'seer_citados.municipio_citado', '=', 'municipios.id')
             ->leftJoin('estados', 'seer_citados.estado_citado', '=', 'estados.id')
+            ->leftJoin('users as notificadores', 'seer_citados.id_notificador', '=', 'notificadores.id')
             ->select(
-                'seer_citados.*', 
-                'seer_general.NUE', 
-                'municipios.nombre as municipio_citado_nombre', 
-                'estados.nombre as estado_citado_nombre'
+                'seer_citados.*',
+                'seer_general.NUE',
+                'seer_general.delegacion',
+                'municipios.nombre as municipio_citado_nombre',
+                'estados.nombre as estado_citado_nombre',
+                'notificadores.name as notificador_nombre'
             )
             ->orderBy('seer_citados.created_at', 'desc') // Especificamos la tabla para evitar ambigüedad
             ->limit(3000);
@@ -13544,7 +13572,15 @@ class SeerController extends Controller
         // 5. Ejecutar la consulta una sola vez
         $notificaciones = $query->get();
 
-        return view('notificaciones.index_busqueda', compact('notificaciones'));
+        // 6. Notificadores disponibles por sede, para poder reasignar el registro
+        $notificadoresPorSede = User::whereHas('roles', function ($query) {
+                $query->where('name', 'Notificador');
+            })
+            ->select('id', 'name', 'delegacion')
+            ->get()
+            ->groupBy('delegacion');
+
+        return view('notificaciones.index_busqueda', compact('notificaciones', 'notificadoresPorSede'));
     }
 
     public function notificaciones_busqueda(Request $request){
@@ -13570,7 +13606,7 @@ class SeerController extends Controller
 
         $notificaciones = SeerPerGeneral::join('seer_citados','seer_citados.id_solicitud','=','seer_general.id')
         ->leftJoin('users', 'seer_citados.id_notificador', '=', 'users.id')
-        ->select('seer_general.id as id_solicitud','seer_citados.id as id_citado','seer_general.NUE',
+        ->select('seer_general.id as id_solicitud','seer_citados.id as id','seer_general.NUE','seer_general.delegacion',
             'seer_citados.nombre','seer_citados.primer_apellido','seer_citados.segundo_apellido',
             'seer_citados.colonia','seer_citados.calle','seer_citados.n_ext','seer_citados.n_int','seer_citados.estatus','seer_citados.tipo_notificacion','users.name as notificador_nombre')
         ->where('seer_general.delegacion', $user["delegacion"])
@@ -13579,7 +13615,14 @@ class SeerController extends Controller
         ->whereBetween('seer_general.fecha', [$data["fecha_inicio"], $data["fecha_final"]])
         ->get();
 
-        return view('notificaciones.index_busqueda',compact('notificaciones','personas','userRole','fecha_inicio','fecha_fin'));
+        $notificadoresPorSede = User::whereHas('roles', function ($query) {
+                $query->where('name', 'Notificador');
+            })
+            ->select('id', 'name', 'delegacion')
+            ->get()
+            ->groupBy('delegacion');
+
+        return view('notificaciones.index_busqueda',compact('notificaciones','personas','userRole','fecha_inicio','fecha_fin','notificadoresPorSede'));
     }
     
     //PDF COMPARECE REPRESENTANTE LEGAL SIN PODER
