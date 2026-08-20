@@ -1,228 +1,393 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
     <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta name="description" content="">
-        <meta name="author" content="Mark Otto, Jacob Thornton, and Bootstrap contributors">
-        <meta name="generator" content="Ing. ISBM">
-        <link href="{{ asset('assets/css/carousel.css') }}" rel="stylesheet">
-        <title>Si Concilio</title>
-        <!-- Bootstrap core CSS -->
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
-        
-        <link rel="icon" href="{{ asset('assets/images/logo-ccl.png') }}" type="image/x-icon">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="SiConcilio - Datos generales de la solicitud">
+    <meta name="author" content="Centro de Conciliación Laboral de Michoacán">
+    <link rel="icon" href="{{ asset('assets/images/logo-ccl.png') }}" type="image/x-icon">
+    <title>Si Concilio - Solicitud de Conciliación</title>
+
+    <!-- Bootstrap 5 CSS & Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     
-    <!-- Agregados para los Select del Formulario Personas-->
+    <!-- Select2 & jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
 
     <style>
+        :root {
+            --primary-guinda: #6A0F49;
+            --primary-hover: #4a0a33;
+            --accent-dorado: #CEA845;
+            --accent-hover: #b8933b;
+            --bg-light: #f4f6f9;
+            --text-dark: #2c3e50;
+        }
+
+        body {
+            background-color: var(--bg-light);
+            color: var(--text-dark);
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Navbar */
+        .navbar-institutional {
+            background-color: #ffffff;
+            border-bottom: 3px solid var(--accent-dorado);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .nav-link-custom {
+            color: var(--text-dark) !important;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: color 0.2s ease;
+        }
+
+        .nav-link-custom:hover {
+            color: var(--primary-guinda) !important;
+        }
+
+        /* Contenedor Tarjeta Principal */
+        .main-card {
+            background: #ffffff;
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+            padding: 2rem;
+        }
+
+        .title-header {
+            color: var(--primary-guinda);
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .section-banner {
+            background: linear-gradient(135deg, var(--primary-guinda), var(--primary-hover));
+            color: #ffffff;
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .section-banner h4 {
+            margin: 0;
+            font-size: 1.1rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        /* Caja Informativa de Requisitos */
+        .info-requirements-box {
+            background-color: #f8f9fa;
+            border-left: 4px solid var(--primary-guinda);
+            border-radius: 6px;
+            padding: 1rem 1.2rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .info-requirements-box h6 {
+            color: var(--primary-guinda);
+            font-weight: 700;
+            margin-bottom: 0.3rem;
+        }
+
+        .info-requirements-box p {
+            color: #555;
+            margin: 0;
+            font-size: 0.9rem;
+        }
+
+        /* Form Labels */
+        .form-label {
+            font-weight: 600;
+            color: #333;
+            font-size: 0.9rem;
+            margin-bottom: 0.4rem;
+        }
+
+        .text-required {
+            color: #dc3545;
+            font-weight: bold;
+        }
+
+        /* Tablas */
+        .table-custom {
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #e3e8ee;
+        }
+
+        .table-custom thead {
+            background-color: #f1f3f5;
+            color: var(--text-dark);
+            font-weight: 700;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+        }
+
+        /* Botones */
+        .btn-dorado {
+            background-color: var(--accent-dorado);
+            border-color: var(--accent-dorado);
+            color: #ffffff !important;
+            font-weight: 700;
+            padding: 0.6rem 2rem;
+            border-radius: 6px;
+            box-shadow: 0 4px 10px rgba(206, 168, 69, 0.25);
+            transition: all 0.2s ease;
+        }
+
+        .btn-dorado:hover {
+            background-color: var(--accent-hover);
+            border-color: var(--accent-hover);
+            transform: translateY(-1px);
+        }
+
+        .btn-cancelar {
+            background-color: #6c757d;
+            border-color: #6c757d;
+            color: #ffffff !important;
+            font-weight: 600;
+            padding: 0.6rem 1.8rem;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-cancelar:hover {
+            background-color: #5a6268;
+        }
+
+        /* Loader Overlay */
         .loader {
             position: fixed;
-            left: 0px;
-            top: 0px;
+            left: 0;
+            top: 0;
             width: 100%;
             height: 100%;
             z-index: 9999;
-            background: url('{{ asset('assets/images/pageLoader.gif') }}') 50% 50% no-repeat rgb(249,249,249);
-           /* background-color: #6A0F49;/*<p style="color: #CEA845*/
-            opacity: .8;
+            background: rgba(249, 249, 249, 0.85) url('{{ asset("assets/images/pageLoader.gif") }}') 50% 50% no-repeat;
+            transition: opacity 0.3s ease;
         }
 
         .loader.hidden {
             display: none;
         }
-        
-    </style>   
+    </style>
 </head>
+<body>
 
-<nav class="navbar navbar-expand-lg navbar-light bg-light fixed-top">
-    <div class="">
-        <img src="{{ asset('assets/images/Logos 2.png') }}" class="img" style="" width="250" height="90"></a>&nbsp;&nbsp;
-    </div> 
-    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
-        <span class="navbar-toggler-icon"></span>
-    </button>
-    <div class="collapse navbar-collapse" id="navbarSupportedContent" >
-        <ul class="navbar-nav ml-auto">
-            <li class="nav-item active">
-                <a class="nav-link" href="{{ route('publico') }}" style="color: black;">INICIO<span class="sr-only"></span></a>
-            </li>
-        </ul>
-    </div>
-</nav>
-<div class="container">
-    <br><br><br>
-</div>
-    <div id="app">  
-        <section class="section">
-            <div class="section-body">
-                <div class="row"> 
-                    <div class="col-lg-12" >
-                        <div class="card">
-                            <div class="card-body">
-                                    @if(session()->has('success'))
-                                        <div class="alert alert-success alert-dismissible fade show" role="alert">
-                                            <strong>¡Registro correcto!</strong>
-                                            {{ session()->get('success') }}
-                                            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                                                <span aria-hidden="true">&times;</span>
-                                            </button>
-                                        </div>
-                                    @endif
+    <!-- Overlay Loader -->
+    <div id="page-loader" class="loader hidden" aria-hidden="true"></div>
 
-                                    <!--Se realiza la validación de campos para ver si dejó alguno vacío-->
-                                    @if ($errors->any())
-                                        <div class="alert alert-dark alert-dismissible fade show" role="alert">
-                                            <strong>¡Revise los campos!</strong>
-                                            <ul>
-                                                @foreach ($errors->all() as $error)
-                                                    <li>{{ $error }}</li>
-                                                    <!--<span class="badge badge-danger">{{ $error }}</span>-->
-                                                @endforeach
-                                            </ul>
-                                            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                                                <span aria-hidden="true">&times;</span>
-                                            </button>
-                                        </div>
-                                    @endif
-                                    <div>
-                                    <br></div>
-                                    <h3 class="text-center" style="color:#CEA845;">Solicitud</h3>
-                                    <div style="background-color:#D2D3D5; width:100%; height:40px;">
-                                        <h3 class="text-center" style="color:black;">Datos generales de la solicitud</h3>
-                                    </div>   
-                                    <h6 class="text-center" style="color: #828282"><b>Requisitos para realizar tu solicitud:</b></h6> 
-                                    <h6 class="text-center" style="color: #828282"><b>Teléfono, correo electrónico, identificación oficial(INE, PASAPORTE, LICENCIA DE CONDUCIR, CÉDULA PROFESIONAL), en caso de ser menor de edad tu identificación son tu CURP o Acta de Nacimiento.</b></h6> 
-                                    <!--Se realiza el envío de datos con formulario de Laravel Collective-->
-                                    <form id="form-parte1" class="needs-validation" novalidate method="POST" action="{{route('parte1')}}">
-                                        @csrf
-                                        <input type="hidden" name="tipo_solicitud" value="{{ $tipo_solicitud }}">
-                                        <input type="hidden" name="draft_id" value="{{ $draftId ?? request('draft_id') }}">
-                                        <div class="row">
-                                            <div class="col-xs-12 col-sm-12 col-md-4">
-                                                <div class="form-group">
-                                                    <label for="name">Municipio de la Fuente de Empleo <span style="color:red;">(*)</span></label>
-                                                    <select id="dSolicitud" class="form-control" name="dSolicitud" required>
-                                                        <option value="">Seleccione</option>
-                                                        @foreach($municipios as $municipio)
-                                                            <option value="{{$municipio['id']}}" data-delegacion-id="{{ $municipio['delegacion_id'] }}">
-                                                                {{ $municipio['nombre'] }}</option>
-                                                        @endforeach
-                                                    </select>
-                                                    <div class="invalid-feedback">
-                                                        El municipio es obligatorio.
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <!--<div class="col-xs-12 col-sm-12 col-md-4">
-                                                <div class="form-group">
-                                                    <label for="name">Delegación <span style="color:red;">(*)</span></label>
-                                                    <select class="form-control" id="delegacion" name="delegacion">
-                                                        <option value="">Seleccione</option>
-                                                        <option value="Morelia">Morelia</option>
-                                                        <option value="Uruapan">Uruapan</option>
-                                                        <option value="Zamora">Zamora</option>
-                                                        <option value="Lázaro Cárdenas">Lázaro Cárdenas</option>
-                                                        <option value="Zitácuaro">Zitácuaro</option>
-                                                        <option value="Sahuayo ">Sahuayo </option>
-                                                    </select>
-                                                    <div class="invalid-feedback">
-                                                        La delegación es obligatoria.
-                                                    </div>
-                                                </div>
-                                            </div>-->
-                                            <div class="col-xs-12 col-sm-12 col-md-4">
-                                                <div class="form-group">
-                                                    <label for="delegacion">Delegación <span style="color:red;">(*)</span></label>
-                                                    <select class="form-control" id="delegacion" name="delegacion" required>
-                                                        <option value="">Seleccione</option>
-                                                    </select>
-                                                    <div class="invalid-feedback">
-                                                        La delegación es obligatoria.
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-xs-6 col-sm-6 col-md-4">
-                                                <div class="form-group">
-                                                    <label for="name">Objeto de la solicitud <span style="color:red;">(*)</span></label>
-                                                    <select  class="form-control" id="motivo_solicitud">
-                                                        <option value="">Seleccione</option>
-                                                        @foreach($mostrarMotivos as $motivo)
-                                                            <option value="{{$motivo['id']}}">{{$motivo['motivo']}}</option>
-                                                        @endforeach
-                                                    </select>
-                                                    <div class="invalid-feedback">
-                                                        El objeto de solicitud es obligatorio.
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div id="div1"  class="col-xs-12 col-sm-12 col-md-12"><br>
-                                                <table id="tabla" name="motivo_solicitud[]" class="table table-striped mt-1" style="margin: 0 center; text-align:center;">
-                                                    <thead style="background-color: #D2D3D5;">
-                                                        <th style="color: black;">Objeto de la Solicitud</th>
-                                                        <th style="color: black;">Acción</th>
-                                                    </thead>
-                                                    <tbody></tbody>
-                                                </table>
-                                            </div>
-                                            <div id="div1"  class="col-xs-12 col-sm-12 col-md-5">
-                                                <p>Rama Industrial del Negocio</p>
-                                                <div class="form-group">
-                                                    <label for="name">Paso 1. Rama Industrial <span style="color:red;">(*)</span></label>
-                                                    <select id="ramaIndustrial" class="form-control" name="ramaIndustrial" required>
-                                                        <option value="">Seleccione</option>
-                                                        @foreach($ramas as $rama)
-                                                            <option value="{{$rama['id']}}">{{$rama['rama_industrial']}}</option>
-                                                        @endforeach
-                                                    </select>
-                                                    <div class="invalid-feedback">
-                                                        El campo rama industrial es obligatorio.
-                                                    </div>
-                                                </div>
-                                            </div>                  
-                                            <div id="div2"  class="col-xs-12 col-sm-12 col-md-7">
-                                                <p style="color: white">.</p>
-                                                <div class="form-group">  
-                                                    <label for="name">Paso 2: Actividad Económica del Patrón(a)/Empresa <span style="color:red;">(*)</span>   <em>Ejemplos: comercio de productos al por menor, construcción, servicios médicos...</em></label>
-                                                    <input type="text" name="actividad_economica" id="actividad_economica" oninput="this.value = this.value.toUpperCase()" class="form-control" required> 
-                                                <!--<select id="actividad_economica" name="actividad_economica" class="form-control" disabled>
-                                                        <option value=""> --Primero selecciona una rama industrial --</option>  
-                                                    </select>-->
-                                                    <div class="invalid-feedback">
-                                                        El campo actividad económica del patrón es obligatorio.
-                                                    </div>
-                                                </div>
-                                            </div>  
-                                        </div>
-                                        
-                                        <div align="center">
-                                            <button id="btn-guardar" type="submit" class="btn btn-primary" style="background-color:#CEA845; border-color: #CEA845">Guardar</button>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-                                            <a href="{{ route('publico'); }}" class="btn btn-primary" style=" background-color:#CEA845;border-color: #CEA845">Regresar</a>    
-                                        </div>
-                                    </form>
+    <!-- Navegación Fija -->
+    <nav class="navbar navbar-expand-lg navbar-institutional fixed-top py-2">
+        <div class="container-fluid px-4">
+            <a class="navbar-brand py-0" href="{{ route('login') }}">
+                <img src="{{ asset('assets/images/Logos 2.png') }}" alt="Logo CCL Michoacán" height="60">
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link nav-link-custom d-flex align-items-center gap-1" href="{{ route('login') }}">
+                            <i class="bi bi-house-door-fill"></i> INICIO
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Separador para el Fijo del Navbar -->
+    <div style="margin-top: 95px;"></div>
+
+    <!-- Contenido Principal -->
+    <main class="container my-4 flex-grow-1">
+        <div id="app">
+            <section class="section">
+                <div class="main-card">
+
+                    <!-- Encabezado de Solicitud -->
+                    <div class="text-center mb-3">
+                        <h2 class="title-header h3 mb-1">Solicitud de Conciliación</h2>
+                    </div>
+
+                    <div class="section-banner text-center shadow-sm">
+                        <h4 class="mb-0"><i class="bi bi-folder2-open me-2"></i>Datos Generales de la Solicitud</h4>
+                    </div>
+
+                    <!-- Alertas de Éxito y Errores -->
+                    @if(session()->has('success'))
+                        <div class="alert alert-success alert-dismissible fade show d-flex align-items-center" role="alert">
+                            <i class="bi bi-check-circle-fill me-2 fs-5"></i>
+                            <div>
+                                <strong>¡Registro correcto!</strong> {{ session()->get('success') }}
+                            </div>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    @endif
+
+                    @if ($errors->any())
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <div class="d-flex align-items-center mb-1">
+                                <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i>
+                                <strong>¡Por favor revise los siguientes campos!</strong>
+                            </div>
+                            <ul class="mb-0 ps-4 small">
+                                @foreach ($errors->all() as $error)
+                                    <li>{{ $error }}</li>
+                                @endforeach
+                            </ul>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    @endif
+
+                    <!-- Cuadro Informativo -->
+                    <div class="info-requirements-box shadow-sm">
+                        <h6><i class="bi bi-info-circle-fill me-1"></i> Requisitos indispensables para continuar tu solicitud:</h6>
+                        <p>Contar con un número telefónico, correo electrónico e identificación oficial vigente (INE, Pasaporte, Licencia de Conducir o Cédula Profesional). En caso de ser menor de edad, presentar CURP o Acta de Nacimiento.</p>
+                    </div>
+
+                    <!-- Formulario Principal -->
+                    <form id="form-parte1" class="needs-validation" novalidate method="POST" action="{{ route('parte1') }}">
+                        @csrf
+                        <input type="hidden" name="tipo_solicitud" value="{{ $tipo_solicitud }}">
+                        <input type="hidden" name="draft_id" value="{{ $draftId ?? request('draft_id') }}">
+
+                        <div class="row g-3">
+                            <!-- Municipio de la Fuente de Empleo -->
+                            <div class="col-12 col-md-6">
+                                <div class="form-group">
+                                    <label for="dSolicitud" class="form-label">
+                                        Municipio de la Fuente de Empleo <span class="text-required">(*)</span>
+                                    </label>
+                                    <select id="dSolicitud" class="form-select" name="dSolicitud" required>
+                                        <option value="">Seleccione un municipio...</option>
+                                        @foreach($municipios as $municipio)
+                                            <option value="{{$municipio['id']}}" data-delegacion-id="{{ $municipio['delegacion_id'] }}">
+                                                {{ $municipio['nombre'] }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    <div class="invalid-feedback">
+                                        El municipio es obligatorio.
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Delegación asignada -->
+                            <div class="col-12 col-md-6">
+                                <div class="form-group">
+                                    <label for="delegacion" class="form-label">
+                                        Delegación Asignada <span class="text-required">(*)</span>
+                                    </label>
+                                    <select class="form-select bg-light" id="delegacion" name="delegacion" required>
+                                        <option value="">Seleccione municipio primero</option>
+                                    </select>
+                                    <div class="invalid-feedback">
+                                        La delegación es obligatoria.
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Objeto de la Solicitud -->
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label for="motivo_solicitud" class="form-label">
+                                        Objeto de la Solicitud <span class="text-required">(*)</span>
+                                    </label>
+                                    <select class="form-select" id="motivo_solicitud">
+                                        <option value="">Seleccione los motivos de su solicitud...</option>
+                                        @foreach($mostrarMotivos as $motivo)
+                                            <option value="{{$motivo['id']}}">{{$motivo['motivo']}}</option>
+                                        @endforeach
+                                    </select>
+                                    <div class="invalid-feedback">
+                                        El objeto de la solicitud es obligatorio.
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Tabla Dinámica para Motivos Seleccionados -->
+                            <div id="div1" class="col-12">
+                                <div class="table-responsive">
+                                    <table id="tabla" class="table table-custom table-hover align-middle mb-0 text-center">
+                                        <thead>
+                                            <tr>
+                                                <th>Objeto de la Solicitud Seleccionado</th>
+                                                <th style="width: 120px;">Acción</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <!-- Las filas agregadas dinámicamente aparecerán aquí -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- Rama Industrial -->
+                            <div class="col-12 col-md-5">
+                                <div class="form-group">
+                                    <label for="ramaIndustrial" class="form-label">
+                                        Paso 1. Rama Industrial <span class="text-required">(*)</span>
+                                    </label>
+                                    <select id="ramaIndustrial" class="form-select" name="ramaIndustrial" required>
+                                        <option value="">Seleccione una rama...</option>
+                                        @foreach($ramas as $rama)
+                                            <option value="{{$rama['id']}}">{{$rama['rama_industrial']}}</option>
+                                        @endforeach
+                                    </select>
+                                    <div class="invalid-feedback">
+                                        El campo rama industrial es obligatorio.
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Actividad Económica -->
+                            <div class="col-12 col-md-7">
+                                <div class="form-group">
+                                    <label for="actividad_economica" class="form-label">
+                                        Paso 2. Actividad Económica del Patrón/Empresa <span class="text-required">(*)</span>
+                                    </label>
+                                    <input type="text" name="actividad_economica" id="actividad_economica" oninput="this.value = this.value.toUpperCase()" class="form-control" placeholder="Ej: Comercio de productos al por menor, construcción..." required>
+                                    <div class="invalid-feedback">
+                                        El campo actividad económica es obligatorio.
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
+
+                        <!-- Botones de Acción -->
+                        <div class="d-flex justify-content-end align-items-center gap-3 mt-4 pt-3 border-top">
+                            <a href="{{ route('publico') }}" class="btn btn-cancelar">
+                                <i class="bi bi-arrow-left me-1"></i> Regresar
+                            </a>
+                            <button id="btn-guardar" type="submit" class="btn btn-dorado">
+                                Guardar y Continuar <i class="bi bi-floppy-fill ms-1"></i>
+                            </button>
+                        </div>
+                    </form>
+
                 </div>
-            </div>
-        </section>
-    </div>
+            </section>
+        </div>
+    </main>
 
-    <div id="page-loader" class="loader hidden" aria-hidden="true"></div>
+    <!-- Bootstrap 5 JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
-    <script src="{{ asset('assets/js/estadistica/estadistica.js') }}"></script>
-    <script src="https://cdn.datatables.net/2.1.5/js/dataTables.js"></script>
-    <script src="https://cdn.datatables.net/2.1.5/js/dataTables.bootstrap4.js"></script>
-       
     <script>
-        //Fecha conflicto limitada a la fecha actual
-        //fechaConflicto.max = new Date().toISOString().split("T")[0];
-        //Solicitud en línea trabajador parte 1
         $(document).ready(function() {
             let motivosSeleccionados = [];
 
@@ -234,9 +399,9 @@
                 $('#page-loader').addClass('hidden').attr('aria-hidden', 'true');
             }
 
-            // Interceptar submit: validar límite diario por delegación.
+            // Interceptar submit: validar límite diario por delegación
             $('#form-parte1').on('submit', function(e) {
-                // Dejar que el navegador marque inválidos si aplica
+                // Dejar que el HTML5 validation marque los campos inválidos si corresponde
                 if (this.checkValidity && this.checkValidity() === false) {
                     return;
                 }
@@ -245,7 +410,6 @@
 
                 const delegacion = ($('#delegacion').val() || '').trim();
                 if (!delegacion) {
-                    // No bloquear; el propio required se encargará.
                     this.submit();
                     return;
                 }
@@ -258,7 +422,7 @@
                     data: { delegacion: delegacion },
                     success: (resp) => {
                         if (resp && resp.reached) {
-                            // Requerimiento: NO mostrar mensaje, solo loader infinito
+                            // Mantiene el loader visible para bloquear la interfaz si se alcanza el límite
                             showLoader();
                             $('#btn-guardar').prop('disabled', true);
                             return;
@@ -273,9 +437,12 @@
                 });
             });
 
+            // Agregar Objeto de la Solicitud dinámicamente
             $('#motivo_solicitud').change(function() {
                 var opcionSeleccionada = $(this).val();
                 var opcionTexto = $("#motivo_solicitud option:selected").text();
+
+                if (!opcionSeleccionada) return;
 
                 // Verifica si ya fue agregado ese motivo
                 if (motivosSeleccionados.includes(opcionSeleccionada)) {
@@ -288,8 +455,8 @@
 
                 $('#tabla tbody').append(
                     '<tr data-id="' + opcionSeleccionada + '">' +
-                        '<td>' + opcionTexto + '</td>' +
-                        '<td><button type="button" class="eliminar btn btn-danger btn-sm">Eliminar</button></td>' +
+                        '<td class="text-start ps-3 fw-semibold">' + opcionTexto + '</td>' +
+                        '<td><button type="button" class="eliminar btn btn-outline-danger btn-sm"><i class="bi bi-trash-fill me-1"></i> Eliminar</button></td>' +
                     '</tr>'
                 );
 
@@ -301,21 +468,19 @@
                 $(this).val('');
             });
 
-            // Eliminar fila e input hidden
+            // Eliminar fila de la tabla e input hidden correspondiente
             $(document).on('click', '.eliminar', function() {
                 var fila = $(this).closest('tr');
                 var idMotivo = fila.attr('data-id');
 
-                // Elimina input y fila
                 $('#input-motivo-' + idMotivo).remove();
                 fila.remove();
 
-                // Actualiza la lista de los motivos seleccionados
                 motivosSeleccionados = motivosSeleccionados.filter(id => id !== idMotivo);
             });
         });
 
-        //Dependiendo del Municipio seleccionado muestra la delegación y oficina de apoyo que le corresponde
+        // Carga dinámica de Delegaciones según el Municipio seleccionado
         document.addEventListener('DOMContentLoaded', function () {
             const delegacionSelect = document.getElementById('delegacion');
             const municipioSelect = document.getElementById('dSolicitud');
@@ -334,7 +499,7 @@
                 const delegacionId = selectedOption.getAttribute('data-delegacion-id');
 
                 // Limpia el select de delegación
-                delegacionSelect.innerHTML = '<option value="">Seleccione</option>';
+                delegacionSelect.innerHTML = '<option value="">Seleccione delegación...</option>';
 
                 if (delegacionId && delegaciones[delegacionId]) {
                     delegaciones[delegacionId].forEach(delegacion => {
@@ -347,3 +512,5 @@
             });
         });
     </script>
+</body>
+</html>

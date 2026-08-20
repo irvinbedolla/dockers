@@ -1,7 +1,7 @@
 // 1. Declaración global
 var calendarPagos, calendarAudiencias, calendarRatificaciones, calendarCitas, calendarConciliador;
 var currentCalendar = null;
-const calendarEl = document.getElementById('calendar'); // Asegúrate que este ID exista en tu HTML
+var calendarEl = document.getElementById('calendar'); // Asegúrate que este ID exista en tu HTML
 
 // Función para obtener los parámetros de filtro actuales
     function getFilterParams() {
@@ -35,54 +35,63 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // 2. INICIALIZACIÓN DE CALENDARIOS
     // Usamos una función para evitar repetir toda la configuración 5 veces
-    function crearConfiguracion(endpoint, tipoParaModal) {
-        return {
-            initialView: window.innerWidth < 768 ? 'listWeek' : 'dayGridWeek',
-            locale: 'es',
-            //aspectRatio: window.innerWidth < 768 ? 0.65 : 1.35,
-            headerToolbar: {
-                left: 'prev,next today',
-                center: 'title',
-                right: 'dayGridMonth,dayGridWeek'
-            },
-            buttonText: {
-                today: 'Hoy',
-                month: 'Mensual',
-                week: 'Semanal'
-            },
-
-            events: endpoint + getFilterParams(),
-            //events: endpoint,
-            eventClick: (info) => handleEventClick(info, tipoParaModal),
-            eventDidMount: styleEvent,
-            windowResize: function(arg) {
-                let view = window.innerWidth < 768 ? 'listWeek' : 'dayGridWeek';
-                if (this.view.type !== view) { this.changeView(view); }
-            },
-            eventContent: function (info) {
-                return {
-                    html: `
-                        <div class="fc-event-content">
-                            <div class="fc-event-title">Solicitante:${info.event.extendedProps.solicitante}</div>
-                            <div class="fc-event-title">Citado:${info.event.extendedProps.citado}</div>
-                            <div class="fc-event-title">Conciliador:${info.event.extendedProps.conciliador}</div>
-                            <div class="fc-event-time">
-                                <div class="color-indicator" style="background:${info.event.extendedProps.color}"></div>
-                                ${info.event.extendedProps.hora}
-                            </div>
+    // Usamos una función para evitar repetir toda la configuración 5 veces
+// Usamos una función para evitar repetir toda la configuración 5 veces
+function crearConfiguracion(endpoint, tipoParaModal) {
+    return {
+        initialView: window.innerWidth < 768 ? 'listWeek' : 'dayGridWeek',
+        locale: 'es',
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,dayGridWeek'
+        },
+        buttonText: {
+            today: 'Hoy',
+            month: 'Mensual',
+            week: 'Semanal'
+        },
+        events: endpoint + getFilterParams(),
+        eventClick: (info) => handleEventClick(info, tipoParaModal),
+        windowResize: function(arg) {
+            let view = window.innerWidth < 768 ? 'listWeek' : 'dayGridWeek';
+            if (this.view.type !== view) { this.changeView(view); }
+        },
+        
+        // HTML DEL EVENTO (Acomodado y con color solo en la hora)
+        eventContent: function (info) {
+            // Obtenemos el color o le ponemos tu morado por defecto
+            const colorEvento = info.event.extendedProps.color || '#6A0F49';
+            
+            return {
+                html: `
+                    <div class="custom-event-content" style="padding: 4px; text-align: left; color: #4c6365; font-weight: bold;">
+                        <div style="font-weight: bold; font-size: 12px; margin-bottom: 3px; color: ${colorEvento};">
+                            <i class="bi bi-clock-fill"></i> ${info.event.extendedProps.hora || 'Sin hora'}
                         </div>
-                    `
-                };
-            }
-        };
-    }
+                        
+                        <div class="text-truncate" style="font-size: 11px;" title="Sol: ${info.event.extendedProps.solicitante}">
+                            <span style="color:#4c6365;">Solicitante:</span> ${info.event.extendedProps.solicitante || 'N/A'}
+                        </div>
+                        <div class="text-truncate" style="font-size: 11px;" title="Cit: ${info.event.extendedProps.citado}">
+                            <span style="color:#4c6365;">Citado:</span> ${info.event.extendedProps.citado || 'N/A'}
+                        </div>
+                        <div class="text-truncate" style="font-size: 11px;" title="Conc: ${info.event.extendedProps.conciliador}">
+                            <span style="color:#4c6365;">Conciliador:</span> ${info.event.extendedProps.conciliador || 'N/A'}
+                        </div>
+                    </div>
+                `
+            };
+        }
+    };
+}
 
     // Instanciamos cada calendario
-    calendarPagos = new FullCalendar.Calendar(calendarEl, crearConfiguracion('/pagos/eventos', 'pagos'));
-    calendarAudiencias = new FullCalendar.Calendar(calendarEl, crearConfiguracion('/audiencias/eventos', 'audiencias'));
-    calendarRatificaciones = new FullCalendar.Calendar(calendarEl, crearConfiguracion('/ratificaciones/eventos', 'ratificaciones'));
-    calendarCitas = new FullCalendar.Calendar(calendarEl, crearConfiguracion('/citas/eventos', 'citas'));
-    calendarConciliador = new FullCalendar.Calendar(calendarEl, crearConfiguracion('/pagos/conciliadores', 'conciliador'));
+    calendarCitas          = new FullCalendar.Calendar(calendarEl, crearConfiguracion(urlCitas, 'citas'));
+    calendarPagos          = new FullCalendar.Calendar(calendarEl, crearConfiguracion(urlPagos, 'pagos'));
+    calendarConciliador    = new FullCalendar.Calendar(calendarEl, crearConfiguracion(urlConciliadores, 'conciliador'));
+    calendarAudiencias     = new FullCalendar.Calendar(calendarEl, crearConfiguracion(urlAudiencias, 'audiencias'));
+    calendarRatificaciones = new FullCalendar.Calendar(calendarEl, crearConfiguracion(urlRatificaciones, 'ratificaciones'));
 
     // 3. LÓGICA DE LOS BOTONES (Función Maestra)
     const botones = document.querySelectorAll('.btn-calendar');

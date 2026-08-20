@@ -70,7 +70,9 @@ Route::post('registro_solicitud',                   [SeerController::class, 'Gua
 Route::get('/registro_tercer_encuentro',            [SeerController::class, 'registro_tercer_encuentro'])->name('registro_tercer_encuentro');
 Route::post('/registro_tercer_encuentro/guardar',   [SeerController::class, 'tercer_encuentro_registro'])->name('tercer_encuentro_registro');
 Route::get('GeneraConstancia',                      [SeerController::class, 'genera_constancia']);
-Route::post('aviso',                                [SeerController::class, 'aviso'])->name('aviso');
+Route::post('/avisos',                              [SeerController::class, 'aviso'])->name('aviso');
+Route::get('/solicitud-completada',                 [SeerController::class, 'solicitud_completada'])->name('solicitud.completada');
+
 Route::get('/RegistroForo',                         [SeerController::class, 'registro_foro_nacional'])->name('registro_foro_nacional');
 Route::post('/ForoNacional/guardar',                [SeerController::class, 'foroNacionalregistro'])->name('foroNacionalregistro');
 Route::post('/chat/crear',                          [Controller::class, 'store_chat'])->name('RespuestasChat.store');
@@ -87,10 +89,13 @@ Route::get('/poder-crear',                          [PoderController::class, 're
 Route::get('/poder-guardar',                        [PoderController::class, 'show'])->name('poder');
 Route::post('/poderes/publico',                     [PoderController::class, 'publico'])->name('poderes.publico');
 Route::get('/generarCita',                          [HomeController::class, 'citas'])->name('citas');
+Route::get('/generarCitaExito',                     [HomeController::class, 'citas_exito'])->name('citas_exito');
 Route::post('/turnos_guardar',                      [HomeController::class, 'turnos_publico'])->name('turnos_publico'); 
 Route::get('citas',                                 [TurnosController::class, 'create_publico'])->name('create_cita');
 Route::post('/citas/store_publico',                 [TurnosController::class, 'store_publico'])->name('turnos.publico');
 Route::get('/validar_folio_abogado/{folio}',        [TurnosController::class, 'validarFolio'])->name('validar_folio_abogado');
+Route::get('AgendaRatificacion',                    [TurnosController::class, 'create_ratiMultiple'])->name('create_cita-12');
+Route::post('/citas/storeRatificacion',             [TurnosController::class, 'guardarRatificacion'])->name('guardarRatificacion');
 
 // Flujo dinámico de Solicitudes (Trabajador / Patronal)
 Route::get('Patronal/{tipo_solicitud}',             [SeerController::class, 'patron'])->name('solicitud_patron');
@@ -101,7 +106,7 @@ Route::get('/agrega_citadoP/{id}',                  [SeerController::class, 'vis
 Route::post('/agrega_citadoP',                      [SeerController::class, 'guardar_citadoPatronal'])->name('seer.citadosPatronal');
 Route::get('tipoIndustriaP/{tipo_solicitud}',       [SeerController::class, 'Industrias_p'])->name('solicitud.industria_p');
 Route::get('Trabajador/{tipo_solicitud}',           [SeerController::class, 'trabajador'])->name('solicitud_trabajador');
-Route::post('guardar_trabajador',                   [SeerController::class, 'solicitud_parte1'])->name('parte1');
+Route::post('Agregar_solictante',                   [SeerController::class, 'solicitud_parte1'])->name('parte1');
 Route::get('solicitud_continuar',                   [SeerController::class, 'vista_parte2'])->name('parte2.ver');
 Route::post('solicitud_solicitante',                [SeerController::class, 'solicitud_parte2'])->name('parte2');
 Route::get('vista_solicitante/{id}',                [SeerController::class, 'vista_solicitante'])->name('solicitante');
@@ -112,7 +117,6 @@ Route::get('/munCitado/{id}',                       [SeerController::class, 'obt
 Route::get('/agrega_citado/{id}',                   [SeerController::class, 'vista_citado'])->name('agregar_citado');
 Route::post('/agrega_citado',                       [SeerController::class, 'guardar_citado'])->name('seer.citados');
 Route::get('/agrega_documento/{id}',                [SeerController::class, 'vista_documentos'])->name('agregar_documentos');
-
 
 //Constancias
 Route::post('GeneraConstancia',         [SeerController::class, 'genera_constancia'])->name('generaConstancia');
@@ -125,6 +129,10 @@ Route::get('constancia_individual',     [SeerController::class, 'constancia_indi
 //Rutas Asitencias
 Route::get('asistencia/{id}',           [AsistenciaController::class, 'AsistenciaCrear']);
 Route::get('QRAsistencia/{id}',         [AsistenciaController::class, 'generarQrUsuario']);
+Route::get('asistencia/{id}',           [AsistenciaController::class, 'seer.estadistica_consultar']);
+Route::get('asistencia/{id}',           [AsistenciaController::class, 'create_persona_con']);
+
+
 
 
 Route::get('/limpiar-cache', function() {
@@ -153,10 +161,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/notificaciones/editar',               [HomeController::class, 'contraseña_update'])->name('contraseña_update'); 
 
     // Calendario Compartido
-    Route::get('/calendario',                           [CalendarController::class, 'index'])->name('calendario.index');
-    Route::get('/citas/eventos',                        [CitaController::class, 'citas'])->name('citas.eventos');
-    Route::get('/pagos/eventos',                        [CitaController::class, 'pagos'])->name('pagos.eventos');
-    Route::get('/obtenerBloqueosCalendario',            [AdministracionController::class, 'obtenerBloqueosCalendario'])->name('calendario.bloqueos');
+    Route::get('/calendario',                   [App\Http\Controllers\CalendarController::class, 'index'])->name('calendario.index');
+    Route::get('/citas/eventos',                [App\Http\Controllers\CitaController::class, 'citas'])->name('citas.eventos');
+    Route::get('/pagos/eventos',                [App\Http\Controllers\CitaController::class, 'pagos'])->name('pagos.eventos');
+    Route::get('/pagos/conciliadores',          [App\Http\Controllers\CitaController::class, 'conciliadores'])->name('conciliador.eventos');
+    Route::get('/audiencias/eventos',           [App\Http\Controllers\AudienciasController::class, 'audiencias'])->name('audiencias.eventos');
+    Route::get('/ratificaciones/eventos',       [App\Http\Controllers\AudienciasController::class, 'ratificaciones'])->name('ratificaciones.eventos');
+    Route::get('citas/exportar-excel',          [CitaController::class, 'exportarExcel']);
+    Route::get('/obtenerBloqueosCalendario',    [AdministracionController::class, 'obtenerBloqueosCalendario'])->name('calendario.bloqueos');
 
     /*
      |-- SUB-GRUPO DE CONTROL DE ACCESO: SUPER USUARIO / ADMINISTRADORES
@@ -459,14 +471,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/notificaciones/consultar/{id}',                [SeerController::class, 'mostrar_citados'])->name('editar_citado');
 
         Route::get('/documentos/solicitante/identificacion/{id}',       [SeerController::class, 'ver_identificacion_solicitante'])->name('documento_identificacion_solicitante_ver');
-        Route::get('/documentos_ver/{tipo}/{id}/{archivo}',             [SeerController::class, 'verPDF'])->name('documentos.ver');
         Route::get('/ObtenerCitatorios/{id}',                           [SeerController::class, 'mostrar_citatorios']);
         Route::get('/Verpdfcasosprevistos/{id}', [RecepcionController::class, 'VerPDFCasosPrevistos'])->name('VerPDFCasosPrevistos');
         Route::get('/Verpdfcanalizacion/{id}',   [RecepcionController::class, 'VerPDFCanalizacion'])->name('VerPDFCanalizacion');
     //Poderes
-        Route::get('/poder-crear',                          [PoderController::class, 'registro'])->name('poder-crear');
+        
         Route::get('/poder-guardar',                        [PoderController::class, 'show'])->name('poder');
-        Route::post('/poderes/publico',                     [PoderController::class, 'publico'])->name('poderes.publico');
         Route::get('/PDF/acuseRegistro/{idAbogado}',        [PoderController::class, 'VerPDFregistroAbogado'])->name('PDFregistroAbogado');
         Route::get('/poderes/index',                        [PoderController::class, 'index'])->name('poderes.index');
         Route::get('/poderes/index',                        [PoderController::class, 'index'])->name('poderes');
@@ -519,16 +529,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/plantillas/ratificaciones',                    [SeerController::class, 'plantillas_ratificaciones'])->name('plantillas_ratificaciones');
         Route::get('reporte',                                       [SeerController::class, 'reporte_diario'])->name('reporte_diario');
     //Ruta de agregar citados
-        Route::get('/agrega_citado/{id}',                           [SeerController::class, 'vista_citado'])->name('agregar_citado');
-        Route::post('/agrega_citado',                               [SeerController::class, 'guardar_citado'])->name('seer.citados');
         Route::get('/agrega_documento/{id}',                        [SeerController::class, 'vista_documentos'])->name('agregar_documentos');
         Route::post('/solicitudes/patronal/guardar-citado/{id}',    [SeerController::class, 'guardar_citado_patronal'])->name('guardar.citado.patronal');
-        Route::get('/finaliza/{id}',                                [SeerController::class, 'guardar_solicitud'])->name('seer.finaliza');
         Route::get('/cancelar_edicion',                             [SeerController::class, 'cancelar_edicion'])->name('cancelar_edicion');
     //Citados
         Route::post('/solicitud/guardar_citadoC',           [SeerController::class, 'insertar_citados_con'])->name('insertar_citado');
         Route::get('/solicitud/consultarC',                 [SeerController::class, 'consultar_citados_con'])->name('consultar_citados');
         Route::post('/agregar_citado_edicion',              [SeerController::class, 'agregar_citado_edicion'])->name('agregar_citado_edicion');
+        Route::post('/audiencia/agregar_citado',            [SeerController::class, 'agregar_citado_audiencia_directo'])->name('agregar_citado_audiencia_directo');
         Route::delete('/borrar_citado_edicion',             [SeerController::class, 'borrar_citado_edicion'])->name('borrar_citado_edicion');
         Route::post('/historial/notificador',               [SeerController::class, 'historial_notificador'])->name('historial_notificador');
     //Ratificaciones
@@ -554,13 +562,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('/ratificaciones/pago_eliminar_pago/{id_solicitud}',          [TurnosController::class, 'pago_eliminar_pago_ratificacion'])->name('pago_eliminar_pago_ratificacion');
         Route::post('/ratificaciones/terminar_ratificacion',            [TurnosController::class, 'terminar_ratificacion'])->name('terminar_ratificacion');
         
-        //Oficialia de Partes
+    //Oficialia de Partes
         Route::get('/oficialia/index_oficialia',                                    [SeerController::class, 'index_oficialia'])->name('index_oficialia');
         Route::post('/oficialia/generar_oficialia',                                 [SeerController::class, 'generar_oficialia'])->name('generar_oficialia');
         Route::post('/oficialia/concluir_oficialia',                                [SeerController::class, 'concluir_oficialia'])->name('concluir_oficialia');
         Route::post('/oficialia/turnar_oficialia',                                  [SeerController::class, 'turnar_oficialia'])->name('turnar_oficialia');
 
-        //PDF Ratificaciones
+    //PDF Ratificaciones
         Route::get('/cumplimiento/PDFIncumplimientoR/{id}',             [TurnosController::class, 'PDFincumplimientoRatificacion'])->name('PDFincumplimientoRatificacion');
         Route::get('/VerpdfcPTUNLaboraRat/{id}',                        [TurnosController::class, 'VerPDFConvenioPTU_rat'])->name('PDFconvenioPTU_NO_R');
         Route::get('/Verpdf/{id}',                                      [TurnosController::class, 'VerPDF'])->name('PDFratifi');
@@ -579,11 +587,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/turnos/mostrar',                                  [TurnosController::class, 'mostrar'])->name('turnos_mostrar');
         Route::post('/turnos/archivar',          [TurnosController::class, 'archivar_ratificacion'])->name('archivar_ratificacion');
 
-        //Documentos
+    //Documentos
             Route::get('/INE_Solicitante/{id}',                         [SeerController::class, 'Ver_INE_Solicitante'])->name('PDF_INE_solicitante');
             Route::get('/documentos/solicitante/identificacion/{id}',   [SeerController::class, 'ver_identificacion_solicitante'])->name('documento_identificacion_solicitante_ver');
             Route::get('/VerDcocumentosRatificacion/{id}',              [TurnosController::class, 'VerDocumentosRatificacion'])->name('VerDocumentosRatificacion');
             Route::get('/documentos/ratificacion/{id}',                 [TurnosController::class, 'ver_documento_subido'])->name('documento_ratificacion_ver');
             Route::get('/documentos/solicitud/{id}',                    [SeerController::class, 'ver_documento_subido'])->name('documento_solicitud_ver');
             Route::get('/VerDcocumentos/{id}',                          [SeerController::class, 'VerDocumentosAudiencia'])->name('VerDocumentosAudiencia');
+            Route::get('/documentos/solicitud/{id_solicitud}/{filename}', [SeerController::class, 'verImagenDocumento'])->name('documentos.ver_imagen');
+            Route::get('/documento/identificacion-solicitante/{id}',    [SeerController::class, 'documento_identificacion_solicitante_ver'])->name('documento_identificacion_solicitante_ver');
 });

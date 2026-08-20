@@ -94,6 +94,28 @@
                 padding: 0.4em 0.6em !important;
                 font-size: 0.85em !important;
             }
+            .fc-event {
+                background-color: transparent !important;
+                border: 1px solid transparent !important; /* Borde invisible para que no brinque */
+                box-shadow: none !important;
+                border-radius: 6px !important;
+                transition: background-color 0.2s ease, border-color 0.2s ease; /* Efecto de transición suave */
+                cursor: pointer;
+            }
+            .fc-event:hover, .fc-event:focus {
+                background-color: #f0f0f0 !important; /* Gris claro */
+                border-color: #e2e2e2 !important;     /* Borde gris para enmarcarlo */
+            }
+
+            /* Forzar que el texto no se salga del cuadro */
+            .custom-event-content .text-truncate {
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                display: block;
+                width: 100%;
+            }
+
         }
     </style>
 
@@ -293,13 +315,31 @@
     <script src="{{ asset('assets/js/jquery.nicescroll.js') }}"></script>
 
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/locales-all.min.js"></script>
-
     <script src="{{ asset('assets/js/calendar.js') }}"></script>
     <script src="{{ asset('assets/js/stisla.js') }}"></script>
     <script src="{{ asset('assets/js/scripts.js') }}"></script>
     <script src="{{ asset('assets/js/profile.js') }}"></script>
     <script src="{{ asset('assets/js/custom.js') }}"></script>
     <script src="{{ asset('assets/js/general/menu.js') }}"></script>
+
+    <!-- Template JS File -->
+    <script src="public/assets/js/stisla.js"></script>
+    <script src="public/assets/js/scripts.js"></script>
+    <script src="public/assets/js/profile.js"></script>
+    <script src="public/assets/js/custom.js"></script>
+    
+    <script>
+    
+        const urlCitas          = "{{ route('citas.eventos') }}";
+        const urlPagos          = "{{ route('pagos.eventos') }}";
+        const urlConciliadores  = "{{ route('conciliador.eventos') }}";
+        const urlAudiencias     = "{{ route('audiencias.eventos') }}";
+        const urlRatificaciones = "{{ route('ratificaciones.eventos') }}";
+        
+        // Por si también la usas dentro de tu configuración de FullCalendar:
+        const urlBloqueos       = "{{ route('calendario.bloqueos') }}"; 
+    </script>
+        <script src="{{ asset('assets/js/calendar.js') }}"></script>
 @yield('page_js')
 @yield('scripts')
 

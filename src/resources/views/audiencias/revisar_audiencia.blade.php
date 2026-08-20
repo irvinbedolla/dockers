@@ -10,7 +10,7 @@
     
     /* Style the buttons that are used to open the tab content */
     .tab button {
-        background-color: inherit;
+        background-color: inherit;documentos.ver
         float: left;
         border: none;
         outline: none;
