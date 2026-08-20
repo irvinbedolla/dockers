@@ -3371,23 +3371,25 @@ class SeerController extends Controller
         return view('estadisticas.crearAsesorias');
     }
 
-    public function store_asesorias(Request $request){
+    public function store_asesorias(Request $request)
+    {
         $data = $request->all();
-        $id = auth()->user()->id;
-        $user = User::find($id);
+        $user = auth()->user();
 
-        //Validar documentacion
-        request()->validate([
+        // Validar datos de entrada
+        $request->validate([
             'nombre' => 'required',
             'sexo'   => 'required',
-        ], $data);
+        ]);
 
-        $data['id_usuario'] = $user["id"];
+        $data['id_usuario'] = $user->id;
         $data['fecha'] = date('Y-m-d');
-        $data['delegacion'] = $user["delegacion"];
+        $data['delegacion'] = $user->delegacion;
 
         SeerAsesoria::create($data);  
-        return redirect()->route('seer');
+        
+        return redirect()->route('create_asesoria')
+            ->with('success', '¡La asesoría ha sido registrada correctamente!');
     }
     
     public function destroy($id)
@@ -14499,88 +14501,72 @@ class SeerController extends Controller
         return Excel::download(new CitasExport, 'pagos.xlsx');
     }
     
-    public function todas_audiencias(Request $request) {
+    public function todas_audiencias(Request $request) 
+    {
         $user = auth()->user();
         $userRole = $user->roles->first()->name ?? null; 
         $isAudiencia = 'Si';
 
-        // 1. Query base optimizado con Eager Loading selectivo
-        $query = Audiencias::with([
-            'solicitante:id_solicitud,nombre', 
-            'expediente:id,NUE,estatus,incidencia', 
-            'conciliador:id,name', 
-            'pagos' => function($q) {
-                $q->select('id', 'id_solicitud', 'estatus', 'tipo_pago')
-                ->where('estatus', 'Pendiente')
-                ->where('tipo_pago', 'Audiencia');
-            }
-        ])
-        ->whereHas('expediente', function ($q) {
-            $q->where(function($sub) {
-                $sub->whereNull('incidencia')->orWhere('incidencia', 0);
-            });
-        })
-        ->select('id', 'id_solicitud', 'fecha', 'hora', 'id_conciliador', 'estatus', 'delegacion', 'created_at');
-
-        // Filtro de búsqueda global en el Servidor
-        if ($request->filled('buscar')) {
-            $buscar = $request->input('buscar');
-            
-            $query->where(function($q) use ($buscar) {
-                // Buscar por coincidencia en el NUE del expediente
-                $q->whereHas('expediente', function($sub) use ($buscar) {
-                    $sub->where('NUE', 'LIKE', "%{$buscar}%");
-                })
-                // O buscar por coincidencia en el nombre del solicitante
-                ->orWhereHas('solicitante', function($sub) use ($buscar) {
-                    $sub->where('nombre', 'LIKE', "%{$buscar}%");
-                });
-            });
-        }
-
-        // 2. Mapeo de delegaciones regionales (Gobierno de Michoacán)
         $mapaDelegaciones = [
             'Morelia' => ['Morelia', 'Zitácuaro'],
             'Uruapan' => ['Uruapan', 'Lázaro Cárdenas'],
             'Zamora'  => ['Sahuayo', 'Zamora'],
         ];
 
-        // 3. Filtros de Rol de Usuario (Incluyendo Auxiliar)
-        if ($userRole === "Conciliador") {
-            $query->where('id_conciliador', $user->id);
-            $permisos = PermisosConciliador::where('id_conciliador', $user->id)->select('tipo')->first();
+        // Consulta SQL optimizada mediante JOINs directos en lugar de subconsultas whereHas
+        $query = Audiencias::query()
+            ->leftJoin('seer_solicitante', 'seer_solicitante.id_solicitud', '=', 'audiencias.id_solicitud')
+            ->leftJoin('seer_general', 'seer_general.id', '=', 'audiencias.id_solicitud')
+            ->leftJoin('users', 'users.id', '=', 'audiencias.id_conciliador')
             
-            /*if ($permisos && $permisos->tipo === "Ambos") {
-                $delegaciones = $mapaDelegaciones[$user->delegacion] ?? [$user->delegacion];
-                $query->whereIn('delegacion', $delegaciones);
-            } else {
-                $query->where('delegacion', $user->delegacion);
-            }*/
-        } 
-        elseif ($userRole === "Delegado") {
+            // Subconsulta para validar pagos pendientes sin cargar modelos
+            ->selectRaw('
+                audiencias.id, 
+                audiencias.id_solicitud, 
+                audiencias.fecha, 
+                audiencias.hora, 
+                audiencias.estatus as estatus_modelo, 
+                audiencias.delegacion, 
+                audiencias.created_at,
+                COALESCE(seer_solicitante.nombre, "Sin solicitante") as nombre,
+                COALESCE(seer_general.NUE, "Sin Expediente") as NUE,
+                COALESCE(seer_general.estatus, "Sin estatus") as estatus,
+                COALESCE(users.name, "Sin Conciliador") as conciliador_nombre,
+                EXISTS(
+                    SELECT 1 FROM pago_solicitud 
+                    WHERE pago_solicitud.id_solicitud = audiencias.id_solicitud 
+                    AND pago_solicitud.estatus = "Pendiente" 
+                    AND pago_solicitud.tipo_pago = "Audiencia"
+                ) as constancia
+            ')
+            ->where(function($q) {
+                $q->whereNull('seer_general.incidencia')->orWhere('seer_general.incidencia', 0);
+            });
+
+        // Filtros por Rol de Usuario
+        if ($userRole === "Conciliador") {
+            $query->where('audiencias.id_conciliador', $user->id);
+        } elseif ($userRole === "Delegado") {
             $delegaciones = $mapaDelegaciones[$user->delegacion] ?? [$user->delegacion];
-            $query->whereIn('delegacion', $delegaciones);
-        }
-        // NUEVO: Filtro restrictivo para personal Auxiliar
-        elseif ($userRole === "Auxiliar") {
-            $query->where('delegacion', $user->delegacion);
+            $query->whereIn('audiencias.delegacion', $delegaciones);
+        } elseif ($userRole === "Auxiliar") {
+            $query->where('audiencias.delegacion', $user->delegacion);
         }
 
-        // 4. Paginación e inyección del parámetro de búsqueda
-        $audiencias = $query->orderBy('created_at', 'desc')
-                            ->paginate(500)
+        // Buscador Backend Eficiente
+        if ($request->filled('buscar')) {
+            $buscar = $request->input('buscar');
+            $query->where(function($q) use ($buscar) {
+                $q->where('seer_general.NUE', 'LIKE', "{$buscar}%") // Prefijo optimizado
+                ->orWhere('seer_solicitantes.nombre', 'LIKE', "%{$buscar}%");
+            });
+        }
+
+        // Paginación a 50 registros por página (Reduce drásticamente el peso de la página)
+        $audiencias = $query->orderBy('audiencias.created_at', 'desc')
+                            ->paginate(50)
                             ->appends(['buscar' => $request->input('buscar')]);
-        
-        $audiencias->through(function ($audiencia) {
-            $audiencia->estatus_modelo = $audiencia->estatus;
-            $audiencia->nombre = $audiencia->solicitante->nombre ?? 'Sin solicitante';
-            $audiencia->NUE = $audiencia->expediente->NUE ?? 'Sin Expediente';
-            $audiencia->estatus = $audiencia->expediente->estatus ?? 'Sin estatus';
-            $audiencia->conciliador_nombre = $audiencia->conciliador->name ?? 'Sin Conciliador';
-            $audiencia->constancia = $audiencia->pagos->count() > 0 ? 1 : 0;
-            return $audiencia;
-        });
-        
+
         return view('audiencias.todas_audiencias', compact('audiencias', 'isAudiencia'));
     }
 

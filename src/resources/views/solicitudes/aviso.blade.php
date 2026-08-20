@@ -221,7 +221,7 @@
 
                         <!-- Footer Action -->
                         <div class="text-center mt-5">
-                            <a href="{{ route('publico') }}" class="btn btn-gold">
+                            <a href="{{ route('login') }}" class="btn btn-gold">
                                 <i class="fas fa-home me-1"></i> Volver al Inicio
                             </a>
                         </div>
