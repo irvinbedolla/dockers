@@ -228,7 +228,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('/administracion/borrar/{id}',        [AdministracionController::class, 'destroy_cumplimientoA'])->name('borrar_cumplimeintoA');
         Route::get('/administracion/cambiarFecha',          [AdministracionController::class, 'cambio_audiencia'])->name('cambio_fecha_audiencia');
         Route::post('/administracion/cambiarFecha/buscar',  [AdministracionController::class, 'fecha_audiencia_buscar'])->name('fecha_audiencia_buscar');
-        Route::get('/administracion/cambiarFecha/cambio',   [AdministracionController::class, 'cambiar_fecha'])->name('cambiar_fecha');
+        Route::post('/administracion/cambiarFecha/cambio',   [AdministracionController::class, 'cambiar_fecha'])->name('cambiar_fecha');
         Route::post('/administracion/cambiarFecha/cambioFecha',[AdministracionController::class, 'cambio_fecha'])->name('cambio_fecha');
         
 

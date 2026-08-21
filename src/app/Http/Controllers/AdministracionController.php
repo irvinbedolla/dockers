@@ -18,6 +18,7 @@ use App\Models\SeerChatRP;
 use Illuminate\Http\Request;
 
 use App\Http\Controllers\Controller;
+
 //use App\Http\Controllers\PDFController;
 use Spatie\Permission\Models\Role; 
 use App\Models\User;
@@ -30,6 +31,10 @@ use App\Models\Pagos;
 use App\Models\Concepto; 
 use App\Models\Deducciones;
 use App\Models\SeerPerGeneral;
+use App\Models\Audiencias;
+use App\Models\SeerSolicitante;
+use App\Models\SeerCitados;
+use App\Models\PermisosConciliador;
 use Carbon\CarbonPeriod;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -225,6 +230,269 @@ class AdministracionController extends Controller{
         Deducciones::where('id_solicitud',$id)->where('tipo_pago','Ratificacion')->delete();
 
         return redirect()->back()->with('success', 'Puedes realizar tu ratificación nuevamente.');
+    }
+    private function prefijosDelegacion(): array
+    {
+        return [
+            'MOR' => 'Morelia',
+            'URU' => 'Uruapan',
+            'ZAM' => 'Zamora',
+            'ZIT' => 'Zitácuaro',
+            'LZC' => 'Lázaro Cárdenas',
+            'SAH' => 'Sahuayo',
+        ];
+    }
+    public function cambio_audiencia(){
+        $delegaciones = $this->prefijosDelegacion();
+
+        return view('administracion.index_audiencia', compact('delegaciones'));
+    }
+    public function fecha_audiencia_buscar(Request $request)
+    {
+        $prefijos = array_keys($this->prefijosDelegacion());
+
+        $request->validate([
+            'delegacion'  => 'required|string|in:' . implode(',', $prefijos),
+            'anio'        => 'required|integer|min:' . (date('Y') - 5) . '|max:' . date('Y'),
+            'consecutivo' => 'required|integer|min:1',
+        ], [
+            'delegacion.required'  => 'Debe seleccionar la delegación del NUE.',
+            'delegacion.in'        => 'La delegación seleccionada no es válida.',
+            'anio.required'        => 'Debe seleccionar el año del NUE.',
+            'anio.min'             => 'El año seleccionado está fuera del rango permitido.',
+            'anio.max'             => 'El año seleccionado está fuera del rango permitido.',
+            'consecutivo.required' => 'El consecutivo es obligatorio.',
+            'consecutivo.integer'  => 'El consecutivo debe ser un número entero.',
+            'consecutivo.min'      => 'El consecutivo debe ser mayor a 0.',
+        ]);
+
+        // El NUE se arma igual que en GeneraExpediente(): MOR/RAT/2026/00576
+        $nue = $request->delegacion . '/SOL/' . $request->anio . '/'
+             . str_pad($request->consecutivo, 5, '0', STR_PAD_LEFT);
+
+        $solicitud = SeerPerGeneral::where('NUE', $nue)->first();
+        $audiencia = Audiencias::where('id_solicitud', $solicitud->id)->orderByDesc('id')->first();
+        $solicitante = SeerSolicitante::where('id_solicitud', $solicitud->id)->pluck('nombre')->first();
+        $citado = SeerCitados::where('id_solicitud', $solicitud->id)->first();
+        $conciliador = User::where('id', $audiencia->id_conciliador)->pluck('name')->first();
+        if (!$audiencia) {
+            return back()->withErrors("No se encontró ninguna audiencia con el NUE {$nue}.");
+        }
+        $resultado =[];
+
+        $resultado= [
+            'id'          => $audiencia->id,
+            'NUE'         => $solicitud->NUE,
+            'fecha'       => $audiencia->fecha,
+            'hora'        => $audiencia->hora,
+            'delegacion'  => $solicitud->delegacion,
+            'estatus'     => $audiencia->estatus,
+            'solicitante'  => $solicitante,
+            'citados'     => trim($citado->nombre . ' ' . $citado->primer_apellido . ' ' . $citado->segundo_apellido),
+            'conciliador'   => $conciliador,
+            'id_conciliador' => $audiencia->id_conciliador,
+        ];
+
+        return back()
+            ->with('message', "Audiencia localizada: {$nue}")
+            ->with('folio', $resultado);
+    }
+    public function cambiar_fecha(Request $request){
+        $data = $request->all();
+        //$data['audiencia_id'], $data["fecha"],$data["hora"],
+        $audienciaOld = Audiencias::where('id', $data["id_audiencia"])->first();
+        $audienciaOld->update([
+                    'fecha' => $data["fecha"],
+                    'hora'  => $data["hora"],
+                ]);
+        return redirect()->route('cambio_fecha_audiencia');
+    }
+    public function obtenerAudienciasConciliador(Request $request)
+    {
+        $request->validate([
+            'sede' => 'required|string',
+            'conciliador' => 'required|integer',
+        ]);
+
+        $fecha_inicio_str = $request->input('start', now()->format('Y-m-d'));
+        $fecha_fin_str = $request->input('end', now()->addDays(370)->format('Y-m-d'));
+        
+        $fecha_inicio = (new \DateTime($fecha_inicio_str))->setTime(0, 0, 0);
+        $fecha_fin = (new \DateTime($fecha_fin_str))->setTime(23, 59, 59);
+
+        $sede = $request->input('sede');
+        $id_conciliador = (int) $request->input('conciliador');
+        $tipoConciliador = PermisosConciliador::where('id_conciliador', $id_conciliador)->value('tipo');
+        $audiencia_id = (int) $request->input('audiencia');
+        $soloSedePrincipal = $request->boolean('solo_sede_principal', false);
+
+        // Calcular fecha mínima para reagendar: permitir desde el siguiente día natural
+        $fechaMinima = (new \DateTime())->setTime(0,0,0)->modify('+1 day');
+        $minDateStr = $fechaMinima->format('Y-m-d');
+
+        if ($soloSedePrincipal) {
+            // Solo inhábiles generales de la sede principal (sin subsedes y sin user_id del conciliador)
+            $inhabiles = DiasInhabiles::where('centro', $sede)
+                ->whereNull('user_id')
+                ->whereIn('descripcion', ['Inhabil', 'No inhabil'])
+                ->whereIn('tipo', ['Audiencias', 'Todos'])
+                ->where(function ($query) use ($fecha_inicio, $fecha_fin) {
+                    $query->where('fecha_inicio', '<=', $fecha_fin)
+                        ->where('fecha_final', '>=', $fecha_inicio);
+                })
+                ->get();
+        } else {
+            $centrosNull = [$sede];
+            if ($sede === 'Zitácuaro') {
+                // Para generales acepto ambas variantes si existe mezcla en BD.
+                $centrosNull = ['Zitácuaro', 'Zitácuaro'];
+            }
+
+            $centrosConciliador = [$sede];
+            if ($tipoConciliador === 'Ambos') {
+                if (in_array($sede, ['Morelia', 'Zitácuaro', 'Zitácuaro'], true)) {
+                    $centrosConciliador = ['Morelia', 'Zitácuaro', 'Zitácuaro'];
+                } elseif (in_array($sede, ['Uruapan', 'Lázaro Cárdenas'], true)) {
+                    $centrosConciliador = ['Uruapan', 'Lázaro Cárdenas'];
+                } elseif (in_array($sede, ['Zamora', 'Sahuayo'], true)) {
+                    $centrosConciliador = ['Zamora', 'Sahuayo'];
+                }
+            }
+
+            $inhabiles = DiasInhabiles::where(function ($q) use ($centrosNull, $centrosConciliador, $id_conciliador) {
+                    $q->where(function ($q2) use ($centrosNull) {
+                        $q2->whereIn('centro', $centrosNull)
+                            ->whereNull('user_id');
+                    });
+
+                    $q->orWhere(function ($q3) use ($centrosConciliador, $id_conciliador) {
+                        $q3->whereIn('centro', $centrosConciliador)
+                            ->where('user_id', $id_conciliador);
+                    });
+                })
+                ->whereIn('descripcion', ['Inhabil', 'No inhabil'])
+                ->whereIn('tipo', ['Audiencias', 'Todos'])
+                ->where(function ($query) use ($fecha_inicio, $fecha_fin) {
+                    $query->where('fecha_inicio', '<=', $fecha_fin)
+                        ->where('fecha_final', '>=', $fecha_inicio);
+                })
+                ->get();
+        }
+
+        $duracionSlotMinutos = 75;
+
+        $horasBase = [[9, 0], [10, 15], [12, 0], [14, 15], [15, 30]];
+
+        $audienciasExistentes = Audiencias::whereBetween('fecha', [$fecha_inicio, $fecha_fin])
+            ->where('id_conciliador', $id_conciliador)
+            ->selectRaw('DATE(fecha) as fecha_dia, TIME(hora) as hora_inicio')
+            ->get();
+
+        $audiencia = Audiencias::where('id', $audiencia_id)->first();
+        $audienciaActualStart = null;
+        if ($audiencia && $audiencia->fecha && $audiencia->hora) {
+            $fechaAud = (new \DateTime($audiencia->fecha))->format('Y-m-d');
+            $horaAud = (new \DateTime($audiencia->hora))->format('H:i:s');
+            $audienciaActualStart = $fechaAud . 'T' . $horaAud;
+        }
+        
+        $audienciasPorFecha = [];
+        foreach ($audienciasExistentes as $audienciaExistente) {
+            $audienciasPorFecha[$audienciaExistente->fecha_dia][] = $audienciaExistente->hora_inicio;
+        }
+
+        $ahora = new \DateTime();
+
+        $todosLosEventos = [];
+        $fecha = (new \DateTime($fecha_inicio_str))->setTime(0,0,0);
+        $fin_loop = (new \DateTime($fecha_fin_str))->setTime(0,0,0);
+
+        while ($fecha <= $fin_loop) {
+            if ($fecha->format('N') < 6) { // Saltar fines de semana
+
+                $fechaDia = $fecha->format('Y-m-d');
+
+                $horarios = array_map(
+                    fn ($h) => (clone $fecha)->setTime($h[0], $h[1], 0),
+                    $horasBase
+                );
+
+                foreach ($horarios as $horario) {
+                    $slot = $horario;
+                    $slotStart = $slot->format('Y-m-d\TH:i:s');
+                    $slotFin = (clone $slot)->modify("+{$duracionSlotMinutos} minutes");
+                    $slotEnd = $slotFin->format('Y-m-d\TH:i:s');
+
+                    $audienciasEnSlot = 0;
+                    foreach ($audienciasPorFecha[$fechaDia] ?? [] as $horaExistente) {
+                        $existenteInicio = new \DateTime($fechaDia . ' ' . $horaExistente);
+                        $existenteFin = (clone $existenteInicio)->modify("+{$duracionSlotMinutos} minutes");
+                        // Traslape de intervalos semiabiertos [inicio, fin)
+                        if ($existenteInicio < $slotFin && $slot < $existenteFin) {
+                            $audienciasEnSlot++;
+                        }
+                    }
+                    $ocupado = $audienciasEnSlot >= 1;
+
+                    $esInhabil = false;
+                    $esNoInhabil = false;
+                    foreach($inhabiles as $dia){
+                        $fechaInhabilInicio = $dia->fecha_inicio . 'T' . $dia->horario_inicio;
+                        $fechaInhabilFinal = $dia->fecha_final . 'T' . $dia->horario_final;
+                        if($slotStart >= $fechaInhabilInicio && $slotStart <= $fechaInhabilFinal){
+                            if ($dia->descripcion === 'No inhabil') {
+                                $esNoInhabil = true;
+                            } else {
+                                $esInhabil = true;
+                            }
+                            break;
+                        }
+                    }
+                    // Bloquear slots anteriores a la fecha mínima (aunque estén en el futuro)
+                    if ($audienciaActualStart && $slotStart === $audienciaActualStart) {
+                        $estado = 'actual';
+                    } elseif ($ocupado) {
+                        $estado = 'ocupado';
+                    } elseif ($esInhabil) {
+                        $estado = 'inhabil';
+                    } elseif ($esNoInhabil) {
+                        $estado = 'expirado';
+                    } elseif ($ahora > $slot) {
+                        $estado = 'expirado';
+                    } else {
+                        $estado = 'disponible';
+                    }
+
+                    $colores = [
+                        'ocupado' => '#eca130', 'inhabil' => '#3B78DB',
+                        'expirado' => '#969696', 'disponible' => '#00CE1C',
+                        'actual'  => '#8163a8',
+                    ];
+                    $titulos = [
+                        'ocupado' => 'Ocupado', 'inhabil' => 'Inhábil',
+                        'expirado' => 'No disponible', 'disponible' => 'Disponible',
+                        'actual' => 'Actual'
+                    ];
+
+                    $titulo = $titulos[$estado];
+                    
+
+                    $todosLosEventos[] = [
+                        'title' => $titulo,
+                        'start' => $slotStart,
+                        'end' => $slotEnd,
+                        'color' => $colores[$estado],
+                        'extendedProps' => [
+                            'estado' => $estado,
+                            'audiencias_en_slot' => $audienciasEnSlot,
+                        ]
+                    ];
+                }
+            }
+            $fecha->modify('+1 day');
+        }
+
+        return response()->json($todosLosEventos);
     }
     
     public function bloqueoSede(Request $request)
