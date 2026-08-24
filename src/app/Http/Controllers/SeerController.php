@@ -17467,8 +17467,17 @@ class SeerController extends Controller
                 )
                 ->first();
             }
+            $user = User::where('id', $ratificacion->user_id)->first();
+            if($ratificacion->user_id !== 0){
+                
+                $user_name = $user->name;
+            }
+            else{
+                $user_name = " ";
+            }
+
             
-            $html = view('PDF/Caratula', compact('id','ratificacion','abogado','bandera'))->render();
+            $html = view('PDF/Caratula', compact('id','ratificacion','abogado','bandera','user_name'))->render();
         } else {
             $solicitud = SeerPerGeneral::find($id);
             $solicitante = SeerSolicitante::where('id_solicitud', $solicitud["id"])
@@ -17494,8 +17503,16 @@ class SeerController extends Controller
             ->where('seer_motivos.id_solicitud', $id)
             ->select('catalogo_motivos.motivo')
             ->get();
+            $user = User::where('id', $solicitud->user_id)->first();
+            if($solicitud->user_id !== 0){
+                $user_name = $user->name;
+            }
+            else{
+                $user_name = " ";
+            }
+                
 
-            $html = view('PDF/Caratula', compact('id','solicitud','solicitante','citados','motivos','notifica','bandera'))->render();
+            $html = view('PDF/Caratula', compact('id','solicitud','solicitante','citados','motivos','notifica','bandera','user_name'))->render();
         }
         
         $pdf = \PDF::loadHTML($html)
