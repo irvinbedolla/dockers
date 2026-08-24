@@ -71,8 +71,8 @@
 
         .fc-event-expirado {
             color: #ffff !important;
-            background-color: #F59727 !important;
-            border-color: #F59727 !important;
+            background-color: #8a959e !important;
+            border-color: #8a959e !important;
             cursor: not-allowed;
         }
 
@@ -102,19 +102,20 @@
             box-shadow: 0 0 8px #FFD700;
         }
 
-        .modal-xl-2 {
+        .modal-xl.grande {
             max-width: 95% !important;
         }
         .modal-xl{
-            max-width: 50% !important;
+            max-width: 40% !important;
         }
 
-        .modal-content-2 {
+      .modal-content.modal-grande {
             height: 90vh;
         }
 
         .modal-body {
             overflow-y: auto;
+            font-size: 18px;
         }
         .modal-titulo{
             height: 50px;
@@ -162,22 +163,8 @@
                     <div class="col-lg-12" >
                         <div class="card">
                             <div class="card-body">
-                                @if(session()->has('success'))
-                                    <div class="alert alert-success alert-dismissible fade show" role="alert">
-                                        <strong>¡Registro correcto!</strong>
-                                        {{ session()->get('success') }}
-                                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                                    </div>
-                                @endif
-
                                 <!--Se realiza la validación de campos para ver si dejó alguno vacío-->
-                                @if (session()->has('error'))
-                                    <div class="alert alert-dark alert-dismissible fade show" role="alert">
-                                        <strong>¡Revise los campos!</strong>
-                                        {{ session()->get('error') }}
-                                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                                    </div>
-                                @endif
+                                
                                 <div style="background-color:#D2D3D5; width:100%; height:40px;">
                                     <h3 class="text-center" style="color:black">Datos Generales</h3>
                                 </div>   
@@ -186,42 +173,28 @@
                             <form class='needs-validation novalidate' id='form_roles' method='POST' action="{{route('turnos_publico')}}">
                                 @csrf
                                 <div class="row">
-                                    <div class="col-xs-12 col-sm-12 col-md-3">
+                                    <div class="col-xs-12 col-sm-12 col-md-4">
                                         <div class="form-group mb-3">
-                                            <label for="name">Tipo de Trámite <span style="color:red;">(*)</span></label>
+                                            <label for="name">Selecciona el tipo de trámite que deseas realizar <span style="color:red;">(*)</span></label>
                                             <select name="tipo" class="form-control" onchange="blockCalendar();" required>
                                                 <option value="">Seleccione</option>
-                                                <option value="Solicitud">Solicitudes</option>
+                                                <option value="Asesoría">Asesoría</option>
                                                 <option value="Ratificación">Ratificación</option>
-                                                <option value="Asesoría">Asesorías</option>
+                                                <option value="Solicitud">Solicitud</option>
                                             </select>
                                             <div class="invalid-feedback">
                                                 El tipo de solicitud es obligatoria.
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="col-xs-12 col-sm-12 col-md-3">
+                                    <div class="col-xs-12 col-sm-12 col-md-4">
                                         <div class="form-group mb-3">
-                                            <label for="name">Estado <span style="color:red;">(*)</span></label>
-                                            <select id="estado_citado" class="form-control" name="estado_citado" required>
-                                                <option value="">Seleccione</option>
-                                                @foreach($estados as $es)
-                                                    <option value="{{$es['id']}}">{{$es['nombre']}}</option>
-                                                @endforeach
-                                            </select>
-                                            <div class="invalid-feedback">
-                                                El campo Estado es obligatorio.
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="col-xs-12 col-sm-12 col-md-3">
-                                        <div class="form-group mb-3">
-                                            <label for="name">Municipio o Alcaldía <span style="color:red;">(*)</span></label>
+                                            <label for="name">Municipio donde se localiza la fuente de empleo/persona a citar <span style="color:red;">(*)</span></label>
                                             <select id="municipio_citado" class="form-control" name="municipio_citado" required>
                                                 <option value="">Seleccione</option>
                                                     @foreach($municipios as $mun)
-                                                        <option value="{{$mun['id']}}">{{$mun['nombre']}}</option>
+                                                        <option value="{{$mun['id']}}" data-delegacion-id="{{ $mun['delegacion_id'] }}">
+                                                        {{ $mun['nombre'] }}</option>
                                                     @endforeach
                                             </select>
                                             <div class="invalid-feedback">
@@ -230,29 +203,19 @@
                                         </div>
                                     </div>
 
-                                    <div class="col-xs-12 col-sm-12 col-md-3">
-                                        <div class="form-group mb-3">
-                                            <label for="name">Delegación/Oficina <span style="color:red;">(*)</span></label>
-                                            <select name="delegacion" class="form-control" onchange="blockCalendar();" required>
-                                                <option value="">Seleccione</option>
-                                                <option value="Morelia">Morelia</option>
-                                                <option value="Zitácuaro">Zitácuaro</option>
-                                                <option value="Uruapan">Uruapan</option>
-                                                <option value="Lázaro Cárdenas">Lázaro Cárdenas</option>
-                                                <option value="Zamora">Zamora</option>
-                                                <option value="Sahuayo">Sahuayo</option>
-                                            </select>
-                                            <div class="invalid-feedback">
-                                                El campo es obligatorio.
-                                            </div>
+                                    <div class="col-xs-12 col-sm-12 col-md-4">
+                                        <div class="form-group mb-3 ">
+                                            <span>Oficina del CCL a la que te corresponde acudir:</span><br>
+                                            <span id="modulo_delegacion" style="font-weight: bold;"></span>
+                                            <input type="hidden" name="delegacion" id="delegacion" value="">
                                         </div>
                                     </div>
                                 </div>
                                 <div style="background-color:#D2D3D5; width:100%; height:40px;">
-                                    <h3 class="text-center" style="color:black">Datos Solicitante</h3>
+                                    <h3 class="text-center" style="color:black">Datos de Solicitante</h3>
                                 </div>   
                                 <div class="row">
-                                    <div class="col-xs-12 col-sm-12 col-md-6">
+                                    <div class="col-xs-12 col-sm-12 col-md-4">
                                         <div class="form-group mb-3">
                                             <label for="name">Nombre del solicitante <span style="color:red;">(*)</span></label>
                                             <input type="text" name="nombre" class="form-control" maxlength="100" style="text-transform: uppercase;" oninput="this.value = this.value.toUpperCase();" required> 
@@ -261,7 +224,7 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="col-xs-12 col-sm-12 col-md-3">
+                                    <div class="col-xs-12 col-sm-12 col-md-2">
                                         <div class="form-group mb-3">
                                             <label for="name">Edad <span style="color:red;">(*)</span></label>
                                             <input type="number" name="edad" class="form-control" maxlength="3" max="150" min="0" oninput="if(this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);" required> 
@@ -270,7 +233,7 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="col-xs-12 col-sm-12 col-md-3">
+                                    <div class="col-xs-12 col-sm-12 col-md-2">
                                         <div class="form-group mb-3">
                                             <label for="name">Sexo <span style="color:red;">(*)</span></label>
                                             <select name="sexo" class="form-control" required>
@@ -285,18 +248,18 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="col-xs-12 col-sm-12 col-md-6">
+                                    <div class="col-xs-12 col-sm-12 col-md-4">
                                         <div class="form-group mb-3">
-                                            <label for="name">Email <span style="color:red;">(*)</span></label>
+                                            <label for="name">Correo electrónico <span style="color:red;">(*)</span></label>
                                             <input type="email" name="email" maxlength="50" class="form-control" required> 
                                             <div class="invalid-feedback">
                                                 El email es obligatorio.
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="col-xs-12 col-sm-12 col-md-6">
+                                    <div class="col-xs-12 col-sm-12 col-md-4">
                                         <div class="form-group mb-3">
-                                            <label for="name">Teléfono <span style="color:red;">(*)</span></label>
+                                            <label for="name">Teléfono/Celular <span style="color:red;">(*)</span></label>
                                             <input type="number" name="telefono" class="form-control" maxlength="10" oninput="if(this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);" required> 
                                             <div class="invalid-feedback">
                                                 El teléfono es obligatorio.
@@ -306,16 +269,16 @@
                                       
                                     <div class="col-xs-12 col-sm-12 col-md-4">
                                         <div class="form-group mb-3">
-                                            <label for="name">Grupos vulnerables <span style="color:red;">(*)</span></label>
+                                            <label for="name">¿Perteneces a alguno de estos grupos de atención prioritaria?<span style="color:red;">(*)</span></label>
                                             <select name="vulnerables" class="form-control" required>
                                                 <option value="">Seleccione</option>
                                                 <option value="Menores de edad">Menores de edad</option>
                                                 <option value="Adultos mayores">Adultos mayores</option>
                                                 <option value="Personas con discapacidad">Personas con discapacidad</option>
                                                 <option value="Población indígena">Población indígena</option>
-                                                <option value="Personas Migrantes">Personas Migrantes</option>
+                                                <option value="Personas Migrantes">Personas migrantes</option>
                                                 <option value="LGBTTTIQ">LGBTTTIQ+</option>
-                                                <option value="No aplica">No aplica</option>
+                                                <option value="No aplica">A ninguno</option>
                                             </select>
                                             <div class="invalid-feedback">
                                                 El campo es obligatorio.
@@ -323,54 +286,47 @@
                                         </div>
                                     </div>
                                     
-                                    <div class="col-xs-12 col-sm-12 col-md-4">
-                                        <div class="form-group mb-3">
-                                            <label for="name">Requiere Asesoria/Orientación Juridica <span style="color:red;">(*)</span></label>
-                                            <select name="orientacion" class="form-control">
-                                                <option value="">Seleccione</option>
-                                                <option value="Si">Si</option>
-                                                <option value="No">No</option>
-                                            </select>
-                                            <div class="invalid-feedback">
-                                                El campo sexo es obligatorio.
-                                            </div>
-                                        </div>
-                                    </div>
+                                    <input type="hidden" name="orientacion" id="orientacion" value="No">
+                                    <input type="hidden" name="excepcion" id="excepcion" value="No">
                                     
-                                    <div class="col-xs-12 col-sm-12 col-md-4">
-                                        <div class="form-group mb-3">
-                                            <label for="name">Posible caso de excepción 
-                                                <button type="button" class="btn btn-primary btn-sm lh-1 fs-6" data-bs-toggle="modal" data-bs-target="#exampleModal">
-                                                    ?
-                                                </button>
-                                            </label>
-
-                                            <select name="excepcion" class="form-control" onchange="cambiaExcepcion(this); blockCalendar();" required>
-                                                <option value="">Seleccione</option>
-                                                <option value="Si">Si</option>
-                                                <option value="No">No</option>
-                                            </select>
-                                            <div class="invalid-feedback">
-                                                El campo es obligatorio.
-                                            </div>
-                                        </div>
-                                    </div>
                                     <div id="tipo_caso"  class="col-xs-12 col-sm-12 col-md-4">
                                         <div class="form-group mb-3">
-                                            <label for="name">Tipo de caso de excepción <span style="color:red;">(*)</span></label>
-                                            <select name="tipo_caso" class="form-control">
+                                            <label for="name">¿El motivo de tu solicitud se debe a alguno de los siguientes casos? <span style="color:red;">(*)</span></label>
+                                            <select name="tipo_caso" class="form-control" onchange="cambiaExcepcion(this); blockCalendar();" required>
                                                 <option value="">Seleccione</option>
-                                                <option value="Discriminación">Maternidad</option>
-                                                <option value="Acoso u hostigamiento sexual">Riesgos de trabajo</option>
-                                                <option value="Discriminación">Accidentes de Trabajo</option>
-                                                <option value="Discriminación">Invalidez</option>
-                                                <option value="Discriminación">Seguros de Vida</option>
-                                                <option value="Discriminación">Otras</option>
-                                                <option value="Discriminación">Libertad y Asociación Sindical</option>
-                                                <option value="Discriminación">Trata Laboral y Trabajo Forzoso</option>
-                                                <option value="Discriminación">Trabajo Infantil</option>
-                                                <option value="Discriminación">Disputa de titularidad de Contrato Coletivo y Contrato Ley</option>
-                                                <option value="Discriminación">Impugnación de estatutos de Sindicato y su Modificación</option>
+                                                <option value="Ninguno" style="font-weight: bold;">No, ninguno</option>
+                                                <optgroup label="Discriminación en el empleo y ocupación por:">
+                                                    <option value="Acoso u hostigamiento sexual">Acoso/Hostigamiento Sexual</option>
+                                                    <option value="Discriminación">Condición social</option>
+                                                    <option value="Discriminación">Embarazo</option>
+                                                    <option value="Discriminación">Raza</option>
+                                                    <option value="Discriminación">Razones de sexo</option>
+                                                    <option value="Discriminación">Religión</option>
+                                                    <option value="Discriminación">Orientación sexual</option>
+                                                    <option value="Discriminación">Origen étnico</option>
+                                                </optgroup>
+                                                    <option value="Designacion" style="font-weight: bold;">Designación de beneficiarios por Muerte</option>
+                                                <optgroup label="Prestaciones de seguridad social por:">
+                                                    <option value="Prestaciones">Accidentes de trabajo</option>
+                                                    <option value="Prestaciones">Enfermedades</option>
+                                                    <option value="Prestaciones">Guarderias</option>
+                                                    <option value="Prestaciones">Invalidez</option>
+                                                    <option value="Prestaciones">Maternidad</option>
+                                                    <option value="Prestaciones">Riesgos de trabajo</option>
+                                                    <option value="Prestaciones">Prestaciones en especie</option>
+                                                    <option value="Prestaciones">Vida</option>
+                                                <optgroup label="Tutela de derechos fundamentales y libertades públicas, ambos de carácter laboral relacionados con:">
+                                                    <option value="Libertades_publicas">Libertad de asociación</option>
+                                                    <option value="Libertades_publicas">Libertad sindical</option>
+                                                    <option value="Libertades_publicas">Reconocimiento efectivo de la negociacion colectiva</option>
+                                                    <option value="Libertades_publicas">Trabajo infantil</option>
+                                                    <option value="Libertades_publicas">Trabajo laboral forzoso y obligatorio</option>
+                                                <optgroup label="Disputa de titularidad de:">
+                                                    <option value="Titularidad">Contratos colectivos</option>
+                                                    <option value="Titularidad">Contratos ley</option>
+                                                </optgroup>
+                                                    <option value="Titularidad" style="font-weight: bold;">Impugnación de los estatutos de los sindicatos o su modificación</option>
+                                                    
                                             </select>
                                             <div class="invalid-feedback">
                                                 El campo es obligatorio.
@@ -380,8 +336,8 @@
                                     
                                     <div class="col-xs-12 col-sm-12 col-md-12">
                                         <div class="form-group mb-3">
-                                            <label for="name">Observaciones</label>
-                                            <textarea name="conflicto" class="form-control" style="text-transform: uppercase;" oninput="this.value = this.value.toUpperCase();"></textarea>
+                                            <label for="name">Describe brevemente el motivo de tu solicitud (Máximo 500 caracteres): </label>
+                                            <textarea name="conflicto" class="form-control" style="text-transform: uppercase;" oninput="this.value = this.value.toUpperCase();" maxlength="500"></textarea>
                                             <div class="invalid-feedback">
                                                 El campo es obligatorio.
                                             </div>
@@ -398,7 +354,7 @@
                                     </div>
 
                                     <div class="d-flex justify-content-center align-items-center">
-                                        <button type="submit" class="btn btn-primary">Guardar</button>
+                                        <button type="submit" class="btn btn-secondary">Guardar</button>
                                     </div>
                                 </div>
                             </form>
@@ -431,8 +387,8 @@
             </div>
 
             <div class="modal fade" id="calendarModal" tabindex="-1" aria-hidden="true">
-                <div class="modal-dialog modal-dialog-centered modal-xl">
-                    <div class="modal-content">
+                <div class="modal-dialog modal-dialog-centered modal-xl grande">
+                    <div class="modal-content modal-grande">
                         <div class="modal-header">
                             <h5 class="modal-title">Seleccionar Fecha y Horario</h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -460,13 +416,19 @@
 
                    <div class="col-xs-12 col-sm-12 col-md-12">
                         <div class="form-group">
-                            <h5 class="text-center modal-titulo" >Aviso Importante</h5>
+                            <h5 class="text-center modal-titulo" >¡ATENCIÓN!</h5>
                         </div>
                     </div>
                     <div class="col-xs-12 col-sm-12 col-md-12">
-                        <div class="form-group">
-                            <p>Los Datos Personales recabados por el Centro de Conciliación Laboral del Estado de Michoacán de Ocampo, servirán únicamente para realizar el Procedimiento de Conciliación Individual Prejudicial, 
-                            serán tratados conforme lo dispuesto por la Ley General de Protección de Datos Personales en Posesión de Sujetos Obligados y demás normativa aplicable.</p>
+                        <div class="form-group" >
+                          
+                            <p class="text-center">Todos los servicios que brinda este Centro de Conciliación Laboral son completamente gratuitos<br><br>
+                            Ningún servidor público, asociación, sindicato o gestor particular está autorizado para solicitar dinero o gratificaciones para agendar una cita, iniciar una solicitud o realizar tus trámites de conciliación.<br><br>
+                            Si detectas o eres víctima de cualquier cobro indebido, ¡denúncialo inmediatamente por nuestros medios oficiales!<br><br>
+                            <b>¡No te dejes engañar!</b><br><br>
+                            Proteger tus derechos laborales es nuestra prioridad.<br>
+                            </p>
+                         
                     
                         </div>
                     </div>
@@ -564,24 +526,19 @@
         
 
     <script>
-        document.getElementById("tipo_caso").style.display = "none";
+        
 
         function cambiaExcepcion(elemento) {
             var valor = elemento.value;
-            var tipoCasoDiv = document.getElementById("tipo_caso");
-            var tipoCasoSelect = tipoCasoDiv.querySelector('select[name="tipo_caso"]');
-            if (valor == "Si") {
-                tipoCasoDiv.style.display = "block";
-                tipoCasoSelect.setAttribute("required", "required");
-            } else {
-                tipoCasoDiv.style.display = "none";
-                tipoCasoSelect.removeAttribute("required");
-                tipoCasoSelect.value = "";
+            var inputExcepcion = document.getElementById('excepcion');
+    
+            if (inputExcepcion) {
+                inputExcepcion.value = (valor === 'Ninguno') ? 'No' : 'Si';
             }
         }
 
         function blockCalendar() {
-            const delegacion = document.querySelector('select[name="delegacion"]').value;
+            const delegacion = document.getElementById('delegacion').value;
             const tipo = document.querySelector('select[name="tipo"]').value;
             const boton = document.getElementById("botonCalendar");
 
@@ -627,10 +584,11 @@
 
             // Esperar a que la animación del modal termine antes de renderizar FullCalendar
             setTimeout(function () {
-                const delegacion = document.querySelector('select[name="delegacion"]').value;
+                const delegacion = document.getElementById('delegacion').value;
                 const tipo = document.querySelector('select[name="tipo"]').value;
-                const excepcion = document.querySelector('select[name="excepcion"]').value;
                 const calendarEl = document.getElementById("calendarTurno");
+                const inputExcepcion = document.getElementById('excepcion');
+                const excepcion = inputExcepcion.value;
 
                 calendarTurno = new FullCalendar.Calendar(calendarEl, {
                     initialView: window.innerWidth < 768 ? 'listWeek' : 'dayGridWeek',
@@ -711,28 +669,37 @@
             }
         });
 
-        //Cargar municipios conforme al estado seleccionado
-        document.getElementById("estado_citado").addEventListener("change", function () {
-            const estadoId = this.value;
-            const municipioSelect = document.getElementById("municipio_citado");
+        //Dependiendo del Municipio seleccionado muestra la delegación y oficina de apoyo que le corresponde
+        document.addEventListener('DOMContentLoaded', function () {
+            const delegacionSelect = document.getElementById('delegacion');
+            const municipioSelect = document.getElementById('municipio_citado');
+            const delegacionModulo = document.getElementById('modulo_delegacion');
 
-            municipioSelect.innerHTML = '<option value="">Seleccione</option>';
+            const delegaciones = {
+                1: ['Morelia'],
+                2: ['Zitácuaro'],
+                3: ['Uruapan'],
+                4: ['Lázaro Cárdenas'],
+                5: ['Zamora'],
+                6: ['Sahuayo']
+            };
 
-            if (!estadoId) return;
+            municipioSelect.addEventListener('change', function () {
+                const selectedOption = municipioSelect.options[municipioSelect.selectedIndex];
+                const delegacionId = selectedOption.getAttribute('data-delegacion-id');
 
-            fetch("{{ url('/munCitado') }}/" + estadoId)
-                .then(function (res) { return res.json(); })
-                .then(function (data) {
-                    data.forEach(function (mun) {
-                        const option = document.createElement("option");
-                        option.value = mun.id;
-                        option.textContent = mun.nombre;
-                        municipioSelect.appendChild(option);
+                // Limpia el select de delegación
+                delegacionSelect.innerHTML = '<option value="">Seleccione</option>';
+
+                if (delegacionId && delegaciones[delegacionId]) {
+                    delegaciones[delegacionId].forEach(delegacion => {
+                        delegacionSelect.value = delegacion;
+                        delegacionModulo.textContent = delegacion;
                     });
-                })
-                .catch(function (err) {
-                    console.error('Error al cargar municipios', err);
-                });
+                }
+
+                blockCalendar();
+            });
         });
     </script>
 
