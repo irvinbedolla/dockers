@@ -1153,14 +1153,17 @@
                                                 </div>
 
                                                 @php
-                                                    $img1 = $citado->imagen_domicilio1 ?? null;
-                                                    $img2 = $citado->imagen_domicilio2 ?? null;
-                                                    $urlImg1 = ($img1 && $img1 !== 'Sin documento')
-                                                        ? route('documentos.ver', ['tipo' => 'solicitud', 'id' => $id, 'archivo' => $img1])
-                                                        : null;
-                                                    $urlImg2 = ($img2 && $img2 !== 'Sin documento')
-                                                        ? route('documentos.ver', ['tipo' => 'solicitud', 'id' => $id, 'archivo' => $img2])
-                                                        : null;
+                                                    $resolverUrl = function ($img) use ($id) {
+                                                        if (empty($img) || $img === 'Sin documento') {
+                                                            return null;
+                                                        }
+                                                        return \Storage::exists("documentosSolicitud/{$id}/{$img}")
+                                                            ? asset("../storage/app/documentosSolicitud/{$id}/{$img}")
+                                                            : asset("../storage/app/documentosSolicitud/{$img}");
+                                                    };
+
+                                                    $urlImg1 = $resolverUrl($citado->imagen_domicilio1 ?? null);
+                                                    $urlImg2 = $resolverUrl($citado->imagen_domicilio2 ?? null);
                                                 @endphp
                                                 <div class="col-xs-12 col-sm-12 col-md-5">
                                                     <label for="password">Referencia Imagen 1<span style="color:red;"> (*)</span></label><br>
