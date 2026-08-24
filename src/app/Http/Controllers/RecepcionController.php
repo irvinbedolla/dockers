@@ -44,6 +44,8 @@ class RecepcionController extends Controller
         $hora_turno = $data["hora_turno"];
         $id_auxiliar = auth()->user()->id;
         $hora_fin =$hora_turno;
+        $lista_solicitudes=[5,209,4,28,2664,70,2814,61,2988,2986];
+        $lista_ratificaciones = [10,6,3,32,2663,74,44,731,47,2987];
 
         if($data["excepcion"]== 'Si'){
              $hora_fin = date("H:i:s", strtotime($hora_turno . " +75 minutes"));
@@ -78,15 +80,53 @@ class RecepcionController extends Controller
         $prestacionSS = isset($data["prestacionSS"]) ? (is_array($data["prestacionSS"]) ? implode(',', $data["prestacionSS"]) : $data["prestacionSS"]) : null;
         $vulnerables  = isset($data["vulnerables"])  ? (is_array($data["vulnerables"])  ? implode(',', $data["vulnerables"])  : $data["vulnerables"])  : 'Ninguno';
 
+        $listado_auxiliares = array();
+        $relacionEloquent = 'roles';
+        $usuariosauxiliares = User::whereHas($relacionEloquent, function ($query) {
+            return $query->where('name', '=', 'Auxiliar');
+        })
+        ->where('delegacion', $sede)
+        ->get();
+        
+        
+        $listado_auxiliares = $usuariosauxiliares->pluck('id')->toArray();
+        if($tipoTramite == "Ratificación"){
+            $auxiliares = array_intersect($listado_auxiliares,$lista_ratificaciones);
+        }
+        else{
+            $auxiliares = array_intersect($listado_auxiliares,$lista_solicitudes);
+        }
+        
+        //validar si hay disponibles
+        $random = array_rand($auxiliares);
+        $nombre_usuario = User::find($auxiliares[$random]);
+        if($data["excepcion"] == "Si"){
+            $modulo = "Caso de excepcion";
+            $id_aux = 13;
+        }
+        else{
+            if($sede == 'Morelia'){
+            $auxiliaresOcupados = Recepcion::where('hora', $hora_turno)->where('fecha', $fecha_asignada_str)->where('delegacion', $sede)->where('tipo', $tipoTramite)->pluck('auxiliar')->toArray();
+            $disponibles = array_diff($auxiliares, $auxiliaresOcupados);
+            $random = array_rand($disponibles);
+            $modulo = $this->asignarModulo($disponibles[$random]);
+            $id_aux=$disponibles[$random];
+            }
+            else{
+                $modulo = $this->asignarModulo($auxiliares[$random]);
+                $id_aux=$auxiliares[$random];
+            }
+        }
+
         // 4. Preparar el guardado mapeado con la estructura e inputs del Blade
         $data_insertar = array(
             'consecutivo'     => $numero_consecutivo,
             'fecha'           => $fecha_asignada_str,
             'hora'            => $hora_turno,
             'hora_fin'        => $hora_fin,
-            'auxiliar'        => $id_auxiliar,
+            'auxiliar'        => $id_aux,
             'tipo'            => $tipoTramite,
-            'lugar_auxiliar'  => $data["lugar_auxiliar"] ?? 'Mesa 1',
+            'lugar_auxiliar'  => $modulo,
             'exepcion'        => $data["excepcion"] ?? 'No',
             'edad'            => $data["edad"] ?? null,
             'sexo'            => $data["sexo"] ?? null,
@@ -103,7 +143,6 @@ class RecepcionController extends Controller
             'resultado'       => null,
             'telefono'        => $data["telefono"],
             'correo'          => $data["correo"],
-            'estado'          => $data["estado_solicitante"],
             'municipio'       => $data["municipio_solicitante"],
         );
 
@@ -113,7 +152,7 @@ class RecepcionController extends Controller
         // Traducir fecha legible (Ej: "Martes 9 de Junio")
         $fechaFormateada = ucfirst(Carbon::parse($fecha_asignada_str)->isoFormat('dddd D [de] MMMM'));
 
-        return redirect()->back()->with('success', 'Turno #' . $numero_consecutivo . ' (' . $tipoTramite . ') generado exitosamente para la sede ' . $sede . ' el día ' . $fechaFormateada . ' a las ' . substr($hora_turno, 0, 5) . ' horas.');
+        return redirect()->back()->with('success', 'Turno de ' . $tipoTramite . ' generado exitosamente para la sede ' . $sede . ' el día ' . $fechaFormateada . ' a las ' . substr($hora_turno, 0, 5) . ' horas.');
     }
 
     public function index_turnos()
@@ -280,13 +319,15 @@ class RecepcionController extends Controller
         $id = auth()->user()->id;
         $user = User::find($id);
         $fecha_actual = date('Y-m-d');
-
+        if($id === 13){
+            $turnos = DB::table('recepcion')->where('auxiliar', $id)->get();
+        }
         $turnos = DB::table('recepcion')
         ->where('recepcion.fecha', $fecha_actual)
         ->where('recepcion.delegacion', $user["delegacion"])
         //->where('recepcion.estatus','no atendido')
         ->leftjoin('users', 'users.id', '=', 'recepcion.auxiliar')
-        ->select('users.name','recepcion.id','recepcion.solicitante','recepcion.fecha','recepcion.hora','recepcion.estatus','recepcion.tipo','recepcion.exepcion')
+        ->select('users.name','recepcion.id','recepcion.solicitante','recepcion.fecha','recepcion.hora','recepcion.estatus','recepcion.tipo','recepcion.exepcion', 'recepcion.lugar_auxiliar')
         ->get();
 
         return view('recepcion.turnos',compact('turnos'));
@@ -472,6 +513,8 @@ class RecepcionController extends Controller
         $hora_actual  = date("H:i:s");
         $id_user = auth()->user()->id;
         $user = User::find($id_user);
+        $lista_solicitudes=[5,209,4,28,2664,70,2814,61,2988,2986];
+        $lista_ratificaciones = [10,6,3,32,2663,74,44,731,47,2987];
 
         //Se actualizan los estatus
         $turno              = Recepcion::find($id);
@@ -484,22 +527,44 @@ class RecepcionController extends Controller
         $usuariosauxiliares = User::whereHas($relacionEloquent, function ($query) {
             return $query->where('name', '=', 'Auxiliar');
         })
-        ->where('delegacion', $user["delegacion"])
+        ->where('delegacion', $turno->delegacion)
         ->get();
 
-        foreach($usuariosauxiliares as $token ){
-            array_push($listado_auxiliares, $token["id"]);
+        $listado_auxiliares = $usuariosauxiliares->pluck('id')->toArray();
+        if($turno->tipo == "Ratificación"){
+            $auxiliares = array_intersect($listado_auxiliares,$lista_ratificaciones);
+        }
+        else{
+            $auxiliares = array_intersect($listado_auxiliares,$lista_solicitudes);
+            
+        }
+        //validar si hay disponibles
+        $random = array_rand($auxiliares);
+        $nombre_usuario = User::find($auxiliares[$random]);
+        
+        if($turno->delegacion == 'Morelia'){
+            $auxiliaresOcupados = Recepcion::where('delegacion',$turno->delegacion)->where('fecha', $turno->fecha)->where('hora', $turno->hora)->where('tipo', $turno->tipo)->pluck('auxiliar')->toArray();
+            $disponibles = array_diff($auxiliares, $auxiliaresOcupados);
+            if($disponibles){
+                $random = array_rand($disponibles);
+                $modulo = $this->asignarModulo($disponibles[$random]);
+                $id_aux = $disponibles[$random];
+            }
+            else{
+                $modulo = $turno->lugar_auxiliar;
+                $id_aux = $turno->auxiliar;
+            }
+            
+        }
+        else{
+            $modulo = $this->asignarModulo($auxiliares[$random]);
         }
         
-        //validar si hay disponibles
-        $random = array_rand($listado_auxiliares);
-        $nombre_usuario = User::find($listado_auxiliares[$random]);
-        $lugar_auxiliar = $nombre_usuario["name"];
 
         $turno_update= array(
             'hora_fin'      =>  $hora_actual,
-            'auxiliar'      =>  $listado_auxiliares[$random],
-            'lugar_auxiliar'=>  $lugar_auxiliar
+            'auxiliar'      =>  $id_aux,
+            'lugar_auxiliar'=>  $modulo
         );
         $disponible_update= array(
             'estatus'       => 'Disponible'
@@ -513,6 +578,32 @@ class RecepcionController extends Controller
         
         return redirect()->route('turnos.listado');
     }
+
+    private function asignarModulo(int $aux){
+        switch($aux){
+                case '5': return 'Modulo 1';
+                case '209': return 'Modulo 2';
+                case '4': return 'Modulo 3';
+                case '10': return 'Modulo 4';
+                case '6': return 'Modulo 5';
+                case '3': return 'Modulo 6';
+                case '28': return 'Modulo 1';
+                case '32': return 'Modulo 2';
+                case '2664': return 'Modulo 1';
+                case '2663': return 'Modulo 2';
+                case '74': return 'Modulo 3';
+                case '70': return  'Modulo 1';
+                case '44': return  'Modulo 2';
+                case '2814': return  'Modulo 1';
+                case '731': return  'Modulo 2';
+                case '61': return  'Modulo 1';
+                case '47': return 'Modulo 2';
+                default: break;
+
+        }
+        return 'Modulo 0';
+    }
+
 
     public function misturnos(){
         $id = auth()->user()->id;
@@ -799,7 +890,7 @@ class RecepcionController extends Controller
 
         $colores = [
             'ocupado' => '#DA0909', 'inhabil' => '#3B78DB',
-            'expirado' => '#F59727', 'disponible' => '#00CE1C',
+            'expirado' => '#8a959e', 'disponible' => '#00CE1C',
             'turnos' => '#00CE1C',
         ];
         $titulos = [
