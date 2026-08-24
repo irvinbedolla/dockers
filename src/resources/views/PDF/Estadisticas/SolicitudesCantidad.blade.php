@@ -110,24 +110,24 @@
                         <tbody>
                             <tr class="bg-light">
                                 <td class="text-left">Total General</td>
-                                <td>{{ ($pagosRatificacion->ratificaciones) }}</td>
-                                <!--<td>{{ ($pagosRatificacionPagado->ratificaciones + $pagosRatificacionPendiente->ratificaciones) }}</td>-->
-                                <td>${{ number_format(($pagosRatificacionMontoPendiente->ratificacionesMonto + $pagosRatificacionMontoPagado->ratificacionesMonto), 2) }}</td>
+                                <td>{{ ($ratificacionesData->total_count) }}</td>
+                                <!--<td>{{ ($ratificacionesData->pagado_count + $ratificacionesData->pendiente_count) }}</td>-->
+                                <td>${{ number_format(($ratificacionesData->pendiente_monto + $ratificacionesData->pagado_monto), 2) }}</td>
                             </tr>
                             <tr>
                                 <td class="text-left">Cumplimientos Pagados</td>
-                                <td>{{ $pagosRatificacionPagado->ratificaciones }}</td>
-                                <td class="text-success">${{ number_format($pagosRatificacionMontoPagado->ratificacionesMonto, 2) }}</td>
+                                <td>{{ $ratificacionesData->pagado_count }}</td>
+                                <td class="text-success">${{ number_format($ratificacionesData->pagado_monto, 2) }}</td>
                             </tr>
                             <tr>
                                 <td class="text-left">Cumplimientos Pendientes</td>
-                                <td>{{ $pagosRatificacionPendiente->ratificaciones }}</td>
-                                <td class="text-danger">${{ number_format($pagosRatificacionMontoPendiente->ratificacionesMonto, 2) }}</td>
+                                <td>{{ $ratificacionesData->pendiente_count }}</td>
+                                <td class="text-danger">${{ number_format($ratificacionesData->pendiente_monto, 2) }}</td>
                             </tr>
                             <tr>
                                 <td class="text-left">Cumplimientos No Pagados por Incomparecencia</td>
-                                <td>{{ $pagosRatificacionNoPagado->ratificaciones }}</td>
-                                <td class="text-danger">${{ number_format($pagosRatificacionMontoNoPagado->ratificacionesMonto, 2) }}</td>
+                                <td>{{ $ratificacionesData->noPagado_count }}</td>
+                                <td class="text-danger">${{ number_format($ratificacionesData->noPagado_monto, 2) }}</td>
                             </tr>
                         </tbody>
                     </table>
@@ -168,17 +168,17 @@
                             <tbody>
                                 <tr>
                                     <td class="text-left">Total de Convenios en Audiencia</td>
-                                    <td>{{ $pagosAudiencias->audiencias }}</td>
-                                    <td class="bold">${{ number_format($pagosAudienciasMonto->audienciasMonto, 2) }}</td>
+                                    <td>{{ $audienciasData->total_count }}</td>
+                                    <td class="bold">${{ number_format($audienciasData->total_monto, 2) }}</td>
                                 <tr>
                                     <td class="text-left">Convenios Pagados</td>
-                                    <td>{{ $pagosAudienciasPagado->audiencias }}</td>
-                                    <td class="text-success">${{ number_format($pagosAudienciasMontoPagado->audienciasMonto, 2) }}</td>
+                                    <td>{{ $audienciasData->pagado_audiencias_count }}</td>
+                                    <td class="text-success">${{ number_format($audienciasData->pagado_audiencias_monto, 2) }}</td>
                                 </tr>
                                 <tr>
                                     <td class="text-left">Convenios Pendientes</td>
-                                    <td>{{ $pagosAudienciaPendiente->audiencias }}</td>
-                                    <td class="text-danger">${{ number_format($pagosAudienciaMontoPendiente->audienciasMonto, 2) }}</td>
+                                    <td>{{ $audienciasData->total_count }}</td>
+                                    <td class="text-danger">${{ number_format($audienciasData->pendiente_audiencias_monto, 2) }}</td>
                                 </tr>
                                 </tr>
                             </tbody>

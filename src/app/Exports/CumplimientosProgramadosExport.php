@@ -2,10 +2,7 @@
 
 namespace App\Exports;
 
-use App\Models\SeerPerGeneral;
-use App\Models\Pagos;
-use App\Models\Audiencias;
-use App\Models\User; // Importación necesaria
+// Ya no necesitas importar App\Models\Pagos porque usaremos Query Builder puro
 use Illuminate\Contracts\View\View;
 use Maatwebsite\Excel\Concerns\FromView;
 use Illuminate\Support\Facades\Auth;
@@ -26,27 +23,39 @@ class CumplimientosProgramadosExport implements FromView
 
     public function view(): View
     {
-        // Optimizamos la obtención del usuario
-        $user = auth()->user();
-        $sedeUsuario = $user->delegacion;
+        $user = Auth::user();
+        $sedeUsuario = $user->delegacion ?? '';
 
+        // OPTIMIZACIÓN 1: Calculamos el filtro de delegaciones UNA SOLA VEZ fuera del query
+        $delegacionesFiltro = [$this->sede];
+        if ($this->sede === "TodosDelegado") {
+            $grupos = [
+                'Morelia' => ['Morelia', 'Zitácuaro'],
+                'Uruapan' => ['Uruapan', 'Lázaro Cárdenas'],
+                'Zamora'  => ['Zamora', 'Sahuayo']
+            ];
+            $delegacionesFiltro = $grupos[$sedeUsuario] ?? [$sedeUsuario];
+        }
 
-        // 1. Subconsulta para el primer citado (evitar duplicados)
+        // Se mantiene para consultas pesadas sin índices óptimos
+        DB::statement('SET SESSION SQL_BIG_SELECTS=1');
+
         $subqueryCitados = DB::table('seer_citados')
             ->select('id_solicitud', DB::raw('MIN(id) as first_id'))
             ->groupBy('id_solicitud');
 
-        // 2. Consulta de Ratificaciones
-        $queryRatificaciones = Pagos::whereBetween('pago_solicitud.fecha', [$this->fecha_inicial, $this->fecha_final])
+        // OPTIMIZACIÓN 2: Usamos DB::table en lugar del Modelo Eloquent para ahorrar memoria RAM
+        $queryRatificaciones = DB::table('pago_solicitud')
+            ->whereBetween('pago_solicitud.fecha', [$this->fecha_inicial, $this->fecha_final])
             ->join('turnos', 'turnos.id', '=', 'pago_solicitud.id_solicitud')
             ->leftJoin('users', 'users.id', '=', 'turnos.id_conciliador')
             ->where(function($query) {
                 $query->where('turnos.incidencia', 0)
-                    ->orWhereNull('turnos.incidencia');
+                      ->orWhereNull('turnos.incidencia');
             })
             ->select(
                 DB::raw("DATE(pago_solicitud.fecha) as fecha"),
-                'turnos.hora as hora_programada', // Extraemos la hora
+                'turnos.hora as hora_programada',
                 'pago_solicitud.tipo_pago',
                 DB::raw("CASE WHEN pago_solicitud.id_solicitud != 0 THEN turnos.NUE ELSE pago_solicitud.NUE END as NUE"),
                 DB::raw("CASE WHEN pago_solicitud.id_solicitud != 0 
@@ -55,28 +64,29 @@ class CumplimientosProgramadosExport implements FromView
                 DB::raw("CASE WHEN pago_solicitud.id_solicitud != 0 
                         THEN CONCAT_WS(' ', turnos.empresa, turnos.primero_empresa, turnos.segundo_empresa) 
                         ELSE pago_solicitud.empresa_representante END as nombre_empleador"),
-                DB::raw("pago_solicitud.delegacion as sede"),
-                DB::raw("pago_solicitud.monto as monto_totalR"),
+                'pago_solicitud.delegacion as sede',
+                // CORRECCIÓN UNION: El monto va en la posición 8
+                'pago_solicitud.monto as monto_total', 
+                // CORRECCIÓN UNION: El conciliador va en la posición 9
                 'users.name as conciliador_name'
             )
             ->where('pago_solicitud.tipo_pago', "Ratificacion");
 
-        // 3. Consulta de Audiencias
-        $queryAudiencias = Pagos::whereBetween('pago_solicitud.fecha', [$this->fecha_inicial, $this->fecha_final])
+
+        $queryAudiencias = DB::table('pago_solicitud')
+            ->whereBetween('pago_solicitud.fecha', [$this->fecha_inicial, $this->fecha_final])
             ->leftJoin('seer_general', 'seer_general.id', '=', 'pago_solicitud.id_solicitud')
             ->leftJoin('seer_solicitante', 'seer_solicitante.id_solicitud', '=', 'seer_general.id')
-            ->leftJoinSub($subqueryCitados, 'primera_cita', function ($join) {
-                $join->on('seer_general.id', '=', 'primera_cita.id_solicitud');
-            })
+            ->leftJoinSub($subqueryCitados, 'primera_cita', 'seer_general.id', '=', 'primera_cita.id_solicitud')
             ->where(function($query) {
                 $query->where('seer_general.incidencia', 0)
-                    ->orWhereNull('seer_general.incidencia');
+                      ->orWhereNull('seer_general.incidencia');
             })
             ->leftJoin('seer_citados', 'seer_citados.id', '=', 'primera_cita.first_id')
             ->leftJoin('users', 'users.id', '=', 'pago_solicitud.id_conciliador')
             ->select(
                 DB::raw("DATE(pago_solicitud.fecha) as fecha"),
-                'pago_solicitud.hora as hora_programada', // Extraemos la hora
+                'pago_solicitud.hora as hora_programada',
                 'pago_solicitud.tipo_pago',
                 DB::raw("CASE WHEN pago_solicitud.id_solicitud != 0 THEN seer_general.NUE ELSE pago_solicitud.NUE END as NUE"),
                 DB::raw("CASE WHEN pago_solicitud.id_solicitud != 0 THEN seer_solicitante.nombre ELSE pago_solicitud.nombre_trabajador END as nombre_trabajador"),
@@ -84,34 +94,25 @@ class CumplimientosProgramadosExport implements FromView
                         THEN CONCAT_WS(' ', seer_citados.nombre, seer_citados.primer_apellido, seer_citados.segundo_apellido) 
                         ELSE pago_solicitud.empresa_representante END as nombre_empleador"),
                 DB::raw("CASE WHEN pago_solicitud.id_solicitud != 0 THEN seer_general.delegacion ELSE pago_solicitud.delegacion END as sede"),
-                'users.name as conciliador_name',
-                DB::raw("pago_solicitud.monto as monto_totalA"),
+                // CORRECCIÓN UNION: El monto va en la posición 8, igual que arriba
+                'pago_solicitud.monto as monto_total',
+                // CORRECCIÓN UNION: El conciliador va en la posición 9, igual que arriba
+                'users.name as conciliador_name'
             )
             ->whereIn('pago_solicitud.tipo_pago', ["Audiencia", "Conciliador"]);
 
-        // 4. Aplicar filtros de Sede a ambas consultas antes de unirlas
+        // OPTIMIZACIÓN 3: Aplicamos el filtro usando la variable pre-calculada
         foreach ([$queryRatificaciones, $queryAudiencias] as $query) {
-            $query->when($this->sede !== "Todos", function ($q) use ($sedeUsuario) {
-                if ($this->sede === "TodosDelegado") {
-                    $grupos = [
-                        'Morelia' => ['Morelia', 'Zitácuaro'],
-                        'Uruapan' => ['Uruapan', 'Lázaro Cárdenas'],
-                        'Zamora'  => ['Zamora', 'Sahuayo']
-                    ];
-                    if (array_key_exists($sedeUsuario, $grupos)) {
-                        return $q->whereIn('pago_solicitud.delegacion', $grupos[$sedeUsuario]);
-                    }
-                }
-                return $q->where('pago_solicitud.delegacion', $this->sede);
+            $query->when($this->sede !== "Todos", function ($q) use ($delegacionesFiltro) {
+                return $q->whereIn('pago_solicitud.delegacion', $delegacionesFiltro);
             });
         }
-        // 5. UNIFICAR Y ORDENAR
+
         $resultadosUnificados = $queryRatificaciones
             ->unionAll($queryAudiencias)
-            ->orderBy('fecha', 'asc')           // Fecha de menor a mayor
-            ->orderBy('hora_programada', 'asc') // Hora de menor a mayor
+            ->orderBy('fecha', 'asc')
+            ->orderBy('hora_programada', 'asc')
             ->get();
-        
 
         return view('excel.cumplimientosProgramados', [
             'cumplimientos' => $resultadosUnificados,

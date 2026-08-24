@@ -34,22 +34,20 @@ class EmpresaSinSeguro implements FromView, ShouldAutoSize, WithTitle
     {
         $user = auth()->user();
         $sedeUsuario = $user->delegacion;
+        $delegacionesFiltro = [$this->sede];
+        if ($this->sede === "TodosDelegado") {
+            $grupos = [
+                'Morelia' => ['Morelia', 'Zitácuaro'],
+                'Uruapan' => ['Uruapan', 'Lázaro Cárdenas'],
+                'Zamora'  => ['Zamora', 'Sahuayo']
+            ];
+            $delegacionesFiltro = $grupos[$sedeUsuario] ?? [$sedeUsuario];
+        }
 
         // Consulta Base
         $queryBase = SeerPerGeneral::whereBetween('seer_general.fecha', [$this->fecha_inicial, $this->fecha_final])
-            ->when($this->sede !== "Todos", function ($q) use ($sedeUsuario) {
-                if ($this->sede === "TodosDelegado") {
-                    $grupos = [
-                        'Morelia' => ['Morelia', 'Zitácuaro'],
-                        'Uruapan' => ['Uruapan', 'Lázaro Cárdenas'],
-                        'Zamora'  => ['Zamora', 'Sahuayo']
-                    ];
-
-                    if (array_key_exists($sedeUsuario, $grupos)) {
-                        return $q->whereIn('seer_general.delegacion', $grupos[$sedeUsuario]);
-                    }
-                }
-                return $q->where('seer_general.delegacion', $this->sede);
+            ->when($this->sede !== "Todos", function ($q) use ($delegacionesFiltro) {
+                return $q->whereIn('seer_general.delegacion', $delegacionesFiltro);
             });
         
         $empresas = (clone $queryBase)
