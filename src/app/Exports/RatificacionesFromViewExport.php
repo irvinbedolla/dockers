@@ -8,7 +8,7 @@ use App\Models\User; // Importación necesaria
 use Illuminate\Contracts\View\View;
 use Maatwebsite\Excel\Concerns\FromView;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB; // IMPORTANTE: Agregar esto
+use Illuminate\Support\Facades\DB;
 
 class RatificacionesFromViewExport implements FromView
 {
@@ -27,56 +27,63 @@ class RatificacionesFromViewExport implements FromView
     {
         $user = Auth::user();
         $sedeUsuario = $user->delegacion ?? '';
-        $grupos = [
-            'Morelia' => ['Morelia', 'Zitácuaro'],
-            'Uruapan' => ['Uruapan', 'Lázaro Cárdenas'],
-            'Zamora'  => ['Zamora', 'Sahuayo']
-        ];
+        
+        
+        $delegacionesFiltro = [$this->sede];
+        if ($this->sede === "TodosDelegado") {
+            $grupos = [
+                'Morelia' => ['Morelia', 'Zitácuaro'],
+                'Uruapan' => ['Uruapan', 'Lázaro Cárdenas'],
+                'Zamora'  => ['Zamora', 'Sahuayo']
+            ];
+            // Si la sede no está en el grupo, toma su propia sede
+            $delegacionesFiltro = $grupos[$sedeUsuario] ?? [$sedeUsuario];
+        }
 
-        // 1. Consulta de Turnos con contadores y sumas individuales
-        // Asumimos que en el modelo Turnos existe la relación: public function pagos() { return $this->hasMany(Pagos::class, 'id_solicitud'); }
-        $ratificaciones = Turnos::whereBetween('turnos.fecha', [$this->fecha_inicial, $this->fecha_final])
+        
+        $pagosSubquery = DB::table('pago_solicitud')
+            ->select('id_solicitud')
+            ->selectRaw("COUNT(CASE WHEN estatus = 'Pendiente' THEN id END) as pagos_pendientes_count")
+            ->selectRaw("COUNT(CASE WHEN estatus = 'Pagado' THEN id END) as pagos_pagados_count")
+            ->selectRaw("SUM(CASE WHEN estatus = 'Pendiente' THEN monto ELSE 0 END) as monto_pendientes")
+            ->selectRaw("SUM(CASE WHEN estatus = 'Pagado' THEN monto ELSE 0 END) as monto_pagados")
+            // Si los pagos en 'turnos' siempre son de tipo Ratificacion, esto mejora la velocidad
+            ->where('tipo_pago', 'Ratificacion') 
+            ->groupBy('id_solicitud');
+
+      
+        $ratificaciones = Turnos::query()
+            ->whereBetween('turnos.fecha', [$this->fecha_inicial, $this->fecha_final])
+            ->when($this->sede !== "Todos", function ($query) use ($delegacionesFiltro) {
+                // Usamos whereIn aprovechando el arreglo que creamos arriba
+                return $query->whereIn('turnos.delegacion', $delegacionesFiltro);
+            })
             ->join('users', 'users.id', '=', 'turnos.id_conciliador')
             ->join('users as user_usuario', 'user_usuario.id', '=', 'turnos.user_id')
-            ->select('turnos.*', 'users.name as conciliador_name', 'user_usuario.name as auxiliar')
             
-            // Contamos cuántos pagos tiene cada turno según su estatus
-            /*
-            ->withCount([
-                'pagos as pagos_pendientes_count' => function ($query) {
-                    $query->where('estatus', 'Pendiente');
-                },
-                'pagos as pagos_pagados_count' => function ($query) {
-                    $query->where('estatus', 'Pagado');
-                }
-            ])
-            // Sumamos los montos de cada turno según su estatus
-            ->withSum(['pagos as monto_pendientes' => function ($query) {
-                $query->where('estatus', 'Pendiente');
-            }], 'monto')
-            ->withSum(['pagos as monto_pagados' => function ($query) {
-                $query->where('estatus', 'Pagado');
-            }], 'monto')
-            */
-            ->when($this->sede !== "Todos", function ($query) use ($sedeUsuario, $grupos) {
-                if ($this->sede === "TodosDelegado") {
-                    $listaSedes = $grupos[$sedeUsuario] ?? [$sedeUsuario];
-                    return $query->whereIn('turnos.delegacion', $listaSedes);
-                }
-                return $query->where('turnos.delegacion', $this->sede);
+            // Unimos la subconsulta de pagos
+            ->leftJoinSub($pagosSubquery, 'pagos_agrupados', function ($join) {
+                $join->on('turnos.id', '=', 'pagos_agrupados.id_solicitud');
             })
+            ->select(
+                'turnos.*', 
+                'users.name as conciliador_name', 
+                'user_usuario.name as auxiliar',
+                
+                // Usamos COALESCE para devolver 0 si no hay pagos (en lugar de null)
+                DB::raw('COALESCE(pagos_agrupados.pagos_pendientes_count, 0) as pagos_pendientes_count'),
+                DB::raw('COALESCE(pagos_agrupados.pagos_pagados_count, 0) as pagos_pagados_count'),
+                DB::raw('COALESCE(pagos_agrupados.monto_pendientes, 0) as monto_pendientes'),
+                DB::raw('COALESCE(pagos_agrupados.monto_pagados, 0) as monto_pagados')
+            )
             ->orderBy('user_usuario.name')
             ->get();
 
-        // 2. Totales Globales (Para el resumen al final del Excel)
-        $totalesGlobales = Pagos::whereBetween('pago_solicitud.fecha', [$this->fecha_inicial, $this->fecha_final])
-            ->where('pago_solicitud.tipo_pago', "Ratificacion")
-            ->when($this->sede !== "Todos", function ($q) use ($sedeUsuario, $grupos) {
-                if ($this->sede === "TodosDelegado") {
-                    $listaSedes = $grupos[$sedeUsuario] ?? [$sedeUsuario];
-                    return $q->whereIn('pago_solicitud.delegacion', $listaSedes);
-                }
-                return $q->where('pago_solicitud.delegacion', $this->sede);
+        $totalesGlobales = DB::table('pago_solicitud')
+            ->whereBetween('fecha', [$this->fecha_inicial, $this->fecha_final])
+            ->where('tipo_pago', "Ratificacion")
+            ->when($this->sede !== "Todos", function ($q) use ($delegacionesFiltro) {
+                return $q->whereIn('delegacion', $delegacionesFiltro);
             })
             ->selectRaw("
                 SUM(CASE WHEN estatus = 'Pendiente' THEN monto ELSE 0 END) as global_monto_pendientes,

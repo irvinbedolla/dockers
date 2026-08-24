@@ -5,7 +5,6 @@ namespace App\Exports;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
-use App\Models\User;
 
 class AudienciasExport implements WithMultipleSheets
 {
@@ -21,72 +20,84 @@ class AudienciasExport implements WithMultipleSheets
 
     public function sheets(): array
     {
+        \Illuminate\Support\Facades\DB::statement('SET SESSION SQL_BIG_SELECTS=1');
         $user = Auth::user();
         $sedeUsuario = $this->sede;
 
-        $grupos = [
-            'Morelia' => ['Morelia', 'Zitácuaro'],
-            'Uruapan' => ['Uruapan', 'Lázaro Cárdenas'],
-            'Zamora'  => ['Zamora', 'Sahuayo']
-        ];
+        // 1. Filtro de Sede
+        $delegacionesFiltro = [$this->sede];
+        if ($this->sede === "TodosDelegado") {
+            $grupos = [
+                'Morelia' => ['Morelia', 'Zitácuaro'],
+                'Uruapan' => ['Uruapan', 'Lázaro Cárdenas'],
+                'Zamora'  => ['Zamora', 'Sahuayo']
+            ];
+            $delegacionesFiltro = $grupos[$sedeUsuario] ?? [$sedeUsuario];
+        }
 
-        // Definición de filtros reutilizables
-        $aplicarFiltros = function ($q) use ($sedeUsuario, $grupos) {
-            $q->whereBetween("audiencias.fecha", [$this->fecha_inicial, $this->fecha_final]);
-            
-            if ($this->sede !== "Todos") {
-                if ($this->sede === "TodosDelegado") {
-                    $delegaciones = $grupos[$sedeUsuario] ?? [$sedeUsuario];
-                    $q->whereIn("audiencias.delegacion", $delegaciones);
-                } else {
-                    $q->where("audiencias.delegacion", $this->sede);
-                }
-            }
-        };
-
-        $audienciasPorExpediente = DB::table('audiencias')
-                ->select('id_solicitud', DB::raw('COUNT(*) as total_audiencias'))
-                ->where(fn($q) => $aplicarFiltros($q))
-                ->groupBy('id_solicitud');
-
-
-        $detalle = DB::table('audiencias')
-            ->join('seer_general', 'seer_general.id', '=', 'audiencias.id_solicitud')
-            ->join('seer_solicitante', 'seer_general.id', '=', 'seer_solicitante.id_solicitud')
-            ->join('users as conciliador', 'conciliador.id', '=', 'seer_general.conciliador_id')
-            ->joinSub($audienciasPorExpediente, 'a_count', function ($join) {
-                $join->on('a_count.id_solicitud', '=', 'seer_general.id');
+        // 2. Base de Audiencias
+        $audienciasAgrupadas = DB::table('audiencias')
+            ->whereBetween('fecha', [$this->fecha_inicial, $this->fecha_final])
+            ->when($this->sede !== "Todos", function ($q) use ($delegacionesFiltro) {
+                return $q->whereIn('delegacion', $delegacionesFiltro);
             })
+            ->select(
+                'id_solicitud',
+                DB::raw('MAX(fecha) as ultima_fecha'),
+                DB::raw('MAX(hora) as ultima_hora')
+            )
+            ->groupBy('id_solicitud');
+
+        // 3. Obtener el ÚLTIMO estatus (Reemplazo seguro usando IN + MAX)
+        $ultimoEstatusSub = DB::table('audiencias')
+            ->select('id_solicitud', 'estatus as ultimo_estatus')
+            ->whereIn('id', function ($query) {
+                $query->selectRaw('MAX(id)')
+                      ->from('audiencias')
+                      ->groupBy('id_solicitud');
+            });
+
+        // 4. Obtener la ÚLTIMA resolución (Reemplazo seguro usando IN + MAX)
+        $ultimaResolucionSub = DB::table('seer_conciliadores')
+            ->select('id_solicitud', 'resolicion_primera as ultima_resolucion')
+            ->whereIn('id', function ($query) {
+                $query->selectRaw('MAX(id)')
+                      ->from('seer_conciliadores')
+                      ->groupBy('id_solicitud');
+            });
+
+        // 5. Consulta Principal 
+        $detalle = DB::table('seer_general')
+            ->joinSub($audienciasAgrupadas, 'aud', 'aud.id_solicitud', '=', 'seer_general.id')
+            ->join('seer_solicitante', 'seer_solicitante.id_solicitud', '=', 'seer_general.id')
+            ->join('users as conciliador', 'conciliador.id', '=', 'seer_general.conciliador_id')
+            
+            // Unimos nuestras nuevas subconsultas seguras
+            ->leftJoinSub($ultimoEstatusSub, 'estatus_sub', 'estatus_sub.id_solicitud', '=', 'seer_general.id')
+            ->leftJoinSub($ultimaResolucionSub, 'resolucion_sub', 'resolucion_sub.id_solicitud', '=', 'seer_general.id')
+            
             ->when($this->conciliador !== "Todos", function ($q) {
                 return $q->where('seer_general.conciliador_id', $this->conciliador);
             })
             ->select(
                 'seer_general.NUE',
-                DB::raw('MAX(audiencias.fecha) as fecha'),
-                DB::raw('MAX(audiencias.hora) as hora'),
+                'aud.ultima_fecha as fecha',
+                'aud.ultima_hora as hora',
                 'seer_solicitante.nombre as nombre_solicitante',
                 'conciliador.name as nombre_conciliador',
                 'seer_general.delegacion',
+                
                 DB::raw("CASE 
-                            WHEN (SELECT a_last.estatus FROM audiencias a_last WHERE a_last.id_solicitud = seer_general.id ORDER BY a_last.id DESC LIMIT 1) = 'No conciliacion'
-                                AND (SELECT sc.resolicion_primera FROM seer_conciliadores sc WHERE sc.id_solicitud = seer_general.id ORDER BY sc.id DESC LIMIT 1) IS NULL
-                            THEN 'No conciliacion (Incomparecencia)'
-                            ELSE (SELECT a_last.estatus FROM audiencias a_last WHERE a_last.id_solicitud = seer_general.id ORDER BY a_last.id DESC LIMIT 1)
-                        END as estatus")
-            )
-            ->groupBy(
-                'seer_general.id', 
-                'seer_general.NUE', 
-                'seer_solicitante.nombre', 
-                'conciliador.name', 
-                'seer_general.delegacion'
+                    WHEN estatus_sub.ultimo_estatus = 'No conciliacion' AND resolucion_sub.ultima_resolucion IS NULL
+                    THEN 'No conciliacion (Incomparecencia)'
+                    ELSE estatus_sub.ultimo_estatus
+                END as estatus")
             )
             ->orderBy('seer_general.consecutivo', 'desc')
             ->get()
             ->map(fn($item) => (array) $item)
             ->toArray();
 
-        // Devolvemos únicamente la hoja de detalle
         return [
             new AudienciasDetalleSheet($detalle),
         ];
