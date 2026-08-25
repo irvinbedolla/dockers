@@ -532,6 +532,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/solicitud/guardar_citadoC',           [SeerController::class, 'insertar_citados_con'])->name('insertar_citado');
         Route::get('/solicitud/consultarC',                 [SeerController::class, 'consultar_citados_con'])->name('consultar_citados');
         Route::post('/agregar_citado_edicion',              [SeerController::class, 'agregar_citado_edicion'])->name('agregar_citado_edicion');
+        Route::post('/audiencia/agregar_citado',            [SeerController::class, 'agregar_citado_audiencia_directo'])->name('agregar_citado_audiencia_directo');
         Route::delete('/borrar_citado_edicion',             [SeerController::class, 'borrar_citado_edicion'])->name('borrar_citado_edicion');
         Route::post('/historial/notificador',               [SeerController::class, 'historial_notificador'])->name('historial_notificador');
     //Ratificaciones

@@ -16,7 +16,7 @@
                    un padding/margin en body/main solo aplica una vez al inicio/fin
                    del flujo completo, por eso el texto invadía las franjas verdes
                    del membrete en las páginas intermedias. */
-                margin: 145px 0 60px 0;
+                margin: 145px 0 80px 0;
             }
             header {
                 position: fixed;
@@ -41,16 +41,16 @@
                 font-family: sans-serif;
                 font-size: 14px;
                 text-align: justify;
-                margin-left: 3cm;     
-                margin-right: 2cm; 
+                margin-left: 1cm;     
+                margin-right: 1cm; 
                 line-height: 1.3;
             }
             .fondo-membrete {
                 position: fixed;
-                top: 0;
+                top: -145;
                 left: 0;
                 width: 100%;
-                height: 100%;
+                height: calc(100% + 225px);
                 z-index: -1;
             }
             .sangria {
@@ -431,14 +431,6 @@
                                             DEL ESTADO DE MICHOACÁN DE OCAMPO
                                     </b>
                                 </td>
-                                <!--
-                                <td style="width:60%; vertical-align:top; padding:0 10px;"><b>Vo. Bo.</b><br><br><br><br>
-                                    <div style="border-top: 1px solid #000; width:80%; margin: 0 auto 5px auto;"></div>
-                                    <b>{{ mb_strtoupper($delegado->name, 'UTF-8') }}<br>
-                                    {{ $nombramiento_delegado }}                                 
-                                    </b>
-                                </td>
-                                -->
                             </tr>
                         </table>
                         
