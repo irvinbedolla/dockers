@@ -23,16 +23,3 @@
   vertical-align: middle;
 }
 
-#menu-pendiente-firma {
-  display: flex !important;
-  align-items: center;
-  gap: .35rem;
-  white-space: nowrap; /*forzar el contenido en un alínea */
-}
-#menu-pendiente-firma .text-dark,
-#menu-pendiente-firma .text-danger {
-  display: inline-flex;
-  align-items: center;
-  gap: .35rem;
-  white-space: nowrap;
-}

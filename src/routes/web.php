@@ -596,4 +596,5 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::get('/VerDcocumentos/{id}',                          [SeerController::class, 'VerDocumentosAudiencia'])->name('VerDocumentosAudiencia');
             Route::get('/documentos/solicitud/{id_solicitud}/{filename}', [SeerController::class, 'verImagenDocumento'])->name('documentos.ver_imagen');
             Route::get('/documento/identificacion-solicitante/{id}',    [SeerController::class, 'documento_identificacion_solicitante_ver'])->name('documento_identificacion_solicitante_ver');
+            Route::get('/documentos/ver/{tipo}/{id}/{archivo}',         [SeerController::class, 'verImagen'])->name('documentos.ver');
 });

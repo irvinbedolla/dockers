@@ -321,12 +321,6 @@
     <script src="{{ asset('assets/js/profile.js') }}"></script>
     <script src="{{ asset('assets/js/custom.js') }}"></script>
     <script src="{{ asset('assets/js/general/menu.js') }}"></script>
-
-    <!-- Template JS File -->
-    <script src="public/assets/js/stisla.js"></script>
-    <script src="public/assets/js/scripts.js"></script>
-    <script src="public/assets/js/profile.js"></script>
-    <script src="public/assets/js/custom.js"></script>
     
     <script>
     
