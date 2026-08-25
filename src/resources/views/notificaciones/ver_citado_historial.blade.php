@@ -229,7 +229,7 @@
                                     <div class="col-xs-12 col-sm-12 col-md-6">
                                         <label for="password">Referencia 1 <span style="color:red;">(*)</span></label><br>
                                         @if (!empty($folio->imagen_domicilio1) && $folio->imagen_domicilio1 !== 'Sin documento')
-                                            <a target='_blank' href="{{ route('ver_referencia', ['id_solicitud' => $folio->id_solicitud, 'nombre_archivo' => $folio->imagen_domicilio1]) }}">VER IMAGEN</a>
+                                            <a target='_blank' href="{{ route('documentos.ver', ['tipo' => 'solicitud', 'id' => $folio->id_solicitud, 'archivo' => $folio->imagen_domicilio1]) }}">VER IMAGEN</a>
                                         @else
                                             <span class="text-muted">No se subió imagen</span>
                                         @endif
@@ -240,7 +240,7 @@
                                     <div class="col-xs-12 col-sm-12 col-md-6">
                                         <label for="password">Referencia 2</label><br>
                                         @if (!empty($folio->imagen_domicilio2) && $folio->imagen_domicilio2 !== 'Sin documento')
-                                            <a target='_blank' href="{{ route('ver_referencia', ['id_solicitud' => $folio->id_solicitud, 'nombre_archivo' => $folio->imagen_domicilio2]) }}">VER IMAGEN</a>
+                                            <a target='_blank' href="{{ route('documentos.ver', ['tipo' => 'solicitud', 'id' => $folio->id_solicitud, 'archivo' => $folio->imagen_domicilio2]) }}">VER IMAGEN</a><br>
                                         @else
                                             <span class="text-muted">No se subió imagen</span>
                                         @endif

@@ -603,5 +603,5 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::get('/VerDcocumentos/{id}',                          [SeerController::class, 'VerDocumentosAudiencia'])->name('VerDocumentosAudiencia');
             Route::get('/documentos/solicitud/{id_solicitud}/{filename}', [SeerController::class, 'verImagenDocumento'])->name('documentos.ver_imagen');
             Route::get('/documento/identificacion-solicitante/{id}',    [SeerController::class, 'documento_identificacion_solicitante_ver'])->name('documento_identificacion_solicitante_ver');
-            Route::get('/documento/{id_solicitud}/{nombre_archivo}', [SeerController::class, 'ver_refecencia_citados'])->middleware('auth')->name('ver_referencia');
+            Route::get('/documentos_ver/{tipo}/{id}/{archivo}',             [SeerController::class, 'verPDF'])->name('documentos.ver');
 });

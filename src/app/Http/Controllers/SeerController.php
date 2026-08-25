@@ -6966,16 +6966,6 @@ class SeerController extends Controller
         }
         return redirect()->route('notificaciones');
     }
-    public function ver_refecencia_citados($id_solicitud, $nombre_archivo)
-    {
-        $path = storage_path('app/documentosSolicitud/' . $id_solicitud . '/' . $nombre_archivo);
-
-        if (!file_exists($path)) {
-            abort(404);
-        }
-
-        return response()->file($path);
-    }
 
     public function seleccionar_abogado(Request $request){
         $data = $request->all();
