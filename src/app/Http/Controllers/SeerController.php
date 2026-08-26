@@ -7904,50 +7904,16 @@ class SeerController extends Controller
         return view('solicitudes.solicitudes', compact('solicitudes'));
     }
     
-    private function obtenerHorariosPorSedeYFecha($oficina, $fecha)
+    public function ObtenerAudiencia($delegacion, $notificion) 
     {
-        // Define aquí la fecha límite de corte para cada sede principal
-        $fechasCortePorSede = [
-            'Morelia' => '2026-09-07',
-            'Uruapan' => '2026-08-04', // Ejemplo: Cambia en otra fecha
-            'Zamora'  => '2026-09-31', // Ejemplo: Cambia en otra fecha
-        ];
-
-        // Fecha por defecto si la sede no está explícitamente en el mapa
-        $fechaCorte = $fechasCortePorSede[$oficina] ?? '2026-09-01';
-
-        // Esquemas de horarios
-        $horariosNuevo = ["08:00:00", "09:15:00", "12:00:00", "14:15:00", "15:30:00"];
-        $horariosViejo = ["09:00:00", "10:15:00", "11:30:00", "12:45:00", "14:00:00"];
-
-        return ($fecha > $fechaCorte) ? $horariosNuevo : $horariosViejo;
-    }
-    
-    public function ObtenerAudiencia($delegacion, $notificion) {
         $id = auth()->user()->id;
         $user = User::find($id);
 
         $mapa_sedes = ["Zitácuaro" => "Morelia", "Lázaro Cárdenas" => "Uruapan", "Sahuayo" => "Zamora"];
         $oficina = $mapa_sedes[$delegacion] ?? $delegacion;
 
-        // FILTRAR POR DELEGACIÓN: Buscamos la última audiencia de esa oficina/delegación específica
-        $ultima_audiencia = Audiencias::where('delegacion', $oficina) // o 'centro', usa el nombre de tu columna
-        ->latest()
-        ->first();
-
-        $fecha_texto = date('Y-m-d', strtotime($ultima_audiencia->fecha));
-
-        //dd($fecha_texto);
         // El punto de partida real para los 45 días siempre es HOY
         $hoy = \Carbon\Carbon::now();
-
-       if ($fecha_texto > '2026-08-07') {
-            // Horarios para después del 9 de agosto de 2026
-            $horarios_disponibles = ["09:00:00", "10:15:00", "12:00:00", "14:15:00", "15:30:00"];
-        } else {
-            // Horarios anteriores o iguales al 9 de agosto de 2026
-            $horarios_disponibles = ["09:00:00", "10:15:00", "11:30:00", "12:45:00", "14:00:00"];
-        }
 
         $permisos_requeridos = array_key_exists($delegacion, $mapa_sedes) ? ["Ambos", "Virtual"] : ["Ambos", "Precencial"];
 
@@ -7964,6 +7930,7 @@ class SeerController extends Controller
         $diasVacacionesSede = 0;
         $inicioVentana = $hoy->copy()->startOfDay();
         $finVentana = $fechaLimiteBase->copy()->startOfDay();
+
         foreach ($periodosVacacionalesSede as $periodo) {
             $inicio = \Carbon\Carbon::parse($periodo->fecha_inicio)->max($inicioVentana);
             $fin = \Carbon\Carbon::parse($periodo->fecha_final)->min($finVentana);
@@ -8025,13 +7992,12 @@ class SeerController extends Controller
 
         $fecha_revisar = $fecha_inicio_busqueda->copy();
 
-        if($fecha_texto > '2026-08-07'){
-            $fecha_revisar = \Carbon\Carbon::parse('2026-08-10');
-        }
-
         // 5. Bucle principal de búsqueda de espacios vacíos
         while ($fecha_revisar->lte($fecha_limite_natural)) {
             $fecha_str = $fecha_revisar->format('Y-m-d');
+
+            // OBTENCIÓN DINÁMICA DE HORARIOS SEGÚN SEDE Y FECHA A EVALUAR
+            $horarios_disponibles = $this->obtenerHorariosPorSedeYFecha($oficina, $fecha_str);
 
             $dia_inhabil_centro = DiasInhabiles::where('centro', $oficina)
                 ->whereNull('user_id')
@@ -8065,8 +8031,9 @@ class SeerController extends Controller
 
                 $posibles_conciliadores = [];
                 $dia_campo = $dia_semana_map[$fecha_revisar->dayOfWeek] ?? null;
+
                 foreach ($conciliadores as $c) {
-                    // Validar disponibilidad del conciliador según permisos_conciliador (día y horario)
+                    // Validar disponibilidad del conciliador según permisos_conciliador
                     $permisosDelConciliador = $permisosConciliadores->get($c->id, collect());
                     $disponible = $dia_campo && $permisosDelConciliador->contains(function ($permiso) use ($dia_campo, $h) {
                         return $permiso->{$dia_campo} === 'Si'
@@ -8090,8 +8057,12 @@ class SeerController extends Controller
                         ->exists();
 
                     if (!$bloqueo_conciliador) {
-                        // Validar que el conciliador individual tampoco tenga otra audiencia asignada a esa hora
-                        $ocupado = Audiencias::where('fecha', $fecha_str)->where('hora', $h)->where('id_conciliador', $c->id)->exists();
+                        // Validar que el conciliador no tenga audiencia ocupada en ese horario
+                        $ocupado = Audiencias::where('fecha', $fecha_str)
+                            ->where('hora', $h)
+                            ->where('id_conciliador', $c->id)
+                            ->exists();
+
                         if (!$ocupado) {
                             $posibles_conciliadores[] = $c->id;
                         }
@@ -8110,10 +8081,46 @@ class SeerController extends Controller
             }
             $fecha_revisar->addDay();
         }
+
         return response()->json(['error' => "No hay disponibilidad en el rango legal extendido por días inhábiles"], 404);
     }
+    
+    private function obtenerHorariosPorSedeYFecha($oficina, $fechaDia)
+    {
+        $fechaCorteHorarioLegacy = '2026-08-10';
 
-    public function concluir_audiencia_conciliador(Request $request){    
+        $fechaCorteHorarioNuevoPorSede = [
+            'Morelia' => '2026-10-04',
+            'Zitácuaro' => '2026-10-04',
+            'Zamora' => '2026-10-04',
+            'Sahuayo' => '2026-10-04',
+            'Uruapan' => '2026-10-04',
+            'Lázaro Cárdenas' => '2026-10-04',
+        ];
+        $fechaCorteHorarioNuevo = $fechaCorteHorarioNuevoPorSede[$oficina] ?? null;
+
+        $horasLegacy = [[9, 0], [10, 15], [11, 30], [12, 45], [14, 0]];
+        $horasActual = [[9, 0], [10, 15], [12, 0], [14, 15], [15, 30]];
+        $horasNuevo = [[9, 0], [10, 15], [11, 30], [13, 45], [15, 0]];
+        $horasNuevoAlCuadrado = [[8, 30], [9, 45], [11, 0], [13, 0], [14, 15]];
+
+        if ($fechaDia < $fechaCorteHorarioLegacy) {
+            $horasBase = $horasLegacy;
+        } elseif ($fechaCorteHorarioNuevo !== null && $fechaDia >= $fechaCorteHorarioNuevo) {
+            if(($oficina == 'Zamora' || $oficina == 'Sahuayo') && $fechaDia < '2026-10-11'){
+                $horasBase = $horasNuevo;
+            } else {
+                $horasBase = $horasNuevoAlCuadrado;
+            }
+        } else {
+            $horasBase = $horasActual;
+        }
+
+        return array_map(fn ($h) => sprintf('%02d:%02d:00', $h[0], $h[1]), $horasBase);
+    }
+
+    public function concluir_audiencia_conciliador(Request $request)
+    {
         $data = $request->all();
 
         $hayCentro = false;
@@ -8386,7 +8393,8 @@ class SeerController extends Controller
         }
     }
 
-    public function concluir_audiencia_no_conciliacion(Request $request){
+    public function concluir_audiencia_no_conciliacion(Request $request)
+    {
         $data = $request->all();
 
         $id_solicitud = $data["id"];
@@ -17467,8 +17475,17 @@ class SeerController extends Controller
                 )
                 ->first();
             }
+            $user = User::where('id', $ratificacion->user_id)->first();
+            if($ratificacion->user_id !== 0){
+                
+                $user_name = $user->name;
+            }
+            else{
+                $user_name = " ";
+            }
+
             
-            $html = view('PDF/Caratula', compact('id','ratificacion','abogado','bandera'))->render();
+            $html = view('PDF/Caratula', compact('id','ratificacion','abogado','bandera','user_name'))->render();
         } else {
             $solicitud = SeerPerGeneral::find($id);
             $solicitante = SeerSolicitante::where('id_solicitud', $solicitud["id"])
@@ -17494,8 +17511,16 @@ class SeerController extends Controller
             ->where('seer_motivos.id_solicitud', $id)
             ->select('catalogo_motivos.motivo')
             ->get();
+            $user = User::where('id', $solicitud->user_id)->first();
+            if($solicitud->user_id !== 0){
+                $user_name = $user->name;
+            }
+            else{
+                $user_name = " ";
+            }
+                
 
-            $html = view('PDF/Caratula', compact('id','solicitud','solicitante','citados','motivos','notifica','bandera'))->render();
+            $html = view('PDF/Caratula', compact('id','solicitud','solicitante','citados','motivos','notifica','bandera','user_name'))->render();
         }
         
         $pdf = \PDF::loadHTML($html)
@@ -19931,5 +19956,53 @@ class SeerController extends Controller
         }
 
         abort(404, "El documento de identificación no se encontró para la solicitud ID: {$id}");
+    }
+
+    public function verImagen($tipo, $id, $archivo)
+    {
+        session_write_close(); // Libera la sesión de PHP para evitar bloqueos/timeouts
+
+        $carpetas = [
+            'solicitud' => 'documentosSolicitud',
+            'poder'     => 'documentoAbogado',
+        ];
+
+        $nombreCarpeta = $carpetas[$tipo] ?? 'documentosSolicitud';
+        $rutaFisica = storage_path("app/{$nombreCarpeta}/{$id}/{$archivo}");
+
+        if (!File::exists($rutaFisica)) {
+            abort(404, 'El archivo o imagen no existe.');
+        }
+
+        // Obtiene el MIME type correcto (image/jpeg, image/png, application/pdf, etc.)
+        $mimeType = File::mimeType($rutaFisica);
+
+        return response()->file($rutaFisica, [
+            'Content-Type' => $mimeType,
+            'Content-Disposition' => 'inline; filename="' . $archivo . '"'
+        ]);
+    }
+
+    public function verDocumento($tipo, $id, $archivo)
+    {
+        $carpetas = [
+            'solicitud' => 'documentosSolicitud',
+            'poder'     => 'documentoAbogado',
+        ];
+
+        $nombreCarpeta = $carpetas[$tipo] ?? 'documentosSolicitud';
+        
+        // Construimos la ruta absoluta directa dentro del contenedor Docker
+        $rutaFisica = storage_path("app/{$nombreCarpeta}/{$id}/{$archivo}");
+
+        if (!file_exists($rutaFisica)) {
+            abort(404, "Archivo no encontrado");
+        }
+
+        $mimeType = mime_content_type($rutaFisica) ?: 'image/jpeg';
+
+        return response()->file($rutaFisica, [
+            'Content-Type' => $mimeType
+        ]);
     }
 }

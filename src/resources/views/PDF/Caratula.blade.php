@@ -47,8 +47,8 @@
                 height: 100%;
                 z-index: -1;
             }
-        
-        body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 9px; color: #333; line-height: 1.2; padding-top: 95px;padding-bottom: 50px; padding-left: 40px; padding-right: 40px; }
+        @page { margin: 1cm; }
+        body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 9px; color: #333; line-height: 1.2; }
         
         /* Contenedor Principal */
         .container { width: 100%; border: 1px solid #ccc; padding: 10px; }

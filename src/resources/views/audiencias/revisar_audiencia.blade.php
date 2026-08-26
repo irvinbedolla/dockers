@@ -1155,17 +1155,28 @@
                                                 @php
                                                     $img1 = $citado->imagen_domicilio1 ?? null;
                                                     $img2 = $citado->imagen_domicilio2 ?? null;
+                                                    $solicitudId = $idSolicitud ?? $citado->solicitud_id ?? $id; 
+
                                                     $urlImg1 = ($img1 && $img1 !== 'Sin documento')
-                                                        ? route('documentos.ver', ['tipo' => 'solicitud', 'id' => $id, 'archivo' => $img1])
+                                                        ? route('documentos.ver', [
+                                                            'tipo'    => 'solicitud', 
+                                                            'id'      => $solicitudId, 
+                                                            'archivo' => trim($img1)
+                                                        ])
                                                         : null;
+
                                                     $urlImg2 = ($img2 && $img2 !== 'Sin documento')
-                                                        ? route('documentos.ver', ['tipo' => 'solicitud', 'id' => $id, 'archivo' => $img2])
+                                                        ? route('documentos.ver', [
+                                                            'tipo'    => 'solicitud', 
+                                                            'id'      => $solicitudId, 
+                                                            'archivo' => trim($img2)
+                                                        ])
                                                         : null;
                                                 @endphp
                                                 <div class="col-xs-12 col-sm-12 col-md-5">
                                                     <label for="password">Referencia Imagen 1<span style="color:red;"> (*)</span></label><br>
                                                     @if ($urlImg1)
-                                                        <a target='_blank' href="{{ $urlImg1 }}">VER IMAGEN</a><br>
+                                                        <a href="{{ $urlImg1 }}" target="_blank" class="btn btn-outline-info">Ver Imagen Existente</a>
                                                     @else
                                                         <span class="text-muted">No se subió imagen</span>
                                                     @endif
