@@ -23,7 +23,7 @@
                                                     <td style="display: none;">{{$usuario->id}}</td>
                                                     <td>{{$usuario->name}}</td>
                                                     <td>
-                                                        <button type="button" class="btn btn-info open-modal" data-id="{{ $usuario->id }}" data-bs-toggle="modal" data-bs-target="#modalAgregarCitados">Permisos</button>                                                        
+                                                        <button type="button" class="btn btn-info open-modal btn-sm" data-id="{{ $usuario->id }}" data-bs-toggle="modal" data-bs-target="#modalAgregarCitados"><i class="bi bi-card-list"></i> Permisos</button>                                                        
                                                     </td>
                                                 </tr>
                                             @endforeach

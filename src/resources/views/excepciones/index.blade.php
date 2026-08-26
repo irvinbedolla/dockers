@@ -34,8 +34,8 @@
                                                 @if($recepcion->estatus === 'atendido')
                                                 
                                                     <div class="dropdown">
-                                                        <button class="btn btn-secondary dropdown-toggle" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
-                                                            Documentos
+                                                        <button class="btn btn-secondary dropdown-toggle btn-sm" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
+                                                            <i class="bi bi-file-earmark-text-fill"></i> Documentos
                                                         </button>
                                                         <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
                                                             <li><a class="btn btn-info" style="width: 100%" href="{{route('VerPDFCasosPrevistos' , $recepcion->id) }}"  target="_blank">Atención para casos previstos</a></li>
@@ -44,7 +44,7 @@
                                                     </div>
                                                         
                                                 @else
-                                                    <a class="btn btn-warning" href="{{ route('atender_excepcion' , $recepcion->id)}}"  onclick=crear_turnos();>Atender</a>
+                                                    <a class="btn btn-warning btn-sm" href="{{ route('atender_excepcion' , $recepcion->id)}}"  onclick=crear_turnos();><i class="bi bi-play-fill"></i> Atender</a>
                                                 @endif
                                                 </td>
                                                 

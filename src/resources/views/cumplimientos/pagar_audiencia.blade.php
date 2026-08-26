@@ -20,7 +20,7 @@
                                             <th style="color: #fff;">Hora</th>
                                             <th style="color: #fff;">Monto</th>
                                             <th style="color: #fff;">Estatus</th>
-                                            <th style="color: #fff;">Pagar</th>
+                                            <th class="text-center text-white" style= color: #ffffff !important;">Pagar</th>
                                             <th style="color: #fff;">Documentos</th>
                                         </thead>
                                         <tbody>

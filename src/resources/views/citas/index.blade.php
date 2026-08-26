@@ -36,7 +36,7 @@
                                                     <td>{{$cita->unidad}}</td>
                                                     <td>{{$cita->estatus}}</td>
                                                     <td>
-                                                        <a class="btn btn-info" href="{{ route('generarQR_cita', $cita->id)}}" target="_blank">Generar QR</a>
+                                                        <a class="btn btn-info btn-sm" href="{{ route('generarQR_cita', $cita->id)}}" target="_blank"><i class="bi bi-qr-code"></i> Generar QR</a>
                                                     </td>
                                                 </tr>
                                             @endforeach

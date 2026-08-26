@@ -40,15 +40,15 @@
                                                         <td>{{$notificacion->notificador_nombre}}</td>
                                                         <td>
                                                             @if($notificacion->estatus == "Pendiente" || $notificacion->estatus == "Sin asignar")
-                                                                <a class="btn btn-primary" href="{{ route('editar_citado', $notificacion->id_citado) }}" onclick="consultar_estadistica();">Editar</a>
+                                                                <a class="btn btn-info btn-sm text-white" href="{{ route('editar_citado', $notificacion->id_citado) }}" onclick="consultar_estadistica();"><i class="bi bi-pencil-square me-1"></i> Editar</a>
                                                             @else
                                                                 Concluida
                                                             @endif
                                                         </td>
                                                         <td>
                                                             @if($notificacion->estatus === "Finalizado exitosamente")
-                                                                    <button class="btn btn-primary dropdown-toggle" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
-                                                                        Documentos
+                                                                    <button class="btn btn-primary dropdown-toggle btn-sm" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
+                                                                        <i class="bi bi-file-earmark-text-fill"></i> Documentos
                                                                     </button>
                                                                     <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
                                                                         <li><a class="dropdown-item" href="{{ route('VerDocumentosAudiencia', $notificacion->id_solicitud) }}"  target="_blank">Identificaciones</a></li>
@@ -62,8 +62,8 @@
                                                                     </ul>
                                                             @endif    
                                                             @if($notificacion->estatus === "No notificada" || $notificacion->estatus === "Exitosa por Instructivo")
-                                                                    <button class="btn btn-primary dropdown-toggle" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
-                                                                        Documentos
+                                                                    <button class="btn btn-primary dropdown-toggle btn-sm" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
+                                                                        <i class="bi bi-file-earmark-text-fill"></i> Documentos
                                                                     </button>
                                                                     <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
                                                                         <li><a class="dropdown-item" href="{{ route('VerDocumentosAudiencia', $notificacion->id_solicitud) }}"  target="_blank">Identificaciones</a></li>
@@ -77,8 +77,8 @@
                                                                     </ul>
                                                             @endif      
                                                             @if($notificacion->estatus === "No exitosa se constituye")
-                                                                    <button class="btn btn-primary dropdown-toggle" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
-                                                                        Documentos
+                                                                    <button class="btn btn-primary dropdown-toggle btn-sm" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
+                                                                        <i class="bi bi-file-earmark-text-fill"></i> Documentos
                                                                     </button>
                                                                     <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
                                                                         <li><a class="dropdown-item" href="{{ route('VerDocumentosAudiencia', $notificacion->id_solicitud) }}"  target="_blank">Identificaciones</a></li>
@@ -96,8 +96,8 @@
                                                                     </ul>
                                                             @endif                                      
                                                             @if($notificacion->estatus === "No exitosa no se constituye")
-                                                                <button class="btn btn-primary dropdown-toggle" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
-                                                                        Documentos
+                                                                <button class="btn btn-primary dropdown-toggle btn-sm" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
+                                                                        <i class="bi bi-file-earmark-text-fill"></i> Documentos
                                                                     </button>
                                                                     <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
                                                                         <li><a class="dropdown-item" href="{{ route('VerDocumentosAudiencia', $notificacion->id_solicitud) }}"  target="_blank">Identificaciones</a></li>
@@ -194,6 +194,29 @@
             document.getElementById('expediente_audiencia_id').value = idRegistro;
         });
     </script>
+    <script>
+        $(document).ready(function() {
+            if ($.fn.DataTable.isDataTable('#example')) {
+                $('#example').DataTable().destroy();
+            }
+            $('#example').DataTable({
+                "destroy": true,
+                "paging": true,
+                "pageLength": 10,
+                "searching": true,
+                "ordering": true,
+                "info": true,
+                "language": {
+                    "search": "Filtrar en esta pantalla:",
+                    "lengthMenu": "Mostrar _MENU_ registros",
+                    "info": "Mostrando del _START_ al _END_ de un bloque de _TOTAL_ solicitudes",
+                    "infoEmpty": "Mostrando 0 a 0 de 0 filas",
+                    "infoFiltered": "(filtrado de un total de _MAX_ registros)",
+                    "zeroRecords": "No se encontraron coincidencias en esta página."
+                }
+            });
+        });
+        </script>
 @endsection
         
     

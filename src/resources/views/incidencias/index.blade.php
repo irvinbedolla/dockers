@@ -38,14 +38,14 @@
 								>
 							</div>
 							<div class="col-12 col-md-2 d-grid" id="btn-wrapper" style="display:none;">
-								<button class="btn btn-primary" type="submit">Buscar</button>
+								<button class="btn btn-primary btn-sm" type="submit"><i class="bi bi-search"></i> Buscar</button>
 							</div>
 						</div>
 						<small class="text-muted" id="help-text" style="display:none;"></small>
 					</form>
 
 					<div class="table-responsive">
-						<table class="table table-striped align-middle">
+						<table id="example" class="table table-striped align-middle">
 							<thead>
 								<tr>
 										<th id="th-nue">Núm. Expediente (NUE)</th>
@@ -159,6 +159,33 @@
 			var thCol3 = document.getElementById('th-col3');
 			var resultsTbody = document.querySelector('.table-responsive table tbody');
 
+			if ($.fn.DataTable.isDataTable('#example')) {
+				$('#example').DataTable().destroy();
+			}
+			var table = $('#example').DataTable({
+				"destroy": true,
+				"paging": true,
+				"pageLength": 10,
+				"searching": true,
+				"ordering": true,
+				"info": true,
+				"language": {
+					"search": "Filtrar en esta pantalla:",
+					"lengthMenu": "Mostrar _MENU_ registros",
+					"info": "Mostrando del _START_ al _END_ de un bloque de _TOTAL_ solicitudes",
+					"infoEmpty": "Mostrando 0 a 0 de 0 filas",
+					"infoFiltered": "(filtrado de un total de _MAX_ registros)",
+					"zeroRecords": "No se encontraron coincidencias.",
+					"emptyTable": "Selecciona un tipo de búsqueda o no hay datos disponibles.",
+					"paginate": {
+						"first": "Primero",
+						"last": "Último",
+						"next": "Siguiente",
+						"previous": "Anterior"
+					}
+				}
+			});
+
 			function applyTipoUI(tipo) {
 				var enabled = !!tipo;
 				qWrapper.style.display = enabled ? '' : 'none';
@@ -183,6 +210,12 @@
 					thCol2.textContent = 'Solicitante';
 					thCol3.textContent = 'Citados';
 					helpText.innerHTML = 'Búsqueda de <strong>Solicitud</strong>: por <strong>NUE</strong> o <strong>solicitante</strong>.';
+				}
+			}
+			function clearResultsTable() {
+				
+				if ($.fn.DataTable.isDataTable('#example')) {
+					$('#example').DataTable().clear().draw();
 				}
 			}
 
