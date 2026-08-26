@@ -12,19 +12,8 @@
 
         <div class="section-body">
 
-            @if (session('success'))
-                <div class="alert alert-success alert-dismissible fade show" role="alert">
-                    <strong>Éxito:</strong> {{ session('success') }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            @endif
-
-            @if ($errors->any())
-                <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                    <strong>Error:</strong> {{ $errors->first() }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            @endif
+            {{-- El resultado de guardar, editar o eliminar se avisa con SweetAlert
+                 al final de este archivo, no con alertas dentro del contenido. --}}
 
             <div class="mb-3">
                 <a class="btn btn-sm btn-outline-secondary" href="{{ route('configuracion_sedes') }}">
@@ -41,10 +30,22 @@
 
                     <div class="cal-heading">
                         <h4 class="cal-title" id="calTitulo">&nbsp;</h4>
-                        <div class="cal-sub" id="calRango">&nbsp;</div>
+                        <div class="cal-sub">
+                            <span id="calRango">&nbsp;</span>
+                            <span id="calAgenda" class="cal-agenda"></span>
+                        </div>
                     </div>
 
                     <div class="cal-actions">
+                        @if ($conciliadores->isNotEmpty())
+                            <select class="cal-select" id="calConciliador" aria-label="Agenda a consultar">
+                                <option value="">Toda la sede</option>
+                                @foreach ($conciliadores as $con)
+                                    <option value="{{ $con->id }}">{{ $con->name }}</option>
+                                @endforeach
+                            </select>
+                        @endif
+
                         <select class="cal-select" id="calFiltro" aria-label="Filtrar bloqueos">
                             <option value="todos">Todos los bloqueos</option>
                             <option value="sede">Solo la sede</option>
@@ -72,10 +73,40 @@
                     <span><i class="leyenda" style="background:#6A0F49;"></i> Día inhábil</span>
                     <span><i class="leyenda" style="background:#B5824A;"></i> Horario bloqueado</span>
                     <span><i class="leyenda" style="background:#496163;"></i> Conciliador</span>
+                    <span id="leyendaJornada" style="display:none;"><i class="leyenda" style="background:#f2f3f5;"></i> Fuera de su jornada</span>
                     <span class="ms-auto text-muted">Clic en un día para crear &middot; clic en un bloqueo para editarlo</span>
                 </div>
 
-                <div id="calendarioSede"></div>
+                <div id="calZona" aria-busy="true">
+                    {{-- El esqueleto se pinta desde el HTML, sin esperar a que corra
+                         el JS: lo primero que ve el usuario es la forma del mes y no
+                         una tarjeta vacía. --}}
+                    <div id="calSkeleton" class="cal-skeleton">
+                        <span class="visually-hidden" role="status">Cargando bloqueos…</span>
+
+                        <div class="sk-head" aria-hidden="true">
+                            @for ($i = 0; $i < 7; $i++)
+                                <div class="sk-head-cell"><span class="sk-bar sk-dia"></span></div>
+                            @endfor
+                        </div>
+
+                        <div class="sk-grid" aria-hidden="true">
+                            @for ($i = 0; $i < 35; $i++)
+                                <div class="sk-cell">
+                                    <span class="sk-bar sk-num"></span>
+                                    @if ($i % 3 === 0)
+                                        <span class="sk-bar sk-evt"></span>
+                                    @endif
+                                    @if ($i % 7 === 2)
+                                        <span class="sk-bar sk-evt sk-evt-corto"></span>
+                                    @endif
+                                </div>
+                            @endfor
+                        </div>
+                    </div>
+
+                    <div id="calendarioSede" class="is-oculto"></div>
+                </div>
             </div>
 
         </div>
@@ -451,6 +482,80 @@
         #calendarioSede .evt-horario     { background-color: #f8f0e4 !important; color: #8a5a20 !important; }
         #calendarioSede .evt-conciliador { background-color: #eaf0f0 !important; color: #2f4b4d !important; }
 
+        /* Los bloqueos de la sede, al consultar a un conciliador, son contexto */
+        #calendarioSede .evt-contexto { opacity: .45; }
+
+        .cal-agenda { color: #6A0F49; font-weight: 600; }
+        .cal-agenda:not(:empty)::before { content: '·'; margin: 0 6px; color: #c8cdd5; font-weight: 400; }
+
+        #calendarioSede .fc-non-business { background: #f2f3f5; }
+
+        /* ---------------------------------------------------------------
+           Esqueleto de carga
+        --------------------------------------------------------------- */
+        #calZona { position: relative; }
+        #calendarioSede.is-oculto { display: none; }
+
+        .cal-skeleton { background: #fff; }
+
+        /* Al navegar de mes la rejilla ya existe: el esqueleto pasa a ser un
+           velo encima, para no vaciar la pantalla en cada clic. */
+        .cal-skeleton.is-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(255, 255, 255, .72);
+            z-index: 3;
+        }
+
+        .sk-head, .sk-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
+
+        .sk-head-cell {
+            background: #fafbfc;
+            border-right: 1px solid #eceef1;
+            border-bottom: 1px solid #eceef1;
+            padding: 12px 0;
+            display: flex;
+            justify-content: center;
+        }
+
+        .sk-head-cell:last-child { border-right: 0; }
+
+        .sk-cell {
+            min-height: 118px;
+            padding: 8px 7px;
+            border-right: 1px solid #eceef1;
+            border-bottom: 1px solid #eceef1;
+        }
+
+        .sk-cell:nth-child(7n) { border-right: 0; }
+
+        .sk-bar {
+            display: block;
+            border-radius: 6px;
+            background: linear-gradient(90deg, #eef0f3 25%, #f7f8fa 37%, #eef0f3 63%);
+            background-size: 400% 100%;
+            animation: sk-brillo 1.4s ease infinite;
+        }
+
+        .sk-dia  { width: 28px; height: 9px; border-radius: 4px; }
+        .sk-num  { width: 16px; height: 10px; border-radius: 4px; margin-bottom: 9px; }
+        .sk-evt  { height: 18px; margin-bottom: 5px; }
+        .sk-evt-corto { width: 65%; }
+
+        @keyframes sk-brillo {
+            0%   { background-position: 100% 50%; }
+            100% { background-position: 0 50%; }
+        }
+
+        /* Con animaciones reducidas el esqueleto se queda quieto, sin destello. */
+        @media (prefers-reduced-motion: reduce) {
+            .sk-bar { animation: none; background: #eef0f3; }
+        }
+
+        @media (max-width: 767px) {
+            .sk-cell { min-height: 84px; }
+        }
+
         #calendarioSede .fc-list-event td { cursor: pointer; }
         #calendarioSede .fc-list-day-cushion { background: #fafbfc; }
 
@@ -466,6 +571,7 @@
     {{-- El bundle index.global de FullCalendar 6 no incluye los idiomas: sin este
          archivo, locale:'es' se ignora en silencio y el calendario sale en inglés. --}}
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/locales/es.global.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 @endsection
 
 @section('scripts')
@@ -484,9 +590,15 @@
             var CORTOS = ['ene','feb','mar','abr','may','jun',
                           'jul','ago','sep','oct','nov','dic'];
 
+            // Jornada semanal de cada conciliador (permisos_conciliador) en formato
+            // businessHours. Va completa a la vista porque el selector cambia de
+            // persona sin recargar la página.
+            var JORNADAS = {!! json_encode($jornadas) !!};
+
             var modal = new bootstrap.Modal(document.getElementById('modalBloqueo'));
             var calendario = null;
             var filtro = 'todos';
+            var conciliador = new URLSearchParams(window.location.search).get('conciliador') || '';
 
             function tituloDe(d) { return MESES[d.getMonth()] + ' ' + d.getFullYear(); }
             function cortaDe(d)  { return d.getDate() + ' ' + CORTOS[d.getMonth()] + ' ' + d.getFullYear(); }
@@ -510,9 +622,15 @@
 
                 $('#wrapper_cobertura, #wrapper_recurrente').show();
                 $('#detalle_edicion').hide().empty();
-                $('#cobSede').prop('checked', true);
-                $('#wrapper_conciliador').hide();
-                $('#conciliador_id').removeAttr('required').val('');
+                if (conciliador) {
+                    // Consultando a una persona, lo natural es bloquearla a ella.
+                    $('#cobConciliador').prop('checked', true).trigger('change');
+                    $('#conciliador_id').val(conciliador);
+                } else {
+                    $('#cobSede').prop('checked', true);
+                    $('#wrapper_conciliador').hide();
+                    $('#conciliador_id').removeAttr('required').val('');
+                }
 
                 $('#bloquear_todo_el_dia').prop('checked', true);
                 mostrarHoras(false);
@@ -595,6 +713,33 @@
                     dayHeaderFormat: { weekday: 'short' },
                     noEventsText: 'Sin bloqueos en este periodo',
 
+                    loading: function (cargando) {
+                        var $sk = $('#calSkeleton');
+
+                        $('#calZona').attr('aria-busy', cargando ? 'true' : 'false');
+
+                        if (cargando) {
+                            $sk.show();
+                            return;
+                        }
+
+                        // Primera carga: se descubre la rejilla y a partir de aquí el
+                        // esqueleto solo actúa como velo.
+                        var $cal = $('#calendarioSede');
+                        var eraPrimera = $cal.hasClass('is-oculto');
+
+                        $cal.removeClass('is-oculto');
+                        $sk.hide().addClass('is-overlay');
+
+                        // FullCalendar midió con el contenedor en display:none y las
+                        // columnas salen sin ancho: hay que remedirlo al descubrirlo.
+                        if (eraPrimera) {
+                            setTimeout(function () {
+                                if (calendario) calendario.updateSize();
+                            }, 0);
+                        }
+                    },
+
                     datesSet: function (info) {
                         var fin = new Date(info.view.currentEnd.getTime() - 86400000);
                         $('#calTitulo').text(tituloDe(info.view.currentStart));
@@ -607,6 +752,7 @@
                             data: {
                                 sede: SEDE,
                                 sede_exacta: 1,
+                                conciliador: conciliador,
                                 start: fetchInfo.startStr,
                                 end: fetchInfo.endStr
                             },
@@ -620,7 +766,20 @@
                                     return (e.extendedProps || {}).ambito === filtro;
                                 }));
                             },
-                            error: function () { failure('No se pudieron cargar los bloqueos'); }
+                            error: function () {
+                                failure('No se pudieron cargar los bloqueos');
+
+                                Swal.fire({
+                                    toast: true,
+                                    position: 'top-end',
+                                    icon: 'error',
+                                    title: 'No se pudieron cargar los bloqueos',
+                                    text: 'Revisa tu conexión y vuelve a intentar.',
+                                    showConfirmButton: false,
+                                    timer: 5000,
+                                    timerProgressBar: true
+                                });
+                            }
                         });
                     },
 
@@ -677,6 +836,54 @@
                 if (calendario) calendario.refetchEvents();
             });
 
+            function aplicarConciliador(id, refrescar) {
+                conciliador = id || '';
+
+                // Consultando a una persona, el filtro sede/conciliador no aplica.
+                $('#calFiltro').toggle(!conciliador);
+                $('#leyendaJornada').toggle(!!conciliador);
+
+                if (conciliador) {
+                    filtro = 'todos';
+                    $('#calFiltro').val('todos');
+                    $('#calAgenda').text($('#calConciliador option:selected').text());
+                } else {
+                    $('#calAgenda').text('');
+                }
+
+                if (calendario) {
+                    var jornada = conciliador ? JORNADAS[conciliador] : null;
+                    // null = no hay horario capturado: mejor no sombrear nada.
+                    calendario.setOption('businessHours', jornada ? jornada : false);
+
+                    if (refrescar) {
+                        calendario.refetchEvents();
+                    }
+                }
+
+                var url = new URL(window.location.href);
+
+                if (conciliador) {
+                    url.searchParams.set('conciliador', conciliador);
+                } else {
+                    url.searchParams.delete('conciliador');
+                }
+
+                window.history.replaceState({}, '', url);
+            }
+
+            $('#calConciliador').on('change', function () {
+                aplicarConciliador(this.value, true);
+            });
+
+            // Estado inicial: respeta el ?conciliador= de la URL.
+            if (conciliador && $('#calConciliador option[value="' + conciliador + '"]').length) {
+                $('#calConciliador').val(conciliador);
+                aplicarConciliador(conciliador, false);
+            } else {
+                aplicarConciliador('', false);
+            }
+
             $('.btn-nuevo-bloqueo').on('click', function () { modoAlta(null); });
 
             $('input[name="cobertura"]').on('change', function () {
@@ -684,9 +891,6 @@
                     $('#wrapper_conciliador').slideDown(200);
                     $('#conciliador_id').attr('required', 'required');
                     $('#formBloqueo').attr('action', URL_ALTA_CON);
-                    // bloqueoConciliador siempre exige horario explícito.
-                    $('#bloquear_todo_el_dia').prop('checked', false);
-                    mostrarHoras(true);
                     $('#wrapper_recurrente').hide();
                     $('#es_recurrente').prop('checked', false);
                     $('#wrapper_dias_recurrentes').hide();
@@ -713,18 +917,68 @@
             });
 
             $(document).on('click', '#btnEliminar', function () {
-                if (confirm('Se eliminará este bloqueo de la agenda de ' + SEDE + '. ¿Continuar?')) {
-                    $('#formEliminar').removeClass('d-none').trigger('submit');
-                }
+                // Se cierra el modal antes de abrir SweetAlert: si no, el foco que
+                // atrapa el modal de Bootstrap pelea con el del diálogo.
+                modal.hide();
+
+                Swal.fire({
+                    icon: 'warning',
+                    title: '¿Eliminar este bloqueo?',
+                    text: 'Se quitará de la agenda de ' + SEDE + ' y la fecha volverá a estar disponible.',
+                    showCancelButton: true,
+                    reverseButtons: true,
+                    focusCancel: true,
+                    confirmButtonText: 'Sí, eliminar',
+                    cancelButtonText: 'Cancelar',
+                    confirmButtonColor: '#dc3545',
+                    cancelButtonColor: '#6c757d'
+                }).then(function (resultado) {
+                    if (resultado.isConfirmed) {
+                        $('#formEliminar').removeClass('d-none').trigger('submit');
+                    } else {
+                        modal.show();
+                    }
+                });
             });
 
             $('#formBloqueo').on('submit', function (e) {
                 if ($('#es_recurrente').is(':checked') && $('.chk-dia-semana:checked').length === 0) {
                     e.preventDefault();
-                    alert('Selecciona al menos un día de la semana para la recurrencia.');
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Falta un dato',
+                        text: 'Selecciona al menos un día de la semana para la recurrencia.',
+                        confirmButtonColor: '#6A0F49',
+                        heightAuto: false
+                    });
                     return false;
                 }
             });
+
+            // ---------------------------------------------------------------- resultado
+            // El alta, la edición y la baja responden con back(), así que el aviso
+            // llega en la recarga. Éxito como toast; error en modal, para que no se
+            // pierda el motivo del rechazo.
+            @if (session('success'))
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'success',
+                    title: @json(session('success')),
+                    showConfirmButton: false,
+                    timer: 4000,
+                    timerProgressBar: true
+                });
+            @endif
+
+            @if ($errors->any())
+                Swal.fire({
+                    icon: 'error',
+                    title: 'No se pudo guardar',
+                    text: @json($errors->first()),
+                    confirmButtonColor: '#6A0F49'
+                });
+            @endif
         });
     </script>
 @endsection

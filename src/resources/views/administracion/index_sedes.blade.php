@@ -10,19 +10,8 @@
                 <div class="col-lg-12">
                     <div class="card">
                         <div class="card-body">
-                            @if (session('success'))
-                                <div class="alert alert-success alert-dismissible fade show" role="alert">
-                                    <strong>Éxito:</strong> {{ session('success') }}
-                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                                </div>
-                            @endif
-
-                            @if ($errors->any())
-                                <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                                    <strong>Error:</strong> {{ $errors->first() }}
-                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                                </div>
-                            @endif
+                            {{-- El resultado de guardar se avisa con SweetAlert al final
+                                 de este archivo, no con alertas dentro del contenido. --}}
 
                             <div class="tab mb-4">
                                 <a class="btn btn-secondary" href="{{ route('configuracion') }}"><i class="bi bi-arrow-left"></i> Regresar</a>
@@ -114,61 +103,6 @@
                                     </div>
                                 @endforelse
                             </div>
-
-                            <div id="solicitante">
-                                <div class="card shadow-sm mt-2">
-                                    <div class="card-header text-white" style="background-color: #496163;">
-                                        <h5>Historial de Bloqueos por Conciliadores</h5>
-                                    </div>
-                                    <div class="card-body table-responsive">
-                                        <table class="table table-striped datatable-local">
-                                            <thead style="background-color: #4A001F; color: #fff;">
-                                                <tr>
-                                                    <th>Conciliador</th>
-                                                    <th>Sede</th>
-                                                    <th>Módulo</th>
-                                                    <th>Régimen</th>
-                                                    <th>Fecha inicio</th>
-                                                    <th>Fecha final</th>
-                                                    <th>Horario</th>
-                                                    <th>Acciones</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                @forelse($bloqueos->whereNotNull('user_id') as $bloqueo)
-                                                    <tr>
-                                                        <td><b>{{ $conciliadores->firstWhere('id', $bloqueo->user_id)->name ?? 'N/A' }}</b></td>
-                                                        <td>{{ $sedes->firstWhere('id', $bloqueo->centro)->delegacion ?? $bloqueo->centro }}</td>
-                                                        <td><span class="badge bg-secondary">{{ $bloqueo->tipo }}</span></td>
-                                                        <td>
-                                                            <span class="badge {{ $bloqueo->descripcion === 'Inhabil' ? 'bg-danger' : 'bg-warning text-dark' }}">
-                                                                {{ $bloqueo->descripcion }}
-                                                            </span>
-                                                        </td>
-                                                        <td>{{ \Carbon\Carbon::parse($bloqueo->fecha_inicio)->format('d-m-Y') }}</td>
-                                                        <td>{{ \Carbon\Carbon::parse($bloqueo->fecha_final)->format('d-m-Y') }}</td>
-                                                        <td>
-                                                            {{ $bloqueo->horario_inicio === '08:00:00' && $bloqueo->horario_final === '15:00:00' ? 'Jornada Completa' : substr($bloqueo->horario_inicio, 0, 5) . ' a ' . substr($bloqueo->horario_final, 0, 5) }}
-                                                        </td>
-                                                        <td>
-                                                            <form action="{{ route('eliminarBloqueo', $bloqueo->id) }}" method="POST" class="form-eliminar">
-                                                                @csrf
-                                                                @method('DELETE')
-                                                                <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
-                                                            </form>
-                                                        </td>
-                                                    </tr>
-                                                @empty
-                                                    <tr>
-                                                        <td colspan="8" class="text-center text-muted">No hay bloqueos de conciliadores registrados.</td>
-                                                    </tr>
-                                                @endforelse
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-
                         </div>
                     </div>
                 </div>
@@ -327,6 +261,7 @@
 @endsection
 
 @section('scripts')
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="{{ asset('assets/js/estadistica/estadistica.js') }}"></script>
     <script>
         $(document).ready(function() {
@@ -334,18 +269,6 @@
             if ($('#modalBloqueoUnificado').length) {
                 $('#modalBloqueoUnificado').appendTo("body");
             }
-
-            // Inicialización de las tablas secundarias del historial
-            $('.datatable-local').each(function() {
-                $(this).DataTable({
-                    info: false,
-                    ordering: false,
-                    paging: true,
-                    pageLength: 5,
-                    searching: false,
-                    language: { "paginate": { "next": "Sig.", "previous": "Ant." } }
-                });
-            });
 
             // NUEVO NUEVO: Capturar y pintar los datos de la sede seleccionada en el modal al dar clic
             $(document).on('click', '.btn-abrir-bloqueo', function() {
@@ -399,10 +322,38 @@
             $('#formBloqueoMaster').on('submit', function(e) {
                 if ($('#es_recurrente').is(':checked') && $('.chk-dia-semana:checked').length === 0) {
                     e.preventDefault();
-                    alert('Por favor, selecciona al menos un día de la semana para aplicar la recurrencia.');
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Falta un dato',
+                        text: 'Selecciona al menos un día de la semana para aplicar la recurrencia.',
+                        confirmButtonColor: '#6A0F49'
+                    });
                     return false;
                 }
             });
+
+            // El alta responde con back(), así que el aviso llega en la recarga.
+            // Éxito como toast; error en modal, para que no se pierda el motivo.
+            @if (session('success'))
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'success',
+                    title: @json(session('success')),
+                    showConfirmButton: false,
+                    timer: 4000,
+                    timerProgressBar: true
+                });
+            @endif
+
+            @if ($errors->any())
+                Swal.fire({
+                    icon: 'error',
+                    title: 'No se pudo guardar',
+                    text: @json($errors->first()),
+                    confirmButtonColor: '#6A0F49'
+                });
+            @endif
         });
 
         // [SICONCILIO] mostrar_sedes()/mostrar_conciliador() se eliminaron junto con la

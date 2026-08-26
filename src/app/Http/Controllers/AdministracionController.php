@@ -634,14 +634,33 @@ class AdministracionController extends Controller{
             'conciliador_id' => 'required|integer',
             'fecha_inicio'   => 'required|date',
             'fecha_final'    => 'required|date|after_or_equal:fecha_inicio',
-            'hora_inicio'    => 'required',
-            'hora_final'     => 'required|after:hora_inicio',
         ]);
+
+        // Permisos, incapacidades y vacaciones son de días enteros: antes había que
+        // teclear el horario a mano en todos los casos.
+        if ($request->has('bloquear_todo_el_dia')) {
+            $horaInicio = '08:00:00';
+            $horaFinal  = '16:00:00';
+        } else {
+            $request->validate([
+                'hora_inicio' => 'required',
+                'hora_final'  => 'required|after:hora_inicio',
+            ]);
+            $horaInicio = $request->input('hora_inicio');
+            $horaFinal  = $request->input('hora_final');
+        }
+
+        $conciliador = User::find($request->conciliador_id);
+
+        if (!$conciliador) {
+            return back()->withErrors('El conciliador no existe.');
+        }
+
         $existe = DiasInhabiles::where('user_id', $request->conciliador_id)
         ->whereDate('fecha_inicio', '<=', $request->fecha_final)
         ->whereDate('fecha_final', '>=', $request->fecha_inicio)
-        ->where('horario_inicio', '<=', $request->hora_final)
-        ->where('horario_final', '>=', $request->hora_inicio)
+        ->where('horario_inicio', '<', $horaFinal)
+        ->where('horario_final', '>', $horaInicio)
         ->exists();
         if ($existe) {
             return back()->withErrors("El conciliador ya está bloqueado en ese horario.");
@@ -649,9 +668,12 @@ class AdministracionController extends Controller{
         DiasInhabiles::create([
             'fecha_inicio'   => $request->fecha_inicio,
             'fecha_final'    => $request->fecha_final,
-            'horario_inicio' => $request->hora_inicio,
-            'horario_final'  => $request->hora_final,
-            'centro'         => Auth::user()->delegacion,
+            'horario_inicio' => $horaInicio,
+            'horario_final'  => $horaFinal,
+            // Antes se guardaba Auth::user()->delegacion, es decir la sede de quien
+            // capturaba: los bloqueos de una persona quedaban repartidos entre varios
+            // centros. Los registros nuevos usan la delegación del bloqueado.
+            'centro'         => $conciliador->delegacion ?: Auth::user()->delegacion,
             'user_id'        => $request->conciliador_id,
             'descripcion'    => $request->descripcion,
             'tipo'           => $request->tipo,
@@ -844,16 +866,77 @@ class AdministracionController extends Controller{
             }
         }
 
+        // Las oficinas de apoyo (Zitácuaro, Lázaro Cárdenas, Sahuayo) no tienen
+        // conciliadores propios: se listan los de su sede madre.
+        $delegacionesConciliadores = [$sede->nombre];
+
+        if (!empty($sede->oficina_apoyo)) {
+            $madre = Sedes::find($sede->oficina_apoyo);
+
+            if ($madre) {
+                $delegacionesConciliadores[] = $madre->nombre;
+            }
+        }
+
         $conciliadores = User::role('Conciliador')
-            ->where('delegacion', $sede->nombre)
+            ->whereIn('delegacion', $delegacionesConciliadores)
             ->orderBy('name')
             ->get();
+
+        // Jornada semanal de cada conciliador, para sombrear en el calendario las
+        // horas en las que de entrada no atiende. Se manda completa a la vista
+        // porque el selector cambia de persona sin recargar la página.
+        $horarios = PermisosConciliador::whereIn('id_conciliador', $conciliadores->pluck('id'))
+            ->get()
+            ->keyBy('id_conciliador');
+
+        $jornadas = [];
+
+        foreach ($conciliadores as $con) {
+            $jornadas[$con->id] = $this->jornadaSemanal($horarios->get($con->id));
+        }
 
         $bloqueos = DiasInhabiles::where('centro', $sede->nombre)
             ->orderBy('fecha_inicio', 'desc')
             ->get();
 
-        return view('administracion.calendario_sede', compact('sede', 'conciliadores', 'bloqueos'));
+        return view('administracion.calendario_sede', compact('sede', 'conciliadores', 'bloqueos', 'jornadas'));
+    }
+
+    /**
+     * Traduce una fila de permisos_conciliador al formato businessHours de
+     * FullCalendar. Devuelve null cuando no hay horario capturado, para no
+     * sombrear un calendario del que no sabemos nada.
+     */
+    private function jornadaSemanal($permiso)
+    {
+        if (!$permiso) {
+            return null;
+        }
+
+        $dias = [
+            1 => 'lunes',
+            2 => 'martes',
+            3 => 'miercoles',
+            4 => 'jueves',
+            5 => 'viernes',
+        ];
+
+        $jornada = [];
+
+        foreach ($dias as $numero => $nombre) {
+            if (strtolower((string) $permiso->{$nombre}) !== 'si') {
+                continue;
+            }
+
+            $jornada[] = [
+                'daysOfWeek' => [$numero],
+                'startTime'  => substr((string) $permiso->{$nombre . '_inicio'}, 0, 5) ?: '09:00',
+                'endTime'    => substr((string) $permiso->{$nombre . '_final'}, 0, 5) ?: '15:30',
+            ];
+        }
+
+        return empty($jornada) ? [] : $jornada;
     }
 
     /**
@@ -951,18 +1034,26 @@ class AdministracionController extends Controller{
                 });
             });
 
-            if (!empty($sedeFiltro)) {
-                $sedesAsociadas = $sedeExacta
-                    ? [$sedeFiltro]
-                    : ($mapaSedes[$sedeFiltro] ?? [$sedeFiltro]);
-                $query->whereIn('centro', $sedesAsociadas);
-            }
+            $sedesAsociadas = !empty($sedeFiltro)
+                ? ($sedeExacta ? [$sedeFiltro] : ($mapaSedes[$sedeFiltro] ?? [$sedeFiltro]))
+                : null;
 
             if (!empty($conciliadorFiltro)) {
-                $query->where(function($q) use ($conciliadorFiltro) {
+                // Los bloqueos de conciliador se guardan con el 'centro' de quien los
+                // captura, no con la delegación del bloqueado, así que filtrar por
+                // centro esconde parte de su agenda. Sus bloqueos se buscan por
+                // user_id y aparte se suman los de la sede consultada.
+                $query->where(function($q) use ($conciliadorFiltro, $sedesAsociadas) {
                     $q->where('user_id', $conciliadorFiltro)
-                    ->orWhereNull('user_id');
+                      ->orWhere(function($sub) use ($sedesAsociadas) {
+                          $sub->whereNull('user_id');
+                          if ($sedesAsociadas) {
+                              $sub->whereIn('centro', $sedesAsociadas);
+                          }
+                      });
                 });
+            } elseif ($sedesAsociadas) {
+                $query->whereIn('centro', $sedesAsociadas);
             }
 
             $bloqueos = $query->get();
@@ -1005,7 +1096,9 @@ class AdministracionController extends Controller{
                     // que el calendario por sede pinte sus propias píldoras con CSS.
                     'backgroundColor' => $color,
                     'borderColor'     => $color,
-                    'classNames'      => [$clase],
+                    'classNames'      => (!empty($conciliadorFiltro) && $esDeSede)
+                                            ? [$clase, 'evt-contexto']
+                                            : [$clase],
                     'extendedProps'   => [
                         'tipo'           => 'BloqueoAgenda',
                         'bloqueo_id'     => $b->id,
@@ -1019,6 +1112,9 @@ class AdministracionController extends Controller{
                         'horario_inicio' => $b->horario_inicio,
                         'horario_final'  => $b->horario_final,
                         'jornada'        => $esJornadaCompleta,
+                        // Cuando se consulta a un conciliador, sus bloqueos son los
+                        // editables y los de la sede solo dan contexto.
+                        'contexto'       => (!empty($conciliadorFiltro) && $esDeSede),
                     ]
                 ];
             }
