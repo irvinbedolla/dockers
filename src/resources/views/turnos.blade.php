@@ -168,6 +168,7 @@
 
         .modal-body {
             overflow-y: auto;
+            font-size: 18px;
         }
 
         /* Títulos de modal */

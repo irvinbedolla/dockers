@@ -35,7 +35,7 @@
             <div class="row">
                 <div class="col-md-6 offset-md-3">
                     <div class="login-brand">
-                        <img src="{{ asset('assets/images/ccl-r.png') }}" alt="logo" width="100"
+                        <img src="{{ asset('assets/images/ccl-r.png') }}" alt="logo" width="150"
                              class="shadow-light">
                     </div>
                     @yield('content')
