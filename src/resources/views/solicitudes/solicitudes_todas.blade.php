@@ -138,8 +138,7 @@
                                                                 @elseif($solicitud->estatus == "Prevencion")
                                                                     <li><a class="dropdown-item" href="{{ route('PDFacuse_solicitud', $solicitud->id) }}" target="_blank">Acuse de solicitud</a></li>
                                                                     <li><a class="dropdown-item" style="width: 100%" href="{{ route('PDFCaratulaInfo', ['tipo' => 'solicitud', 'id' => $solicitud->id]) }}"  target="_blank">Formato de Solicitud</a></li>
-                                                                    <li><a class="dropdown-item" style="width: 100%" href="{{ route('PDFCaratulaInfoConcilio', ['tipo' => 'seguimiento', 'id' => $solicitud->id]) }}"  target="_blank">Caratula de Seguimiento</a></li>
-                                                                    <li><a class="dropdown-item" style="width: 100%" href="{{ route('PDFCaratulaInfoConcilio', ['tipo' => 'caratula', 'id' => $solicitud->id]) }}"  target="_blank">Caratula de Solicitud</a></li>
+                                                                    
                                                                 @endif
 
                                                                 <li><button type="button" class="dropdown-item btn-mostrar-registros" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $solicitud->id }}">Citatorios</button></li>
