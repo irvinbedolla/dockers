@@ -22,6 +22,7 @@ use App\Models\Estados;
 use App\Models\Deducciones;
 use App\Models\DocumentosSolicitud;
 use App\Models\HistorialAbogado;
+use App\Models\Recepcion;
 use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -946,28 +947,24 @@ class TurnosController extends Controller
 
     public function obtenerEventos(Request $request)
     {
-        $fecha_inicio = now()->subDays(20)->format('Y-m-d');
-        $fecha_fin = now()->addDays(20)->format('Y-m-d');
+        $fecha_inicio = now()->format('Y-m-d');
+        $fecha_fin = now()->addDays(60)->format('Y-m-d');
         $sede = $request->input('sede'); // Obtener sede de la solicitud
 
-        $inhabiles = DiasInhabiles::whereNull('user_id')
-            ->where('centro', $sede)
-            ->whereIn('descripcion', ['Inhabil', 'No inhabil'])
-            ->whereIn('tipo', ['Ratificaciones', 'Todos'])
-            ->get(); //Obtenemos días inhabiles
-
-        /* Obtener turnos ocupados filtrando por sede
-        $ocupados = Turnos::whereBetween('fecha', [$fecha_inicio, $fecha_fin])
-            ->where('delegacion', $sede) // FILTRO POR SEDE
-            ->get()
-            ->map(function ($turno) {
-                return [
-                    'title' => 'Ocupado',
-                    'start' => $turno->fecha . 'T' . $turno->hora,
-                    'color' => '#DA0909',
-                    'extendedProps' => ['estado' => 'ocupado']
-                ];
-            });*/
+        $inhabiles = DiasInhabiles::where('centro', $sede)
+            ->whereNull('user_id')
+            ->where(function ($query) use ($fecha_inicio, $fecha_fin) {
+                $query->where('fecha_inicio', '<=', $fecha_fin)
+                    ->where('fecha_final', '>=', $fecha_inicio);
+            })
+            ->get();
+        $maxEmpalme = $sede === 'Morelia' ?  2 : 1;
+        $ocupadosQuery = Recepcion::whereBetween('fecha', [$fecha_inicio, $fecha_fin])->where('tipo', 'Ratificación')->where('delegacion', $sede)->get(['fecha', 'hora']);
+        $ocupadosCount = [];
+        foreach ($ocupadosQuery as $turno) {
+            $key = $turno->fecha->format('Y-m-d') . 'T' . $turno->hora->format('H:i');
+            $ocupadosCount[$key] = ($ocupadosCount[$key] ?? 0) + 1;
+        }
 
         $todosLosEventos = [];
         $fecha = new \DateTime($fecha_inicio);
@@ -975,8 +972,9 @@ class TurnosController extends Controller
 
         while ($fecha <= $fin) {
             if ($fecha->format('N') < 6) { 
-                $slotDt = new \DateTime($fecha->format('Y-m-d') . ' 08:30:00');
-                $slotEndDt = new \DateTime($fecha->format('Y-m-d') . ' 16:00:00');
+                $slotDt = new \DateTime($fecha->format('Y-m-d') . ' 09:00:00');
+                $slotEndDt = new \DateTime($fecha->format('Y-m-d') . ' 15:30:00');
+                $slotComida = new \DateTime($fecha->format('Y-m-d') . ' 13:00:00');
 
                 while ($slotDt <= $slotEndDt) {
                         $hora_str = $slotDt->format('H:i:s');
@@ -1005,67 +1003,69 @@ class TurnosController extends Controller
                             }
                         }
 
-                        //Comparación de fechas de días inhábiles
-
-                        /*$fechaTurno = $fecha->format('Y-m-d');
-                        $sedeTurno = $sede;
-                        $esInhabil = false;
-                        foreach ($inhabiles as $dia){
-                            if ($fechaTurno >= $dia->fecha_inicio && $fechaTurno <= $dia->fecha_final && ($dia->centro == $sedeTurno || $dia->centro == $sedeTurno) ){
-                                $esInhabil = true;
-                                break;
-                            }
-                        }*/
-
                         $disponibles = 1 - $citasExistentes;
                         $ocupado = $disponibles <= 0;
-                        
-                        if ($ocupado) {
+                        $cantidadOcupados = $ocupadosCount[$slotStart] ?? 0;
+                        if($slotDt == $slotComida ){
+                            $titulo = 'No disponible';
                             $todosLosEventos[] = [
-                                'title' => 'Ocupado',
+                                'title' => $titulo,
                                 'start' => $slotStart,
-                                'color' => '#DA0909',
-                                'extendedProps' => ['estado' => 'ocupado', 'espacios_disponibles' => 0]
+                                'color' => '#8a959e',
+                                'extendedProps' => ['estado' => 'expirado', 'espacios_disponibles' => 0]
                             ];
-                        } else if ($esInhabil){
+                        }
+                        else if ($esInhabil){
                             $todosLosEventos[] = [
                                 'title' => 'Inhábil',
                                 'start' => $slotStart,
                                 'color' => '#3B78DB',
                                 'extendedProps' => ['estado' => 'inhabil', 'espacios_disponibles' => 0]
                             ];
-                        } else if ($esNoInhabil || $ahora > $currentCita){
+                        }
+                        else if ($esNoInhabil || $ahora > $currentCita){
                             $titulo = $esNoInhabil ? 'No disponible' : 'Expirado';
                             $todosLosEventos[] = [
                                 'title' => $titulo,
                                 'start' => $slotStart,
-                                'color' => '#F59727',
+                                'color' => '#8a959e',
                                 'extendedProps' => ['estado' => 'expirado', 'espacios_disponibles' => 0]
                             ];
-                        } else {
+                        }
+                        else if ($cantidadOcupados > 0 && $cantidadOcupados < $maxEmpalme){
+                            
+                            $todosLosEventos[] = [
+                                'title' =>"Disponible",
+                                'start' => $slotStart,
+                                'color' => '#26c03a',
+                                'extendedProps' => ['estado' => 'disponible', 'espacios_disponibles' => 0]
+                            ];
+                        }
+                        elseif ($cantidadOcupados > 0) {
+                            $todosLosEventos[] = [
+                                'title' => 'Ocupado',
+                                'start' => $slotStart,
+                                'color' => '#DA0909',
+                                'extendedProps' => ['estado' => 'ocupado', 'espacios_disponibles' => 0]
+                            ];
+                        }   
+                        else {
                             $todosLosEventos[] = [
                                 'title' => "Disponible",
                                 'start' => $slotStart,
-                                'color' => '#00CE1C',
+                                'color' => '#26c03a',
                                 'extendedProps' => ['estado' => 'disponible', 'espacios_disponibles' => $disponibles]
                             ];
                         }
 
-                        /*foreach ($todosLosEventos as &$evento) {
-                            foreach ($inhabiles as $dia) {
-                                $fechaInhabilInicio = $dia->fecha_inicio . 'T' . $dia->horario_inicio;
-                                $fechaInhabilFinal = $dia->fecha_final . 'T' . $dia->horario_final;
-                                if ($evento['start'] >= $fechaInhabilInicio && $evento['start'] <= $fechaInhabilFinal) {
-                                    $evento['title'] = 'Inhábil';
-                                    $evento['color'] = '#970EE3';
-                                    $evento['extendedProps']['estado'] = 'inhabil';
-                                    break;
-                                }
-                            }
+                        if($slotDt->format('H:i') === '13:00' ){
+                            $slotDt->modify('+30 minutes');
                         }
-                        unset($evento);*/
-
-                        $slotDt->modify('+30 minutes');
+                        else{
+                            $slotDt->modify('+60 minutes');
+                        }
+                        
+                        
                 }
             }
             $fecha->modify('+1 day');

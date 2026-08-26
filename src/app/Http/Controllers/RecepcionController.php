@@ -890,8 +890,8 @@ class RecepcionController extends Controller
 
         $colores = [
             'ocupado' => '#DA0909', 'inhabil' => '#3B78DB',
-            'expirado' => '#8a959e', 'disponible' => '#00CE1C',
-            'turnos' => '#00CE1C',
+            'expirado' => '#8a959e', 'disponible' => '#26c03a',
+            'turnos' => '#26c03a',
         ];
         $titulos = [
             'ocupado' => 'Ocupado', 'inhabil' => 'Inhábil',
