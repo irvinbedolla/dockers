@@ -22,6 +22,7 @@ use App\Models\Estados;
 use App\Models\Deducciones;
 use App\Models\DocumentosSolicitud;
 use App\Models\HistorialAbogado;
+use App\Models\Recepcion;
 use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -84,14 +85,21 @@ class TurnosController extends Controller
     {
         $doc = DocumentosSolicitud::findOrFail($id);
 
-        $pathNew = 'documentos_ratificacion/' . $doc->id_solicitud . '/' . $doc->nombre_documento;
-        $pathOld = 'documentosSolicitud/' . $doc->nombre_documento;
+        $candidates = [
+            'documentos_ratificacion/' . $doc->id_solicitud . '/' . $doc->nombre_documento,
+            'documentos_ratificacion/' . $doc->nombre_documento,
+            'documentosSolicitud/' . $doc->nombre_documento,
+        ];
 
-        if (Storage::disk('s3')->exists($pathNew)) {
-            $path = $pathNew;
-        } elseif (Storage::disk('s3')->exists($pathOld)) {
-            $path = $pathOld;
-        } else {
+        $path = null;
+        foreach ($candidates as $candidate) {
+            if (Storage::disk('s3')->exists($candidate)) {
+                $path = $candidate;
+                break;
+            }
+        }
+
+        if (!$path) {
             abort(404, 'Documento no encontrado en almacenamiento.');
         }
 
@@ -808,25 +816,25 @@ class TurnosController extends Controller
         else{
             //Se carga el INE del abogado
             $nombre_ine = $data["nombre_empresa"]."".$data["primero_empresa"]."".$data["segundo_empresa"]."-".$data["empresa"]."_IDENTIFICACION.pdf";
-            $path = Storage::putFileAs(
+            $path = Storage::disk('s3')->putFileAs(
                 'documentos_ratificacion/' . $id_turno, $request->file('documentoIne'), $nombre_ine
             );
 
             //Se carga el Poder del abogado
             $nombre_representación = $data["nombre_empresa"]."".$data["primero_empresa"]."".$data["segundo_empresa"]."-".$data["empresa"]."_PODER.pdf";
-            $path = Storage::putFileAs(
+            $path = Storage::disk('s3')->putFileAs(
                 'documentos_ratificacion/' . $id_turno, $request->file('documentoPoder'), $nombre_representación
             );
         }
         
         /*
         $trabajador_curp = $data["trabajador_curp"].".pdf";
-        $path = Storage::putFileAs(
+        $path = Storage::disk('s3')->putFileAs(
             'documentos_ratificacion', $request->file('documentoCurp'), $trabajador_curp
         );
         */
         $trabajador_identificacion  = $data["trabajador_curp"]."_IDENTIFICACION.pdf";
-        $path = Storage::putFileAs(
+        $path = Storage::disk('s3')->putFileAs(
             'documentos_ratificacion/' . $id_turno, $request->file('documentoidentificacion'), $trabajador_identificacion
         );
 
@@ -839,7 +847,7 @@ class TurnosController extends Controller
 
         if(isset($data["cuantificacion"])){
             $cuantificacion  = $data["trabajador_curp"]."_CUANTIFICACION.pdf";
-            $path = Storage::putFileAs(
+            $path = Storage::disk('s3')->putFileAs(
                 'documentos_ratificacion/' . $id_turno, $request->file('cuantificacion'), $cuantificacion
             );
             $turno->update(['documentoCuanti' => $cuantificacion]);
@@ -939,28 +947,24 @@ class TurnosController extends Controller
 
     public function obtenerEventos(Request $request)
     {
-        $fecha_inicio = now()->subDays(20)->format('Y-m-d');
-        $fecha_fin = now()->addDays(20)->format('Y-m-d');
+        $fecha_inicio = now()->format('Y-m-d');
+        $fecha_fin = now()->addDays(60)->format('Y-m-d');
         $sede = $request->input('sede'); // Obtener sede de la solicitud
 
-        $inhabiles = DiasInhabiles::whereNull('user_id')
-            ->where('centro', $sede)
-            ->whereIn('descripcion', ['Inhabil', 'No inhabil'])
-            ->whereIn('tipo', ['Ratificaciones', 'Todos'])
-            ->get(); //Obtenemos días inhabiles
-
-        /* Obtener turnos ocupados filtrando por sede
-        $ocupados = Turnos::whereBetween('fecha', [$fecha_inicio, $fecha_fin])
-            ->where('delegacion', $sede) // FILTRO POR SEDE
-            ->get()
-            ->map(function ($turno) {
-                return [
-                    'title' => 'Ocupado',
-                    'start' => $turno->fecha . 'T' . $turno->hora,
-                    'color' => '#DA0909',
-                    'extendedProps' => ['estado' => 'ocupado']
-                ];
-            });*/
+        $inhabiles = DiasInhabiles::where('centro', $sede)
+            ->whereNull('user_id')
+            ->where(function ($query) use ($fecha_inicio, $fecha_fin) {
+                $query->where('fecha_inicio', '<=', $fecha_fin)
+                    ->where('fecha_final', '>=', $fecha_inicio);
+            })
+            ->get();
+        $maxEmpalme = $sede === 'Morelia' ?  2 : 1;
+        $ocupadosQuery = Recepcion::whereBetween('fecha', [$fecha_inicio, $fecha_fin])->where('tipo', 'Ratificación')->where('delegacion', $sede)->get(['fecha', 'hora']);
+        $ocupadosCount = [];
+        foreach ($ocupadosQuery as $turno) {
+            $key = $turno->fecha->format('Y-m-d') . 'T' . $turno->hora->format('H:i');
+            $ocupadosCount[$key] = ($ocupadosCount[$key] ?? 0) + 1;
+        }
 
         $todosLosEventos = [];
         $fecha = new \DateTime($fecha_inicio);
@@ -968,8 +972,9 @@ class TurnosController extends Controller
 
         while ($fecha <= $fin) {
             if ($fecha->format('N') < 6) { 
-                $slotDt = new \DateTime($fecha->format('Y-m-d') . ' 08:30:00');
-                $slotEndDt = new \DateTime($fecha->format('Y-m-d') . ' 16:00:00');
+                $slotDt = new \DateTime($fecha->format('Y-m-d') . ' 09:00:00');
+                $slotEndDt = new \DateTime($fecha->format('Y-m-d') . ' 15:30:00');
+                $slotComida = new \DateTime($fecha->format('Y-m-d') . ' 13:00:00');
 
                 while ($slotDt <= $slotEndDt) {
                         $hora_str = $slotDt->format('H:i:s');
@@ -998,67 +1003,69 @@ class TurnosController extends Controller
                             }
                         }
 
-                        //Comparación de fechas de días inhábiles
-
-                        /*$fechaTurno = $fecha->format('Y-m-d');
-                        $sedeTurno = $sede;
-                        $esInhabil = false;
-                        foreach ($inhabiles as $dia){
-                            if ($fechaTurno >= $dia->fecha_inicio && $fechaTurno <= $dia->fecha_final && ($dia->centro == $sedeTurno || $dia->centro == $sedeTurno) ){
-                                $esInhabil = true;
-                                break;
-                            }
-                        }*/
-
                         $disponibles = 1 - $citasExistentes;
                         $ocupado = $disponibles <= 0;
-                        
-                        if ($ocupado) {
+                        $cantidadOcupados = $ocupadosCount[$slotStart] ?? 0;
+                        if($slotDt == $slotComida ){
+                            $titulo = 'No disponible';
                             $todosLosEventos[] = [
-                                'title' => 'Ocupado',
+                                'title' => $titulo,
                                 'start' => $slotStart,
-                                'color' => '#DA0909',
-                                'extendedProps' => ['estado' => 'ocupado', 'espacios_disponibles' => 0]
+                                'color' => '#8a959e',
+                                'extendedProps' => ['estado' => 'expirado', 'espacios_disponibles' => 0]
                             ];
-                        } else if ($esInhabil){
+                        }
+                        else if ($esInhabil){
                             $todosLosEventos[] = [
                                 'title' => 'Inhábil',
                                 'start' => $slotStart,
                                 'color' => '#3B78DB',
                                 'extendedProps' => ['estado' => 'inhabil', 'espacios_disponibles' => 0]
                             ];
-                        } else if ($esNoInhabil || $ahora > $currentCita){
+                        }
+                        else if ($esNoInhabil || $ahora > $currentCita){
                             $titulo = $esNoInhabil ? 'No disponible' : 'Expirado';
                             $todosLosEventos[] = [
                                 'title' => $titulo,
                                 'start' => $slotStart,
-                                'color' => '#F59727',
+                                'color' => '#8a959e',
                                 'extendedProps' => ['estado' => 'expirado', 'espacios_disponibles' => 0]
                             ];
-                        } else {
+                        }
+                        else if ($cantidadOcupados > 0 && $cantidadOcupados < $maxEmpalme){
+                            
+                            $todosLosEventos[] = [
+                                'title' =>"Disponible",
+                                'start' => $slotStart,
+                                'color' => '#26c03a',
+                                'extendedProps' => ['estado' => 'disponible', 'espacios_disponibles' => 0]
+                            ];
+                        }
+                        elseif ($cantidadOcupados > 0) {
+                            $todosLosEventos[] = [
+                                'title' => 'Ocupado',
+                                'start' => $slotStart,
+                                'color' => '#DA0909',
+                                'extendedProps' => ['estado' => 'ocupado', 'espacios_disponibles' => 0]
+                            ];
+                        }   
+                        else {
                             $todosLosEventos[] = [
                                 'title' => "Disponible",
                                 'start' => $slotStart,
-                                'color' => '#00CE1C',
+                                'color' => '#26c03a',
                                 'extendedProps' => ['estado' => 'disponible', 'espacios_disponibles' => $disponibles]
                             ];
                         }
 
-                        /*foreach ($todosLosEventos as &$evento) {
-                            foreach ($inhabiles as $dia) {
-                                $fechaInhabilInicio = $dia->fecha_inicio . 'T' . $dia->horario_inicio;
-                                $fechaInhabilFinal = $dia->fecha_final . 'T' . $dia->horario_final;
-                                if ($evento['start'] >= $fechaInhabilInicio && $evento['start'] <= $fechaInhabilFinal) {
-                                    $evento['title'] = 'Inhábil';
-                                    $evento['color'] = '#970EE3';
-                                    $evento['extendedProps']['estado'] = 'inhabil';
-                                    break;
-                                }
-                            }
+                        if($slotDt->format('H:i') === '13:00' ){
+                            $slotDt->modify('+30 minutes');
                         }
-                        unset($evento);*/
-
-                        $slotDt->modify('+30 minutes');
+                        else{
+                            $slotDt->modify('+60 minutes');
+                        }
+                        
+                        
                 }
             }
             $fecha->modify('+1 day');
@@ -1624,26 +1631,26 @@ class TurnosController extends Controller
         //Validar si existe el documnento nuevo
         if(isset($data["documentoIne"])){
             $nombre_ine = $data["nombres"]."".$data["primer_apellido"]."".$data["segundo_apellido"]."-".$data["empresa"]."_IDENTIFICACION.pdf";
-            $path = Storage::putFileAs(
-                'documentos_ratificacion', $request->file('documentoIne'), $nombre_ine
+            $path = Storage::disk('s3')->putFileAs(
+                'documentos_ratificacion/' . $data["id"], $request->file('documentoIne'), $nombre_ine
             );
         }
         if(isset($data["documentoRepresentacion"])){
             $nombre_representación = $data["nombre_empresa"]."".$data["primero_empresa"]."".$data["segundo_empresa"]."-".$data["empresa"]."_PODER.pdf";
-            $path = Storage::putFileAs(
-                'documentos_ratificacion', $request->file('documentoRepresentacion'), $nombre_representación
+            $path = Storage::disk('s3')->putFileAs(
+                'documentos_ratificacion/' . $data["id"], $request->file('documentoRepresentacion'), $nombre_representación
             );
         }
         if(isset($data["documentoCurp"])){
             $trabajador_curp = $data["trabajador_curp"].".pdf";
-            $path = Storage::putFileAs(
-                'documentos_ratificacion', $request->file('documentoCurp'), $trabajador_curp
+            $path = Storage::disk('s3')->putFileAs(
+                'documentos_ratificacion/' . $data["id"], $request->file('documentoCurp'), $trabajador_curp
             );
         }
         if(isset($data["documentoidentificacion"])){
             $trabajador_identificacion = $data["trabajador_curp"]."_IDENTIFICACION.pdf";
-            $path = Storage::putFileAs(
-                'documentos_ratificacion', $request->file('documentoidentificacion'), $trabajador_identificacion
+            $path = Storage::disk('s3')->putFileAs(
+                'documentos_ratificacion/' . $data["id"], $request->file('documentoidentificacion'), $trabajador_identificacion
             );
         }
         //Variables opcionales
@@ -2418,7 +2425,7 @@ class TurnosController extends Controller
                 //Nombre único por documento (id de solicitud y id de documento)
                 $documentoExpediente = $slugBase . '_Expediente_' . $data['audiencia_id'] . '_' . $doc->id . '.' . $ext;
 
-                Storage::putFileAs('documentos_ratificacion/' . $audienciaId, $file, $documentoExpediente);
+                Storage::disk('s3')->putFileAs('documentos_ratificacion/' . $audienciaId, $file, $documentoExpediente);
 
                 $doc->update(['nombre_documento' => $documentoExpediente]);
 
@@ -3175,7 +3182,7 @@ class TurnosController extends Controller
         }
         
         $trabajador_identificacion  = $data["trabajador_curp"]."_IDENTIFICACION.pdf";
-        $path = Storage::putFileAs(
+        $path = Storage::disk('s3')->putFileAs(
             'documentos_ratificacion', $request->file('documentoidentificacion'), $trabajador_identificacion
         );
         */

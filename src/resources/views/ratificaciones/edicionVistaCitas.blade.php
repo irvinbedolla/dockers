@@ -2,17 +2,11 @@
     @php
         $fechaActual = date('Y-m-d');
         $contador = 0;
-        $newDocDir = 'documentos_ratificacion/' . $idSolicitud . '/';
-        $oldDocDir = 'documentos_ratificacion/';
-        $curpUrl   = ($solicitud->documentoCurp && \Illuminate\Support\Facades\Storage::exists($newDocDir . $solicitud->documentoCurp))
-            ? '../../storage/app/' . $newDocDir . $solicitud->documentoCurp
-            : '../../storage/app/' . $oldDocDir . $solicitud->documentoCurp;
-        $identUrl  = ($solicitud->documentoidentificacion && \Illuminate\Support\Facades\Storage::exists($newDocDir . $solicitud->documentoidentificacion))
-            ? '../../storage/app/' . $newDocDir . $solicitud->documentoidentificacion
-            : '../../storage/app/' . $oldDocDir . $solicitud->documentoidentificacion;
-        $cuantiUrl = ($solicitud->documentoCuanti && \Illuminate\Support\Facades\Storage::exists($newDocDir . $solicitud->documentoCuanti))
-            ? '../../storage/app/' . $newDocDir . $solicitud->documentoCuanti
-            : '../../storage/app/' . $oldDocDir . $solicitud->documentoCuanti;
+        // El fallback entre carpeta con ID y ruta plana legacy lo resuelve documentos.ver/verPDF,
+        // que sirve el archivo real vía el disco 's3' (antes esto apuntaba a storage/app en disco local).
+        $curpUrl   = route('documentos.ver', ['tipo' => 'ratificacion', 'id' => $idSolicitud, 'archivo' => $solicitud->documentoCurp]);
+        $identUrl  = route('documentos.ver', ['tipo' => 'ratificacion', 'id' => $idSolicitud, 'archivo' => $solicitud->documentoidentificacion]);
+        $cuantiUrl = route('documentos.ver', ['tipo' => 'ratificacion', 'id' => $idSolicitud, 'archivo' => $solicitud->documentoCuanti]);
     @endphp
     <style>
         .loader {
