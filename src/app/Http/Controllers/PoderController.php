@@ -366,14 +366,25 @@ class PoderController extends Controller
 
             
 
+            // Placeholders: aún no sabemos el idAbogado (se necesita para nombrar/guardar los archivos).
+            $data_insertar["ine"] = 'PENDIENTE';
+            $data_insertar["cedula"] = 'Sin carta poder';
+            $data_insertar["anexo"] = 'Sin anexo';
+            $data_insertar["representacion"] = 'PENDIENTE';
+
+            // Creamos primero el registro para conocer idAbogado y poder crear la carpeta con ese nombre.
+            $nuevoAbogado = Poder::create($data_insertar);
+            $idAbogado = $nuevoAbogado->idAbogado;
+            $carpetaAbogado = 'documentos_abogados/' . $idAbogado;
+
             $nombre_ine = $data["nombresAbogadoAlta"]."".$data["primer_apellido"]."".$data["segundo_apellido"]."-".$data["empresaAbogadoAlta"]."_IDENTIFICACION.pdf";
-            $path = Storage::putFileAs(
-                'documentos_abogados', $request->file('documentoIne'), $nombre_ine
+            Storage::disk('s3')->putFileAs(
+                $carpetaAbogado, $request->file('documentoIne'), $nombre_ine
             );
 
             $nombre_representación = $data["nombresAbogadoAlta"]."".$data["primer_apellido"]."".$data["segundo_apellido"]."-".$data["empresaAbogadoAlta"]."_REPRESENTACION.pdf";
-            $path = Storage::putFileAs(
-                'documentos_abogados', $request->file('documentoRepresentacion'), $nombre_representación
+            Storage::disk('s3')->putFileAs(
+                $carpetaAbogado, $request->file('documentoRepresentacion'), $nombre_representación
             );
 
             //Si no existe
@@ -382,8 +393,8 @@ class PoderController extends Controller
             }
             else{
                 $nombre_anexo = $data["nombresAbogadoAlta"]."".$data["primer_apellido"]."".$data["segundo_apellido"]."-".$data["empresaAbogadoAlta"]."_ANEXO.pdf";
-                $path = Storage::putFileAs(
-                    'documentos_abogados', $request->file('documentoAnexo'), $nombre_anexo
+                Storage::disk('s3')->putFileAs(
+                    $carpetaAbogado, $request->file('documentoAnexo'), $nombre_anexo
                 );
             }
 
@@ -392,20 +403,18 @@ class PoderController extends Controller
             }
             else{
                 $nombre_poder = $data["nombresAbogadoAlta"]."".$data["primer_apellido"]."".$data["segundo_apellido"]."-".$data["empresaAbogadoAlta"]."_PODER.pdf";
-                $path = Storage::putFileAs(
-                    'documentos_abogados', $request->file('documentoPoder'), $nombre_poder
+                Storage::disk('s3')->putFileAs(
+                    $carpetaAbogado, $request->file('documentoPoder'), $nombre_poder
                 );
             }
 
-            $data_insertar["ine"] = $nombre_ine;
-            $data_insertar["cedula"] = $nombre_poder;
-            $data_insertar["anexo"] = $nombre_anexo;
-            $data_insertar["representacion"] = $nombre_representación;
+            $nuevoAbogado->ine = $nombre_ine;
+            $nuevoAbogado->cedula = $nombre_poder;
+            $nuevoAbogado->anexo = $nombre_anexo;
+            $nuevoAbogado->representacion = $nombre_representación;
+            $nuevoAbogado->save();
 
-            Poder::create($data_insertar);  
-            //$data = Poder::latest('idAbogado')->first();
-
-            return redirect()->route('poderes');         
+            return redirect()->route('poderes');
         }
         else{
             return back()->withErrors('El poder ya tiene asignado ese abogado.');
@@ -482,65 +491,16 @@ class PoderController extends Controller
             }
             
 
-            $nombre_ine = $data["nombresAbogadoAlta"]."".$data["apellidosAbogadoAlta"]."-".$data["empresaAbogadoAlta"]."_IDENTIFICACION.pdf";
-            //Validar si existe el documento registrado
-            $existe_ine = Storage::exists($nombre_ine);
-            if (file_exists($existe_ine)){
-                unlink(storage_path('app/documentos_abogados/'.$nombre_ine));
-            }
-            $path = Storage::putFileAs(
-                'documentos_abogados', $request->file('documentoIne'), $nombre_ine
-            );
-
-            $nombre_representación = $data["nombresAbogadoAlta"]."".$data["apellidosAbogadoAlta"]."-".$data["empresaAbogadoAlta"]."_REPRESENTACION.pdf";
-            //Validar si existe el documento registrado
-            $existe_reprecentacion = Storage::exists($nombre_representación);
-            if (file_exists($existe_reprecentacion)){
-                unlink(storage_path('app/documentos_abogados/'.$nombre_representación));
-            }
-            $path = Storage::putFileAs(
-                'documentos_abogados', $request->file('documentoRepresentacion'), $nombre_representación
-            );
-            
-
-            //Si no existe
-            if(!isset($data["documentoAnexo"])){
-                $nombre_anexo = "Sin anexo";
-            }
-            else{
-                $nombre_anexo = $data["nombresAbogadoAlta"]."".$data["apellidosAbogadoAlta"]."-".$data["empresaAbogadoAlta"]."_ANEXO.pdf";
-                $existe_anexo = Storage::exists($nombre_anexo);
-                if (file_exists($existe_anexo)){
-                    unlink(storage_path('app/documentos_abogados/'.$nombre_anexo));
-                }
-                $path = Storage::putFileAs(
-                    'documentos_abogados', $request->file('documentoAnexo'), $nombre_anexo
-                );
-            }
-
-            if(!isset($data["documentoPoder"])){
-                $nombre_anexo = "Sin anexo";
-            }
-            else{
-                $nombre_poder = $data["nombresAbogadoAlta"]."".$data["apellidosAbogadoAlta"]."-".$data["empresaAbogadoAlta"]."_PODER.pdf";
-                $existe_poder = Storage::exists($nombre_poder);
-                if (file_exists($existe_poder)){
-                    unlink(storage_path('app/documentos_abogados/'.$nombre_poder));
-                }
-                $path = Storage::putFileAs(
-                    'documentos_abogados', $request->file('documentoPoder'), $nombre_poder
-                );
-            }
-
             $data_insertar= array(
                 'nombres'       => $data["nombresAbogadoAlta"],
-                'apellidos'     => $data["apellidosAbogadoAlta"], 
-                'telefono'      => $data["telefonoAbogadoAlta"], 
+                'apellidos'     => $data["apellidosAbogadoAlta"],
+                'telefono'      => $data["telefonoAbogadoAlta"],
                 'email'         => $data["correoAbogadoAlta"],
-                'ine'           => $nombre_ine,
-                'cedula'        => $nombre_poder,
-                'anexo'         => $nombre_anexo,
-                'representacion'=> $nombre_representación,
+                // Placeholders: aún no sabemos el idAbogado (se necesita para nombrar/guardar los archivos).
+                'ine'           => 'PENDIENTE',
+                'cedula'        => 'Sin carta poder',
+                'anexo'         => 'Sin anexo',
+                'representacion'=> 'PENDIENTE',
                 'fechaRegistro' => date('y-m-d'),
                 'fechaVigencia' => $data["fechaVigenciaAlta"],
                 'empresa'       => $data["empresaAbogadoAlta"],
@@ -563,10 +523,49 @@ class PoderController extends Controller
                 'estatus'       => "Pendiente"
             );
 
+            // Creamos primero el registro para conocer idAbogado y poder crear la carpeta con ese nombre.
+            $nuevoAbogado = Poder::create($data_insertar);
+            $idAbogado = $nuevoAbogado->idAbogado;
+            $carpetaAbogado = 'documentos_abogados/' . $idAbogado;
 
-            Poder::create($data_insertar);  
+            $nombre_ine = $data["nombresAbogadoAlta"]."".$data["apellidosAbogadoAlta"]."-".$data["empresaAbogadoAlta"]."_IDENTIFICACION.pdf";
+            Storage::disk('s3')->putFileAs(
+                $carpetaAbogado, $request->file('documentoIne'), $nombre_ine
+            );
 
-            return back()->with('success', 'Poder registrado correctamente, tienes 10 dias habiles para pasar al CCL a confirmar tu documentacion.'); 
+            $nombre_representación = $data["nombresAbogadoAlta"]."".$data["apellidosAbogadoAlta"]."-".$data["empresaAbogadoAlta"]."_REPRESENTACION.pdf";
+            Storage::disk('s3')->putFileAs(
+                $carpetaAbogado, $request->file('documentoRepresentacion'), $nombre_representación
+            );
+
+            //Si no existe
+            if(!isset($data["documentoAnexo"])){
+                $nombre_anexo = "Sin anexo";
+            }
+            else{
+                $nombre_anexo = $data["nombresAbogadoAlta"]."".$data["apellidosAbogadoAlta"]."-".$data["empresaAbogadoAlta"]."_ANEXO.pdf";
+                Storage::disk('s3')->putFileAs(
+                    $carpetaAbogado, $request->file('documentoAnexo'), $nombre_anexo
+                );
+            }
+
+            if(!isset($data["documentoPoder"])){
+                $nombre_poder = "Sin carta poder";
+            }
+            else{
+                $nombre_poder = $data["nombresAbogadoAlta"]."".$data["apellidosAbogadoAlta"]."-".$data["empresaAbogadoAlta"]."_PODER.pdf";
+                Storage::disk('s3')->putFileAs(
+                    $carpetaAbogado, $request->file('documentoPoder'), $nombre_poder
+                );
+            }
+
+            $nuevoAbogado->ine = $nombre_ine;
+            $nuevoAbogado->cedula = $nombre_poder;
+            $nuevoAbogado->anexo = $nombre_anexo;
+            $nuevoAbogado->representacion = $nombre_representación;
+            $nuevoAbogado->save();
+
+            return back()->with('success', 'Poder registrado correctamente, tienes 10 dias habiles para pasar al CCL a confirmar tu documentacion.');
         }
         else{
             return back()->withErrors('El poder ya tiene asignado ese abogado.');
@@ -831,14 +830,14 @@ class PoderController extends Controller
             $archivoAnterior = $poder->{$archivo['field']} ?? null;
             if (!empty($archivoAnterior) && $archivoAnterior !== 'Sin anexo' && $archivoAnterior !== 'Sin carta poder') {
                 $previousPath = $carpetaAbogado . '/' . $archivoAnterior;
-                if (Storage::exists($previousPath)) {
-                    Storage::delete($previousPath);
+                if (Storage::disk('s3')->exists($previousPath)) {
+                    Storage::disk('s3')->delete($previousPath);
                 }
             }
 
             // Guardar el archivo nuevo con prefijo idAbogado_
             $nombreFinal = $poder->idAbogado . '_' . $archivo['name'];
-            Storage::putFileAs($carpetaAbogado, $request->file($archivo['input']), $nombreFinal);
+            Storage::disk('s3')->putFileAs($carpetaAbogado, $request->file($archivo['input']), $nombreFinal);
             $data_insertar[$archivo['field']] = $nombreFinal;
         }
 
@@ -935,7 +934,7 @@ class PoderController extends Controller
 
                 $nombre_ine_original = $data["nombre_pF"]." ".$data["primero_PF"]." ".$data["segundo_Pf"]."-FISICA"."_IDENTIFICACION.pdf";
                 $nombre_ine = $idAbogado . '_' . $nombre_ine_original;
-                Storage::putFileAs(
+                Storage::disk('s3')->putFileAs(
                     $carpetaAbogado, $request->file('documentoIne_pFSR'), $nombre_ine
                 );
                 if(!isset($data["documentoAnexo_pFSR"])){
@@ -944,7 +943,7 @@ class PoderController extends Controller
                 else{
                     $nombre_anexo_original = $data["nombre_pF"]." ".$data["primero_PF"]." ".$data["segundo_Pf"]."-FISICA"."_ANEXO.pdf";
                     $nombre_anexo = $idAbogado . '_' . $nombre_anexo_original;
-                    Storage::putFileAs(
+                    Storage::disk('s3')->putFileAs(
                         $carpetaAbogado, $request->file('documentoAnexo_pFSR'), $nombre_anexo
                     );
                 }
@@ -1019,19 +1018,19 @@ class PoderController extends Controller
 
                 $nombre_ine_original = $data["nombre_pF"]." ".$data["primero_PF"]." ".$data["segundo_Pf"]."-FISICA"."_IDENTIFICACION.pdf";
                 $nombre_ine = $idAbogado . '_' . $nombre_ine_original;
-                Storage::putFileAs(
+                Storage::disk('s3')->putFileAs(
                     $carpetaAbogado, $request->file('documentoIne_pF'), $nombre_ine
                 );
 
                 $nombre_reprecentacion_original = $data["nombre_representante_pF"]." ".$data["primer_representante_pF"]." ".$data["segundo_representante_pF"]."-FISICA"."_REPRESENTACION.pdf";
                 $nombre_reprecentacion = $idAbogado . '_' . $nombre_reprecentacion_original;
-                Storage::putFileAs(
+                Storage::disk('s3')->putFileAs(
                     $carpetaAbogado, $request->file('documentoRepresentacion_pF'), $nombre_reprecentacion
                 );
 
                 $nombre_poder_original = $data["nombre_pF"]." ".$data["primero_PF"]." ".$data["segundo_Pf"]."-FISICA"."_PODER.pdf";
                 $nombre_poder = $idAbogado . '_' . $nombre_poder_original;
-                Storage::putFileAs(
+                Storage::disk('s3')->putFileAs(
                     $carpetaAbogado, $request->file('documentoPoder_pF'), $nombre_poder
                 );
 
@@ -1041,7 +1040,7 @@ class PoderController extends Controller
                 else{
                     $nombre_anexo_original = $data["nombre_pF"]." ".$data["primero_PF"]." ".$data["segundo_Pf"]."-FISICA"."_ANEXO.pdf";
                     $nombre_anexo = $idAbogado . '_' . $nombre_anexo_original;
-                    Storage::putFileAs(
+                    Storage::disk('s3')->putFileAs(
                         $carpetaAbogado, $request->file('documentoAnexo_pF'), $nombre_anexo
                     );
                 }
@@ -1115,19 +1114,19 @@ class PoderController extends Controller
 
             $nombre_ine_original = $data["razon"]."-MORAL"."_IDENTIFICACION.pdf";
             $nombre_ine = $idAbogado . '_' . $nombre_ine_original;
-            Storage::putFileAs(
+            Storage::disk('s3')->putFileAs(
                 $carpetaAbogado, $request->file('documentoIne_Moral'), $nombre_ine
             );
 
             $nombre_reprecentacion_original = $data["razon"]."-MORAL"."_REPRESENTACION.pdf";
             $nombre_reprecentacion = $idAbogado . '_' . $nombre_reprecentacion_original;
-            Storage::putFileAs(
+            Storage::disk('s3')->putFileAs(
                 $carpetaAbogado, $request->file('documentoRepresentacion_Moral'), $nombre_reprecentacion
             );
 
             $nombre_poder_original = $data["razon"]."-MORAL"."_PODER.pdf";
             $nombre_poder = $idAbogado . '_' . $nombre_poder_original;
-            Storage::putFileAs(
+            Storage::disk('s3')->putFileAs(
                 $carpetaAbogado, $request->file('documentoPoder'), $nombre_poder
             );
 
@@ -1137,7 +1136,7 @@ class PoderController extends Controller
             else{
                 $nombre_anexo_original = $data["razon"]."-MORAL"."_ANEXO.pdf";
                 $nombre_anexo = $idAbogado . '_' . $nombre_anexo_original;
-                Storage::putFileAs(
+                Storage::disk('s3')->putFileAs(
                     $carpetaAbogado, $request->file('documentoAnexo'), $nombre_anexo
                 );
             }
@@ -1244,14 +1243,14 @@ class PoderController extends Controller
          if ($poder->tipo == "Moral" && $request->hasFile('documentoActa_Moral')) {
              $nombre_ine_original = $poder->nombres_patronal."-AGREGADO_ACTACONSTITUTIVA.pdf";
              $nombre_ine = $nuevoIdAbogado . '_' . $nombre_ine_original;
-             Storage::putFileAs($carpetaAbogado, $request->file('documentoActa_Moral'), $nombre_ine);
+             Storage::disk('s3')->putFileAs($carpetaAbogado, $request->file('documentoActa_Moral'), $nombre_ine);
              $nuevoAbogado->ineDocumento = $nombre_ine;
          }
 
          if ($request->hasFile('documentoRepresentacion_pF')) {
              $nombre_reprecentacion_original = $data["nombre_representante_pF"]." ".$data["primer_representante_pF"]." ".$data["segundo_representante_pF"]."-AGREGADO_REPRESENTACION.pdf";
              $nombre_reprecentacion = $nuevoIdAbogado . '_' . $nombre_reprecentacion_original;
-             Storage::putFileAs($carpetaAbogado, $request->file('documentoRepresentacion_pF'), $nombre_reprecentacion);
+             Storage::disk('s3')->putFileAs($carpetaAbogado, $request->file('documentoRepresentacion_pF'), $nombre_reprecentacion);
              $nuevoAbogado->representacionDocumento = $nombre_reprecentacion;
          }
 
@@ -1262,7 +1261,7 @@ class PoderController extends Controller
          if ($request->hasFile('documentoPoder_pF')) {
              $nombre_poder_original = $poder->nombres_patronal." ".$poder->primer_apellido_patronal." ".$poder->segundo_apellido_patronal."-AGREGADO_PODER.pdf";
              $nombre_poder = $nuevoIdAbogado . '_' . $nombre_poder_original;
-             Storage::putFileAs($carpetaAbogado, $request->file('documentoPoder_pF'), $nombre_poder);
+             Storage::disk('s3')->putFileAs($carpetaAbogado, $request->file('documentoPoder_pF'), $nombre_poder);
              $nuevoAbogado->cedulaDocumento = $nombre_poder;
          }
 
@@ -1273,7 +1272,7 @@ class PoderController extends Controller
          if ($request->hasFile('documentoAnexo_pF')) {
              $nombre_anexo_original = $poder->nombres_patronal." ".$poder->primer_apellido_patronal." ".$poder->segundo_apellido_patronal."-AGREGADO_ANEXO.pdf";
              $nombre_anexo = $nuevoIdAbogado . '_' . $nombre_anexo_original;
-             Storage::putFileAs($carpetaAbogado, $request->file('documentoAnexo_pF'), $nombre_anexo);
+             Storage::disk('s3')->putFileAs($carpetaAbogado, $request->file('documentoAnexo_pF'), $nombre_anexo);
              $nuevoAbogado->anexo_documeto = $nombre_anexo;
          } else {
              $nuevoAbogado->anexo_documeto = "Sin anexo";
@@ -1297,20 +1296,19 @@ class PoderController extends Controller
 
     public function descargarPdf($id, $archivo)
     {
-        // Busca directo en tu disco privado sin importar enlaces simbólicos
         $ruta = "documentos_abogados/{$id}/{$archivo}";
 
-        if (!Storage::disk('local')->exists($ruta)) {
-            // Si no está en local, busca en la ruta donde lo esté guardando tu nuevo comando
-            $ruta = "public/documentos_abogados/{$id}/{$archivo}";
+        if (!Storage::disk('s3')->exists($ruta)) {
+            $rutaPlana = "documentos_abogados/{$archivo}";
+
+            if (!Storage::disk('s3')->exists($rutaPlana)) {
+                abort(404, 'Archivo no encontrado físicamente.');
+            }
+
+            $ruta = $rutaPlana;
         }
 
-        if (Storage::exists($ruta)) {
-            $file = Storage::get($ruta);
-            return response($file, 200)->header('Content-Type', 'application/pdf');
-        }
-
-        abort(404, 'Archivo no encontrado físicamente.');
+        return Storage::disk('s3')->response($ruta);
     }
  
 }

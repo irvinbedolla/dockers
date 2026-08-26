@@ -84,14 +84,21 @@ class TurnosController extends Controller
     {
         $doc = DocumentosSolicitud::findOrFail($id);
 
-        $pathNew = 'documentos_ratificacion/' . $doc->id_solicitud . '/' . $doc->nombre_documento;
-        $pathOld = 'documentosSolicitud/' . $doc->nombre_documento;
+        $candidates = [
+            'documentos_ratificacion/' . $doc->id_solicitud . '/' . $doc->nombre_documento,
+            'documentos_ratificacion/' . $doc->nombre_documento,
+            'documentosSolicitud/' . $doc->nombre_documento,
+        ];
 
-        if (Storage::disk('s3')->exists($pathNew)) {
-            $path = $pathNew;
-        } elseif (Storage::disk('s3')->exists($pathOld)) {
-            $path = $pathOld;
-        } else {
+        $path = null;
+        foreach ($candidates as $candidate) {
+            if (Storage::disk('s3')->exists($candidate)) {
+                $path = $candidate;
+                break;
+            }
+        }
+
+        if (!$path) {
             abort(404, 'Documento no encontrado en almacenamiento.');
         }
 
@@ -808,25 +815,25 @@ class TurnosController extends Controller
         else{
             //Se carga el INE del abogado
             $nombre_ine = $data["nombre_empresa"]."".$data["primero_empresa"]."".$data["segundo_empresa"]."-".$data["empresa"]."_IDENTIFICACION.pdf";
-            $path = Storage::putFileAs(
+            $path = Storage::disk('s3')->putFileAs(
                 'documentos_ratificacion/' . $id_turno, $request->file('documentoIne'), $nombre_ine
             );
 
             //Se carga el Poder del abogado
             $nombre_representación = $data["nombre_empresa"]."".$data["primero_empresa"]."".$data["segundo_empresa"]."-".$data["empresa"]."_PODER.pdf";
-            $path = Storage::putFileAs(
+            $path = Storage::disk('s3')->putFileAs(
                 'documentos_ratificacion/' . $id_turno, $request->file('documentoPoder'), $nombre_representación
             );
         }
         
         /*
         $trabajador_curp = $data["trabajador_curp"].".pdf";
-        $path = Storage::putFileAs(
+        $path = Storage::disk('s3')->putFileAs(
             'documentos_ratificacion', $request->file('documentoCurp'), $trabajador_curp
         );
         */
         $trabajador_identificacion  = $data["trabajador_curp"]."_IDENTIFICACION.pdf";
-        $path = Storage::putFileAs(
+        $path = Storage::disk('s3')->putFileAs(
             'documentos_ratificacion/' . $id_turno, $request->file('documentoidentificacion'), $trabajador_identificacion
         );
 
@@ -839,7 +846,7 @@ class TurnosController extends Controller
 
         if(isset($data["cuantificacion"])){
             $cuantificacion  = $data["trabajador_curp"]."_CUANTIFICACION.pdf";
-            $path = Storage::putFileAs(
+            $path = Storage::disk('s3')->putFileAs(
                 'documentos_ratificacion/' . $id_turno, $request->file('cuantificacion'), $cuantificacion
             );
             $turno->update(['documentoCuanti' => $cuantificacion]);
@@ -1624,26 +1631,26 @@ class TurnosController extends Controller
         //Validar si existe el documnento nuevo
         if(isset($data["documentoIne"])){
             $nombre_ine = $data["nombres"]."".$data["primer_apellido"]."".$data["segundo_apellido"]."-".$data["empresa"]."_IDENTIFICACION.pdf";
-            $path = Storage::putFileAs(
-                'documentos_ratificacion', $request->file('documentoIne'), $nombre_ine
+            $path = Storage::disk('s3')->putFileAs(
+                'documentos_ratificacion/' . $data["id"], $request->file('documentoIne'), $nombre_ine
             );
         }
         if(isset($data["documentoRepresentacion"])){
             $nombre_representación = $data["nombre_empresa"]."".$data["primero_empresa"]."".$data["segundo_empresa"]."-".$data["empresa"]."_PODER.pdf";
-            $path = Storage::putFileAs(
-                'documentos_ratificacion', $request->file('documentoRepresentacion'), $nombre_representación
+            $path = Storage::disk('s3')->putFileAs(
+                'documentos_ratificacion/' . $data["id"], $request->file('documentoRepresentacion'), $nombre_representación
             );
         }
         if(isset($data["documentoCurp"])){
             $trabajador_curp = $data["trabajador_curp"].".pdf";
-            $path = Storage::putFileAs(
-                'documentos_ratificacion', $request->file('documentoCurp'), $trabajador_curp
+            $path = Storage::disk('s3')->putFileAs(
+                'documentos_ratificacion/' . $data["id"], $request->file('documentoCurp'), $trabajador_curp
             );
         }
         if(isset($data["documentoidentificacion"])){
             $trabajador_identificacion = $data["trabajador_curp"]."_IDENTIFICACION.pdf";
-            $path = Storage::putFileAs(
-                'documentos_ratificacion', $request->file('documentoidentificacion'), $trabajador_identificacion
+            $path = Storage::disk('s3')->putFileAs(
+                'documentos_ratificacion/' . $data["id"], $request->file('documentoidentificacion'), $trabajador_identificacion
             );
         }
         //Variables opcionales
@@ -2418,7 +2425,7 @@ class TurnosController extends Controller
                 //Nombre único por documento (id de solicitud y id de documento)
                 $documentoExpediente = $slugBase . '_Expediente_' . $data['audiencia_id'] . '_' . $doc->id . '.' . $ext;
 
-                Storage::putFileAs('documentos_ratificacion/' . $audienciaId, $file, $documentoExpediente);
+                Storage::disk('s3')->putFileAs('documentos_ratificacion/' . $audienciaId, $file, $documentoExpediente);
 
                 $doc->update(['nombre_documento' => $documentoExpediente]);
 
@@ -3175,7 +3182,7 @@ class TurnosController extends Controller
         }
         
         $trabajador_identificacion  = $data["trabajador_curp"]."_IDENTIFICACION.pdf";
-        $path = Storage::putFileAs(
+        $path = Storage::disk('s3')->putFileAs(
             'documentos_ratificacion', $request->file('documentoidentificacion'), $trabajador_identificacion
         );
         */

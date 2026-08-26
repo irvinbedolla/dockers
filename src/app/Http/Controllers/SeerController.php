@@ -156,11 +156,11 @@ class SeerController extends Controller
                 $this->draftSessionKey('excepcion_data',    $draftId),
             ]);
             // Eliminar archivos temporales del draft
-            Storage::deleteDirectory($this->documentosSolicitudTmpDir($draftId));
+            Storage::disk('s3')->deleteDirectory($this->documentosSolicitudTmpDir($draftId));
             // Eliminar carpeta padre si quedó vacía
             $sessionTmpDir = $this->documentosSolicitudTmpSessionDir();
-            if (Storage::exists($sessionTmpDir) && empty(Storage::allFiles($sessionTmpDir))) {
-                Storage::deleteDirectory($sessionTmpDir);
+            if (Storage::disk('s3')->exists($sessionTmpDir) && empty(Storage::disk('s3')->allFiles($sessionTmpDir))) {
+                Storage::disk('s3')->deleteDirectory($sessionTmpDir);
             }
         }
         $this->releaseSolicitudAuxLock();
@@ -208,14 +208,14 @@ class SeerController extends Controller
     private function inferDraftIdFromSessionData(): ?string
     {
         $tmpSessionDir = $this->documentosSolicitudTmpSessionDir();
-        if (!\Storage::exists($tmpSessionDir)) {
+        if (!\Storage::disk('s3')->exists($tmpSessionDir)) {
             return null;
         }
 
         // Preferimos inferir por existencia de datos en sesión: "solicitud_data_{draft}"
         // Como no podemos listar todos los keys del session store fácilmente aquí,
         // usamos las carpetas tmp como índice de drafts activos.
-        $draftDirs = \Storage::allDirectories($tmpSessionDir);
+        $draftDirs = \Storage::disk('s3')->allDirectories($tmpSessionDir);
         foreach ($draftDirs as $dir) {
             $draftId = basename($dir);
             if (session()->has($this->draftSessionKey('solicitud_data', $draftId))
@@ -255,7 +255,7 @@ class SeerController extends Controller
         }
 
         $tmpPath = $this->documentosSolicitudTmpDir($draftId) . '/' . $tmpFileName;
-        if (!Storage::exists($tmpPath)) {
+        if (!Storage::disk('s3')->exists($tmpPath)) {
             // Si ya no existe, devolvemos el nombre original para no romper el flujo.
             return $tmpFileName;
         }
@@ -264,11 +264,11 @@ class SeerController extends Controller
         $finalPath = $finalDir . '/' . $tmpFileName;
 
         // Mover (si ya existe, se reemplaza)
-        if (Storage::exists($finalPath)) {
-            Storage::delete($finalPath);
+        if (Storage::disk('s3')->exists($finalPath)) {
+            Storage::disk('s3')->delete($finalPath);
         }
-        Storage::makeDirectory($finalDir);
-        Storage::move($tmpPath, $finalPath);
+        Storage::disk('s3')->makeDirectory($finalDir);
+        Storage::disk('s3')->move($tmpPath, $finalPath);
 
         return $tmpFileName;
     }
@@ -289,7 +289,13 @@ class SeerController extends Controller
 
                 if ($poder && !empty($poder->ineDocumento) && $poder->ineDocumento !== 'Sin documento') {
                     $fileName = $poder->ineDocumento;
-                    $baseDir  = 'documentos_abogados/' . $poder->idAbogado . '/';
+
+                    foreach (["documentos_abogados/{$poder->idAbogado}/", 'documentos_abogados/'] as $candidato) {
+                        if (Storage::disk('s3')->exists($candidato . $fileName)) {
+                            $baseDir = $candidato;
+                            break;
+                        }
+                    }
                 }
             }
         }
@@ -304,7 +310,7 @@ class SeerController extends Controller
             // Fallback a ruta plana legacy: documentosSolicitud/{filename}
             $baseDir = null;
             foreach (["documentosSolicitud/{$idSolicitud}/", 'documentosSolicitud/'] as $candidato) {
-                if (Storage::exists($candidato . $fileName)) {
+                if (Storage::disk('s3')->exists($candidato . $fileName)) {
                     $baseDir = $candidato;
                     break;
                 }
@@ -317,7 +323,7 @@ class SeerController extends Controller
 
         $path = $baseDir . $fileName;
 
-        if (!$baseDir || !Storage::exists($path)) {
+        if (!$baseDir || !Storage::disk('s3')->exists($path)) {
             abort(404, 'Documento no encontrado en almacenamiento.');
         }
 
@@ -373,7 +379,7 @@ class SeerController extends Controller
 
         $path = null;
         foreach ($candidates as $candidate) {
-            if (Storage::exists($candidate)) {
+            if (Storage::disk('s3')->exists($candidate)) {
                 $path = $candidate;
                 break;
             }
@@ -2563,17 +2569,17 @@ class SeerController extends Controller
         // 3. SOLO si el usuario subió un archivo NUEVO en este request, lo guardamos y actualizamos la variable
     /*    if ($request->hasFile('foto')) {
             $documento = $data["id"] . "-foto1.jpg";
-            Storage::putFileAs('documentos_notificacion', $request->file('foto'), $documento);
+            Storage::disk('s3')->putFileAs('documentos_notificacion', $request->file('foto'), $documento);
         }
         
         if ($request->hasFile('foto1')) {
             $documento1 = $data["id"] . "-foto2.jpg";
-            Storage::putFileAs('documentos_notificacion', $request->file('foto1'), $documento1);
+            Storage::disk('s3')->putFileAs('documentos_notificacion', $request->file('foto1'), $documento1);
         }
         
         if ($request->hasFile('foto2')) {
             $documento2 = $data["id"] . "-foto3.jpg";
-            Storage::putFileAs('documentos_notificacion', $request->file('foto2'), $documento2);
+            Storage::disk('s3')->putFileAs('documentos_notificacion', $request->file('foto2'), $documento2);
         }
 
         // Validación de campos (todos opcionales)
@@ -2789,9 +2795,9 @@ class SeerController extends Controller
             'doc2' => $request->hasFile('foto2') ? $data["id"] . "-foto3.jpg" : ($seercitado->documento2 ?? "Sin documento")
         ];
 
-        if ($request->hasFile('foto')) Storage::putFileAs('documentos_notificacion/' . $seercitado->id_solicitud . '/', $request->file('foto'), $documentos['doc']);
-        if ($request->hasFile('foto1')) Storage::putFileAs('documentos_notificacion/' . $seercitado->id_solicitud . '/', $request->file('foto1'), $documentos['doc1']);
-        if ($request->hasFile('foto2')) Storage::putFileAs('documentos_notificacion/' . $seercitado->id_solicitud . '/', $request->file('foto2'), $documentos['doc2']);
+        if ($request->hasFile('foto')) Storage::disk('s3')->putFileAs('documentos_notificacion/' . $seercitado->id_solicitud . '/', $request->file('foto'), $documentos['doc']);
+        if ($request->hasFile('foto1')) Storage::disk('s3')->putFileAs('documentos_notificacion/' . $seercitado->id_solicitud . '/', $request->file('foto1'), $documentos['doc1']);
+        if ($request->hasFile('foto2')) Storage::disk('s3')->putFileAs('documentos_notificacion/' . $seercitado->id_solicitud . '/', $request->file('foto2'), $documentos['doc2']);
 
         // 3. Lógica de Estatus y Exhorto
         $esVistaPrevia = isset($data['vista_previa']) && (string)$data['vista_previa'] === '1';
@@ -3484,19 +3490,19 @@ class SeerController extends Controller
         } 
         //CURP
         $documento = $data["curp"]."_CURP.pdf";
-        /*$path = Storage::putFileAs(
+        /*$path = Storage::disk('s3')->putFileAs(
             'documentosSolicitud', $request->file('documentoCurp'), $documento
         );*/
         //Acta de nacimiento
         /*if(isset($data["documentoIdentificacion"])){
             $documentoidentificacion = $data["curp"]."_Identificacion.pdf";
-            $path = Storage::putFileAs(
+            $path = Storage::disk('s3')->putFileAs(
                 'documentosSolicitud', $request->file('documentoIdentificacion'), $documentoidentificacion
         );
         }
         else{
             $documentoidentificacion = $data["curp"]."_Acta.pdf";
-            $path = Storage::putFileAs(
+            $path = Storage::disk('s3')->putFileAs(
                 'documentosSolicitud', $request->file('documentoActa'), $documentoidentificacion
             );
         }*/
@@ -3580,12 +3586,12 @@ class SeerController extends Controller
 
         /*if ($request->hasFile('foto1')) {
             $imagen_domicilio1 = $tempId . "-domicilio_Citado1.jpg" . Str::random(8) . ".jpg";
-            Storage::putFileAs('documentosSolicitud', $request->file('foto1'), $imagen_domicilio1);
+            Storage::disk('s3')->putFileAs('documentosSolicitud', $request->file('foto1'), $imagen_domicilio1);
         }
         
         if ($request->hasFile('foto2')) {
             $imagen_domicilio2 = $tempId . "-domicilio_Citado2.jpg" . Str::random(8) . ".jpg";
-            Storage::putFileAs('documentosSolicitud', $request->file('foto2'), $imagen_domicilio2);
+            Storage::disk('s3')->putFileAs('documentosSolicitud', $request->file('foto2'), $imagen_domicilio2);
         }
         $foto1 = $imagen_domicilio1;
         $foto2 = $imagen_domicilio2;*/
@@ -3872,12 +3878,12 @@ class SeerController extends Controller
 
         if ($request->hasFile('foto1')) {
             $imagen_domicilio1 = $tempId . "-domicilio_Citado1.jpg" . Str::random(8) . ".jpg";
-            Storage::putFileAs($destDir, $request->file('foto1'), $imagen_domicilio1);
+            Storage::disk('s3')->putFileAs($destDir, $request->file('foto1'), $imagen_domicilio1);
         }
         
         if ($request->hasFile('foto2')) {
             $imagen_domicilio2 = $tempId . "-domicilio_Citado2.jpg" . Str::random(8) . ".jpg";
-            Storage::putFileAs($destDir, $request->file('foto2'), $imagen_domicilio2);
+            Storage::disk('s3')->putFileAs($destDir, $request->file('foto2'), $imagen_domicilio2);
         }
         $foto1 = $imagen_domicilio1;
         $foto2 = $imagen_domicilio2;
@@ -4174,11 +4180,19 @@ class SeerController extends Controller
                         foreach ($fileKeys as $key) {
                             if (!empty($solicitanteArr[$key]) && is_string($solicitanteArr[$key])) {
                                 $filename = basename($solicitanteArr[$key]);
-                                $path = 'documentosSolicitud/' . $filename;
-                                    if (\Storage::exists($path)) {
-                                        \Storage::delete($path);
+                                $candidatos = [];
+                                if (isset($new_id) && $new_id) {
+                                    // El registro llegó a crearse antes de que fallara un paso posterior: el archivo pudo haberse movido ya a su carpeta final por ID.
+                                    $candidatos[] = 'documentosSolicitud/' . $new_id . '/' . $filename;
+                                }
+                                $candidatos[] = 'documentosSolicitud/' . $filename;
+
+                                foreach ($candidatos as $path) {
+                                    if (Storage::disk('s3')->exists($path)) {
+                                        Storage::disk('s3')->delete($path);
+                                        break;
                                     }
-                                
+                                }
                             }
                         }
                     }
@@ -4190,10 +4204,18 @@ class SeerController extends Controller
                                 foreach ($citado as $k => $v) {
                                     if (is_string($v) && preg_match('/\.(pdf|jpg|jpeg|png)$/i', $v)) {
                                         $filename = basename($v);
-                                        $path = 'documentosSolicitud/' . $filename;
-                                            if (\Storage::exists($path)) {
-                                                \Storage::delete($path);
+                                        $candidatos = [];
+                                        if (isset($new_id) && $new_id) {
+                                            $candidatos[] = 'documentosSolicitud/' . $new_id . '/' . $filename;
+                                        }
+                                        $candidatos[] = 'documentosSolicitud/' . $filename;
+
+                                        foreach ($candidatos as $path) {
+                                            if (Storage::disk('s3')->exists($path)) {
+                                                Storage::disk('s3')->delete($path);
+                                                break;
                                             }
+                                        }
                                     }
                                 }
                             }
@@ -4358,14 +4380,16 @@ class SeerController extends Controller
         if ($request->hasFile('foto1')) {
             $tempId = ($id == 'session') ? uniqid('session_') : $id;
             $imagen_domicilio1 = $tempId . "-domicilio_Citado1.jpg" . Str::random(8) . ".jpg";
-            Storage::putFileAs('documentosSolicitud', $request->file('foto1'), $imagen_domicilio1);
+            $carpetaDestino = ($id == 'session') ? 'documentosSolicitud' : 'documentosSolicitud/' . $id;
+            Storage::disk('s3')->putFileAs($carpetaDestino, $request->file('foto1'), $imagen_domicilio1);
             $citado_data['imagen_domicilio1'] = $imagen_domicilio1;
         }
 
         if ($request->hasFile('foto2')) {
             $tempId = ($id == 'session') ? uniqid('session_') : $id;
             $imagen_domicilio2 = $tempId . "-domicilio_Citado2.jpg" . Str::random(8) . ".jpg";
-            Storage::putFileAs('documentosSolicitud', $request->file('foto2'), $imagen_domicilio2);
+            $carpetaDestino = ($id == 'session') ? 'documentosSolicitud' : 'documentosSolicitud/' . $id;
+            Storage::disk('s3')->putFileAs($carpetaDestino, $request->file('foto2'), $imagen_domicilio2);
             $citado_data['imagen_domicilio2'] = $imagen_domicilio2;
         }
 
@@ -4394,9 +4418,9 @@ class SeerController extends Controller
                         'draft_id_resolved' => $draftId,
                         'has_solicitud' => session()->has($this->draftSessionKey('solicitud_data', $draftId)),
                         'has_solicitante' => session()->has($this->draftSessionKey('solicitante_data', $draftId)),
-                        'tmp_session_dir_exists' => \Storage::exists($this->documentosSolicitudTmpSessionDir()),
-                        'tmp_dirs' => \Storage::exists($this->documentosSolicitudTmpSessionDir())
-                            ? \Storage::allDirectories($this->documentosSolicitudTmpSessionDir())
+                        'tmp_session_dir_exists' => \Storage::disk('s3')->exists($this->documentosSolicitudTmpSessionDir()),
+                        'tmp_dirs' => \Storage::disk('s3')->exists($this->documentosSolicitudTmpSessionDir())
+                            ? \Storage::disk('s3')->allDirectories($this->documentosSolicitudTmpSessionDir())
                             : [],
                     ]);
                 } catch (\Throwable $logErr) {
@@ -4532,15 +4556,15 @@ class SeerController extends Controller
                 // Limpieza de tmp (draft) al finalizar correctamente
                 try {
                     $tmpDir = $this->documentosSolicitudTmpDir($draftId);
-                    if (\Storage::exists($tmpDir)) {
-                        \Storage::deleteDirectory($tmpDir);
+                    if (\Storage::disk('s3')->exists($tmpDir)) {
+                        \Storage::disk('s3')->deleteDirectory($tmpDir);
                     }
                     $tmpSessionDir = $this->documentosSolicitudTmpSessionDir();
-                    if (\Storage::exists($tmpSessionDir)) {
-                        $remaining = \Storage::allFiles($tmpSessionDir);
-                        $remainingDirs = \Storage::allDirectories($tmpSessionDir);
+                    if (\Storage::disk('s3')->exists($tmpSessionDir)) {
+                        $remaining = \Storage::disk('s3')->allFiles($tmpSessionDir);
+                        $remainingDirs = \Storage::disk('s3')->allDirectories($tmpSessionDir);
                         if (count($remaining) === 0 && count($remainingDirs) === 0) {
-                            \Storage::deleteDirectory($tmpSessionDir);
+                            \Storage::disk('s3')->deleteDirectory($tmpSessionDir);
                         }
                     }
                 } catch (\Throwable $cleanupOkErr) {
@@ -4567,24 +4591,24 @@ class SeerController extends Controller
 
                     try {
                         $tmpDir = $this->documentosSolicitudTmpDir($draftId);
-                        if (\Storage::exists($tmpDir)) {
-                            \Storage::deleteDirectory($tmpDir);
+                        if (\Storage::disk('s3')->exists($tmpDir)) {
+                            \Storage::disk('s3')->deleteDirectory($tmpDir);
                         }
 
                         // Si el directorio tmp por sesión queda vacío, lo eliminamos también
                         $tmpSessionDir = $this->documentosSolicitudTmpSessionDir();
-                        if (\Storage::exists($tmpSessionDir)) {
-                            $remaining = \Storage::allFiles($tmpSessionDir);
-                            $remainingDirs = \Storage::allDirectories($tmpSessionDir);
+                        if (\Storage::disk('s3')->exists($tmpSessionDir)) {
+                            $remaining = \Storage::disk('s3')->allFiles($tmpSessionDir);
+                            $remainingDirs = \Storage::disk('s3')->allDirectories($tmpSessionDir);
                             if (count($remaining) === 0 && count($remainingDirs) === 0) {
-                                \Storage::deleteDirectory($tmpSessionDir);
+                                \Storage::disk('s3')->deleteDirectory($tmpSessionDir);
                             }
                         }
 
                         if (isset($new_id) && $new_id) {
                             $finalDir = 'documentosSolicitud/' . $new_id;
-                            if (\Storage::exists($finalDir)) {
-                                \Storage::deleteDirectory($finalDir);
+                            if (\Storage::disk('s3')->exists($finalDir)) {
+                                \Storage::disk('s3')->deleteDirectory($finalDir);
                             }
                         }
                     } catch (\Throwable $cleanupErr) {
@@ -4997,13 +5021,13 @@ class SeerController extends Controller
             if ($request->hasFile("foto1.$i")) {
                 $file = $request->file("foto1")[$i];
                 $foto1 = $data["id"] . "-citado_foto1_" . Str::random(8) . "." . $file->getClientOriginalExtension();
-                Storage::putFileAs('documentosSolicitud/' . $data["id"], $file, $foto1);
+                Storage::disk('s3')->putFileAs('documentosSolicitud/' . $data["id"], $file, $foto1);
             }
 
             if ($request->hasFile("foto2.$i")) {
                 $file = $request->file("foto2")[$i];
                 $foto2 = $data["id"] . "-citado_foto2_" . Str::random(8) . "." . $file->getClientOriginalExtension();
-                Storage::putFileAs('documentosSolicitud/' . $data["id"], $file, $foto2);
+                Storage::disk('s3')->putFileAs('documentosSolicitud/' . $data["id"], $file, $foto2);
             }
 
             $data_update = array(
@@ -5061,13 +5085,13 @@ class SeerController extends Controller
         // CURP (PDF)
         /*if ($request->hasFile('curp_solicitante')) {
             $documento = $curpBase . '_CURP.pdf';
-            Storage::putFileAs('documentosSolicitud', $request->file('curpsolicitante'), $documento);
+            Storage::disk('s3')->putFileAs('documentosSolicitud', $request->file('curpsolicitante'), $documento);
             SeerSolicitante::where('id_solicitud', $data['id'])->update(['documentoCurp' => $documento]);
         }*/
 
         if ($request->hasFile('indetificacion')) {
             $documentoidentificacion = $curpBase . '_Identificacion.pdf';
-            Storage::putFileAs('documentosSolicitud/' . $data['id'], $request->file('indetificacion'), $documentoidentificacion);
+            Storage::disk('s3')->putFileAs('documentosSolicitud/' . $data['id'], $request->file('indetificacion'), $documentoidentificacion);
             SeerSolicitante::where('id_solicitud', $data['id'])->update(['documentoIdentificacion' => $documentoidentificacion]);
         }
             DB::commit();
@@ -5202,13 +5226,13 @@ class SeerController extends Controller
             if ($request->hasFile("foto1.$i")) {
                 $file = $request->file("foto1")[$i];
                 $foto1 = $data["id"] . "-citado_foto1_" . Str::random(8) . "." . $file->getClientOriginalExtension();
-                Storage::putFileAs('documentosSolicitud/' . $data["id"], $file, $foto1);
+                Storage::disk('s3')->putFileAs('documentosSolicitud/' . $data["id"], $file, $foto1);
             }
 
             if ($request->hasFile("foto2.$i")) {
                 $file = $request->file("foto2")[$i];
                 $foto2 = $data["id"] . "-citado_foto2_" . Str::random(8) . "." . $file->getClientOriginalExtension();
-                Storage::putFileAs('documentosSolicitud/' . $data["id"], $file, $foto2);
+                Storage::disk('s3')->putFileAs('documentosSolicitud/' . $data["id"], $file, $foto2);
             }
             $data_insert=array(
                 'id_solicitud'      => $data["id"],
@@ -5259,14 +5283,14 @@ class SeerController extends Controller
         if ($request->hasFile('documentoCurp')) {
             $prev = $solActual->documentoCurp ?? null;
             $documento = $curpBase . '_CURP_' . time() . '.pdf';
-            Storage::putFileAs($docsDir, $request->file('documentoCurp'), $documento);
+            Storage::disk('s3')->putFileAs($docsDir, $request->file('documentoCurp'), $documento);
             SeerSolicitante::where('id_solicitud', $data['id'])->update(['documentoCurp' => $documento]);
 
             if ($prev && $prev !== 'Sin documento') {
-                if (Storage::exists("{$docsDir}/{$prev}")) {
-                    Storage::delete("{$docsDir}/{$prev}");
-                } elseif (Storage::exists("documentosSolicitud/{$prev}")) {
-                    Storage::delete("documentosSolicitud/{$prev}");
+                if (Storage::disk('s3')->exists("{$docsDir}/{$prev}")) {
+                    Storage::disk('s3')->delete("{$docsDir}/{$prev}");
+                } elseif (Storage::disk('s3')->exists("documentosSolicitud/{$prev}")) {
+                    Storage::disk('s3')->delete("documentosSolicitud/{$prev}");
                 }
             }
         }
@@ -5274,14 +5298,14 @@ class SeerController extends Controller
         if ($request->hasFile('documentoIdentificacion')) {
             $prev = $solActual->documentoIdentificacion ?? null;
             $documentoidentificacion = $curpBase . '_Identificacion_' . time() . '.pdf';
-            Storage::putFileAs($docsDir, $request->file('documentoIdentificacion'), $documentoidentificacion);
+            Storage::disk('s3')->putFileAs($docsDir, $request->file('documentoIdentificacion'), $documentoidentificacion);
             SeerSolicitante::where('id_solicitud', $data['id'])->update(['documentoIdentificacion' => $documentoidentificacion]);
 
             if ($prev && $prev !== 'Sin documento') {
-                if (Storage::exists("{$docsDir}/{$prev}")) {
-                    Storage::delete("{$docsDir}/{$prev}");
-                } elseif (Storage::exists("documentosSolicitud/{$prev}")) {
-                    Storage::delete("documentosSolicitud/{$prev}");
+                if (Storage::disk('s3')->exists("{$docsDir}/{$prev}")) {
+                    Storage::disk('s3')->delete("{$docsDir}/{$prev}");
+                } elseif (Storage::disk('s3')->exists("documentosSolicitud/{$prev}")) {
+                    Storage::disk('s3')->delete("documentosSolicitud/{$prev}");
                 }
             }
         }
@@ -5406,28 +5430,28 @@ class SeerController extends Controller
 
             if ($request->hasFile('documentoCurp')) {
                 $documento = "{$curpBase}_CURP_{$time}.pdf";
-                Storage::putFileAs($docsDir, $request->file('documentoCurp'), $documento);
+                Storage::disk('s3')->putFileAs($docsDir, $request->file('documentoCurp'), $documento);
                 $datosSolicitante['documentoCurp'] = $documento;
                 if ($solActual && $solActual->documentoCurp && $solActual->documentoCurp !== 'Sin documento') {
                     $prev = $solActual->documentoCurp;
-                    if (Storage::exists("{$docsDir}/{$prev}")) {
-                        Storage::delete("{$docsDir}/{$prev}");
-                    } elseif (Storage::exists("documentosSolicitud/{$prev}")) {
-                        Storage::delete("documentosSolicitud/{$prev}");
+                    if (Storage::disk('s3')->exists("{$docsDir}/{$prev}")) {
+                        Storage::disk('s3')->delete("{$docsDir}/{$prev}");
+                    } elseif (Storage::disk('s3')->exists("documentosSolicitud/{$prev}")) {
+                        Storage::disk('s3')->delete("documentosSolicitud/{$prev}");
                     }
                 }
             }
 
             if ($request->hasFile('documentoIdentificacion')) {
                 $documentoidentificacion = "{$curpBase}_Identificacion_{$time}.pdf";
-                Storage::putFileAs($docsDir, $request->file('documentoIdentificacion'), $documentoidentificacion);
+                Storage::disk('s3')->putFileAs($docsDir, $request->file('documentoIdentificacion'), $documentoidentificacion);
                 $datosSolicitante['documentoIdentificacion'] = $documentoidentificacion;
                 if ($solActual && $solActual->documentoIdentificacion && $solActual->documentoIdentificacion !== 'Sin documento') {
                     $prev = $solActual->documentoIdentificacion;
-                    if (Storage::exists("{$docsDir}/{$prev}")) {
-                        Storage::delete("{$docsDir}/{$prev}");
-                    } elseif (Storage::exists("documentosSolicitud/{$prev}")) {
-                        Storage::delete("documentosSolicitud/{$prev}");
+                    if (Storage::disk('s3')->exists("{$docsDir}/{$prev}")) {
+                        Storage::disk('s3')->delete("{$docsDir}/{$prev}");
+                    } elseif (Storage::disk('s3')->exists("documentosSolicitud/{$prev}")) {
+                        Storage::disk('s3')->delete("documentosSolicitud/{$prev}");
                     }
                 }
             }
@@ -5505,15 +5529,15 @@ class SeerController extends Controller
                 if (isset($fotos1_files[$i])) {
                     $file = $fotos1_files[$i];
                     $foto1 = "{$id_solicitud}-citado_foto1_" . Str::random(8) . "." . $file->getClientOriginalExtension();
-                    Storage::putFileAs($docsDir, $file, $foto1);
+                    Storage::disk('s3')->putFileAs($docsDir, $file, $foto1);
 
                     // Si se reemplaza una referencia existente, borrar el archivo anterior (compatible con ruta vieja)
                     $prev = $request->input("imagen_domicilio1.{$i}");
                     if ($prev && $prev !== 'Sin documento') {
-                        if (Storage::exists("{$docsDir}/{$prev}")) {
-                            Storage::delete("{$docsDir}/{$prev}");
-                        } elseif (Storage::exists("documentosSolicitud/{$prev}")) {
-                            Storage::delete("documentosSolicitud/{$prev}");
+                        if (Storage::disk('s3')->exists("{$docsDir}/{$prev}")) {
+                            Storage::disk('s3')->delete("{$docsDir}/{$prev}");
+                        } elseif (Storage::disk('s3')->exists("documentosSolicitud/{$prev}")) {
+                            Storage::disk('s3')->delete("documentosSolicitud/{$prev}");
                         }
                     }
                 }
@@ -5521,15 +5545,15 @@ class SeerController extends Controller
                 if (isset($fotos2_files[$i])) {
                     $file = $fotos2_files[$i];
                     $foto2 = "{$id_solicitud}-citado_foto2_" . Str::random(8) . "." . $file->getClientOriginalExtension();
-                    Storage::putFileAs($docsDir, $file, $foto2);
+                    Storage::disk('s3')->putFileAs($docsDir, $file, $foto2);
 
                     // Si se reemplaza una referencia existente, borrar el archivo anterior (compatible con ruta vieja)
                     $prev = $request->input("imagen_domicilio2.{$i}");
                     if ($prev && $prev !== 'Sin documento') {
-                        if (Storage::exists("{$docsDir}/{$prev}")) {
-                            Storage::delete("{$docsDir}/{$prev}");
-                        } elseif (Storage::exists("documentosSolicitud/{$prev}")) {
-                            Storage::delete("documentosSolicitud/{$prev}");
+                        if (Storage::disk('s3')->exists("{$docsDir}/{$prev}")) {
+                            Storage::disk('s3')->delete("{$docsDir}/{$prev}");
+                        } elseif (Storage::disk('s3')->exists("documentosSolicitud/{$prev}")) {
+                            Storage::disk('s3')->delete("documentosSolicitud/{$prev}");
                         }
                     }
                 }
@@ -5681,12 +5705,12 @@ class SeerController extends Controller
 
         if ($request->hasFile('foto1')) {
             $imagen_domicilio1 = $data["id"] . "-domicilio_Citado1_" . Str::random(8) . ".jpg";
-            Storage::putFileAs('documentosSolicitud/' . $data["id"], $request->file('foto1'), $imagen_domicilio1);
+            Storage::disk('s3')->putFileAs('documentosSolicitud/' . $data["id"], $request->file('foto1'), $imagen_domicilio1);
         }
 
         if ($request->hasFile('foto2')) {
             $imagen_domicilio2 = $data["id"] . "-domicilio_Citado2_" . Str::random(8) . ".jpg";
-            Storage::putFileAs('documentosSolicitud/' . $data["id"], $request->file('foto2'), $imagen_domicilio2);
+            Storage::disk('s3')->putFileAs('documentosSolicitud/' . $data["id"], $request->file('foto2'), $imagen_domicilio2);
         }
         $foto1 = $imagen_domicilio1;
         $foto2 = $imagen_domicilio2;
@@ -6712,7 +6736,7 @@ class SeerController extends Controller
 
                 $nombre_ine_original = $data["nombre_pF"]." ".$data["primero_PF"]." ".$data["segundo_Pf"]."-FISICA"."_IDENTIFICACION.pdf";
                 $nombre_ine = $idAbogado . '_' . $nombre_ine_original;
-                Storage::putFileAs(
+                Storage::disk('s3')->putFileAs(
                     $carpetaAbogado, $request->file('documentoIne_pFSR'), $nombre_ine
                 );
                 if(!isset($data["documentoAnexo_pFSR"])){
@@ -6721,7 +6745,7 @@ class SeerController extends Controller
                 else{
                     $nombre_anexo_original = $data["nombre_pF"]." ".$data["primero_PF"]." ".$data["segundo_Pf"]."-FISICA"."_ANEXO.pdf";
                     $nombre_anexo = $idAbogado . '_' . $nombre_anexo_original;
-                    Storage::putFileAs(
+                    Storage::disk('s3')->putFileAs(
                         $carpetaAbogado, $request->file('documentoAnexo_pFSR'), $nombre_anexo
                     );
                 }
@@ -6793,17 +6817,17 @@ class SeerController extends Controller
 
                 $nombre_ine_original = $data["nombre_pF"]." ".$data["primero_PF"]." ".$data["segundo_Pf"]."-FISICA"."_IDENTIFICACION.pdf";
                 $nombre_ine = $idAbogado . '_' . $nombre_ine_original;
-                Storage::putFileAs(
+                Storage::disk('s3')->putFileAs(
                     $carpetaAbogado, $request->file('documentoIne_pF'), $nombre_ine
                 );
                 $nombre_reprecentacion_original = $data["nombre_representante_pF"]." ".$data["primer_representante_pF"]." ".$data["segundo_representante_pF"]."-FISICA"."_REPRESENTACION.pdf";
                 $nombre_reprecentacion = $idAbogado . '_' . $nombre_reprecentacion_original;
-                Storage::putFileAs(
+                Storage::disk('s3')->putFileAs(
                     $carpetaAbogado, $request->file('documentoRepresentacion_pF'), $nombre_reprecentacion
                 );
                 $nombre_poder_original = $data["nombre_pF"]." ".$data["primero_PF"]." ".$data["segundo_Pf"]."-FISICA"."_PODER.pdf";
                 $nombre_poder = $idAbogado . '_' . $nombre_poder_original;
-                Storage::putFileAs(
+                Storage::disk('s3')->putFileAs(
                     $carpetaAbogado, $request->file('documentoPoder_pF'), $nombre_poder
                 );
                 if(!isset($data["documentoAnexo_pF"])){
@@ -6812,7 +6836,7 @@ class SeerController extends Controller
                 else{
                     $nombre_anexo_original = $data["nombre_pF"]." ".$data["primero_PF"]." ".$data["segundo_Pf"]."-FISICA"."_ANEXO.pdf";
                     $nombre_anexo = $idAbogado . '_' . $nombre_anexo_original;
-                    Storage::putFileAs(
+                    Storage::disk('s3')->putFileAs(
                         $carpetaAbogado, $request->file('documentoAnexo_pF'), $nombre_anexo
                     );
                 }
@@ -6885,17 +6909,17 @@ class SeerController extends Controller
 
             $nombre_ine_original = $data["razon"]."-MORAL"."_IDENTIFICACION.pdf";
             $nombre_ine = $idAbogado . '_' . $nombre_ine_original;
-            Storage::putFileAs(
+            Storage::disk('s3')->putFileAs(
                 $carpetaAbogado, $request->file('documentoIne_Moral'), $nombre_ine
             );
             $nombre_reprecentacion_original = $data["razon"]."-MORAL"."_REPRESENTACION.pdf";
             $nombre_reprecentacion = $idAbogado . '_' . $nombre_reprecentacion_original;
-            Storage::putFileAs(
+            Storage::disk('s3')->putFileAs(
                 $carpetaAbogado, $request->file('documentoRepresentacion_Moral'), $nombre_reprecentacion
             );
             $nombre_poder_original = $data["razon"]."-MORAL"."_PODER.pdf";
             $nombre_poder = $idAbogado . '_' . $nombre_poder_original;
-            Storage::putFileAs(
+            Storage::disk('s3')->putFileAs(
                 $carpetaAbogado, $request->file('documentoPoder'), $nombre_poder
             );
             if(!isset($data["documentoAnexo"])){
@@ -6904,7 +6928,7 @@ class SeerController extends Controller
             else{
                 $nombre_anexo_original = $data["razon"]."-MORAL"."_ANEXO.pdf";
                 $nombre_anexo = $idAbogado . '_' . $nombre_anexo_original;
-                Storage::putFileAs(
+                Storage::disk('s3')->putFileAs(
                     $carpetaAbogado, $request->file('documentoAnexo'), $nombre_anexo
                 );
             }
@@ -6944,20 +6968,20 @@ class SeerController extends Controller
         $roles = Role::pluck('name', 'name')->all();
         $userRole = $user->roles->pluck('name')->all();
         $folio = SeerCitados::find($data["id"]);
-        $ruta_imagen= "/" . $folio["id_solicitud"] . "/" ;
+        $carpetaCitado = 'documentosSolicitud/' . $folio["id_solicitud"];
         if ($request->hasFile('foto1')) {
-            
+
             $imagen_domicilio1 =  $data["id"] . "-domicilio_Citado1.jpg";
-            
-            Storage::putFileAs('documentosSolicitud', $request->file('foto1'), $ruta_imagen . $imagen_domicilio1);
+
+            Storage::disk('s3')->putFileAs($carpetaCitado, $request->file('foto1'), $imagen_domicilio1);
             $foto1 = $imagen_domicilio1;
         } else {
             $foto1 = $folio->imagen_domicilio1;
         }
-        
+
         if ($request->hasFile('foto2')) {
             $imagen_domicilio2 =  $data["id"] . "-domicilio_Citado2.jpg";
-            Storage::putFileAs('documentosSolicitud', $request->file('foto2'),  $ruta_imagen . $imagen_domicilio2);
+            Storage::disk('s3')->putFileAs($carpetaCitado, $request->file('foto2'), $imagen_domicilio2);
             $foto2 = $imagen_domicilio2;
         } else {
             $foto2 = $folio->imagen_domicilio2;
@@ -7079,7 +7103,7 @@ class SeerController extends Controller
 
             //documentosSolicitud/{id seer_general}/archivo.pdf
             $destDir = 'documentosSolicitud/' . $idSolicitud;
-            \Storage::putFileAs($destDir, $archivo, $fileName);
+            \Storage::disk('s3')->putFileAs($destDir, $archivo, $fileName);
             $docPath = $fileName;
 
             $citadoDb = \App\Models\SeerCitados::find($citadoId);
@@ -7087,10 +7111,10 @@ class SeerController extends Controller
             if ($prev) {
                 $prevNewPath = $destDir . '/' . $prev;
                 $prevOldPath = 'documentosSolicitud/' . $prev;
-                if (\Storage::exists($prevNewPath)) {
-                    \Storage::delete($prevNewPath);
-                } elseif (\Storage::exists($prevOldPath)) {
-                    \Storage::delete($prevOldPath);
+                if (\Storage::disk('s3')->exists($prevNewPath)) {
+                    \Storage::disk('s3')->delete($prevNewPath);
+                } elseif (\Storage::disk('s3')->exists($prevOldPath)) {
+                    \Storage::disk('s3')->delete($prevOldPath);
                 }
             }
         }
@@ -9621,14 +9645,14 @@ class SeerController extends Controller
             );
             
             $documento = $data["nombre"]."-".$data["primer_apellido"]."-".$data["segundo_apellido"]."_Identificacion.pdf";
-            $path = Storage::putFileAs(
-                'documentosSolicitud', $request->file('documentoIdentificacion'), $documento
+            $path = Storage::disk('s3')->putFileAs(
+                'documentosSolicitud/' . $data["id"], $request->file('documentoIdentificacion'), $documento
             );
             $data_insertar["documentoIdentificacion"] = $documento;
 
-            PersonaFisica::create($data_insertar);   
+            PersonaFisica::create($data_insertar);
             $id_adiencia = PersonaFisica::select('id')->orderBy('id', 'desc')->first();
-            
+
             $citados = $citados->map(function ($citado) use ($data, $id_adiencia) {
                 if ((int)$citado->id == (int)$data['id_citado_pf']) {
                     $citado->id_fisica = $id_adiencia["id"];
@@ -9653,12 +9677,12 @@ class SeerController extends Controller
             );
             
             $documento = $data["nombre"]."-".$data["primer_apellido"]."-".$data["segundo_apellido"]."_Identificacion.pdf";
-            $path = Storage::putFileAs(
-                'documentosSolicitud', $request->file('documentoIdentificacion'), $documento
+            $path = Storage::disk('s3')->putFileAs(
+                'documentosSolicitud/' . $data["id"], $request->file('documentoIdentificacion'), $documento
             );
             $data_insertar["documentoIdentificacion"] = $documento;
 
-            PersonaFisica::create($data_insertar);   
+            PersonaFisica::create($data_insertar);
             $id_adiencia = PersonaFisica::select('id')->orderBy('id', 'desc')->first();
             SeerCitados::find($data['id_citado_pf'])->update([
                 'id_fisica'         => $id_adiencia["id"],
@@ -11418,13 +11442,13 @@ class SeerController extends Controller
                 if ($request->hasFile("foto1.$i")) {
                     $file = $request->file("foto1")[$i];
                     $foto1 = $data["id"] . "-citado_foto1_" . Str::random(8) . "." . $file->getClientOriginalExtension();
-                    Storage::putFileAs('documentosSolicitud', $file, $foto1);
+                    Storage::disk('s3')->putFileAs('documentosSolicitud/' . $data["id"], $file, $foto1);
                 }
-            
+
                 if ($request->hasFile("foto2.$i")) {
                     $file = $request->file("foto2")[$i];
                     $foto2 = $data["id"] . "-citado_foto2_" . Str::random(8) . "." . $file->getClientOriginalExtension();
-                    Storage::putFileAs('documentosSolicitud', $file, $foto2);
+                    Storage::disk('s3')->putFileAs('documentosSolicitud/' . $data["id"], $file, $foto2);
                 }
                 
             $data_insert=array(
@@ -11483,14 +11507,14 @@ class SeerController extends Controller
         //Documentos
         if(isset($data["curp"])){
             $documento = $data["curp"]."_CURP.pdf";
-            $path = Storage::putFileAs('documentosSolicitud', $request->file('documentoCurp'), $documento);
+            $path = Storage::disk('s3')->putFileAs('documentosSolicitud/' . $data["id"], $request->file('documentoCurp'), $documento);
             SeerSolicitante::where('id_solicitud', $data["id"])->update(['documentoCurp' => $documento ]);
         }
-            
+
         //Acta de nacimiento
         if(isset($data["indetificacion"])){
             $documentoidentificacion = $data["curp"]."_Identificacion.pdf";
-            $path = Storage::putFileAs('documentosSolicitud', $request->file('indetificacion'), $documentoidentificacion);
+            $path = Storage::disk('s3')->putFileAs('documentosSolicitud/' . $data["id"], $request->file('indetificacion'), $documentoidentificacion);
             SeerSolicitante::where('id_solicitud', $data["id"])->update(['documentoIdentificacion' => $documentoidentificacion ]);
         }
 
@@ -11934,7 +11958,7 @@ class SeerController extends Controller
                 //Nombre único por documento (id de solicitud y id de documento)
                 $documentoExpediente = $slugBase . '_Expediente_' . $data['audiencia_id'] . '_' . $doc->id . '.' . $ext;
 
-                Storage::putFileAs('documentosSolicitud/' . $data['audiencia_id'], $file, $documentoExpediente);
+                Storage::disk('s3')->putFileAs('documentosSolicitud/' . $data['audiencia_id'], $file, $documentoExpediente);
 
                 $doc->update(['nombre_documento' => $documentoExpediente]);
             } else {
@@ -12530,7 +12554,7 @@ class SeerController extends Controller
             $path1 = "{$folder}/{$subId}/{$filename}";
             $path2 = "{$folder}/{$filename}";
 
-            if (\Storage::exists($path1) || \Storage::exists($path2)) {
+            if (\Storage::disk('s3')->exists($path1) || \Storage::disk('s3')->exists($path2)) {
                 return route('documentos.ver', ['tipo' => $tipoRoute, 'id' => $subId, 'archivo' => $filename]);
             }
             return null;
@@ -13321,13 +13345,24 @@ class SeerController extends Controller
                 'regionUruapan'     => $regionuruapan,
                 'regionZamora'      => $regionzamora,
             );
+            // Placeholders: aún no sabemos el idAbogado (se necesita para nombrar/guardar los archivos).
+            $data_insertar["ine"] = 'PENDIENTE';
+            $data_insertar["cedula"] = 'Sin carta poder';
+            $data_insertar["anexo"] = 'Sin anexo';
+            $data_insertar["representacion"] = 'PENDIENTE';
+
+            // Creamos primero el registro para conocer idAbogado y poder crear la carpeta con ese nombre.
+            $nuevoAbogado = Poder::create($data_insertar);
+            $idAbogado = $nuevoAbogado->idAbogado;
+            $carpetaAbogado = 'documentos_abogados/' . $idAbogado;
+
             $nombre_ine = $data["nombresAbogadoAlta"]."".$data["primer_apellido"]."".$data["segundo_apellido"]."-".$data["empresaAbogadoAlta"]."_IDENTIFICACION.pdf";
-            $path = Storage::putFileAs(
-                'documentos_abogados', $request->file('documentoIne'), $nombre_ine
+            Storage::disk('s3')->putFileAs(
+                $carpetaAbogado, $request->file('documentoIne'), $nombre_ine
             );
             $nombre_representación = $data["nombresAbogadoAlta"]."".$data["primer_apellido"]."".$data["segundo_apellido"]."-".$data["empresaAbogadoAlta"]."_REPRESENTACION.pdf";
-            $path = Storage::putFileAs(
-                'documentos_abogados', $request->file('documentoRepresentacion'), $nombre_representación
+            Storage::disk('s3')->putFileAs(
+                $carpetaAbogado, $request->file('documentoRepresentacion'), $nombre_representación
             );
             //Si no existe
             if(!isset($data["documentoAnexo"])){
@@ -13335,8 +13370,8 @@ class SeerController extends Controller
             }
             else{
                 $nombre_anexo = $data["nombresAbogadoAlta"]."".$data["primer_apellido"]."".$data["segundo_apellido"]."-".$data["empresaAbogadoAlta"]."_ANEXO.pdf";
-               $path = Storage::putFileAs(
-                    'documentos_abogados', $request->file('documentoAnexo'), $nombre_anexo
+               Storage::disk('s3')->putFileAs(
+                    $carpetaAbogado, $request->file('documentoAnexo'), $nombre_anexo
                 );
             }
 
@@ -13345,18 +13380,17 @@ class SeerController extends Controller
             }
             else{
                 $nombre_poder = $data["nombresAbogadoAlta"]."".$data["primer_apellido"]."".$data["segundo_apellido"]."-".$data["empresaAbogadoAlta"]."_PODER.pdf";
-                $path = Storage::putFileAs(
-                    'documentos_abogados', $request->file('documentoPoder'), $nombre_poder
+                Storage::disk('s3')->putFileAs(
+                    $carpetaAbogado, $request->file('documentoPoder'), $nombre_poder
                 );
             }
 
-            $data_insertar["ine"] = $nombre_ine;
-            $data_insertar["cedula"] = $nombre_poder;
-            $data_insertar["anexo"] = $nombre_anexo;
-            $data_insertar["representacion"] = $nombre_representación;
-
-            $nuevoAbogado = Poder::create($data_insertar);
-        }    
+            $nuevoAbogado->ine = $nombre_ine;
+            $nuevoAbogado->cedula = $nombre_poder;
+            $nuevoAbogado->anexo = $nombre_anexo;
+            $nuevoAbogado->representacion = $nombre_representación;
+            $nuevoAbogado->save();
+        }
          
         $A_citado=SeerCitados::find($data['id_citado_2'])->update(['id_abogado' => $nuevoAbogado->idAbogado]);
         return back()->with('success', 'Representante legal registrado y asignado correctamente al citado.');
@@ -13376,17 +13410,17 @@ class SeerController extends Controller
         );
         
         $documento = $data["nombre"]."-".$data["primer_apellido"]."-".$data["segundo_apellido"]."_Identificacion.pdf";
-        $path = Storage::putFileAs(
-            'documentosSolicitud', $request->file('documentoIdentificacion'), $documento
+        $path = Storage::disk('s3')->putFileAs(
+            'documentosSolicitud/' . $data["id"], $request->file('documentoIdentificacion'), $documento
         );
         $data_insertar["documentoIdentificacion"] = $documento;
 
-        PersonaFisica::create($data_insertar);   
+        PersonaFisica::create($data_insertar);
         $id_adiencia = PersonaFisica::select('id')->orderBy('id', 'desc')->first();
         SeerCitados::find($data['id_citado_pf'])->update([
             'id_fisica'         => $id_adiencia["id"],
             'nombre'            => $data["nombre"],
-            'primer_apellido'   => $data["primer_apellido"], 
+            'primer_apellido'   => $data["primer_apellido"],
             'segundo_apellido'  => $data["segundo_apellido"]
         ]);
 
@@ -15371,19 +15405,19 @@ class SeerController extends Controller
         $roles = Role::pluck('name', 'name')->all();
         $userRole = $user->roles->pluck('name')->all();
         $folio = SeerCitados::find($data["id"]);
-        $ruta_imagen = '/' . $folio->id_solicitud . '/';
+        $carpetaCitado = 'documentosSolicitud/' . $folio->id_solicitud;
 
         if ($request->hasFile('foto1')) {
             $imagen_domicilio1 = $data["id"] . "-domicilio_Citado1.jpg";
-            Storage::putFileAs('documentosSolicitud', $request->file('foto1'), $ruta_imagen . $imagen_domicilio1);
+            Storage::disk('s3')->putFileAs($carpetaCitado, $request->file('foto1'), $imagen_domicilio1);
             $foto1 = $imagen_domicilio1;
         } else {
             $foto1 = $folio->imagen_domicilio1;
         }
-        
+
         if ($request->hasFile('foto2')) {
             $imagen_domicilio2 = $data["id"] . "-domicilio_Citado2.jpg";
-            Storage::putFileAs('documentosSolicitud', $request->file('foto2'), $ruta_imagen . $imagen_domicilio2);
+            Storage::disk('s3')->putFileAs($carpetaCitado, $request->file('foto2'), $imagen_domicilio2);
             $foto2 = $imagen_domicilio2;
         } else {
             $foto2 = $folio->imagen_domicilio2;
@@ -15839,8 +15873,8 @@ class SeerController extends Controller
                 $filename = \Illuminate\Support\Str::slug($nombreInput);
                 $documentoCitatoriosT = $filename . '_Citatorio.' . $file->getClientOriginalExtension();
         
-                $path = Storage::putFileAs(
-                    'documentosSolicitud', $file, $documentoCitatoriosT
+                $path = Storage::disk('s3')->putFileAs(
+                    'documentosSolicitud/' . $solicitudId, $file, $documentoCitatoriosT
                 );
 
                 $data_insertar= array(
@@ -16534,7 +16568,7 @@ class SeerController extends Controller
                     'tipo' => 'solicitud'
                 ]);*/
 
-                //Storage::put($fullStoragePath, $binaryData);
+                //Storage::disk('s3')->put($fullStoragePath, $binaryData);
 
 
                 // 4. Guardar Caso Excepción (si existe)
@@ -16582,10 +16616,10 @@ class SeerController extends Controller
                 ]);
 
                 // Limpiar tmp del draft actual
-                Storage::deleteDirectory($this->documentosSolicitudTmpDir($draftId));
+                Storage::disk('s3')->deleteDirectory($this->documentosSolicitudTmpDir($draftId));
                 $sessionTmpDir = $this->documentosSolicitudTmpSessionDir();
-                if (Storage::exists($sessionTmpDir) && empty(Storage::allFiles($sessionTmpDir))) {
-                    Storage::deleteDirectory($sessionTmpDir);
+                if (Storage::disk('s3')->exists($sessionTmpDir) && empty(Storage::disk('s3')->allFiles($sessionTmpDir))) {
+                    Storage::disk('s3')->deleteDirectory($sessionTmpDir);
                 }
 
                 // Liberar el lock de proceso activo (proceso completado exitosamente)
@@ -16602,8 +16636,8 @@ class SeerController extends Controller
                         if (!empty($solicitante[$key]) && is_string($solicitante[$key])) {
                             $filename = basename($solicitante[$key]);
                             $path = 'documentosSolicitud/' . $filename;
-                            if (\Storage::exists($path)) {
-                                \Storage::delete($path);
+                            if (\Storage::disk('s3')->exists($path)) {
+                                \Storage::disk('s3')->delete($path);
                             }
                         }
                     }
@@ -16617,8 +16651,8 @@ class SeerController extends Controller
                                 if (is_string($v) && preg_match('/\.(pdf|jpg|jpeg|png)$/i', $v)) {
                                     $filename = basename($v);
                                     $path = 'documentosSolicitud/' . $filename;
-                                    if (\Storage::exists($path)) {
-                                        \Storage::delete($path);
+                                    if (\Storage::disk('s3')->exists($path)) {
+                                        \Storage::disk('s3')->delete($path);
                                     }
                                     
                                 }
@@ -16791,10 +16825,10 @@ class SeerController extends Controller
                     ]);
 
                     // Limpiar tmp del draft actual
-                    Storage::deleteDirectory($this->documentosSolicitudTmpDir($draftId));
+                    Storage::disk('s3')->deleteDirectory($this->documentosSolicitudTmpDir($draftId));
                     $sessionTmpDir = $this->documentosSolicitudTmpSessionDir();
-                    if (Storage::exists($sessionTmpDir) && empty(Storage::allFiles($sessionTmpDir))) {
-                        Storage::deleteDirectory($sessionTmpDir);
+                    if (Storage::disk('s3')->exists($sessionTmpDir) && empty(Storage::disk('s3')->allFiles($sessionTmpDir))) {
+                        Storage::disk('s3')->deleteDirectory($sessionTmpDir);
                     }
 
                     // Liberar el lock de proceso activo (proceso completado exitosamente)
@@ -16810,8 +16844,8 @@ class SeerController extends Controller
                             if (!empty($solicitante[$key]) && is_string($solicitante[$key])) {
                                 $filename = basename($solicitante[$key]);
                                 $path = 'documentosSolicitud/' . $filename;
-                                if (\Storage::exists($path)) {
-                                    \Storage::delete($path);
+                                if (\Storage::disk('s3')->exists($path)) {
+                                    \Storage::disk('s3')->delete($path);
                                 }
                             }
                         }
@@ -16825,8 +16859,8 @@ class SeerController extends Controller
                                     if (is_string($v) && preg_match('/\.(pdf|jpg|jpeg|png)$/i', $v)) {
                                         $filename = basename($v);
                                         $path = 'documentosSolicitud/' . $filename;
-                                        if (\Storage::exists($path)) {
-                                            \Storage::delete($path);
+                                        if (\Storage::disk('s3')->exists($path)) {
+                                            \Storage::disk('s3')->delete($path);
                                         }
                                         
                                     }
@@ -16905,8 +16939,8 @@ class SeerController extends Controller
                         if (!empty($solicitante[$key]) && is_string($solicitante[$key])) {
                             $filename = basename($solicitante[$key]);
                             $path = 'documentosSolicitud/' . $filename;
-                            if (\Storage::exists($path)) {
-                                \Storage::delete($path);
+                            if (\Storage::disk('s3')->exists($path)) {
+                                \Storage::disk('s3')->delete($path);
                             }
                         }
                     }
@@ -16920,8 +16954,8 @@ class SeerController extends Controller
                                 if (is_string($v) && preg_match('/\.(pdf|jpg|jpeg|png)$/i', $v)) {
                                     $filename = basename($v);
                                     $path = 'documentosSolicitud/' . $filename;
-                                    if (\Storage::exists($path)) {
-                                        \Storage::delete($path);
+                                    if (\Storage::disk('s3')->exists($path)) {
+                                        \Storage::disk('s3')->delete($path);
                                     }
                                     
                                 }
@@ -17380,17 +17414,17 @@ class SeerController extends Controller
         } 
         //CURP
         $documento = $data["curp"]."_CURP.pdf";
-        /*$path = Storage::putFileAs(
+        /*$path = Storage::disk('s3')->putFileAs(
             'documentosSolicitud', $request->file('documentoCurp'), $documento
         );*/
         //Acta de nacimiento
         // Si el flujo es "session", guardamos temporalmente en documentosSolicitud/tmp/{sessionId}/{draftId}
         // y lo movemos a documentosSolicitud/{new_id}/ en guardar_solicitudAux().
-        $destDir = ($id === 'session') ? $this->documentosSolicitudTmpDir($draftId) : 'documentosSolicitud';
+        $destDir = ($id === 'session') ? $this->documentosSolicitudTmpDir($draftId) : 'documentosSolicitud/' . $id;
 
         if(isset($data["documentoIdentificacion"])){
             $documentoidentificacion = $data["curp"]."_Identificacion.pdf";
-            Storage::putFileAs(
+            Storage::disk('s3')->putFileAs(
                 $destDir,
                 $request->file('documentoIdentificacion'),
                 $documentoidentificacion
@@ -17398,7 +17432,7 @@ class SeerController extends Controller
         }
         else{
             $documentoidentificacion = $data["curp"]."_Acta.pdf";
-            Storage::putFileAs(
+            Storage::disk('s3')->putFileAs(
                 $destDir,
                 $request->file('documentoActa'),
                 $documentoidentificacion
@@ -17751,17 +17785,17 @@ class SeerController extends Controller
         } */ 
         //CURP
         /* $documento = $data["curp"]."_CURP.pdf"; */
-        /*$path = Storage::putFileAs(
+        /*$path = Storage::disk('s3')->putFileAs(
             'documentosSolicitud', $request->file('documentoCurp'), $documento
         );*/
         // Acta de nacimiento / Identificación
         // Si el flujo es "session", guardamos temporalmente en documentosSolicitud/tmp/{sessionId}/{draftId}
         // y lo movemos a documentosSolicitud/{new_id}/ en guardar_solicitudAuxP().
-        $destDir = ($id_solicitud === 'session') ? $this->documentosSolicitudTmpDir($draftId) : 'documentosSolicitud';
+        $destDir = ($id_solicitud === 'session') ? $this->documentosSolicitudTmpDir($draftId) : 'documentosSolicitud/' . $id_solicitud;
 
         if(isset($data["documentoIdentificacion"])){
             $documentoidentificacion = $data_insert["curp"]."_Identificacion.pdf";
-            Storage::putFileAs(
+            Storage::disk('s3')->putFileAs(
                 $destDir,
                 $request->file('documentoIdentificacion'),
                 $documentoidentificacion
@@ -17887,18 +17921,18 @@ class SeerController extends Controller
         if ($request->hasFile('foto1')) {
             $imagen_domicilio1 = $tempId . "-domicilio_Citado1.jpg" . Str::random(8) . ".jpg";
             if ($data["id"] == 'session') {
-                Storage::putFileAs($this->documentosSolicitudTmpDir($draftId), $request->file('foto1'), $imagen_domicilio1); 
+                Storage::disk('s3')->putFileAs($this->documentosSolicitudTmpDir($draftId), $request->file('foto1'), $imagen_domicilio1);
             } else {
-                Storage::putFileAs('documentosSolicitud', $request->file('foto1'), $imagen_domicilio1);
+                Storage::disk('s3')->putFileAs('documentosSolicitud/' . $data["id"], $request->file('foto1'), $imagen_domicilio1);
             }
         }
-        
+
         if ($request->hasFile('foto2')) {
             $imagen_domicilio2 = $tempId . "-domicilio_Citado2.jpg" . Str::random(8) . ".jpg";
             if ($data["id"] == 'session') {
-                Storage::putFileAs($this->documentosSolicitudTmpDir($draftId), $request->file('foto2'), $imagen_domicilio2);
+                Storage::disk('s3')->putFileAs($this->documentosSolicitudTmpDir($draftId), $request->file('foto2'), $imagen_domicilio2);
             } else {
-                Storage::putFileAs('documentosSolicitud', $request->file('foto2'), $imagen_domicilio2);
+                Storage::disk('s3')->putFileAs('documentosSolicitud/' . $data["id"], $request->file('foto2'), $imagen_domicilio2);
             }
         }
         $foto1 = $imagen_domicilio1;
@@ -18056,16 +18090,16 @@ class SeerController extends Controller
         // se guardan en tmp para moverlas definitivamente al finalizar.
         $destDirCitadoP = ($data["id"] == 'session')
             ? $this->documentosSolicitudTmpDir($draftId)
-            : 'documentosSolicitud';
+            : 'documentosSolicitud/' . $data["id"];
 
         if ($request->hasFile('foto1')) {
             $imagen_domicilio1 = $tempId . "-domicilio_Citado1.jpg" . Str::random(8) . ".jpg";
-            Storage::putFileAs($destDirCitadoP, $request->file('foto1'), $imagen_domicilio1);
+            Storage::disk('s3')->putFileAs($destDirCitadoP, $request->file('foto1'), $imagen_domicilio1);
         }
 
         if ($request->hasFile('foto2')) {
             $imagen_domicilio2 = $tempId . "-domicilio_Citado2.jpg" . Str::random(8) . ".jpg";
-            Storage::putFileAs($destDirCitadoP, $request->file('foto2'), $imagen_domicilio2);
+            Storage::disk('s3')->putFileAs($destDirCitadoP, $request->file('foto2'), $imagen_domicilio2);
         }
         $foto1 = $imagen_domicilio1;
         $foto2 = $imagen_domicilio2;
@@ -18909,15 +18943,16 @@ class SeerController extends Controller
 
         // Usar ID temporal si es sesión
         $tempId = ($data['id'] == 'session') ? uniqid('session_') : $data['id'];
+        $carpetaDestino = ($data['id'] == 'session') ? 'documentosSolicitud' : 'documentosSolicitud/' . $data['id'];
 
         if ($request->hasFile('foto1')) {
             $imagen_domicilio1 = $tempId . "-domicilio_Citado1.jpg" . Str::random(8) . ".jpg";
-            Storage::putFileAs('documentosSolicitud', $request->file('foto1'), $imagen_domicilio1);
+            Storage::disk('s3')->putFileAs($carpetaDestino, $request->file('foto1'), $imagen_domicilio1);
         }
-        
+
         if ($request->hasFile('foto2')) {
             $imagen_domicilio2 = $tempId . "-domicilio_Citado2.jpg" . Str::random(8) . ".jpg";
-            Storage::putFileAs('documentosSolicitud', $request->file('foto2'), $imagen_domicilio2);
+            Storage::disk('s3')->putFileAs($carpetaDestino, $request->file('foto2'), $imagen_domicilio2);
         }
         $foto1 = $imagen_domicilio1;
         $foto2 = $imagen_domicilio2;
@@ -20010,7 +20045,7 @@ class SeerController extends Controller
             $nombreArchivo = 'oficio-' . Str::random(8) . '-' . $oficialia->id . ".pdf";
             $rutaCarpeta = "documentosOficios/" . $oficialia->id;
             
-            Storage::putFileAs($rutaCarpeta, $request->file('documento_oficio'), $nombreArchivo);
+            Storage::disk('s3')->putFileAs($rutaCarpeta, $request->file('documento_oficio'), $nombreArchivo);
 
             $oficialia->update([
                 'ruta_oficio' => $rutaCarpeta . '/' . $nombreArchivo
@@ -20599,11 +20634,11 @@ class SeerController extends Controller
         }
 
         // 3. Manejo y guardado de archivos PDF
-        $destDir = ($id === 'session') ? $this->documentosSolicitudTmpDir($draftId) : 'documentosSolicitud';
+        $destDir = ($id === 'session') ? $this->documentosSolicitudTmpDir($draftId) : 'documentosSolicitud/' . $id;
 
         if ($request->hasFile('documentoIdentificacion')) {
             $documentoidentificacion = $data["curp"] . "_Identificacion.pdf";
-            Storage::putFileAs(
+            Storage::disk('s3')->putFileAs(
                 $destDir,
                 $request->file('documentoIdentificacion'),
                 $documentoidentificacion
@@ -20611,7 +20646,7 @@ class SeerController extends Controller
             $data_insert["documentoIdentificacion"] = $documentoidentificacion;
         } elseif ($request->hasFile('documentoActa')) {
             $documentoidentificacion = $data["curp"] . "_Acta.pdf";
-            Storage::putFileAs(
+            Storage::disk('s3')->putFileAs(
                 $destDir,
                 $request->file('documentoActa'),
                 $documentoidentificacion
@@ -20733,13 +20768,13 @@ class SeerController extends Controller
                 $tmpDir = $this->documentosSolicitudTmpDir($draftId);
                 $finalDir = "documentosSolicitud/{$realId}";
 
-                if (Storage::exists($tmpDir)) {
-                    $files = Storage::allFiles($tmpDir);
+                if (Storage::disk('s3')->exists($tmpDir)) {
+                    $files = Storage::disk('s3')->allFiles($tmpDir);
                     foreach ($files as $file) {
                         $filename = basename($file);
-                        Storage::move($file, "{$finalDir}/{$filename}");
+                        Storage::disk('s3')->move($file, "{$finalDir}/{$filename}");
                     }
-                    Storage::deleteDirectory($tmpDir);
+                    Storage::disk('s3')->deleteDirectory($tmpDir);
                 }
 
                 DB::commit();
@@ -20804,37 +20839,45 @@ class SeerController extends Controller
 
     public function verImagenDocumento($id_solicitud, $filename)
     {
-        // 1. Ruta relativa estándar a la raíz de storage/app/
+        $disk = Storage::disk('s3');
+
+        // 1. Ruta relativa estándar dentro de la carpeta de la solicitud
         $relativePath = "documentosSolicitud/{$id_solicitud}/{$filename}";
 
         // 2. Comprobar si existe el archivo exacto
-        if (Storage::exists($relativePath)) {
-            return response()->file(Storage::path($relativePath));
+        if ($disk->exists($relativePath)) {
+            return $disk->response($relativePath);
         }
 
         // 3. Si el archivo viene con el prefijo 'session_...', limpiamos el nombre
         $cleanFilename = preg_replace('/^session_[a-f0-9]+-/', '', $filename);
         $cleanPath = "documentosSolicitud/{$id_solicitud}/{$cleanFilename}";
 
-        if (Storage::exists($cleanPath)) {
-            return response()->file(Storage::path($cleanPath));
+        if ($disk->exists($cleanPath)) {
+            return $disk->response($cleanPath);
         }
 
-        // 4. Búsqueda flexible dentro de la carpeta /5038/
+        // 4. Fallback a ruta plana legacy (sin subcarpeta de ID)
+        $flatPath = "documentosSolicitud/{$filename}";
+        if ($disk->exists($flatPath)) {
+            return $disk->response($flatPath);
+        }
+
+        // 5. Búsqueda flexible dentro de la carpeta de la solicitud
         $folder = "documentosSolicitud/{$id_solicitud}";
-        if (Storage::exists($folder)) {
-            $files = Storage::files($folder);
-            
+        if ($disk->exists($folder)) {
+            $files = $disk->files($folder);
+
             foreach ($files as $file) {
                 $baseName = basename($file);
-                
+
                 // Si coincide parcialmente con el nombre del archivo
                 if (
-                    str_contains($filename, $baseName) || 
+                    str_contains($filename, $baseName) ||
                     str_contains($baseName, $cleanFilename) ||
                     (str_contains($filename, 'domicilio') && str_contains($baseName, 'domicilio'))
                 ) {
-                    return response()->file(Storage::path($file));
+                    return $disk->response($file);
                 }
             }
 
@@ -20843,54 +20886,66 @@ class SeerController extends Controller
             abort(404, "El archivo '{$filename}' no se encontró en la carpeta '{$folder}'. Los archivos reales en esta carpeta son: " . implode(', ', $archivosReales));
         }
 
-        // 5. Fallback por si la solicitud sigue en borrador (tmp)
+        // 6. Fallback por si la solicitud sigue en borrador (tmp)
         $tmpPath = "documentosSolicitud/tmp/{$filename}";
-        if (Storage::exists($tmpPath)) {
-            return response()->file(Storage::path($tmpPath));
+        if ($disk->exists($tmpPath)) {
+            return $disk->response($tmpPath);
         }
 
         abort(404, "No existe la carpeta de documentos para la solicitud ID: {$id_solicitud}");
     }
-    
+
     public function documento_identificacion_solicitante_ver($id)
     {
-        // 1. Obtener los datos de la solicitud o del solicitante si requieres el nombre de archivo guardado en DB
-        // $solicitud = Solicitud::find($id);
-        // $filename = $solicitud->imagen_identificacion ?? 'identificacion_solicitante.pdf';
+        $disk = Storage::disk('s3');
+
+        // 1. Intentar resolver el archivo exacto guardado en BD: primero en la subcarpeta con ID,
+        //    y si no está ahí, en la ruta plana legado (sin subcarpeta).
+        $solicitante = SeerSolicitante::where('id_solicitud', $id)->first();
+        $fileName = $solicitante->documentoIdentificacion ?? null;
+
+        if ($fileName && $fileName !== 'Sin documento') {
+            foreach (["documentosSolicitud/{$id}/{$fileName}", "documentosSolicitud/{$fileName}"] as $candidato) {
+                if ($disk->exists($candidato)) {
+                    return $disk->response($candidato, $fileName, [
+                        'Content-Type' => 'application/pdf',
+                    ]);
+                }
+            }
+        }
 
         $folder = "documentosSolicitud/{$id}";
 
         // Si existe la carpeta de la solicitud
-        if (Storage::exists($folder)) {
-            $files = Storage::files($folder);
+        if ($disk->exists($folder)) {
+            $files = $disk->files($folder);
 
             // A) Buscar un archivo que coincida con "identificacion", "ine", "cedula" o sea PDF
             foreach ($files as $file) {
                 $baseName = basename($file);
                 if (
-                    str_contains(strtolower($baseName), 'identificacion') || 
+                    str_contains(strtolower($baseName), 'identificacion') ||
                     str_contains(strtolower($baseName), 'solicitante') ||
                     str_contains(strtolower($baseName), 'ine') ||
                     pathinfo($baseName, PATHINFO_EXTENSION) === 'pdf'
                 ) {
-                    return response()->file(Storage::path($file), [
+                    return $disk->response($file, $baseName, [
                         'Content-Type' => 'application/pdf',
-                        'Content-Disposition' => 'inline; filename="' . $baseName . '"'
                     ]);
                 }
             }
 
             // B) Si no hay filtro específico, abrir el primer archivo encontrado en la carpeta
             if (count($files) > 0) {
-                return response()->file(Storage::path($files[0]));
+                return $disk->response($files[0]);
             }
         }
 
         // 2. Fallback: Buscar en la carpeta temporal (tmp) si la solicitud aún no concluye
-        $filesTmp = Storage::exists("documentosSolicitud/tmp") ? Storage::files("documentosSolicitud/tmp") : [];
+        $filesTmp = $disk->exists("documentosSolicitud/tmp") ? $disk->files("documentosSolicitud/tmp") : [];
         foreach ($filesTmp as $fileTmp) {
             if (str_contains(strtolower(basename($fileTmp)), 'identificacion')) {
-                return response()->file(Storage::path($fileTmp));
+                return $disk->response($fileTmp);
             }
         }
 
@@ -20903,45 +20958,45 @@ class SeerController extends Controller
 
         $carpetas = [
             'solicitud' => 'documentosSolicitud',
-            'poder'     => 'documentoAbogado',
+            'poder'     => 'documentos_abogados',
         ];
 
-        $nombreCarpeta = $carpetas[$tipo] ?? 'documentosSolicitud';
-        $rutaFisica = storage_path("app/{$nombreCarpeta}/{$id}/{$archivo}");
+        $carpeta = $carpetas[$tipo] ?? 'documentosSolicitud';
+        $path = "{$carpeta}/{$id}/{$archivo}";
 
-        if (!File::exists($rutaFisica)) {
-            abort(404, 'El archivo o imagen no existe.');
+        if (!Storage::disk('s3')->exists($path)) {
+            $fallbackPath = "{$carpeta}/{$archivo}";
+
+            if (!Storage::disk('s3')->exists($fallbackPath)) {
+                abort(404, 'El archivo o imagen no existe.');
+            }
+
+            $path = $fallbackPath;
         }
 
-        // Obtiene el MIME type correcto (image/jpeg, image/png, application/pdf, etc.)
-        $mimeType = File::mimeType($rutaFisica);
-
-        return response()->file($rutaFisica, [
-            'Content-Type' => $mimeType,
-            'Content-Disposition' => 'inline; filename="' . $archivo . '"'
-        ]);
+        return Storage::disk('s3')->response($path, $archivo);
     }
 
     public function verDocumento($tipo, $id, $archivo)
     {
         $carpetas = [
             'solicitud' => 'documentosSolicitud',
-            'poder'     => 'documentoAbogado',
+            'poder'     => 'documentos_abogados',
         ];
 
-        $nombreCarpeta = $carpetas[$tipo] ?? 'documentosSolicitud';
-        
-        // Construimos la ruta absoluta directa dentro del contenedor Docker
-        $rutaFisica = storage_path("app/{$nombreCarpeta}/{$id}/{$archivo}");
+        $carpeta = $carpetas[$tipo] ?? 'documentosSolicitud';
+        $path = "{$carpeta}/{$id}/{$archivo}";
 
-        if (!file_exists($rutaFisica)) {
-            abort(404, "Archivo no encontrado");
+        if (!Storage::disk('s3')->exists($path)) {
+            $fallbackPath = "{$carpeta}/{$archivo}";
+
+            if (!Storage::disk('s3')->exists($fallbackPath)) {
+                abort(404, "Archivo no encontrado");
+            }
+
+            $path = $fallbackPath;
         }
 
-        $mimeType = mime_content_type($rutaFisica) ?: 'image/jpeg';
-
-        return response()->file($rutaFisica, [
-            'Content-Type' => $mimeType
-        ]);
+        return Storage::disk('s3')->response($path);
     }
 }

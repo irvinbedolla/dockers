@@ -8,6 +8,7 @@ use App\Models\User;
 use Spatie\Permission\Models\Role;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Auth, Hash;
 use App\Models\Recepcion;
 use App\Models\CitaDireccion;
@@ -560,51 +561,46 @@ class HomeController extends Controller
         }
         //dd($data_insertar);
 
-        //Documentos si cargaron el folio
+        //Documentos si cargaron el folio (solo se calculan los nombres aquí; los archivos
+        //se guardan más abajo, ya con el ID del turno para poder organizarlos por subcarpeta)
         if(isset($data["folio"])){
             $nombre_ine             = $representante["nombres"]."".$representante["primer_apellido"]."".$representante["segundo_apellido"]."-".$representante["empresa"]."_IDENTIFICACION.pdf";
             $nombre_representación  = $representante["nombres"]."".$representante["primer_apellido"]."".$representante["segundo_apellido"]."-".$representante["empresa"]."_REPRESENTACION.pdf";
         }
         else{
-            //Se carga el INE del abogado
             $nombre_ine = $data["nombre_empresa"]."".$data["primero_empresa"]."".$data["segundo_empresa"]."-".$data["empresa"]."_IDENTIFICACION.pdf";
-            $path = Storage::putFileAs(
-                'documentos_ratificacion', $request->file('documentoIne'), $nombre_ine
-            );
-            
-            //Se carga el Poder del abogado
             $nombre_representación = $data["nombre_empresa"]."".$data["primero_empresa"]."".$data["segundo_empresa"]."-".$data["empresa"]."_PODER.pdf";
-            $path = Storage::putFileAs(
-                'documentos_ratificacion', $request->file('documentoPoder'), $nombre_representación
-            );
         }
-        
-        $trabajador_curp = $data["trabajador_curp"].".pdf";
-        $path = Storage::putFileAs(
-            'documentos_ratificacion', $request->file('documentoCurp'), $trabajador_curp
-        );
 
+        $trabajador_curp = $data["trabajador_curp"].".pdf";
         $trabajador_identificacion  = $data["trabajador_curp"]."_IDENTIFICACION.pdf";
-        $path = Storage::putFileAs(
-            'documentos_ratificacion', $request->file('documentoidentificacion'), $trabajador_identificacion
-        );
 
         $data_insertar["ine"]                       = $nombre_ine;
-        $data_insertar["representacion"]            = $nombre_representación;   
+        $data_insertar["representacion"]            = $nombre_representación;
         $data_insertar["documentoCurp"]             = $trabajador_curp;
-        $data_insertar["documentoidentificacion"]   = $trabajador_identificacion;  
-
+        $data_insertar["documentoidentificacion"]   = $trabajador_identificacion;
 
         if(isset($data["cuantificacion"])){
             $cuantificacion  = $data["trabajador_curp"]."_CUANTIFICACION.pdf";
-            $path = Storage::putFileAs(
-                'documentos_ratificacion', $request->file('cuantificacion'), $cuantificacion
-            );
             $data_insertar["documentoCuanti"] = $cuantificacion;
         }
 
-        //Se van insetar todos los datos
-        Turnos::create($data_insertar);
+        //Se van insetar todos los datos: primero el registro (para tener el ID del expediente),
+        //y ya con ese ID guardamos los archivos dentro de su subcarpeta.
+        $turno = Turnos::create($data_insertar);
+        $id_turno = $turno->id;
+
+        if(!isset($data["folio"])){
+            Storage::disk('s3')->putFileAs('documentos_ratificacion/' . $id_turno, $request->file('documentoIne'), $nombre_ine);
+            Storage::disk('s3')->putFileAs('documentos_ratificacion/' . $id_turno, $request->file('documentoPoder'), $nombre_representación);
+        }
+
+        Storage::disk('s3')->putFileAs('documentos_ratificacion/' . $id_turno, $request->file('documentoCurp'), $trabajador_curp);
+        Storage::disk('s3')->putFileAs('documentos_ratificacion/' . $id_turno, $request->file('documentoidentificacion'), $trabajador_identificacion);
+
+        if(isset($data["cuantificacion"])){
+            Storage::disk('s3')->putFileAs('documentos_ratificacion/' . $id_turno, $request->file('cuantificacion'), $cuantificacion);
+        }
 
        
         //Revisar si ya existe el correo
