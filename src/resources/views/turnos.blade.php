@@ -5,11 +5,6 @@
     <meta name="csrf-token" content="{{ csrf_token() }}"/>
     <title>Si concilio</title>
     <meta content='width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no' name='viewport'>
-    <!-- Bootstrap 5.3.3 -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-
-    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/index.global.min.js'></script>
 
     <!-- Ionicons -->
     <link rel="icon" href="{{ asset('assets/images/ccl-r.png') }}" type="image/x-icon">
@@ -18,98 +13,156 @@
     <link href="{{ asset('assets/css/iziToast.min.css') }}" rel="stylesheet">
     <link href="{{ asset('assets/css/sweetalert.css') }}" rel="stylesheet" type="text/css"/>
     <link href="{{ asset('assets/css/select2.min.css') }}" rel="stylesheet" type="text/css"/>
+
+    <link rel="icon" href="{{ asset('assets/images/ccl-r.png') }}" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+    <!-- Bootstrap 5.3 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <!-- Libraries CSS -->
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/index.global.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/locales-all.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet"/>
+    <link href="public/assets/css/iziToast.min.css" rel="stylesheet">
+    <link href="public/assets/css/sweetalert.css" rel="stylesheet">
     
     <!-- jQuery y Select2 -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    
 
     <style>
-        p {
-            text-align: justify;
-            padding: 20px 20px;
-
+       
+        :root {
+            --color-guinda: #6A0F49;
+            --color-guinda-dark: #530c3a;
+            --color-oro: #CEA845;
+            --color-oro-dark: #b59238;
+            --color-gris-bg: #f8f9fa;
         }
-        .loader {
-            position: fixed;
-            left: 0px;
-            top: 0px;
+
+        /* Página */
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--color-gris-bg);
+            color: #333;
+            padding-top: 100px;
+        }
+
+        /* Navbar */
+        .navbar-institucional {
+            background-color: #fff;
+            border-bottom: 3px solid var(--color-oro);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, .08);
+        }
+
+        /* Encabezados */
+        .card-header-guinda {
+            background-color: var(--color-guinda);
+            color: #fff;
+            font-weight: 600;
+        }
+
+        .section-title-banner {
+            background-color: #f1f3f5;
+            border-left: 4px solid var(--color-guinda);
+            padding: 8px 15px;
+            margin-bottom: 20px;
+            font-weight: 700;
+            color: var(--color-guinda);
+        }
+
+        /* Botones */
+        .btn-guinda {
+            background-color: var(--color-guinda);
+            color: #fff;
+            border: none;
+        }
+
+        .btn-guinda:hover,
+        .btn-guinda:focus {
+            background-color: var(--color-guinda-dark);
+            color: #fff;
+        }
+
+        .btn-oro {
+            background-color: var(--color-oro);
+            color: #fff;
+            border: none;
+            font-weight: 500;
+        }
+
+        .btn-oro:hover,
+        .btn-oro:focus {
+            background-color: var(--color-oro-dark);
+            color: #fff;
+        }
+
+        /* =========================
+        FULLCALENDAR
+        ========================= */
+
+        #calendarTurno {
             width: 100%;
-            height: 100%;
-            z-index: 9999;
-            background: url('public/assets/images/pageLoader.gif') 50% 50% no-repeat rgb(249,249,249);
-           /* background-color: #6A0F49;/*<p style="color: #CEA845*/
-            opacity: .8;
-        }
-        .resultado {
-            background-color: red;
-            color: white;
-            font-weight: bold;
-        }
-        .resultado.ok {
-            background-color: green;
+            min-height: 520px;
         }
 
+        /* Eventos */
         .fc-event {
             padding: 3px 6px !important;
             border-radius: 4px !important;
             font-size: 12px !important;
+        }
+
+        /* Disponible */
+        .fc-event-disponible,
+        .fc-event-turnos {
+            background-color: #26c03a !important;
+            border-color: #26c03a !important;
+            color: #fff !important;
             cursor: pointer;
         }
 
-        #calendarTurno {
-            width: 100%;
-            min-height: 500px;
-        }
-
-        .fc-event-disponible {
-            color: #ffff !important;
-            background-color: #00CE1C !important;
-            border-color: #00CE1C !important;
-            cursor: pointer;
-        }
-
+        /* Expirado */
         .fc-event-expirado {
-            color: #ffff !important;
             background-color: #8a959e !important;
             border-color: #8a959e !important;
+            color: #fff !important;
             cursor: not-allowed;
         }
 
+        /* Día inhábil */
         .fc-event-inhabil {
-            color: #ffff !important;
             background-color: #3B78DB !important;
             border-color: #3B78DB !important;
+            color: #fff !important;
             cursor: not-allowed;
         }
 
+        /* Ocupado */
         .fc-event-ocupado {
-            color: #ffff !important;
-            background-color: #DA0909 !important;
-            border-color: #DA0909 !important;
+            background-color: #dc3545 !important;
+            border-color: #dc3545 !important;
+            color: #fff !important;
             cursor: not-allowed;
         }
 
-        .fc-event-turnos {
-            color: #ffff !important;
-            background-color: #00CE1C !important;
-            border-color: #00CE1C !important;
-            cursor: pointer;
-        }
-
+        /* Evento seleccionado */
         .fc-event-selected {
-            border: 2px solid #FFD700 !important;
-            box-shadow: 0 0 8px #FFD700;
+            border: 3px solid var(--color-oro) !important;
+            box-shadow: 0 0 10px rgba(206, 168, 69, .8);
         }
 
+        /* Modal del calendario */
         .modal-xl.grande {
             max-width: 95% !important;
         }
-        .modal-xl{
-            max-width: 40% !important;
-        }
 
-      .modal-content.modal-grande {
+        .modal-content.modal-grande {
             height: 90vh;
         }
 
@@ -117,61 +170,63 @@
             overflow-y: auto;
             font-size: 18px;
         }
-        .modal-titulo{
-            height: 50px;
+
+        /* Títulos de modal */
+        .modal-titulo {
+            background-color: var(--color-guinda);
+            color: #fff;
+            padding: 10px;
             font-size: 20px;
-            padding: 10px 10px;
-            background-color: #6A0F49 !important;
-            color: #fff !important;
-            border: none;
         }
 
-        .btn-custom-morado {
-            height: 50px;
-            font-size: 12px;
-            padding: 5px 10px;
-            background-color: #6A0F49 !important;
-            color: #fff !important;
-            border: none;
+        /* Loader */
+        .loader {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background: url("{{ asset('assets/images/pageLoader.gif') }}")
+                50% 50% no-repeat rgba(255, 255, 255, .85);
         }
-        .btn-custom-morado:hover, .btn-custom-morado:focus {
-            background-color: #530c3a !important;
-            color: #fff !important;
-        }
+
+
     </style>
     @livewireStyles
 
     @yield('page_css')
     <!-- Template CSS <img src="public/assets_seer/images/ccl.png" width="180" height="90" style="position: absolute; left: 100px; top: 10px; right:0px;"/>  -->
     <link rel="stylesheet" href="{{ asset('assets/css/components.css') }}">
-    @yield('page_css')
+
 </head>
-<nav class="navbar navbar-expand-lg navbar-light bg-light fixed-top">
-    <div class="">
-        <img src="{{ asset('assets/images/Logos 2.png') }}" class="img" width="260" height="90">
-    </div> 
-</nav>
-<body onload="validarcheckfolio()">
-    <main>
-        <div class="container">
-            <br><br><br><br>
+<nav class="navbar navbar-expand-lg navbar-light navbar-institucional fixed-top px-4">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <img src="{{ asset('assets/images/Logos 2.png') }}" alt="CCL Michoacán" height="65">
+            </a>
+            <span class="navbar-text fw-bold d-none d-md-block text-secondary">
+                Centro de Conciliación Laboral del Estado de Michoacán
+            </span>
         </div>
-        <div id="app">  
-        <section class="section"> 
-            <div class="section-body">
-                <div class="row"> 
-                    <div class="col-lg-12" >
-                        <div class="card">
-                            <div class="card-body">
-                                <!--Se realiza la validación de campos para ver si dejó alguno vacío-->
-                                
-                                <div style="background-color:#D2D3D5; width:100%; height:40px;">
-                                    <h3 class="text-center" style="color:black">Datos Generales</h3>
-                                </div>   
+    </nav>
+<body onload="validarcheckfolio()">
+    <main class="container mb-5">
+        <div id="app">
+            <section class="section">
+                <div class="card shadow-sm border-0">
+                    <div class="card-header card-header-guinda py-3">
+                        <h4 class="m-0 text-center fs-5"><i class="bi bi-calendar-check me-2"></i>Genera tu Cita</h4>
+                    </div>
+                    <div class="card-body p-4"> 
 
                             <!--Se realiza el envío de datos con formulario de Laravel Collective-->
                             <form class='needs-validation novalidate' id='form_roles' method='POST' action="{{route('turnos_publico')}}">
                                 @csrf
+                                <div id="datos_formulario">
+                                
+                                <!-- SECCIÓN 1: DATOS DEL TRABAJADOR -->
+                                <div class="section-title-banner mt-3">
+                                    <i class="bi bi-border-width me-2"></i>1. Datos Generales
+                                </div>
+
                                 <div class="row">
                                     <div class="col-xs-12 col-sm-12 col-md-4">
                                         <div class="form-group mb-3">
@@ -211,8 +266,8 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div style="background-color:#D2D3D5; width:100%; height:40px;">
-                                    <h3 class="text-center" style="color:black">Datos de Solicitante</h3>
+                                <div class="section-title-banner mt-3">
+                                    <i class="bi bi-person-badge me-2"></i>2. Datos del Solicitante
                                 </div>   
                                 <div class="row">
                                     <div class="col-xs-12 col-sm-12 col-md-4">
@@ -344,17 +399,22 @@
                                         </div>
                                     </div>
                                     
-                                    <div class="d-flex align-items-center gap-2">
+                                    <div class="col-md-4 d-flex align-items-end">
+                                
                                         <input type="hidden" name="fecha_turno" id="fecha_turno" value="">
                                         <input type="hidden" name="hora_turno" id="hora_turno" value="">
-                                        <button type="button" id="botonCalendar" class="btn btn-lg btn-custom-morado" data-bs-toggle="modal" data-bs-target="#calendarModal" disabled>
-                                            Seleccionar Fecha y Horario
+                                        <button type="button" id="botonCalendar" class="btn btn-guinda w-100 py-2" data-bs-toggle="modal" data-bs-target="#calendarModal" disabled>
+                                            <i class="bi bi-calendar-week"></i> Seleccionar Fecha y Horario
                                         </button>
                                         <div id="resumenTurno" class="alert alert-info mt-2" style="display:none;"></div>
+                                    
                                     </div>
 
-                                    <div class="d-flex justify-content-center align-items-center">
-                                        <button type="submit" class="btn btn-secondary">Guardar</button>
+                                    <div class="text-center pt-3 border-top">
+                                        <button type="submit" class="btn btn-oro btn-lg px-5 me-2">
+                                            <i class="bi bi-box-arrow-down me-1"></i> Guardar Cita
+                                        </button>
+                                    
                                     </div>
                                 </div>
                             </form>
@@ -387,19 +447,41 @@
             </div>
 
             <div class="modal fade" id="calendarModal" tabindex="-1" aria-hidden="true">
-                <div class="modal-dialog modal-dialog-centered modal-xl grande">
-                    <div class="modal-content modal-grande">
-                        <div class="modal-header">
-                            <h5 class="modal-title">Seleccionar Fecha y Horario</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <div class="modal-dialog modal-dialog-centered modal-xl">
+                    <div class="modal-content">
+
+                        <div class="modal-header card-header-guinda py-2">
+                            <h5 class="modal-title text-white fs-6">
+                                <i class="bi bi-clock me-2"></i>
+                                Seleccionar Horario Disponible
+                            </h5>
+
+                            <button type="button"
+                                    class="btn-close btn-close-white"
+                                    data-bs-dismiss="modal"
+                                    aria-label="Close">
+                            </button>
                         </div>
+
                         <div class="modal-body">
                             <div id="calendarTurno"></div>
                         </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                            <button type="button" class="btn btn-primary" id="confirmarTurno" disabled>Confirmar</button>
+
+                        <div class="modal-footer bg-light py-2">
+                            <button type="button"
+                                    class="btn btn-secondary btn-sm"
+                                    data-bs-dismiss="modal">
+                                Cancelar
+                            </button>
+
+                            <button type="button"
+                                    class="btn btn-primary btn-sm"
+                                    id="confirmarTurno"
+                                    disabled>
+                                Confirmar
+                            </button>
                         </div>
+
                     </div>
                 </div>
             </div>
@@ -458,7 +540,7 @@
                 <div class="row">
                     <div class="col-xs-12 col-sm-12 col-md-12">
                         <div class="form-group">
-                            <h5 class="text-center modal-titulo" >Aviso de Privacidad</h5>
+                            <h5 class="text-center modal-titulo" > <i class="bi bi-shield-lock me-2"></i>Aviso de Privacidad</h5>
                         </div>
                     </div>
                     <div class="col-xs-12 col-sm-12 col-md-12">
@@ -589,52 +671,98 @@
                 const calendarEl = document.getElementById("calendarTurno");
                 const inputExcepcion = document.getElementById('excepcion');
                 const excepcion = inputExcepcion.value;
-
                 calendarTurno = new FullCalendar.Calendar(calendarEl, {
-                    initialView: window.innerWidth < 768 ? 'listWeek' : 'dayGridWeek',
+
+                    // Vista inicial igual al primer calendario
+                    initialView: 'dayGridWeek',
+
                     locale: 'es',
                     firstDay: 1,
-                    headerToolbar: { left: 'prev,next today', center: 'title', right: '' },
-                    validRange: {
-                        start: new Date().toISOString().split('T')[0],
+
+                    // Botones del calendario
+                    headerToolbar: {
+                        left: 'prev,next today',
+                        center: 'title',
+                        right: 'dayGridWeek,timeGridDay'
                     },
+
+                    // No permitir fechas anteriores a hoy
+                    validRange: {
+                        start: new Date().toISOString().split('T')[0]
+                    },
+
+                    // Formato de hora
+                    eventTimeFormat: {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    },
+
+                    // Obtener eventos
                     events: function (fetchInfo, successCallback, failureCallback) {
+
                         const params = new URLSearchParams({
                             sede: delegacion,
                             tipo: tipo,
                             excepcion: excepcion,
                             start: fetchInfo.startStr,
-                            end: fetchInfo.endStr,
+                            end: fetchInfo.endStr
                         });
 
                         fetch("{{ url('/api/obtenerTurnosDisponibles') }}?" + params.toString())
-                            .then(function (res) { return res.json(); })
-                            .then(function (data) { successCallback(data); })
-                            .catch(function (err) {
-                                console.error('Error al cargar horarios disponibles', err);
-                                failureCallback('Error al cargar horarios disponibles');
+                            .then(response => response.json())
+                            .then(data => successCallback(data))
+                            .catch(error => {
+                                console.error(
+                                    'Error al cargar horarios disponibles:',
+                                    error
+                                );
+
+                                failureCallback(
+                                    'Error al cargar horarios disponibles'
+                                );
                             });
                     },
-                    eventTimeFormat: { hour: '2-digit', minute: '2-digit' },
+
+                    // Seleccionar horario
                     eventClick: function (info) {
+
                         const estado = info.event.extendedProps.estado;
+
+                        // Sólo se pueden seleccionar estos estados
                         if (estado !== 'disponible' && estado !== 'turnos') {
-                            alert('Este horario no está disponible. Por favor seleccione otro.');
+                            alert(
+                                'Este horario no está disponible. Por favor seleccione otro.'
+                            );
                             return;
                         }
 
-                        document.querySelectorAll('.fc-event-selected').forEach(function (el) {
-                            el.classList.remove('fc-event-selected');
-                        });
+                        // Quitar selección anterior
+                        document
+                            .querySelectorAll('.fc-event-selected')
+                            .forEach(evento => {
+                                evento.classList.remove('fc-event-selected');
+                            });
+
+                        // Marcar evento seleccionado
                         info.el.classList.add('fc-event-selected');
 
                         turnoSeleccionado = info.event;
-                        document.getElementById("confirmarTurno").removeAttribute("disabled");
+
+                        document
+                            .getElementById('confirmarTurno')
+                            .removeAttribute('disabled');
                     },
+
+                    // Aplicar colores según estado
                     eventDidMount: function (info) {
-                        info.el.classList.add('fc-event-' + info.event.extendedProps.estado);
-                    },
+                        const estado = info.event.extendedProps.estado;
+
+                        if (estado) {
+                            info.el.classList.add(`fc-event-${estado}`);
+                        }
+                    }
                 });
+
 
                 calendarTurno.render();
                 setTimeout(function () {
@@ -710,7 +838,6 @@
 
     <script src="{{ asset('assets/js/sweetalert.min.js') }}"></script>
     <script src="{{ asset('assets/js/jquery.nicescroll.js') }}"></script>
-    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/locales-all.min.js"></script>
 
     <!-- Template JS File -->
     <script src="{{ asset('assets/js/stisla.js') }}"></script>

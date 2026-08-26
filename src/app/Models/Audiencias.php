@@ -38,6 +38,12 @@ class Audiencias extends Model
         return $this->hasMany(Pagos::class, 'id_solicitud', 'id_solicitud');
     }
 
+    public function conceptoPtu() {
+        return $this->hasOne(Concepto::class, 'id_solicitud', 'id_solicitud')
+            ->where('tipo_pago', 'Audiencia')
+            ->where('descripcion', 'PTU');
+    }
+
     public function poder() {
         return $this->belongsTo(Poder::class, 'poder_id', 'idAbogado');
     }

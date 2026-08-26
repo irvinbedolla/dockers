@@ -1976,6 +1976,155 @@ class TurnosController extends Controller
         return view('/ratificaciones/index',compact('auxiliares','conciliadores'));
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | RETROCESO DE RATIFICACIONES
+    |--------------------------------------------------------------------------
+    | Devuelve una ratificación ya concluida al estatus "Confirmado" para que el
+    | botón "Concluir" vuelva a habilitarse y pueda recapturarse el convenio.
+    | Acceso: Super Usuario, Administrador y Delegado (ver routes/web.php).
+    */
+
+    // Prefijos con los que se arma el NUE. Debe coincidir con GeneraExpediente().
+    private function prefijosDelegacion(): array
+    {
+        return [
+            'MOR' => 'Morelia',
+            'URU' => 'Uruapan',
+            'ZAM' => 'Zamora',
+            'ZIT' => 'Zitácuaro',
+            'LZC' => 'Lázaro Cárdenas',
+            'SAH' => 'Sahuayo',
+        ];
+    }
+
+    public function index_retroceso()
+    {
+        return view('ratificaciones.index_retroceso');
+    }
+
+    public function retroceso_ratificacion_index()
+    {
+        $delegaciones = $this->prefijosDelegacion();
+
+        return view('ratificaciones.retroceso', compact('delegaciones'));
+    }
+
+    public function buscar_retroceso_ratificacion(Request $request)
+    {
+        $prefijos = array_keys($this->prefijosDelegacion());
+
+        $request->validate([
+            'delegacion'  => 'required|string|in:' . implode(',', $prefijos),
+            'anio'        => 'required|integer|min:' . (date('Y') - 5) . '|max:' . date('Y'),
+            'consecutivo' => 'required|integer|min:1',
+        ], [
+            'delegacion.required'  => 'Debe seleccionar la delegación del NUE.',
+            'delegacion.in'        => 'La delegación seleccionada no es válida.',
+            'anio.required'        => 'Debe seleccionar el año del NUE.',
+            'anio.min'             => 'El año seleccionado está fuera del rango permitido.',
+            'anio.max'             => 'El año seleccionado está fuera del rango permitido.',
+            'consecutivo.required' => 'El consecutivo es obligatorio.',
+            'consecutivo.integer'  => 'El consecutivo debe ser un número entero.',
+            'consecutivo.min'      => 'El consecutivo debe ser mayor a 0.',
+        ]);
+
+        // El NUE se arma igual que en GeneraExpediente(): MOR/RAT/2026/00576
+        $nue = $request->delegacion . '/RAT/' . $request->anio . '/'
+             . str_pad($request->consecutivo, 5, '0', STR_PAD_LEFT);
+
+        $turnos = Turnos::where('NUE', $nue)->get();
+
+        if ($turnos->isEmpty()) {
+            return back()->withErrors("No se encontró ninguna ratificación con el NUE {$nue}.");
+        }
+
+        $resultados = $turnos->map(function ($turno) {
+            // Se muestra al operador qué se va a borrar antes de que confirme.
+            $conceptos   = Concepto::where('id_solicitud', $turno->id)->where('tipo_pago', 'Ratificacion')->count();
+            $deducciones = Deducciones::where('id_solicitud', $turno->id)->where('tipo_pago', 'Ratificacion')->count();
+            $pagos       = Pagos::where('id_solicitud', $turno->id)->where('tipo_pago', 'Ratificacion')->count();
+            $pagados     = Pagos::where('id_solicitud', $turno->id)
+                ->where('tipo_pago', 'Ratificacion')
+                ->whereIn('estatus', ['Pagado', 'Pagado con pena convencional'])
+                ->count();
+
+            return [
+                'id'          => $turno->id,
+                'NUE'         => $turno->NUE,
+                'fecha'       => $turno->fecha,
+                'delegacion'  => $turno->delegacion,
+                'estatus'     => $turno->estatus,
+                'trabajador'  => trim($turno->trabajador . ' ' . $turno->primero_trabajador . ' ' . $turno->segundo_trabajador),
+                'empresa'     => trim($turno->empresa . ' ' . $turno->primero_empresa . ' ' . $turno->segundo_empresa),
+                'conceptos'   => $conceptos,
+                'deducciones' => $deducciones,
+                'pagos'       => $pagos,
+                'pagados'     => $pagados,
+                'retrocedible' => in_array($turno->estatus, ['Concluida', 'Concluida Pagos', 'Incumplimiento']),
+            ];
+        })->toArray();
+
+        return back()
+            ->with('message', "Ratificación localizada: {$nue}")
+            ->with('resultados_retroceso', $resultados);
+    }
+
+    public function aplicar_retroceso_ratificacion($id)
+    {
+        $turno = Turnos::find($id);
+
+        if (!$turno) {
+            return back()->withErrors('La ratificación no existe.');
+        }
+
+        if (!in_array($turno->estatus, ['Concluida', 'Concluida Pagos', 'Incumplimiento'])) {
+            return back()->withErrors(
+                "Solo se puede retroceder una ratificación concluida. Estatus actual: {$turno->estatus}."
+            );
+        }
+
+        $estatusPrevio = $turno->estatus;
+
+        DB::transaction(function () use ($id, $turno, $estatusPrevio) {
+            // Se guarda lo que se va a borrar para dejarlo en la bitácora.
+            $borrado = [
+                'pagos'       => Pagos::where('id_solicitud', $id)->where('tipo_pago', 'Ratificacion')->get()->toArray(),
+                'conceptos'   => Concepto::where('id_solicitud', $id)->where('tipo_pago', 'Ratificacion')->get()->toArray(),
+                'deducciones' => Deducciones::where('id_solicitud', $id)->where('tipo_pago', 'Ratificacion')->get()->toArray(),
+            ];
+
+            // IMPORTANTE: el filtro tipo_pago es obligatorio. id_solicitud es una
+            // columna polimórfica: con 'Ratificacion' apunta a turnos.id y con
+            // 'Audiencia' a seer_general.id. Sin el filtro se borran los registros
+            // de la audiencia que comparta el mismo número de id.
+            Pagos::where('id_solicitud', $id)->where('tipo_pago', 'Ratificacion')->delete();
+            Concepto::where('id_solicitud', $id)->where('tipo_pago', 'Ratificacion')->delete();
+            Deducciones::where('id_solicitud', $id)->where('tipo_pago', 'Ratificacion')->delete();
+
+            // El registro de turnos NO se borra: solo se limpian las manifestaciones
+            // y se regresa al estatus que habilita el botón "Concluir".
+            $turno->update([
+                'estatus'                  => 'Confirmado',
+                'resolucion_primera'       => null,
+                'resolucion_trabajadores'  => null,
+                'resolucion_justificacion' => null,
+                'resolucion_segunda'       => null,
+            ]);
+
+            Log::warning('Retroceso de ratificación aplicado', [
+                'turno_id'       => $id,
+                'NUE'            => $turno->NUE,
+                'estatus_previo' => $estatusPrevio,
+                'user_id'        => auth()->id(),
+                'user'           => auth()->user()->name ?? null,
+                'borrado'        => $borrado,
+            ]);
+        });
+
+        return back()->with('success', "Retroceso aplicado al NUE {$turno->NUE}. La ratificación puede capturarse nuevamente.");
+    }
+
     public function busqueda_ratificaciones(Request $request){
         $data = $request->all();
         $bandera_fechas         = 0;
@@ -3042,4 +3191,6 @@ class TurnosController extends Controller
        
         return back()->with('success', 'Solicitud Capturada Correctamente.'  ); 
     }
+
+
 }

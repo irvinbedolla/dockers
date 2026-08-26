@@ -542,11 +542,23 @@
                     html +='<option value="Gratificación D">Graficación D (Incluye cualquier otra prestación)</option>';
                     html +='<option value="Gratificación E">Graficación E (Prestaciones en especie)</option>';
                     html +='<option value="Gratificación F">Graficación F (Reconocimiento de derechos)</option>';
+                    html +='<option value="PTU">PTU</option>';
                     html +='<option value="Otras">Otros concepto de pago</option>';
                     html +='</select>';
                     // Campo para escribir otra prestación (solo si se selecciona "Otras")
                     html += '<div class="otra-prestacion-input" style="display: none; margin-top: 10px;">';
                     html += '<input type="text" class="form-control" name="otra_prestacion[]" maxlength="200" placeholder="Especifique la prestación" />';
+                    html += '</div>';
+                    // Select de año PTU (solo visible si se selecciona "PTU")
+                    html += '<div class="ptu-year-container" style="display: none; margin-top: 10px;">';
+                    html += '<label>Ejercicio Fiscal Correspondiente del Pago de Utilidades</label>';
+                    html += '<select class="form-control ptu-year-select" name="year_ptu[]">';
+                    html += '<option value="">Seleccione el año</option>';
+                    for (var yPtu = new Date().getFullYear(); yPtu >= 2010; yPtu--) {
+                        html += '<option value="' + yPtu + '">' + yPtu + '</option>';
+                    }
+                    html += '</select>';
+                    html += '<div class="invalid-feedback">El año de PTU es obligatorio.</div>';
                     html += '</div>';
                     html +='<div class="invalid-feedback">El tipo de pago es obligatorio.</div>';
                     html += '</div> </div>';
@@ -932,6 +944,15 @@
                 if (!input.required) input.classList.remove('is-invalid');
             });
 
+            document.querySelectorAll('.ptu-year-container').forEach(function(container) {
+                const select = container.querySelector('select[name="year_ptu[]"]');
+                if (!select) return;
+                const tipoSelect = container.closest('.form-group') ? container.closest('.form-group').querySelector('select[name="tipo_pago[]"]') : null;
+                const esPtu = !!(tipoSelect && tipoSelect.value === 'PTU');
+                select.required = convenio && esPtu;
+                if (!select.required) select.classList.remove('is-invalid');
+            });
+
             document.querySelectorAll('select#tipoPago').forEach(function(sel) {
                 sel.required = convenio;
                 sel.disabled = !convenio;
@@ -1303,6 +1324,8 @@
         $(document).on('change', '.tipo-pago-select', function () {
             var selected = $(this).val();
             var container = $(this).closest('.form-group').find('.otra-prestacion-input');
+            var ptuContainer = $(this).closest('.form-group').find('.ptu-year-container');
+            var ptuSelect = ptuContainer.find('.ptu-year-select');
 
             ensureReinstalacionOption($(this));
             toggleMontoPrestacionForReinstalacion($(this));
@@ -1313,6 +1336,14 @@
             } else {
                 container.hide();
                 container.find('input').val('').removeAttr('required');
+            }
+
+            if (selected === 'PTU') {
+                ptuContainer.show();
+                ptuSelect.attr('required', true);
+            } else {
+                ptuContainer.hide();
+                ptuSelect.val('').removeAttr('required');
             }
         });
 
@@ -1649,7 +1680,7 @@
     <script>
         window.__previewData = {!! isset($previewData) && $previewData ? json_encode($previewData, JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_AMP|JSON_HEX_QUOT) : 'null' !!};
 
-        function generatePrestacionRow(tipoPagoVal, montoVal, otraPrestacionVal) {
+        function generatePrestacionRow(tipoPagoVal, montoVal, otraPrestacionVal, yearPtuVal) {
             var html = '';
             html += '<div id="inputFormRow1" class="row mb-2 align-items-end">';
             html +='<div class="col-xs-12 col-sm-12 col-md-6">';
@@ -1657,7 +1688,7 @@
                 html +='<label for="confirm-password"><br>Prestación</label>'; 
                 html +='<select class="form-control tipo-pago-select" name="tipo_pago[]" >';
                 html +='<option value="">Seleccione</option>';
-                var options = ['Aguinaldo','Días de sueldo','Vacaciones','Prima Vacacional','Gratificación A','Gratificación B','Gratificación C','Gratificación D','Gratificación E','Gratificación F','Otras'];
+                var options = ['Aguinaldo','Días de sueldo','Vacaciones','Prima Vacacional','Gratificación A','Gratificación B','Gratificación C','Gratificación D','Gratificación E','Gratificación F','PTU','Otras'];
                 options.forEach(function(opt){
                     var sel = opt === tipoPagoVal ? ' selected' : '';
                     html += '<option value="'+opt+'"'+sel+'>'+opt.replace(/</g,'&lt;')+'</option>';
@@ -1665,6 +1696,17 @@
                 html +='</select>';
                 html += '<div class="otra-prestacion-input" style="' + (tipoPagoVal === 'Otras' ? 'display:block; margin-top:10px;' : 'display:none; margin-top:10px;') + '">';
                 html += '<input type="text" class="form-control" name="otra_prestacion[]" value="'+ (otraPrestacionVal ? String(otraPrestacionVal).replace(/"/g,'&quot;') : '') +'" placeholder="Especifique la prestación" />';
+                html += '</div>';
+                html += '<div class="ptu-year-container" style="' + (tipoPagoVal === 'PTU' ? 'display:block; margin-top:10px;' : 'display:none; margin-top:10px;') + '">';
+                html += '<label>Ejercicio Fiscal Correspondiente del Pago de Utilidades</label>';
+                html += '<select class="form-control ptu-year-select" name="year_ptu[]">';
+                html += '<option value="">Seleccione el año</option>';
+                for (var yPtu = new Date().getFullYear(); yPtu >= 2010; yPtu--) {
+                    var selYear = (yearPtuVal && parseInt(yearPtuVal, 10) === yPtu) ? ' selected' : '';
+                    html += '<option value="' + yPtu + '"' + selYear + '>' + yPtu + '</option>';
+                }
+                html += '</select>';
+                html += '<div class="invalid-feedback">El año de PTU es obligatorio.</div>';
                 html += '</div>';
                 html +='<div class="invalid-feedback">El tipo de pago es obligatorio.</div>';
                 html += '</div> </div>';
@@ -1770,7 +1812,8 @@
                         var tipo = data['tipo_pago'][i];
                         var monto = data['monto_pago'] && data['monto_pago'][i] ? data['monto_pago'][i] : '';
                         var otra = data['otra_prestacion'] && data['otra_prestacion'][i] ? data['otra_prestacion'][i] : '';
-                        $('#newRow').append(generatePrestacionRow(tipo, monto, otra));
+                        var yearPtu = data['year_ptu'] && data['year_ptu'][i] ? data['year_ptu'][i] : '';
+                        $('#newRow').append(generatePrestacionRow(tipo, monto, otra, yearPtu));
                     }
                     // Asegura required correcto en selects generados desde preview
                     if (typeof syncPrestacionesRequired === 'function') {

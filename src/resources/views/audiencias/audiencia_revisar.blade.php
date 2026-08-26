@@ -2,6 +2,7 @@
 @php
     $fechaActual = date('Y-m-d');
     $contador = 0;
+    $tienePTU = collect($conceptos)->contains(fn($c) => $c->descripcion === 'PTU');
 @endphp
 @section('content')
     <section class="section">
@@ -145,7 +146,12 @@
                                                 @foreach($conceptos as $concepto)
                                                     <tr>
                                                     <td  style="display:none">{{$concepto->id}}</td>
-                                                        <td>{{ $concepto->descripcion}}</td>
+                                                        <td>
+                                                            {{ $concepto->descripcion}}
+                                                            @if($concepto->descripcion === 'PTU' && !empty($conciliadores['year_ptu']))
+                                                                <span class="badge badge-secondary ml-1">Año {{ $conciliadores['year_ptu'] }}</span>
+                                                            @endif
+                                                        </td>
                                                         @php
                                                             $concl = $conciliadores["conclucion"] ?? null;
                                                             $esReinstalacion = ($concl === 'Reinstalacion');
@@ -1638,7 +1644,7 @@ function clonarCheckboxes() {
                             // 4. Si se guardó en sesión exitosamente, abrimos el PDF en nueva pestaña
                             // Convenio: si la conclusión es Reinstalacion, usamos su PDF específico
                             // Ajusta la URL base si tu ruta tiene prefijos
-                            let urlPdf = "{{ ($conciliadores["conclucion"] ?? null) === 'Reinstalacion' ? route('PDFconvenioreinstalacion', ':id') : route('PDFconveniosolicitud', ':id') }}";
+                            let urlPdf = "{{ $tienePTU ? route('PDFconvenioPTU_SI_S', ':id') : ((($conciliadores["conclucion"] ?? null) === 'Reinstalacion') ? route('PDFconvenioreinstalacion', ':id') : route('PDFconveniosolicitud', ':id')) }}";
                             urlPdf = urlPdf.replace(':id', idSolicitud);
                             if (typeof audienciaId !== 'undefined' && audienciaId) {
                                 urlPdf += '?audiencia_id=' + audienciaId;

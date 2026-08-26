@@ -383,6 +383,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/notificaciones/historial',             [SeerController::class, 'notificaciones_consultar'])->name('notificaciones_consultar');
         Route::post('notificaciones/actualizar',            [SeerController::class, 'editar_citados'])->name('actualizar_enlace'); 
         Route::post('/seer/store_enlace/{id}',              [SeerController::class, 'store_enlace'])->name('seer.store_enlace');
+        Route::post('/notificaciones/asignar_notificador',  [SeerController::class, 'asignar_notificador_busqueda'])->name('asignar_notificador_busqueda')->middleware('role:Enlace|Super Usuario');
         Route::post('/seer/mostrar',                        [SeerController::class, 'mostrar_reporte'])->name('seer.mostar');
         Route::post('/notificacion/editar',                 [SeerController::class, 'mostrar_citado'])->name('editar_citado_historial');
         Route::post('notificaciones/actualizarH',           [SeerController::class, 'editar_citados_historial'])->name('actualizar_enlace_hitorial');  
@@ -392,9 +393,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
      |-- RETROCESOS (acciones destructivas: solo mandos)
      |*/
     Route::middleware(['role:Super Usuario|Administrador|Delegado'])->group(function () {
+        Route::get('/ratificaciones/retrocesos',             [TurnosController::class, 'index_retroceso'])->name('index_retroceso');
+
         Route::get('/ratificaciones/retroceso',             [TurnosController::class, 'retroceso_ratificacion_index'])->name('retroceso_ratificacion');
         Route::post('/ratificaciones/retroceso/buscar',     [TurnosController::class, 'buscar_retroceso_ratificacion'])->name('retroceso_ratificacion_buscar');
         Route::post('/ratificaciones/retroceso/{id}',       [TurnosController::class, 'aplicar_retroceso_ratificacion'])->name('retroceso_ratificacion_aplicar');
+
+        Route::get('/audiencias/retroceso',                 [SeerController::class, 'retroceso_audiencia_index'])->name('retroceso_audiencia');
+        Route::post('/audiencias/retroceso/buscar',         [SeerController::class, 'buscar_retroceso_audiencia'])->name('retroceso_audiencia_buscar');
+        Route::post('/audiencias/retroceso/{id}',           [SeerController::class, 'aplicar_retroceso_audiencia'])->name('retroceso_audiencia_aplicar');
 
         Route::get('/solicitudes/retroceso',                [SeerController::class, 'retroceso_solicitud_index'])->name('retroceso_solicitud');
         Route::post('/solicitudes/retroceso/buscar',        [SeerController::class, 'buscar_retroceso_solicitud'])->name('retroceso_solicitud_buscar');

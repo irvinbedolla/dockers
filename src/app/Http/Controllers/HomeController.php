@@ -183,6 +183,8 @@ class HomeController extends Controller
     }
 
     public function turnos_publico(Request $request){
+        
+        
         if (!$request->filled('fecha_turno') || !$request->filled('hora_turno')) {
             return back()->withInput()->with('error', 'Es necesario seleccionar la fecha y el horario del turno en el calendario.');
         }
@@ -193,6 +195,9 @@ class HomeController extends Controller
         $excepcion = $data["excepcion"] ?? "No";
         $fecha_turno = $data["fecha_turno"];
         $hora_turno = $data["hora_turno"];
+        $lista_solicitudes=[5,209,4,28,2664,70,2814,61,2988,2986];
+        $lista_ratificaciones = [10,6,3,32,2663,74,44,731,47,2987];
+        
 
         //El horario seleccionado en el calendario ya no debe estar ocupado ni caer en un día/horario inhábil
         if (!(new RecepcionController())->turnoSlotDisponible($sede, $tipo, $fecha_turno, $hora_turno, $excepcion)) {
@@ -218,11 +223,49 @@ class HomeController extends Controller
             $numero_consecutivo++;
         }
 
+        $listado_auxiliares = array();
+        $relacionEloquent = 'roles';
+        $usuariosauxiliares = User::whereHas($relacionEloquent, function ($query) {
+            return $query->where('name', '=', 'Auxiliar');
+        })
+        ->where('delegacion', $sede)
+        ->get();
+
+        $listado_auxiliares = $usuariosauxiliares->pluck('id')->toArray();
+        if($tipo == "Ratificación"){
+            $auxiliares = array_intersect($listado_auxiliares,$lista_ratificaciones);
+        }
+        else{
+            $auxiliares = array_intersect($listado_auxiliares,$lista_solicitudes);
+        }
+        
+        //validar si hay disponibles
+        $random = array_rand($auxiliares);
+        $nombre_usuario = User::find($auxiliares[$random]);
+        if($data["excepcion"] == "Si"){
+            $modulo = "Caso de excepcion";
+            $id_aux = 13;
+        }
+        else{
+            if($sede == 'Morelia'){
+            $auxiliaresOcupados = Recepcion::where('hora', $hora_turno)->where('fecha', $fecha_turno)->where('delegacion', $sede)->where('tipo', $tipo)->pluck('auxiliar')->toArray();
+            $disponibles = array_diff($auxiliares, $auxiliaresOcupados);
+            $random = array_rand($disponibles);
+            $modulo = $this->asignarModulo($disponibles[$random]);
+            $id_aux=$disponibles[$random];
+            }
+            else{
+                $modulo = $this->asignarModulo($auxiliares[$random]);
+                $id_aux=$auxiliares[$random];
+            }
+        }
+        
+
         $data_insertar= array(
             'consecutivo'   => $numero_consecutivo,
             'solicitante'   => $data["nombre"],
-            'auxiliar'      => 0,
-            'lugar_auxiliar'=> "Recepción",
+            'auxiliar'      => $id_aux,
+            'lugar_auxiliar'=> $modulo,
             'tipo'          => $tipo,
             'tipo_caso'     => $data["tipo_caso"],
             'fecha'         => $fecha_turno,
@@ -234,15 +277,45 @@ class HomeController extends Controller
             'edad'          => $data["edad"],
             'sexo'          => $data["sexo"],
             'vulnerables'   => $data["vulnerables"],
-            'estado'        => $data["estado_citado"],
             'municipio'     => $data["municipio_citado"],
             'correo'        => $data["email"],
             'telefono'      => $data["telefono"],
             'observaciones' => $data["conflicto"]
         );
-        Recepcion::create($data_insertar);
+        $recepcion=Recepcion::create($data_insertar);
+        $fecha=$recepcion->fecha->format('Y-m-d');
+        $hora=$recepcion->hora->format('H:i');
+        return redirect()->route('citas_exito')->with(['success' => true,'folio' => $recepcion->id,'fecha' => $fecha,'hora' => $hora,'delegacion' => $recepcion->delegacion, 'modulo' => $recepcion->lugar_auxiliar]);
+    }
+    public function citas_exito(){
+        if (!session()->has('success')) {
+            return redirect()->route('citas')->with('error', 'No se ha podrido completar tu cita.'); 
+        }
+        return view('turnos_exito');
+    }
+    private function asignarModulo(int $aux){
+        switch($aux){
+                case '5': return 'Modulo 1';
+                case '209': return 'Modulo 2';
+                case '4': return 'Modulo 3';
+                case '10': return 'Modulo 4';
+                case '6': return 'Modulo 5';
+                case '3': return 'Modulo 6';
+                case '28': return 'Modulo 1';
+                case '32': return 'Modulo 2';
+                case '2664': return 'Modulo 1';
+                case '2663': return 'Modulo 2';
+                case '74': return 'Modulo 3';
+                case '70': return  'Modulo 1';
+                case '44': return  'Modulo 2';
+                case '2814': return  'Modulo 1';
+                case '731': return  'Modulo 2';
+                case '61': return  'Modulo 1';
+                case '47': return 'Modulo 2';
+                default: break;
 
-        return back()->with('success', 'Turno registrado correctamente lllegar 10 minutos antes, llevar tu Identificación Oficial Vigente.');
+        }
+        return 'Modulo 0';
     }
 
     public function password_cambiar(){

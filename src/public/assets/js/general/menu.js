@@ -83,16 +83,7 @@ function mis_citas() {
                 } catch (e) {
                 }
             }
-            const { origin, pathname } = window.location;
-            const pubIdx = pathname.indexOf('/public');
-            if (pubIdx !== -1) {
-                const base = pathname.substring(0, pubIdx + '/public'.length);
-                return `${origin}${base}/poll/pendiente-firma`;
-            }
-            const parts = pathname.split('/').filter(Boolean);
-            const seg1 = (parts[0] || '').trim();
-            const base = seg1 ? `/${seg1}` : '';
-            return `${origin}${base}/poll/pendiente-firma`;
+            
         }
         const POLL_URL = computePollUrl();
 
@@ -100,37 +91,7 @@ function mis_citas() {
     const intervalMeta = parseInt(meta('poll-interval-ms', '5000'), 10);
     const POLL_INTERVAL_MS = isNaN(intervalMeta) ? 5000 : Math.max(1000, intervalMeta);
 
-        function updateMenuBadge(count) {
-            const link = document.getElementById('menu-pendiente-firma');
-            if (!link) {
-                return;
-            }
-            const badge = document.getElementById('badge-pendiente-firma');
-            const textSpan = link.querySelector('span');
-            if (typeof count === 'number') {
-                if (badge) {
-                    badge.textContent = count;
-                    badge.style.display = count > 0 ? 'inline-block' : 'none';
-                }
-                // Resalta el texto en rojo cuando haya pendientes (>0)
-                if (textSpan) {
-                    if (count > 0) {
-                        textSpan.classList.remove('text-dark');
-                        textSpan.classList.add('text-danger');
-                    } else {
-                        textSpan.classList.remove('text-danger');
-                        textSpan.classList.add('text-dark');
-                    }
-                }
-            }
-            // Resaltado permanente cuando haya pendientes
-            if (count > 0) {
-                link.classList.add('highlight-realtime');
-            } else {
-                link.classList.remove('highlight-realtime');
-            }
-        }
-
+       
         // Polling simple para consultar pendientes periódicamente
         function pollPendienteFirma() {
             try {

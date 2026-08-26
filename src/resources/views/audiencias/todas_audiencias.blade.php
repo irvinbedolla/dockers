@@ -184,8 +184,8 @@
                                                                     <li><a class="dropdown-item" href="{{ route('VerDocumentosAudiencia', $audiencia->id_solicitud) }}"  target="_blank">Documentos Digitales</a></li>
                                                                     <li><a class="dropdown-item" href="{{ route('VerPDFAudiencia', $audiencia->id_solicitud) . '?audiencia_id=' . $audiencia->id }}"  target="_blank">Acta de Audiencia</a></li>
                                                                     <li>
-                                                                        <a class="dropdown-item" 
-                                                                           href="{{ ($audiencia->estatus_modelo == 'Reinstalacion' ? route('PDFconvenioreinstalacion', $audiencia->id_solicitud) : route('PDFconveniosolicitud', $audiencia->id_solicitud)) . '?audiencia_id=' . $audiencia->id }}" 
+                                                                        <a class="dropdown-item"
+                                                                           href="{{ ($audiencia->tienePTU ? route('PDFconvenioPTU_SI_S', $audiencia->id_solicitud) : ($audiencia->estatus_modelo == 'Reinstalacion' ? route('PDFconvenioreinstalacion', $audiencia->id_solicitud) : route('PDFconveniosolicitud', $audiencia->id_solicitud))) . '?audiencia_id=' . $audiencia->id }}" 
                                                                            target="_blank">
                                                                             Convenio
                                                                         </a>
