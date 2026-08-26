@@ -1,10 +1,10 @@
 @extends('layouts.auth_app')
 @section('title')
-    Si Concilio
+    SiConcilio
 @endsection
 @section('content')
     <div class="card card-primary">
-        <div class="card-header"><h4>Si concilio</h4></div>
+        <div class="card-header"><h4>SiConcilio</h4></div>
 
         <div class="card-body">
             <form method="POST" action="{{ route('login.post') }}" id="login.post">
@@ -19,7 +19,7 @@
                     </div>
                 @endif
                 <div class="form-group">
-                    <label for="email">Correo Electronico</label>
+                    <label for="email">Correo Electrónico</label>
                     <input aria-describedby="emailHelpBlock" id="email" type="email"
                            class="form-control{{ $errors->has('email') ? ' is-invalid' : '' }}" name="email"
                            placeholder="Ingresa tu correo" tabindex="1"

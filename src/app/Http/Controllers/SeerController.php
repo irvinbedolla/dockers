@@ -12494,13 +12494,15 @@ class SeerController extends Controller
         return view('solicitudes.solicitud_revision');
     }
 
-    public function VerDocumentosAudiencia($id){
-        $documento_general = SeerPerGeneral::find($id); 
-        $documento_solicitante = SeerSolicitante::where('id_solicitud',$id)
-        //->select('documentoCurp','documentoIdentificacion')
-        ->first(); 
-        
-        //Documento de comparecencia para citados patronales
+    public function VerDocumentosAudiencia($id)
+    {
+        $documento_general = SeerPerGeneral::find($id);
+        if (!$documento_general) {
+            return response()->json([], 404);
+        }
+
+        $documento_solicitante = SeerSolicitante::where('id_solicitud', $id)->first();
+
         $documentos_comparecencia = null;
         if ($documento_general->tipo_solicitud == 2) {
             $documentos_comparecencia = \App\Models\SeerCitados::where('id_solicitud', $id)
@@ -12509,20 +12511,123 @@ class SeerController extends Controller
                 ->get();
         }
 
-        //Documentos del abogado y citados
         $documento_abogado = Poder::find($documento_general["idAbogado"]);
-        //Documentos perdona fisica
-        $documento_fisica = PersonaFisica::
-        join('seer_citados','seer_citados.id_fisica','persona_fisica.id')
-        ->where('seer_citados.id_solicitud',$id)
-        ->select('persona_fisica.documentoIdentificacion')
-        ->get();
-        
-         //Documentos subidos
-        $documento_subidos = DocumentosSolicitud::where('id_solicitud',$documento_general->id)->where('tramite','Audiencia')->get();
 
-        return view('solicitudes.VerDocumentos',compact('documento_general','documento_solicitante','documento_abogado','documento_fisica','documento_subidos','documentos_comparecencia'));
-     }
+        $documento_fisica = PersonaFisica::join('seer_citados', 'seer_citados.id_fisica', 'persona_fisica.id')
+            ->where('seer_citados.id_solicitud', $id)
+            ->select('persona_fisica.documentoIdentificacion')
+            ->get();
+
+        $documento_subidos = DocumentosSolicitud::where('id_solicitud', $documento_general->id)
+            ->where('tramite', 'Audiencia')
+            ->get();
+
+        $lista = [];
+
+        // Helper para verificar existencia del archivo y armar URL
+        $resolverUrl = function($folder, $subId, $filename, $tipoRoute) {
+            if (!$filename || $filename === 'Sin documento') return null;
+            $path1 = "{$folder}/{$subId}/{$filename}";
+            $path2 = "{$folder}/{$filename}";
+
+            if (\Storage::exists($path1) || \Storage::exists($path2)) {
+                return route('documentos.ver', ['tipo' => $tipoRoute, 'id' => $subId, 'archivo' => $filename]);
+            }
+            return null;
+        };
+
+        // 1. Identificación del solicitante / representante
+        if ($documento_general->tipo_solicitud == 1 && $documento_solicitante) {
+            $url = $resolverUrl('documentosSolicitud', $id, $documento_solicitante->documentoIdentificacion, 'solicitud');
+            $lista[] = [
+                'nombre' => 'Identificación de Solicitante',
+                'archivo' => $documento_solicitante->documentoIdentificacion,
+                'url' => $url
+            ];
+        } elseif ($documento_general->tipo_solicitud == 2 && $documento_solicitante && isset($documento_solicitante->poder)) {
+            $idAbogadoSol = $documento_solicitante->poder->idAbogado ?? null;
+            $url = $idAbogadoSol ? $resolverUrl('documentos_abogados', $idAbogadoSol, $documento_solicitante->poder->ineDocumento, 'poder') : null;
+            $lista[] = [
+                'nombre' => 'Identificación del representante del Solicitante',
+                'archivo' => $documento_solicitante->poder->ineDocumento,
+                'url' => $url
+            ];
+        }
+
+        // 2. Identificación de citados patronales
+        if ($documentos_comparecencia && count($documentos_comparecencia) > 0) {
+            foreach ($documentos_comparecencia as $doc_citado) {
+                $url = $resolverUrl('documentosSolicitud', $id, $doc_citado->identificacion_comparecencia, 'solicitud');
+                $lista[] = [
+                    'nombre' => 'Identificación de Citado: ' . $doc_citado->nombre . ' ' . $doc_citado->primer_apellido,
+                    'archivo' => basename($doc_citado->identificacion_comparecencia),
+                    'url' => $url
+                ];
+            }
+        }
+
+        // 3. Documentos de representante legal (Poder)
+        if ($documento_abogado) {
+            $abogados = is_iterable($documento_abogado) ? $documento_abogado : [$documento_abogado];
+            foreach ($abogados as $doc) {
+                $idAbogado = $doc->idAbogado ?? null;
+                if ($idAbogado) {
+                    if (!empty($doc->ineDocumento)) {
+                        $lista[] = [
+                            'nombre' => 'INE Representante Legal',
+                            'archivo' => $doc->ineDocumento,
+                            'url' => $resolverUrl('documentos_abogados', $idAbogado, $doc->ineDocumento, 'poder')
+                        ];
+                    }
+                    if (!empty($doc->representacionDocumento)) {
+                        $lista[] = [
+                            'nombre' => 'Poder / Representación Legal',
+                            'archivo' => $doc->representacionDocumento,
+                            'url' => $resolverUrl('documentos_abogados', $idAbogado, $doc->representacionDocumento, 'poder')
+                        ];
+                    }
+                    if (!empty($doc->cedulaDocumento)) {
+                        $lista[] = [
+                            'nombre' => 'Cédula Profesional',
+                            'archivo' => $doc->cedulaDocumento,
+                            'url' => $resolverUrl('documentos_abogados', $idAbogado, $doc->cedulaDocumento, 'poder')
+                        ];
+                    }
+                    if (!empty($doc->anexo_documeto)) {
+                        $lista[] = [
+                            'nombre' => 'Anexo Representación Legal',
+                            'archivo' => $doc->anexo_documeto,
+                            'url' => $resolverUrl('documentos_abogados', $idAbogado, $doc->anexo_documeto, 'poder')
+                        ];
+                    }
+                }
+            }
+        }
+
+        // 4. Persona Física
+        if ($documento_fisica && count($documento_fisica) > 0) {
+            foreach ($documento_fisica as $doc) {
+                $lista[] = [
+                    'nombre' => 'Identificación de Citado (Persona Física)',
+                    'archivo' => $doc->documentoIdentificacion,
+                    'url' => $resolverUrl('documentosSolicitud', $id, $doc->documentoIdentificacion, 'solicitud')
+                ];
+            }
+        }
+
+        // 5. Documentos subidos manualmente
+        if ($documento_subidos && count($documento_subidos) > 0) {
+            foreach ($documento_subidos as $doc) {
+                $lista[] = [
+                    'nombre' => $doc->nombre_documento,
+                    'archivo' => $doc->nombre_documento,
+                    'url' => route('documento_solicitud_ver', $doc->id)
+                ];
+            }
+        }
+
+        return response()->json($lista);
+    }
 
    //PDF Constancia de cumplimiento
     public function VerPDFCumplimiento($id){
