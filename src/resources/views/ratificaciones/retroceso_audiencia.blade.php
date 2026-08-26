@@ -2,7 +2,7 @@
 @section('content')
     <section class="section">
         <div class="section-header">
-            <h3 class="page__heading">Retroceso de Ratificaciones</h3>
+            <h3 class="page__heading">Retroceso de Audiencias</h3>
         </div>
         <div class="section-body">
             <div class="row">
@@ -13,11 +13,11 @@
                             <div class="row">
                                 <div class="col-xs-12 col-sm-6 col-md-4"><br>
                                     <button type="button" class="btn btn-primary open-modal" data-bs-toggle="modal" data-bs-target="#ModalRetroceso">
-                                        <i class="bi bi-search"></i> Buscar ratificación
+                                        <i class="bi bi-search"></i> Buscar solicitud
                                     </button>
                                 </div>
                                 <div class="col-xs-12 col-sm-6 col-md-4"><br>
-                                    <a href="{{ route('index_ratificacion') }}" class="btn btn-secondary">Regresar</a>
+                                    <a href="{{ route('index_retroceso') }}" class="btn btn-secondary">Regresar</a>
                                 </div>
                             </div>
                             <br>
@@ -62,8 +62,8 @@
                                                 <tr>
                                                     <th class="text-center text-white" style="color: white;">NUE</th>
                                                     <th class="text-center text-white" style="color: white;">Delegación</th>
-                                                    <th class="text-center text-white" style="color: white;">Trabajador</th>
-                                                    <th class="text-center text-white" style="color: white;">Empresa</th>
+                                                    <th class="text-center text-white" style="color: white;">Solicitante</th>
+                                                    <th class="text-center text-white" style="color: white;">Citados</th>
                                                     <th class="text-center text-white" style="color: white;">Fecha</th>
                                                     <th class="text-center text-white" style="color: white;">Estatus</th>
                                                     <th class="text-center text-white" style="color: white;">Se eliminará</th>
@@ -78,8 +78,14 @@
                                                             <td class="text-center align-middle">
                                                                 <span class="badge" style="background-color: #6c757d;">{{ $folio['delegacion'] ?? 'N/A' }}</span>
                                                             </td>
-                                                            <td class="text-center align-middle">{{ $folio['trabajador'] ?: 'N/A' }}</td>
-                                                            <td class="text-center align-middle">{{ $folio['empresa'] ?: 'N/A' }}</td>
+                                                            <td class="text-center align-middle">{{ $folio['solicitante'] ?: 'N/A' }}</td>
+                                                            <td class="text-center align-middle">
+                                                                @if (count($folio['citados_lista']))
+                                                                    {{ implode(', ', $folio['citados_lista']) }}
+                                                                @else
+                                                                    N/A
+                                                                @endif
+                                                            </td>
                                                             <td class="text-center align-middle">
                                                                 {{ $folio['fecha'] ? \Carbon\Carbon::parse($folio['fecha'])->format('d/m/Y') : 'N/A' }}
                                                             </td>
@@ -87,27 +93,39 @@
                                                                 <span class="badge" style="background-color: #ffc107; color: black;">{{ $folio['estatus'] }}</span>
                                                             </td>
                                                             <td class="text-center align-middle">
-                                                                <span class="badge bg-secondary">{{ $folio['conceptos'] }} conceptos</span>
-                                                                <span class="badge bg-secondary">{{ $folio['deducciones'] }} deducciones</span>
-                                                                <span class="badge bg-secondary">{{ $folio['pagos'] }} pagos</span>
-                                                                @if ($folio['pagados'] > 0)
-                                                                    <br>
-                                                                    <span class="badge bg-danger mt-1">
-                                                                        <i class="bi bi-exclamation-triangle"></i>
-                                                                        {{ $folio['pagados'] }} pago(s) ya cobrado(s)
-                                                                    </span>
+                                                                @if (!$folio['retrocedible'])
+                                                                    <span class="badge bg-light text-dark">No aplica</span>
+                                                                @elseif ($folio['audiencia_eliminada'] || $folio['citados_eliminar'] > 0 || $folio['conceptos_eliminar'] > 0 || $folio['deducciones_eliminar'] > 0 || $folio['pagos_eliminar'] > 0)
+                                                                    @if ($folio['audiencia_eliminada'])
+                                                                        <span class="badge bg-danger">1 audiencia (registro completo)</span>
+                                                                    @endif
+                                                                    @if ($folio['citados_eliminar'] > 0)
+                                                                        <span class="badge bg-secondary">{{ $folio['citados_eliminar'] }} citado(s)</span>
+                                                                    @endif
+                                                                    @if ($folio['conceptos_eliminar'] > 0)
+                                                                        <span class="badge bg-secondary">{{ $folio['conceptos_eliminar'] }} concepto(s)</span>
+                                                                    @endif
+                                                                    @if ($folio['deducciones_eliminar'] > 0)
+                                                                        <span class="badge bg-secondary">{{ $folio['deducciones_eliminar'] }} deducción(es)</span>
+                                                                    @endif
+                                                                    @if ($folio['pagos_eliminar'] > 0)
+                                                                        <span class="badge bg-secondary">{{ $folio['pagos_eliminar'] }} cumplimiento(s)</span>
+                                                                    @endif
+                                                                @else
+                                                                    Cambio de estatus a <strong>Pendiente</strong>
                                                                 @endif
                                                             </td>
                                                             <td class="text-center align-middle">
                                                                 @if ($folio['retrocedible'])
                                                                     <form method="POST"
-                                                                          action="{{ route('retroceso_ratificacion_aplicar', $folio['id']) }}"
+                                                                          action="{{ route('retroceso_audiencia_aplicar', $folio['id']) }}"
                                                                           class="d-inline form-retroceso"
                                                                           data-nue="{{ $folio['NUE'] }}"
-                                                                          data-conceptos="{{ $folio['conceptos'] }}"
-                                                                          data-deducciones="{{ $folio['deducciones'] }}"
-                                                                          data-pagos="{{ $folio['pagos'] }}"
-                                                                          data-pagados="{{ $folio['pagados'] }}">
+                                                                          data-audiencia-eliminada="{{ $folio['audiencia_eliminada'] ? 1 : 0 }}"
+                                                                          data-citados="{{ $folio['citados_eliminar'] }}"
+                                                                          data-conceptos="{{ $folio['conceptos_eliminar'] }}"
+                                                                          data-deducciones="{{ $folio['deducciones_eliminar'] }}"
+                                                                          data-pagos="{{ $folio['pagos_eliminar'] }}">
                                                                         @csrf
                                                                         <button type="submit" class="btn btn-sm btn-danger text-white shadow-sm">
                                                                             <i class="bi bi-arrow-counterclockwise"></i> Retroceso
@@ -115,7 +133,7 @@
                                                                     </form>
                                                                 @else
                                                                     <button class="btn btn-sm btn-secondary shadow-sm" disabled
-                                                                            title="Solo se puede retroceder una ratificación concluida.">
+                                                                            title="Solo se puede retroceder una solicitud con audiencias registradas.">
                                                                         <i class="bi bi-dash-circle"></i> No aplica
                                                                     </button>
                                                                 @endif
@@ -141,14 +159,14 @@
     <div class="modal-dialog" role="document">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="retrocesoModalLabel">Buscar ratificación por NUE</h5>
+                <h5 class="modal-title" id="retrocesoModalLabel">Buscar solicitud por NUE</h5>
             </div>
-            <form class='needs-validation novalidate' id='form_retroceso_buscar' method='POST' action="{{ route('retroceso_ratificacion_buscar') }}">
+            <form class='needs-validation novalidate' id='form_retroceso_buscar' method='POST' action="{{ route('retroceso_audiencia_buscar') }}">
                 @csrf
                 <div class="modal-body">
                     <p class="text-muted mb-3">
                         Capture las partes del NUE tal como aparece en el expediente.
-                        Ejemplo: <code>MOR/RAT/{{ date('Y') }}/00576</code>
+                        Ejemplo: <code>MOR/SOL/{{ date('Y') }}/00576</code>
                     </p>
                     <div class="row">
                         <div class="col-xs-4 col-sm-4 col-md-4">
@@ -210,7 +228,7 @@
         function armarNue() {
             if (!preview) return;
             if (delegacion.value && anio.value && consecutivo.value) {
-                preview.value = delegacion.value + '/RAT/' + anio.value + '/' +
+                preview.value = delegacion.value + '/SOL/' + anio.value + '/' +
                                 String(consecutivo.value).padStart(5, '0');
             } else {
                 preview.value = '—';
@@ -262,20 +280,25 @@
             form.addEventListener('submit', function (e) {
                 e.preventDefault();
 
-                var nue     = form.dataset.nue;
-                var pagados = parseInt(form.dataset.pagados || '0', 10);
+                var nue               = form.dataset.nue;
+                var audienciaEliminada = form.dataset.audienciaEliminada === '1';
+                var citados           = parseInt(form.dataset.citados || '0', 10);
+                var conceptos         = parseInt(form.dataset.conceptos || '0', 10);
+                var deducciones       = parseInt(form.dataset.deducciones || '0', 10);
+                var pagos             = parseInt(form.dataset.pagos || '0', 10);
 
-                var texto = 'Se eliminará de forma permanente:\n' +
-                            '• ' + form.dataset.conceptos   + ' concepto(s) de pago\n' +
-                            '• ' + form.dataset.deducciones + ' deducción(es)\n' +
-                            '• ' + form.dataset.pagos       + ' pago(s) programado(s)\n' +
-                            '• Las manifestaciones capturadas\n\n';
+                var detalles = [];
+                if (audienciaEliminada) { detalles.push('• El registro completo de la última audiencia'); }
+                if (citados > 0)        { detalles.push('• ' + citados     + ' citado(s)'); }
+                if (conceptos > 0)      { detalles.push('• ' + conceptos   + ' concepto(s) de pago'); }
+                if (deducciones > 0)    { detalles.push('• ' + deducciones + ' deducción(es)'); }
+                if (pagos > 0)          { detalles.push('• ' + pagos      + ' cumplimiento(s)'); }
 
-                if (pagados > 0) {
-                    texto += 'ATENCIÓN: ' + pagados + ' de esos pagos ya figuran como cobrados.\n\n';
-                }
+                var texto = detalles.length
+                    ? 'Se eliminará de forma permanente:\n' + detalles.join('\n') + '\n\n'
+                    : 'No se eliminará ningún registro, solo se ajustará el estatus.\n\n';
 
-                texto += 'La ratificación regresará al estatus Confirmado.';
+                texto += 'La solicitud regresará a un estatus previo para poder capturarse nuevamente.';
 
                 // SweetAlert 1.x — misma API que usa el resto del sistema.
                 if (typeof swal === 'function') {

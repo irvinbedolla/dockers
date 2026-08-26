@@ -20,6 +20,9 @@
                                         <th style="color: #fff;">Estatus</th>
                                         <th style="color: #fff;">Medio</th>
                                         <th style="color: #fff;">Tipo de notificación</th>
+                                        @hasanyrole('Enlace|Super Usuario')
+                                            <th style="color: #fff;">Notificador asignado</th>
+                                        @endhasanyrole
                                         <th style="color: #fff;">Editar</th>
                                         <th style="color: #fff;">Documento</th>
                                     </thead>
@@ -35,6 +38,29 @@
                                                 <td>{{$notificacion->estatus}}</td>
                                                 <td>{{$notificacion->notificacion}}</td>
                                                 <td>{{$notificacion->tipo_notificacion}}</td>
+                                                @hasanyrole('Enlace|Super Usuario')
+                                                    <td>
+                                                        @if($notificacion->estatus === "Notificada en Audiencia")
+                                                            -
+                                                        @else
+                                                            <div>{{ $notificacion->notificador_nombre ?? 'Sin asignar' }}</div>
+                                                            @php
+                                                                $opcionesNotificadores = ($notificadoresPorSede ?? collect())->get($notificacion->delegacion, collect());
+                                                            @endphp
+                                                            @if(!empty($notificacion->id_notificador) && $opcionesNotificadores->isNotEmpty())
+                                                                <button type="button"
+                                                                        class="btn btn-warning btn-sm mt-1 open-notificador-modal"
+                                                                        data-bs-toggle="modal"
+                                                                        data-bs-target="#asignarNotificadorModal"
+                                                                        data-id="{{ $notificacion->id }}"
+                                                                        data-notificador="{{ $notificacion->id_notificador }}"
+                                                                        data-opciones="{{ $opcionesNotificadores->map(fn($o) => ['id' => $o->id, 'name' => $o->name])->values() }}">
+                                                                    Reasignar
+                                                                </button>
+                                                            @endif
+                                                        @endif
+                                                    </td>
+                                                @endhasanyrole
                                                 <td>
                                                     <form class='needs-validation novalidate' id='form_roles' method='POST' action="{{route('editar_citado_historial')}}">
                                                         @csrf
@@ -100,9 +126,60 @@
             <div>.</div>
             <div class="loader"></div>
         </div>
-        
+
+        @hasanyrole('Enlace|Super Usuario')
+        @push('modals')
+            <div class="modal fade" id="asignarNotificadorModal" tabindex="-1" aria-labelledby="asignarNotificadorModalLabel" aria-hidden="true">
+                <div class="modal-dialog">
+                    <form class="modal-content needs-validation" novalidate method="POST" action="{{ route('asignar_notificador_busqueda') }}">
+                        @csrf
+                        <input type="hidden" name="id" id="asignarNotificador_id">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="asignarNotificadorModalLabel">Reasignar notificador</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="form-group">
+                                <label for="asignarNotificador_select">Notificador</label>
+                                <select class="form-control" name="id_notificador" id="asignarNotificador_select" required>
+                                    <option value="">Seleccione</option>
+                                </select>
+                                <div class="invalid-feedback">
+                                    Debe seleccionar un notificador.
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                            <button type="submit" class="btn btn-warning">Asignar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        @endpush
+        @endhasanyrole
+
 @section('scripts')
     <script src="{{ asset('assets/js/estadistica/estadistica.js') }}"></script>
+    <script>
+        $(document).on('click', '.open-notificador-modal', function() {
+            var idCitado = $(this).data('id');
+            var idNotificadorActual = $(this).data('notificador');
+            var opciones = $(this).data('opciones') || [];
+
+            document.getElementById('asignarNotificador_id').value = idCitado;
+
+            var $select = $('#asignarNotificador_select');
+            $select.find('option:not(:first)').remove();
+            opciones.forEach(function(opcion) {
+                var $option = $('<option></option>').val(opcion.id).text(opcion.name);
+                if (String(opcion.id) === String(idNotificadorActual)) {
+                    $option.prop('selected', true);
+                }
+                $select.append($option);
+            });
+        });
+    </script>
 @endsection
         
     </section>
