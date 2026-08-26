@@ -10,159 +10,98 @@
                 <div class="col-lg-12">
                     <div class="card">
                         <div class="card-body">
-                            @if (session('success'))
-                                <div class="alert alert-success alert-dismissible fade show" role="alert">
-                                    <strong>Éxito:</strong> {{ session('success') }}
-                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                                </div>
-                            @endif
-
-                            @if ($errors->any())
-                                <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                                    <strong>Error:</strong> {{ $errors->first() }}
-                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                                </div>
-                            @endif
+                            {{-- El resultado de guardar se avisa con SweetAlert al final
+                                 de este archivo, no con alertas dentro del contenido. --}}
 
                             <div class="tab mb-4">
-                                <button class="btn btn-info" onclick="mostrar_sedes()"><i class="bi bi-building"></i> Bloqueos de Sedes</button>
-                                <button class="btn btn-info" onclick="mostrar_conciliador()"><i class="bi bi-person-badge"></i> Bloqueos de Conciliadores</button>
                                 <a class="btn btn-secondary" href="{{ route('configuracion') }}"><i class="bi bi-arrow-left"></i> Regresar</a>
                             </div>
 
-                            <div id="sedes" style="display:none">
-                                <div class="card shadow-sm mt-2">
-                                    <div class="card-header text-white" style="background-color: #496163;">
-                                        <h5>Historial de Bloqueos por Sedes</h5>
-                                    </div>
-                                    <div class="card-body table-responsive">
-                                        <table class="table table-striped datatable-local">
-                                            <thead style="background-color: #4A001F; color: #fff;">
-                                                <tr>
-                                                    <th>Sede</th>
-                                                    <th>Módulo Afectado</th>
-                                                    <th>Régimen</th>
-                                                    <th>Fecha inicio</th>
-                                                    <th>Fecha final</th>
-                                                    <th>Horario</th>
-                                                    <th>Acciones</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                @forelse($bloqueos->whereNull('user_id') as $bloqueo)
-                                                    <tr>
-                                                        <td><b>{{ $bloqueo->centro }}</b></td>
-                                                        <td><span class="badge bg-secondary">{{ $bloqueo->tipo }}</span></td>
-                                                        <td>
-                                                            <span class="badge {{ $bloqueo->descripcion === 'Inhabil' ? 'bg-danger' : 'bg-warning text-dark' }}">
-                                                                {{ $bloqueo->descripcion }}
-                                                            </span>
-                                                        </td>
-                                                        <td>{{ \Carbon\Carbon::parse($bloqueo->fecha_inicio)->format('d-m-Y') }}</td>
-                                                        <td>{{ \Carbon\Carbon::parse($bloqueo->fecha_final)->format('d-m-Y') }}</td>
-                                                        <td>
-                                                            {{ $bloqueo->horario_inicio === '08:00:00' && $bloqueo->horario_final === '15:00:00' ? 'Jornada Completa' : substr($bloqueo->horario_inicio, 0, 5) . ' a ' . substr($bloqueo->horario_final, 0, 5) }}
-                                                        </td>
-                                                        <td>
-                                                            <form action="{{ route('eliminarBloqueo', $bloqueo->id) }}" method="POST" class="form-eliminar">
-                                                                @csrf
-                                                                @method('DELETE')
-                                                                <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
-                                                            </form>
-                                                        </td>
-                                                    </tr>
-                                                @empty
-                                                    <tr>
-                                                        <td colspan="7" class="text-center text-muted">No hay bloqueos de sedes registrados.</td>
-                                                    </tr>
-                                                @endforelse
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
+                            {{-- Una tarjeta por sede del catálogo. Reemplaza la tabla
+                                 "Delegación / Configurar Bloqueos" para que cada sede
+                                 tenga su propia entrada al calendario. --}}
+                            <h5 class="mt-4 mb-3 text-dark"><i class="bi bi-buildings"></i> Sedes</h5>
 
-                            <div id="solicitante" style="display:none">
-                                <div class="card shadow-sm mt-2">
-                                    <div class="card-header text-white" style="background-color: #496163;">
-                                        <h5>Historial de Bloqueos por Conciliadores</h5>
-                                    </div>
-                                    <div class="card-body table-responsive">
-                                        <table class="table table-striped datatable-local">
-                                            <thead style="background-color: #4A001F; color: #fff;">
-                                                <tr>
-                                                    <th>Conciliador</th>
-                                                    <th>Sede</th>
-                                                    <th>Módulo</th>
-                                                    <th>Régimen</th>
-                                                    <th>Fecha inicio</th>
-                                                    <th>Fecha final</th>
-                                                    <th>Horario</th>
-                                                    <th>Acciones</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                @forelse($bloqueos->whereNotNull('user_id') as $bloqueo)
-                                                    <tr>
-                                                        <td><b>{{ $conciliadores->firstWhere('id', $bloqueo->user_id)->name ?? 'N/A' }}</b></td>
-                                                        <td>{{ $sedes->firstWhere('id', $bloqueo->centro)->delegacion ?? $bloqueo->centro }}</td>
-                                                        <td><span class="badge bg-secondary">{{ $bloqueo->tipo }}</span></td>
-                                                        <td>
-                                                            <span class="badge {{ $bloqueo->descripcion === 'Inhabil' ? 'bg-danger' : 'bg-warning text-dark' }}">
-                                                                {{ $bloqueo->descripcion }}
-                                                            </span>
-                                                        </td>
-                                                        <td>{{ \Carbon\Carbon::parse($bloqueo->fecha_inicio)->format('d-m-Y') }}</td>
-                                                        <td>{{ \Carbon\Carbon::parse($bloqueo->fecha_final)->format('d-m-Y') }}</td>
-                                                        <td>
-                                                            {{ $bloqueo->horario_inicio === '08:00:00' && $bloqueo->horario_final === '15:00:00' ? 'Jornada Completa' : substr($bloqueo->horario_inicio, 0, 5) . ' a ' . substr($bloqueo->horario_final, 0, 5) }}
-                                                        </td>
-                                                        <td>
-                                                            <form action="{{ route('eliminarBloqueo', $bloqueo->id) }}" method="POST" class="form-eliminar">
-                                                                @csrf
-                                                                @method('DELETE')
-                                                                <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
-                                                            </form>
-                                                        </td>
-                                                    </tr>
-                                                @empty
-                                                    <tr>
-                                                        <td colspan="8" class="text-center text-muted">No hay bloqueos de conciliadores registrados.</td>
-                                                    </tr>
-                                                @endforelse
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
+                            <div class="row g-3">
+                                @forelse ($sedes as $sede)
+                                    @php
+                                        $esModelo    = $sede instanceof \App\Models\Sedes;
+                                        $nombreSede  = $esModelo ? ($sede->nombre ?? '') : $sede;
+                                        $idSede      = $esModelo ? $sede->id : null;
+                                        $hoy         = now()->toDateString();
 
-                            <div class="table-responsive mt-3">
-                                <table id="example" class="table table-striped mt-1">
-                                    <thead>
-                                        <tr>
-                                            <th style="background:#4A001F; color: white;">Delegación</th>
-                                            <th style="background:#4A001F; color: white;" class="text-center">Configurar Bloqueos</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @foreach ($sedes as $sede)
-                                            @php 
-                                                $nombreSede = $sede instanceof \App\Models\Sedes ? ($sede->delegacion ?? $sede->nombre ?? $sede->name ?? '') : $sede;
-                                            @endphp
-                                            <tr>
-                                                <td><i class="bi bi-geo-alt-fill text-danger"></i> <b>{{ $nombreSede }}</b></td>
-                                                <td class="text-center">
-                                                    <button type="button" class="btn btn-success text-white btn-abrir-bloqueo" 
-                                                            data-bs-toggle="modal" 
+                                        $deSede      = $bloqueos->where('centro', $nombreSede)->whereNull('user_id');
+                                        $deConc      = $bloqueos->where('centro', $nombreSede)->whereNotNull('user_id');
+
+                                        $vigentesSede = $deSede->filter(function ($b) use ($hoy) {
+                                            return $b->fecha_final >= $hoy;
+                                        })->count();
+
+                                        $vigentesConc = $deConc->filter(function ($b) use ($hoy) {
+                                            return $b->fecha_final >= $hoy;
+                                        })->count();
+
+                                        $proximo = $deSede->filter(function ($b) use ($hoy) {
+                                            return $b->fecha_final >= $hoy;
+                                        })->sortBy('fecha_inicio')->first();
+                                    @endphp
+
+                                    <div class="col-12 col-md-6 col-xl-4">
+                                        <div class="card h-100 shadow-sm">
+                                            <div class="card-body d-flex flex-column">
+                                                <div class="d-flex align-items-center mb-3">
+                                                    <span class="rounded-circle d-inline-flex align-items-center justify-content-center me-3 flex-shrink-0"
+                                                          style="width:44px; height:44px; background:#6A0F49; color:#fff;">
+                                                        <i class="bi bi-geo-alt-fill"></i>
+                                                    </span>
+                                                    <div>
+                                                        <h5 class="mb-0 text-dark">{{ $nombreSede }}</h5>
+                                                        <small class="text-muted">
+                                                            {{ $esModelo && $sede->oficina_apoyo ? 'Oficina de apoyo' : 'Sede regional' }}
+                                                        </small>
+                                                    </div>
+                                                </div>
+
+                                                <div class="d-flex flex-wrap gap-2 mb-3">
+                                                    <span class="badge {{ $vigentesSede ? 'bg-danger' : 'bg-secondary' }}">
+                                                        {{ $vigentesSede }} {{ $vigentesSede == 1 ? 'bloqueo de sede' : 'bloqueos de sede' }}
+                                                    </span>
+                                                    <span class="badge {{ $vigentesConc ? 'text-dark bg-warning' : 'bg-secondary' }}">
+                                                        {{ $vigentesConc }} de {{ $vigentesConc == 1 ? 'conciliador' : 'conciliadores' }}
+                                                    </span>
+                                                </div>
+
+                                                <p class="small text-muted mb-3">
+                                                    @if ($proximo)
+                                                        Próximo: <b>{{ \Carbon\Carbon::parse($proximo->fecha_inicio)->format('d/m/Y') }}</b>
+                                                        &middot; {{ $proximo->descripcion }}
+                                                    @else
+                                                        Sin bloqueos vigentes.
+                                                    @endif
+                                                </p>
+
+                                                <div class="d-grid gap-2 mt-auto">
+                                                    @if ($idSede)
+                                                        <a href="{{ route('sede.calendario', $idSede) }}"
+                                                           class="btn text-white" style="background-color:#6A0F49;">
+                                                            <i class="bi bi-calendar3"></i> Ver calendario
+                                                        </a>
+                                                    @endif
+                                                    <button type="button" class="btn btn-outline-secondary btn-abrir-bloqueo"
+                                                            data-bs-toggle="modal"
                                                             data-bs-target="#modalBloqueoUnificado"
                                                             data-sede="{{ $nombreSede }}">
-                                                        <i class="bi bi-calendar-plus"></i> Configurar Bloqueo
+                                                        <i class="bi bi-calendar-plus"></i> Nuevo bloqueo
                                                     </button>
-                                                </td>
-                                            </tr>
-                                        @endforeach
-                                    </tbody>
-                                </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                @empty
+                                    <div class="col-12">
+                                        <p class="text-center text-muted my-4">No hay sedes registradas en el catálogo.</p>
+                                    </div>
+                                @endforelse
                             </div>
                         </div>
                     </div>
@@ -322,6 +261,7 @@
 @endsection
 
 @section('scripts')
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="{{ asset('assets/js/estadistica/estadistica.js') }}"></script>
     <script>
         $(document).ready(function() {
@@ -329,18 +269,6 @@
             if ($('#modalBloqueoUnificado').length) {
                 $('#modalBloqueoUnificado').appendTo("body");
             }
-
-            // Inicialización de las tablas secundarias del historial
-            $('.datatable-local').each(function() {
-                $(this).DataTable({
-                    info: false,
-                    ordering: false,
-                    paging: true,
-                    pageLength: 5,
-                    searching: false,
-                    language: { "paginate": { "next": "Sig.", "previous": "Ant." } }
-                });
-            });
 
             // NUEVO NUEVO: Capturar y pintar los datos de la sede seleccionada en el modal al dar clic
             $(document).on('click', '.btn-abrir-bloqueo', function() {
@@ -394,20 +322,41 @@
             $('#formBloqueoMaster').on('submit', function(e) {
                 if ($('#es_recurrente').is(':checked') && $('.chk-dia-semana:checked').length === 0) {
                     e.preventDefault();
-                    alert('Por favor, selecciona al menos un día de la semana para aplicar la recurrencia.');
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Falta un dato',
+                        text: 'Selecciona al menos un día de la semana para aplicar la recurrencia.',
+                        confirmButtonColor: '#6A0F49'
+                    });
                     return false;
                 }
             });
+
+            // El alta responde con back(), así que el aviso llega en la recarga.
+            // Éxito como toast; error en modal, para que no se pierda el motivo.
+            @if (session('success'))
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'success',
+                    title: @json(session('success')),
+                    showConfirmButton: false,
+                    timer: 4000,
+                    timerProgressBar: true
+                });
+            @endif
+
+            @if ($errors->any())
+                Swal.fire({
+                    icon: 'error',
+                    title: 'No se pudo guardar',
+                    text: @json($errors->first()),
+                    confirmButtonColor: '#6A0F49'
+                });
+            @endif
         });
 
-        function mostrar_sedes() {
-            document.getElementById("sedes").style.display = "block";
-            document.getElementById("solicitante").style.display = "none";
-        }
-        
-        function mostrar_conciliador(){
-            document.getElementById("sedes").style.display = "none";
-            document.getElementById("solicitante").style.display = "block";
-        }
+        // [SICONCILIO] mostrar_sedes()/mostrar_conciliador() se eliminaron junto con la
+        // tabla de bloqueos por sede: ese historial ahora vive en el calendario de cada sede.
     </script>
 @endsection

@@ -639,14 +639,33 @@ class AdministracionController extends Controller{
             'conciliador_id' => 'required|integer',
             'fecha_inicio'   => 'required|date',
             'fecha_final'    => 'required|date|after_or_equal:fecha_inicio',
-            'hora_inicio'    => 'required',
-            'hora_final'     => 'required|after:hora_inicio',
         ]);
+
+        // Permisos, incapacidades y vacaciones son de días enteros: antes había que
+        // teclear el horario a mano en todos los casos.
+        if ($request->has('bloquear_todo_el_dia')) {
+            $horaInicio = '08:00:00';
+            $horaFinal  = '16:00:00';
+        } else {
+            $request->validate([
+                'hora_inicio' => 'required',
+                'hora_final'  => 'required|after:hora_inicio',
+            ]);
+            $horaInicio = $request->input('hora_inicio');
+            $horaFinal  = $request->input('hora_final');
+        }
+
+        $conciliador = User::find($request->conciliador_id);
+
+        if (!$conciliador) {
+            return back()->withErrors('El conciliador no existe.');
+        }
+
         $existe = DiasInhabiles::where('user_id', $request->conciliador_id)
         ->whereDate('fecha_inicio', '<=', $request->fecha_final)
         ->whereDate('fecha_final', '>=', $request->fecha_inicio)
-        ->where('horario_inicio', '<=', $request->hora_final)
-        ->where('horario_final', '>=', $request->hora_inicio)
+        ->where('horario_inicio', '<', $horaFinal)
+        ->where('horario_final', '>', $horaInicio)
         ->exists();
         if ($existe) {
             return back()->withErrors("El conciliador ya está bloqueado en ese horario.");
@@ -654,9 +673,12 @@ class AdministracionController extends Controller{
         DiasInhabiles::create([
             'fecha_inicio'   => $request->fecha_inicio,
             'fecha_final'    => $request->fecha_final,
-            'horario_inicio' => $request->hora_inicio,
-            'horario_final'  => $request->hora_final,
-            'centro'         => Auth::user()->delegacion,
+            'horario_inicio' => $horaInicio,
+            'horario_final'  => $horaFinal,
+            // Antes se guardaba Auth::user()->delegacion, es decir la sede de quien
+            // capturaba: los bloqueos de una persona quedaban repartidos entre varios
+            // centros. Los registros nuevos usan la delegación del bloqueado.
+            'centro'         => $conciliador->delegacion ?: Auth::user()->delegacion,
             'user_id'        => $request->conciliador_id,
             'descripcion'    => $request->descripcion,
             'tipo'           => $request->tipo,
@@ -802,93 +824,302 @@ class AdministracionController extends Controller{
         return back()->with('success', 'Cumplimeinto borrado correctamente.');
     }
 
+    /**
+     * Sedes que ve cada delegación. Antes este mapa estaba duplicado dentro de
+     * obtenerBloqueosCalendario; vive aquí para que el calendario por sede y el
+     * endpoint de eventos usen exactamente el mismo criterio.
+     */
+    private function mapaSedes(): array
+    {
+        return [
+            'Morelia' => ['Morelia', 'Zitácuaro'],
+            'Uruapan' => ['Uruapan', 'Lázaro Cárdenas'],
+            'Zamora'  => ['Zamora', 'Sahuayo'],
+        ];
+    }
+
+    /**
+     * Un bloqueo cubre la jornada completa cuando abarca de las 8 a las 15 o más.
+     * El alta guarda 16:00 cuando se marca "bloquear todo el día", pero la lógica
+     * vieja comparaba contra 15:00 exacto y esos bloqueos se pintaban como si
+     * fueran de horario parcial.
+     */
+    private function esJornadaCompleta($horaInicio, $horaFinal): bool
+    {
+        if (empty($horaInicio) || empty($horaFinal)) {
+            return true;
+        }
+
+        return $horaInicio <= '08:00:00' && $horaFinal >= '15:00:00';
+    }
+
+    /**
+     * Calendario de bloqueos de una sede concreta.
+     */
+    public function calendarioSede($id)
+    {
+        $sede = Sedes::findOrFail($id);
+        $user = auth()->user();
+        $roles = $user->getRoleNames()->all();
+
+        // Fuera de Super Usuario / Administrador solo se ve la región propia.
+        if (!in_array('Super Usuario', $roles) && !in_array('Administrador', $roles)) {
+            $permitidas = $this->mapaSedes()[$user->delegacion] ?? [$user->delegacion];
+
+            if (!in_array($sede->nombre, $permitidas)) {
+                abort(403, 'No tienes acceso al calendario de esta sede.');
+            }
+        }
+
+        // Las oficinas de apoyo (Zitácuaro, Lázaro Cárdenas, Sahuayo) no tienen
+        // conciliadores propios: se listan los de su sede madre.
+        $delegacionesConciliadores = [$sede->nombre];
+
+        if (!empty($sede->oficina_apoyo)) {
+            $madre = Sedes::find($sede->oficina_apoyo);
+
+            if ($madre) {
+                $delegacionesConciliadores[] = $madre->nombre;
+            }
+        }
+
+        $conciliadores = User::role('Conciliador')
+            ->whereIn('delegacion', $delegacionesConciliadores)
+            ->orderBy('name')
+            ->get();
+
+        // Jornada semanal de cada conciliador, para sombrear en el calendario las
+        // horas en las que de entrada no atiende. Se manda completa a la vista
+        // porque el selector cambia de persona sin recargar la página.
+        $horarios = PermisosConciliador::whereIn('id_conciliador', $conciliadores->pluck('id'))
+            ->get()
+            ->keyBy('id_conciliador');
+
+        $jornadas = [];
+
+        foreach ($conciliadores as $con) {
+            $jornadas[$con->id] = $this->jornadaSemanal($horarios->get($con->id));
+        }
+
+        // Aquí se consultaban todos los bloqueos de la sede para pasárselos a la
+        // vista, que nunca los usó: el calendario los pide por mes al endpoint.
+        return view('administracion.calendario_sede', compact('sede', 'conciliadores', 'jornadas'));
+    }
+
+    /**
+     * Traduce una fila de permisos_conciliador al formato businessHours de
+     * FullCalendar. Devuelve null cuando no hay horario capturado, para no
+     * sombrear un calendario del que no sabemos nada.
+     */
+    private function jornadaSemanal($permiso)
+    {
+        if (!$permiso) {
+            return null;
+        }
+
+        $dias = [
+            1 => 'lunes',
+            2 => 'martes',
+            3 => 'miercoles',
+            4 => 'jueves',
+            5 => 'viernes',
+        ];
+
+        $jornada = [];
+
+        foreach ($dias as $numero => $nombre) {
+            if (strtolower((string) $permiso->{$nombre}) !== 'si') {
+                continue;
+            }
+
+            $jornada[] = [
+                'daysOfWeek' => [$numero],
+                'startTime'  => substr((string) $permiso->{$nombre . '_inicio'}, 0, 5) ?: '09:00',
+                'endTime'    => substr((string) $permiso->{$nombre . '_final'}, 0, 5) ?: '15:30',
+            ];
+        }
+
+        return empty($jornada) ? [] : $jornada;
+    }
+
+    /**
+     * Edición de un bloqueo existente. Antes solo existían alta y baja: para
+     * corregir una fecha había que borrar y volver a capturar.
+     */
+    public function actualizarBloqueo(Request $request, $id)
+    {
+        $bloqueo = DiasInhabiles::find($id);
+
+        if (!$bloqueo) {
+            return back()->withErrors('El bloqueo no existe.');
+        }
+
+        $request->validate([
+            'fecha_inicio' => 'required|date',
+            'fecha_final'  => 'required|date|after_or_equal:fecha_inicio',
+            'tipo'         => 'required|string',
+            'descripcion'  => 'required|string',
+        ]);
+
+        if ($request->has('bloquear_todo_el_dia')) {
+            $horaInicio = '08:00:00';
+            $horaFinal  = '16:00:00';
+        } else {
+            $request->validate([
+                'hora_inicio' => 'required',
+                'hora_final'  => 'required|after:hora_inicio',
+            ]);
+            $horaInicio = $request->input('hora_inicio');
+            $horaFinal  = $request->input('hora_final');
+        }
+
+        // Misma validación de solapamiento que el alta, excluyendo el propio registro
+        // y comparando contra bloqueos del mismo ámbito (sede completa o conciliador).
+        $existe = DiasInhabiles::where('centro', $bloqueo->centro)
+            ->where('id', '<>', $bloqueo->id)
+            ->when(is_null($bloqueo->user_id),
+                function ($q) { return $q->whereNull('user_id'); },
+                function ($q) use ($bloqueo) { return $q->where('user_id', $bloqueo->user_id); }
+            )
+            ->whereDate('fecha_inicio', '<=', $request->fecha_final)
+            ->whereDate('fecha_final', '>=', $request->fecha_inicio)
+            ->where(function ($q) use ($horaInicio, $horaFinal) {
+                $q->where('horario_inicio', '<', $horaFinal)
+                  ->where('horario_final', '>', $horaInicio);
+            })
+            ->exists();
+
+        if ($existe) {
+            return back()->withErrors('Los cambios colisionan con otro bloqueo ya registrado en esta sede.');
+        }
+
+        $bloqueo->update([
+            'fecha_inicio'   => $request->fecha_inicio,
+            'fecha_final'    => $request->fecha_final,
+            'horario_inicio' => $horaInicio,
+            'horario_final'  => $horaFinal,
+            'tipo'           => $request->tipo,
+            'descripcion'    => $request->descripcion,
+        ]);
+
+        return back()->with('success', 'El bloqueo se actualizó correctamente.');
+    }
+
     public function obtenerBloqueosCalendario(Request $request)
     {
         try {
             $sedeFiltro = $request->input('sede');
             $conciliadorFiltro = $request->input('conciliador');
+            // sede_exacta=1 consulta una sola sede en lugar del grupo regional.
+            $sedeExacta = $request->boolean('sede_exacta');
 
-            $mapaSedes = [
-                'Morelia' => ['Morelia', 'Zitácuaro'],
-                'Uruapan' => ['Uruapan', 'Lázaro Cárdenas'],
-                'Zamora'  => ['Zamora', 'Sahuayo'],
-            ];
+            $mapaSedes = $this->mapaSedes();
 
-            // Acotamos la consulta a los 4 meses posteriores para máxima optimización
-            $fechaHoy = Carbon::now()->toDateString();
-            $fechaLimiteCuatroMeses = Carbon::now()->addMonths(4)->toDateString();
+            // FullCalendar manda el rango visible en cada navegación. Antes esto
+            // estaba fijo en hoy..+4 meses, así que al retroceder de mes el
+            // calendario se veía vacío aunque hubiera bloqueos.
+            $inicioRango = $request->input('start')
+                ? Carbon::parse($request->input('start'))->toDateString()
+                : Carbon::now()->toDateString();
+
+            $finRango = $request->input('end')
+                ? Carbon::parse($request->input('end'))->toDateString()
+                : Carbon::now()->addMonths(4)->toDateString();
 
             $query = DiasInhabiles::query();
 
-            $query->where(function($q) use ($fechaHoy, $fechaLimiteCuatroMeses) {
-                $q->whereBetween('fecha_inicio', [$fechaHoy, $fechaLimiteCuatroMeses])
-                ->orWhereBetween('fecha_final', [$fechaHoy, $fechaLimiteCuatroMeses])
-                ->orWhere(function($sub) use ($fechaHoy, $fechaLimiteCuatroMeses) {
-                    $sub->where('fecha_inicio', '<=', $fechaHoy)
-                        ->where('fecha_final', '>=', $fechaLimiteCuatroMeses);
+            $query->where(function($q) use ($inicioRango, $finRango) {
+                $q->whereBetween('fecha_inicio', [$inicioRango, $finRango])
+                ->orWhereBetween('fecha_final', [$inicioRango, $finRango])
+                ->orWhere(function($sub) use ($inicioRango, $finRango) {
+                    $sub->where('fecha_inicio', '<=', $inicioRango)
+                        ->where('fecha_final', '>=', $finRango);
                 });
             });
 
-            if (!empty($sedeFiltro)) {
-                $sedesAsociadas = $mapaSedes[$sedeFiltro] ?? [$sedeFiltro];
+            $sedesAsociadas = !empty($sedeFiltro)
+                ? ($sedeExacta ? [$sedeFiltro] : ($mapaSedes[$sedeFiltro] ?? [$sedeFiltro]))
+                : null;
+
+            if (!empty($conciliadorFiltro)) {
+                // Los bloqueos de conciliador se guardan con el 'centro' de quien los
+                // captura, no con la delegación del bloqueado, así que filtrar por
+                // centro esconde parte de su agenda. Sus bloqueos se buscan por
+                // user_id y aparte se suman los de la sede consultada.
+                $query->where(function($q) use ($conciliadorFiltro, $sedesAsociadas) {
+                    $q->where('user_id', $conciliadorFiltro)
+                      ->orWhere(function($sub) use ($sedesAsociadas) {
+                          $sub->whereNull('user_id');
+                          if ($sedesAsociadas) {
+                              $sub->whereIn('centro', $sedesAsociadas);
+                          }
+                      });
+                });
+            } elseif ($sedesAsociadas) {
                 $query->whereIn('centro', $sedesAsociadas);
             }
 
-            if (!empty($conciliadorFiltro)) {
-                $query->where(function($q) use ($conciliadorFiltro) {
-                    $q->where('user_id', $conciliadorFiltro)
-                    ->orWhereNull('user_id');
-                });
-            }
-
             $bloqueos = $query->get();
+
+            // Nombres de los conciliadores bloqueados, para etiquetar el evento.
+            $nombresConciliador = User::whereIn('id', $bloqueos->pluck('user_id')->filter()->unique())
+                ->pluck('name', 'id');
+
             $eventos = [];
 
             foreach ($bloqueos as $b) {
                 $esInhabilCompleto = ($b->descripcion === 'Inhabil');
-                
-                // Determinamos si es jornada completa (Día Inhábil o bloqueo de 8 a 15)
-                $esJornadaCompleta = ($esInhabilCompleto || ($b->horario_inicio === '08:00:00' && $b->horario_final === '15:00:00'));
+                $esJornadaCompleta = ($esInhabilCompleto || $this->esJornadaCompleta($b->horario_inicio, $b->horario_final));
+                $esDeSede = is_null($b->user_id);
 
-                if (is_null($b->user_id) && $esInhabilCompleto) {
-                    // ====================================================================
-                    // CASO 1: DÍA INHÁBIL EN LA SEDE -> SE ENVÍA A LA SECCIÓN ALL-DAY
-                    // ====================================================================
-                    $eventos[] = [
-                        'id'            => 'bloqueo_sede_' . $b->id,
-                        'title'         => 'Día Inhábil', // Leyenda corta solicitada
-                        'start'         => $b->fecha_inicio,
-                        // CORRECCIÓN CRÍTICA: Se le suma 1 día a la fecha final para que FullCalendar v6 marque todos los días seguidos
-                        'end'           => Carbon::parse($b->fecha_final)->addDay()->toDateString(),
-                        'allDay'        => true, // Fuerza a que se pinte arriba en la sección all-day
-                        'extendedProps' => [
-                            'tipo'    => 'BloqueoAgenda',
-                            'regimen' => 'Inhabil',
-                            'motivo'  => $b->motivo ?? 'Suspensión oficial de labores',
-                            'modulo'  => $b->tipo
-                        ]
-                    ];
+                if ($esDeSede) {
+                    $titulo = $esInhabilCompleto ? 'Día Inhábil' : 'Horario bloqueado';
+                    $color  = $esInhabilCompleto ? '#6A0F49' : '#B5824A';
+                    $clase  = $esInhabilCompleto ? 'evt-inhabil' : 'evt-horario';
                 } else {
-                    // ====================================================================
-                    // CASO 2: BLOQUEOS PARCIALES O POR CONCILIADOR
-                    // ====================================================================
-                    $titulo = $esInhabilCompleto ? "Conciliador Inactivo" : "Hora Bloqueada";
-
-                    $eventos[] = [
-                        'id'            => 'bloqueo_' . $b->id,
-                        'title'         => $titulo,
-                        // Si es jornada completa va al all-day, si no, se concatena su hora correspondiente
-                        'start'         => $esJornadaCompleta ? $b->fecha_inicio : $b->fecha_inicio . 'T' . $b->horario_inicio,
-                        'end'           => $esJornadaCompleta ? Carbon::parse($b->fecha_final)->addDay()->toDateString() : $b->fecha_final . 'T' . $b->horario_final,
-                        'allDay'        => $esJornadaCompleta,
-                        'extendedProps' => [
-                            'tipo'    => 'BloqueoAgenda',
-                            'regimen' => $b->descripcion,
-                            'motivo'  => $b->motivo ?? 'Restricción programada',
-                            'modulo'  => $b->tipo
-                        ]
-                    ];
+                    $nombre = $nombresConciliador[$b->user_id] ?? 'Conciliador';
+                    $titulo = $esInhabilCompleto ? $nombre . ' — inactivo' : $nombre . ' — bloqueado';
+                    $color  = '#496163';
+                    $clase  = 'evt-conciliador';
                 }
+
+                $eventos[] = [
+                    // El id lleva prefijo por compatibilidad con lo que ya existía;
+                    // el id real del registro va en extendedProps para poder editar.
+                    'id'              => ($esDeSede ? 'bloqueo_sede_' : 'bloqueo_') . $b->id,
+                    'title'           => $titulo,
+                    // FullCalendar v6 trata 'end' como exclusivo en eventos de día
+                    // completo: sin el +1 día el último día no se pinta.
+                    'start'           => $esJornadaCompleta ? $b->fecha_inicio : $b->fecha_inicio . 'T' . $b->horario_inicio,
+                    'end'             => $esJornadaCompleta
+                                            ? Carbon::parse($b->fecha_final)->addDay()->toDateString()
+                                            : $b->fecha_final . 'T' . $b->horario_final,
+                    'allDay'          => $esJornadaCompleta,
+                    // backgroundColor/borderColor los usa el dashboard; classNames deja
+                    // que el calendario por sede pinte sus propias píldoras con CSS.
+                    'backgroundColor' => $color,
+                    'borderColor'     => $color,
+                    'classNames'      => (!empty($conciliadorFiltro) && $esDeSede)
+                                            ? [$clase, 'evt-contexto']
+                                            : [$clase],
+                    'extendedProps'   => [
+                        'tipo'           => 'BloqueoAgenda',
+                        'bloqueo_id'     => $b->id,
+                        'ambito'         => $esDeSede ? 'sede' : 'conciliador',
+                        'conciliador'    => $esDeSede ? null : ($nombresConciliador[$b->user_id] ?? null),
+                        'centro'         => $b->centro,
+                        'regimen'        => $b->descripcion,
+                        'modulo'         => $b->tipo,
+                        'fecha_inicio'   => $b->fecha_inicio,
+                        'fecha_final'    => $b->fecha_final,
+                        'horario_inicio' => $b->horario_inicio,
+                        'horario_final'  => $b->horario_final,
+                        'jornada'        => $esJornadaCompleta,
+                        // Cuando se consulta a un conciliador, sus bloqueos son los
+                        // editables y los de la sede solo dan contexto.
+                        'contexto'       => (!empty($conciliadorFiltro) && $esDeSede),
+                    ]
+                ];
             }
 
             return response()->json($eventos);

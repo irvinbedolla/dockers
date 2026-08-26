@@ -219,7 +219,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('administracion/RR/{id}',                [AdministracionController::class, 'hacer_retroceso_ratificacion'])->name('accion_retrocesoR'); 
         Route::post('/bloquear_sede',                       [AdministracionController::class, 'bloqueoSede'])->name('bloqueoSede');  //Bloquear días inhabiles para toda la sede
         Route::post('/bloquear_conciliador',                [AdministracionController::class, 'bloqueoConciliador'])->name('bloqueoConciliador'); //bloquear por días u horas a conciliadores
+        Route::get('administracion/sedes/{sede}/calendario', [AdministracionController::class, 'calendarioSede'])->name('sede.calendario'); //calendario de bloqueos de una sede
         Route::delete('/bloqueo/{id}',                      [AdministracionController::class, 'eliminarBloqueo'])->name('eliminarBloqueo'); //eliminar fechas bloqueadas(inhabiles)
+        Route::put('/bloqueo/{id}',                         [AdministracionController::class, 'actualizarBloqueo'])->name('actualizarBloqueo'); //editar un bloqueo existente
         Route::get('/administracion/edit/{id}',             [AdministracionController::class, 'edit'])->name('administrador_usuarios_edit');
         Route::patch('/administracion/update/{post}',       [AdministracionController::class, 'update'])->name('usuarios_update');
         Route::delete('/administracion/destroy/{id}',       [AdministracionController::class, 'destroy'])->name('usuarios_destroy');
