@@ -896,11 +896,9 @@ class AdministracionController extends Controller{
             $jornadas[$con->id] = $this->jornadaSemanal($horarios->get($con->id));
         }
 
-        $bloqueos = DiasInhabiles::where('centro', $sede->nombre)
-            ->orderBy('fecha_inicio', 'desc')
-            ->get();
-
-        return view('administracion.calendario_sede', compact('sede', 'conciliadores', 'bloqueos', 'jornadas'));
+        // Aquí se consultaban todos los bloqueos de la sede para pasárselos a la
+        // vista, que nunca los usó: el calendario los pide por mes al endpoint.
+        return view('administracion.calendario_sede', compact('sede', 'conciliadores', 'jornadas'));
     }
 
     /**

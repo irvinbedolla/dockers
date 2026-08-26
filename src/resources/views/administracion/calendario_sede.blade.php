@@ -598,7 +598,26 @@
             var modal = new bootstrap.Modal(document.getElementById('modalBloqueo'));
             var calendario = null;
             var filtro = 'todos';
+
+            // Cada mes se pide una sola vez y se guarda en memoria. Volver a un mes ya
+            // visto —o cambiar el filtro— no vuelve a pegarle al servidor. El caché
+            // muere en la recarga que sigue a cualquier alta, edición o baja, así que
+            // no puede quedarse con datos viejos.
+            var cacheMeses = {};
+            var desdeCache = false;
             var conciliador = new URLSearchParams(window.location.search).get('conciliador') || '';
+
+            // El filtro de ámbito se aplica sobre lo ya descargado: cambiarlo no
+            // justifica otra consulta.
+            function aplicarFiltro(data) {
+                if (filtro === 'todos') {
+                    return data;
+                }
+
+                return data.filter(function (e) {
+                    return (e.extendedProps || {}).ambito === filtro;
+                });
+            }
 
             function tituloDe(d) { return MESES[d.getMonth()] + ' ' + d.getFullYear(); }
             function cortaDe(d)  { return d.getDate() + ' ' + CORTOS[d.getMonth()] + ' ' + d.getFullYear(); }
@@ -719,7 +738,9 @@
                         $('#calZona').attr('aria-busy', cargando ? 'true' : 'false');
 
                         if (cargando) {
-                            $sk.show();
+                            if (!desdeCache) {
+                                $sk.show();
+                            }
                             return;
                         }
 
@@ -747,6 +768,17 @@
                     },
 
                     events: function (fetchInfo, success, failure) {
+                        var clave = conciliador + '|' + fetchInfo.startStr + '|' + fetchInfo.endStr;
+
+                        if (cacheMeses[clave]) {
+                            // Bandera para que el esqueleto no parpadee en una respuesta
+                            // que se resuelve en el mismo frame.
+                            desdeCache = true;
+                            success(aplicarFiltro(cacheMeses[clave]));
+                            desdeCache = false;
+                            return;
+                        }
+
                         $.ajax({
                             url: URL_EVENTOS,
                             data: {
@@ -757,14 +789,8 @@
                                 end: fetchInfo.endStr
                             },
                             success: function (data) {
-                                if (filtro === 'todos') {
-                                    success(data);
-                                    return;
-                                }
-
-                                success(data.filter(function (e) {
-                                    return (e.extendedProps || {}).ambito === filtro;
-                                }));
+                                cacheMeses[clave] = data;
+                                success(aplicarFiltro(data));
                             },
                             error: function () {
                                 failure('No se pudieron cargar los bloqueos');

@@ -6,17 +6,26 @@
     <title>Si concilio</title>
     <meta content='width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no' name='viewport'>
 
+    {{-- Se abre la conexión con los CDN antes de necesitarlos: ahorra el DNS y el
+         handshake TLS cuando el navegador llega a cada archivo. --}}
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
     <!-- 1. Bootstrap 5.3 CSS e Iconos -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 
-    <!-- FullCalendar -->
-    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/index.global.min.js'></script>
+    {{-- FullCalendar se movió al final del body: es el archivo más pesado del layout
+         y en el <head> bloqueaba el pintado de TODAS las pantallas, también las que
+         no tienen calendario. Las vistas lo usan desde su sección de scripts, que
+         se renderiza después. --}}
 
     <!-- Ionicons y Estilos Globales -->
     <link href="//fonts.googleapis.com/css?family=Lato&display=swap" rel="stylesheet">
-    <link href="{{ asset('assets/css/all.css') }}" rel="stylesheet">
+    {{-- assets/css/all.css era Font Awesome 5.15.4 otra vez (75 KB), pero sin las
+         declaraciones de fuente: los glifos los sirve el all.min.css del CDN. --}}
     <link href="{{ asset('assets/css/iziToast.min.css') }}" rel="stylesheet">
     <link href="{{ asset('assets/css/sweetalert.css') }}" rel="stylesheet">
     <link href="{{ asset('assets/css/select2.min.css') }}" rel="stylesheet">
@@ -24,7 +33,8 @@
     
     <!-- jQuery obligatorio en HEAD para componentes de Stisla -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
+    {{-- select2 4.0.13 se cargaba aquí y otra vez al final del body desde
+         assets/js/select2.min.js. Se deja solo la copia local. --}}
 
     <!-- Template CSS (Stisla) -->
     <link rel="icon" href="{{ asset('assets/images/ccl-r.png') }}">
@@ -279,6 +289,9 @@
     <!-- DataTables Bootstrap 5 -->
     <script src="https://cdn.datatables.net/2.2.1/js/dataTables.js"></script>
     <script src="https://cdn.datatables.net/2.2.1/js/dataTables.bootstrap5.js"></script>
+
+    <!-- FullCalendar (antes estaba en el <head>, bloqueando el render) -->
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/index.global.min.js"></script>
 
     <!-- 5. Scripts de la Plantilla -->
     <script src="{{ asset('assets/js/stisla.js') }}"></script>
