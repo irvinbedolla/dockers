@@ -293,8 +293,8 @@
                 const modalElement = document.getElementById('modalListaDocs');
                 const modalInstance = bootstrap.Modal.getInstance(modalElement) || new bootstrap.Modal(modalElement);
 
-                // Utiliza la ruta nombrada para consultar documentos de la ratificación
-                const routeTemplate = '{{ route("VerDocumentosRatificacion", ["id" => "xxx"]) }}';
+                // Utiliza la ruta nombrada para consultar documentos de la ratificación (versión JSON del modal)
+                const routeTemplate = '{{ route("VerDocumentosRatificacionModal", ["id" => "xxx"]) }}';
                 const finalUrl = routeTemplate.replace('xxx', solicitudId);
 
                 tbody.html(`
