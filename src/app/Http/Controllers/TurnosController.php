@@ -2370,12 +2370,95 @@ class TurnosController extends Controller
     }
 
     public function VerDocumentosRatificacion($id){
-        $documento_general = Turnos::find($id); 
+        $documento_general = Turnos::find($id);
         //Documentos del abogado y citados
         $documento_abogado = Poder::find($documento_general["idAbogado"]);
         $documento_subidos = DocumentosSolicitud::where('id_solicitud',$id)->where('tramite','Ratificacion')->get();
 
        return view('ratificaciones/verDocumentos',compact('documento_general','documento_abogado','documento_subidos'));
+    }
+
+    /**
+     * Igual que VerDocumentosRatificacion() pero en JSON, para el modal AJAX de ratificaciones_todas.blade.
+     * No reemplaza al método de arriba porque otras vistas ya lo usan como página completa (target="_blank").
+     */
+    public function VerDocumentosRatificacionModal($id)
+    {
+        $documento_general = Turnos::find($id);
+        if (!$documento_general) {
+            return response()->json([], 404);
+        }
+
+        $documento_abogado = Poder::find($documento_general->idAbogado);
+        $documento_subidos = DocumentosSolicitud::where('id_solicitud', $id)
+            ->where('tramite', 'Ratificacion')
+            ->get();
+
+        $lista = [];
+
+        // Helper para verificar existencia del archivo (con o sin subcarpeta de id) y armar la URL
+        $resolverUrl = function ($folder, $subId, $filename, $tipoRoute) {
+            if (!$filename || $filename === 'Sin documento') return null;
+            $path1 = "{$folder}/{$subId}/{$filename}";
+            $path2 = "{$folder}/{$filename}";
+
+            if (Storage::disk('s3')->exists($path1) || Storage::disk('s3')->exists($path2)) {
+                return route('documentos.ver', ['tipo' => $tipoRoute, 'id' => $subId, 'archivo' => $filename]);
+            }
+            return null;
+        };
+
+        $lista[] = [
+            'nombre' => 'CURP del Trabajador',
+            'archivo' => $documento_general->documentoCurp,
+            'url' => $resolverUrl('documentos_ratificacion', $id, $documento_general->documentoCurp, 'ratificacion'),
+        ];
+
+        $lista[] = [
+            'nombre' => 'Identificación del Trabajador',
+            'archivo' => $documento_general->documentoidentificacion,
+            'url' => $resolverUrl('documentos_ratificacion', $id, $documento_general->documentoidentificacion, 'ratificacion'),
+        ];
+
+        if ($documento_abogado) {
+            $idAbogado = $documento_abogado->idAbogado;
+
+            $lista[] = [
+                'nombre' => 'Identificación de Representante Legal: ' . $documento_abogado->nombres_patronal,
+                'archivo' => $documento_abogado->ineDocumento,
+                'url' => $resolverUrl('documentos_abogados', $idAbogado, $documento_abogado->ineDocumento, 'poder'),
+            ];
+
+            $lista[] = [
+                'nombre' => 'Poder de Representante Legal: ' . $documento_abogado->nombres_patronal,
+                'archivo' => $documento_abogado->representacionDocumento,
+                'url' => $resolverUrl('documentos_abogados', $idAbogado, $documento_abogado->representacionDocumento, 'poder'),
+            ];
+
+            $lista[] = [
+                'nombre' => 'Cédula de Representante Legal: ' . $documento_abogado->nombres_patronal,
+                'archivo' => $documento_abogado->cedulaDocumento,
+                'url' => $resolverUrl('documentos_abogados', $idAbogado, $documento_abogado->cedulaDocumento, 'poder'),
+            ];
+
+            if (!empty($documento_abogado->anexo_documeto) && $documento_abogado->anexo_documeto !== 'Sin anexo') {
+                $lista[] = [
+                    'nombre' => 'Anexo de Representante Legal: ' . $documento_abogado->nombres_patronal,
+                    'archivo' => $documento_abogado->anexo_documeto,
+                    'url' => $resolverUrl('documentos_abogados', $idAbogado, $documento_abogado->anexo_documeto, 'poder'),
+                ];
+            }
+        }
+
+        foreach ($documento_subidos as $doc) {
+            $lista[] = [
+                'nombre' => $doc->nombre_documento,
+                'archivo' => $doc->nombre_documento,
+                'url' => route('documento_ratificacion_ver', $doc->id),
+            ];
+        }
+
+        return response()->json($lista);
     }
 
     public function ratificacion_confirmadas(){
