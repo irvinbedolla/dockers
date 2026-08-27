@@ -2417,7 +2417,7 @@ class TurnosController extends Controller
         $lista[] = [
             'nombre' => 'Identificación del Trabajador',
             'archivo' => $documento_general->documentoidentificacion,
-            'url' => $resolverUrl('documentos_ratificacion', $id, $documento_general->documentoidentificacion, 'ratificacion'),
+            'url' => $resolverUrl('carpeta_prueba', $id, $documento_general->documentoidentificacion, 'ratificacion'),
         ];
 
         if ($documento_abogado) {
