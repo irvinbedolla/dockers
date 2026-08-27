@@ -398,7 +398,7 @@ class SeerController extends Controller
             'solicitud' => 'documentosSolicitud',
             'poder'  => 'documentos_abogados',
             'notificacion' => 'documentos_notificacion',
-            'ratificacion' => 'carpeta_prueba',
+            'ratificacion' => 'documentos_ratificacion',
             'personal' => 'documentos_personal',
             'modulo' => 'documentos_modulo',
         ];
