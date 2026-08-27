@@ -817,13 +817,13 @@ class TurnosController extends Controller
             //Se carga el INE del abogado
             $nombre_ine = $data["nombre_empresa"]."".$data["primero_empresa"]."".$data["segundo_empresa"]."-".$data["empresa"]."_IDENTIFICACION.pdf";
             $path = Storage::disk('s3')->putFileAs(
-                'documentos_ratificacion/' . $id_turno, $request->file('documentoIne'), $nombre_ine
+                'carpeta_prueba/' . $id_turno, $request->file('documentoIne'), $nombre_ine
             );
 
             //Se carga el Poder del abogado
             $nombre_representación = $data["nombre_empresa"]."".$data["primero_empresa"]."".$data["segundo_empresa"]."-".$data["empresa"]."_PODER.pdf";
             $path = Storage::disk('s3')->putFileAs(
-                'documentos_ratificacion/' . $id_turno, $request->file('documentoPoder'), $nombre_representación
+                'carpeta_prueba/' . $id_turno, $request->file('documentoPoder'), $nombre_representación
             );
         }
         
@@ -835,7 +835,7 @@ class TurnosController extends Controller
         */
         $trabajador_identificacion  = $data["trabajador_curp"]."_IDENTIFICACION.pdf";
         $path = Storage::disk('s3')->putFileAs(
-            'documentos_ratificacion/' . $id_turno, $request->file('documentoidentificacion'), $trabajador_identificacion
+            'carpeta_prueba/' . $id_turno, $request->file('documentoidentificacion'), $trabajador_identificacion
         );
 
         $turno->update([
@@ -848,7 +848,7 @@ class TurnosController extends Controller
         if(isset($data["cuantificacion"])){
             $cuantificacion  = $data["trabajador_curp"]."_CUANTIFICACION.pdf";
             $path = Storage::disk('s3')->putFileAs(
-                'documentos_ratificacion/' . $id_turno, $request->file('cuantificacion'), $cuantificacion
+                'carpeta_prueba/' . $id_turno, $request->file('cuantificacion'), $cuantificacion
             );
             $turno->update(['documentoCuanti' => $cuantificacion]);
         }
