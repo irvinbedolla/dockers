@@ -87,7 +87,7 @@ class TurnosController extends Controller
 
         $candidates = [
             'documentos_ratificacion/' . $doc->id_solicitud . '/' . $doc->nombre_documento,
-            'documentos_ratificacion/' . $doc->nombre_documento,
+            'carpeta_prueba/' . $doc->nombre_documento,
             'documentosSolicitud/' . $doc->nombre_documento,
         ];
 
@@ -2411,7 +2411,7 @@ class TurnosController extends Controller
         $lista[] = [
             'nombre' => 'CURP del Trabajador',
             'archivo' => $documento_general->documentoCurp,
-            'url' => $resolverUrl('documentos_ratificacion', $id, $documento_general->documentoCurp, 'ratificacion'),
+            'url' => $resolverUrl('carpeta_prueba', $id, $documento_general->documentoCurp, 'ratificacion'),
         ];
 
         $lista[] = [
