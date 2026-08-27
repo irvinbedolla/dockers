@@ -107,23 +107,22 @@
                 padding-right: 30px !important;
                 padding-bottom: 40px !important;
                 width: calc(100% - 250px) !important;
-                min-height: 100vh !important;
                 background-color: #f4f6f9 !important;
             }
 
             /* Estado Colapsado en PC (Clase sidebar-mini de Stisla) */
             body.sidebar-mini .main-sidebar {
-                width: 65px !important;
+                width: 78px !important;
             }
 
             body.sidebar-mini .main-navbar {
-                left: 65px !important;
-                width: calc(100% - 65px) !important;
+                left: 78px !important;
+                width: calc(100% - 78px) !important;
             }
 
             body.sidebar-mini .main-content {
-                margin-left: 65px !important;
-                width: calc(100% - 65px) !important;
+                margin-left: 78px !important;
+                width: calc(100% - 78px) !important;
             }
         }
 
@@ -251,6 +250,159 @@
         body.sidebar-mini .main-sidebar .sidebar-brand-sm {
             display: flex !important;
         }
+
+        /* ------------------------------------------------------------- */
+        /* [SICONCILIO] Logo fijo arriba del sidebar                      */
+        /* ------------------------------------------------------------- */
+
+        /* El contenedor que hace scroll es .main-sidebar, así que el sticky se
+           ancla a él: el logo se queda arriba y el menú corre por debajo, igual
+           que el contenido corre por debajo de la barra superior. */
+        .main-sidebar .sidebar-brand,
+        .main-sidebar .sidebar-brand-sm {
+            position: sticky !important;
+            top: 0;
+            z-index: 2;
+            background-color: #fff !important;
+            height: 62px !important;
+            line-height: normal !important;
+            /* Línea sutil que aparece cuando el menú empieza a pasar por abajo */
+            box-shadow: 0 1px 0 rgba(0, 0, 0, .06);
+        }
+
+        .main-sidebar .sidebar-brand img {
+            max-height: 40px !important;
+            width: auto !important;
+        }
+
+        /* Colapsado: el isotipo baja de tamaño junto con el sidebar */
+        body.sidebar-mini .main-sidebar .sidebar-brand-sm {
+            height: 54px !important;
+            padding: 0 !important;
+        }
+
+        body.sidebar-mini .main-sidebar .sidebar-brand-sm img {
+            /* El logo es apaisado (2880x957), así que el que manda es el ancho:
+               52px caben en los 65px del sidebar dejando margen a los lados. */
+            max-width: 52px !important;
+            max-height: none !important;
+            width: auto !important;
+            height: auto !important;
+        }
+
+        /* El primer ítem del menú queda pegado al logo sin este respiro */
+        .main-sidebar .sidebar-menu { padding-top: 6px !important; }
+
+        /* ------------------------------------------------------------- */
+        /* [SICONCILIO] Menú en estado colapsado                          */
+        /* ------------------------------------------------------------- */
+
+        /* Colapsado sin barra de scroll visible: es lo único que deja usar los 78px
+           completos. Con la barra a la derecha el contenido se recorre, y con
+           scrollbar-gutter reservado a ambos lados aparece un hueco a la izquierda
+           que corta el resaltado del ítem activo. El menú sigue desplazándose con
+           la rueda y con el touchpad. */
+        body.sidebar-mini .main-sidebar {
+            scrollbar-width: none;
+            scrollbar-gutter: auto;
+        }
+
+        body.sidebar-mini .main-sidebar::-webkit-scrollbar {
+            width: 0;
+            height: 0;
+        }
+
+        /* Stisla mete padding:10px en cada <li>, y ese margen impedía que el
+           resaltado del ítem activo llegara a los bordes. */
+        body.sidebar-mini .main-sidebar .sidebar-menu > li {
+            padding: 0 !important;
+        }
+
+        body.sidebar-mini .main-sidebar .sidebar-menu li a {
+            justify-content: center !important;
+            gap: 0 !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+        }
+
+        body.sidebar-mini .main-sidebar .sidebar-menu li a > i {
+            flex: 0 0 auto !important;
+            font-size: 18px !important;
+        }
+
+        /* El selector azul ocupa todo el ancho de la barra */
+        body.sidebar-mini .main-sidebar .sidebar-menu > li.active > a {
+            width: 100% !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+        }
+
+        /* ------------------------------------------------------------- */
+        /* [SICONCILIO] Una sola barra de scroll y footer pegado abajo    */
+        /* ------------------------------------------------------------- */
+
+        /* El documento mide exactamente el viewport: el contenido crece y el
+           footer se queda abajo. Antes .main-content tenía min-height:100vh y
+           con el footer debajo el documento SIEMPRE superaba la pantalla, así
+           que la barra de la página aparecía incluso en vistas cortas, junto a
+           la del sidebar. */
+        .main-wrapper {
+            display: flex !important;
+            flex-direction: column !important;
+            min-height: 100vh !important;
+        }
+
+        .main-content {
+            flex: 1 0 auto !important;
+            /* !important anula también el min-height en línea que ponía scripts.js */
+            min-height: 0 !important;
+        }
+
+        .main-footer {
+            flex-shrink: 0 !important;
+            display: block !important;
+            margin-top: 0 !important;
+        }
+
+        @media (min-width: 1025px) {
+            .main-footer {
+                margin-left: 250px !important;
+                width: calc(100% - 250px) !important;
+                padding-left: 30px !important;
+            }
+
+            body.sidebar-mini .main-footer {
+                margin-left: 78px !important;
+                width: calc(100% - 78px) !important;
+                padding-left: 30px !important;
+            }
+        }
+
+        @media (max-width: 1024px) {
+            /* Stisla dejaba padding-left:280px y en móvil el texto salía de pantalla */
+            .main-footer {
+                margin-left: 0 !important;
+                width: 100% !important;
+                padding-left: 15px !important;
+            }
+        }
+
+        /* En modo colapsado style.css forzaba overflow:initial y el menú quedaba
+           cortado sin forma de hacer scroll. */
+        body.sidebar-mini .main-sidebar {
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+        }
+
+        /* Barra del sidebar discreta: la que dibujaba niceScroll ya no existe. */
+        .main-sidebar {
+            scrollbar-width: thin;
+            scrollbar-color: #c7c7c7 transparent;
+        }
+
+        .main-sidebar::-webkit-scrollbar { width: 6px; }
+        .main-sidebar::-webkit-scrollbar-thumb { background-color: #c7c7c7; border-radius: 3px; }
+        .main-sidebar::-webkit-scrollbar-track { background: transparent; }
     </style>
 </head>
 

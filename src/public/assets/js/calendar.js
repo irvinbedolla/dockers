@@ -320,7 +320,7 @@ function handleEventClick(info, calendarType) {
             <strong>Monto:</strong> ${props.monto}<br>
             <strong>Observaciones:</strong> ${props.observaciones}<br>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
                 <a href="cumplimiento/consulta/${info.event.id}/${props.tipo}" class="btn btn-info">Ver Cumplimiento</a>
             </div>
         `;
@@ -338,7 +338,7 @@ function handleEventClick(info, calendarType) {
             <strong>Monto:</strong> ${props.monto}<br>
             <strong>Observaciones:</strong> ${props.observaciones}<br>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
                 <a href="cumplimiento/consulta/${info.event.id}/${props.tipo}" class="btn btn-info">Ver detalle</a>
             </div>
         `;
@@ -354,7 +354,7 @@ function handleEventClick(info, calendarType) {
             <strong>Delegación:</strong> ${props.delegacion}<br>
             <strong>Sala:</strong> ${props.sala}<br>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
                 ${ props.estatus === 'Pendiente' ? 
                 `<a href="solicitud/iniciar/${idSolicitud}?audiencia_id=${audienciaId}" class="btn btn-info">Ir a Audiencia</a>` 
                 : '' 
@@ -371,7 +371,7 @@ function handleEventClick(info, calendarType) {
             <strong>Estatus:</strong> ${props.estatus}<br>
             <strong>Delegación:</strong> ${props.delegacion}<br>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
                 <a href="cumplimiento/consulta/${info.event.id}/${props.tipo}" class="btn btn-info">Ver detalle</a>
             </div>
         `;
@@ -387,14 +387,16 @@ function handleEventClick(info, calendarType) {
             <strong>Monto:</strong> ${props.monto}<br>
             <strong>Observaciones:</strong> ${props.observaciones}<br>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
                 <a href="cumplimiento/consulta/${info.event.id}/${props.tipo}" class="btn btn-info">Ver detalle</a>
             </div>
         `;
     }
 
-    $('.modal-body').html(modalContent);
-    $('#evento').modal('show');
+    // Bootstrap 5 quitó la API de plugins por jQuery: $('#evento').modal('show')
+    // dejó de existir al pasar esta pantalla de Bootstrap 4 a 5.3.
+    document.querySelector('#evento .modal-body').innerHTML = modalContent;
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('evento')).show();
 }
 
 // Función para estilizar los eventos

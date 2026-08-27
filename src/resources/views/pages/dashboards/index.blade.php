@@ -1,29 +1,13 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="csrf-token" content="{{ csrf_token() }}"/>
-    <title>Si concilio</title>
-    <meta content='width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no' name='viewport'>
-    <!-- Bootstrap 4.1.1 -->
-    <link href="{{ asset('assets/css/bootstrap.min.css') }}" rel="stylesheet">
+@extends('layouts.app')
 
-    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/index.global.min.js'></script>
+{{--
+    Esta pantalla era un layout completo aparte: repetía navbar, sidebar y footer,
+    y cargaba su propio Bootstrap 4.1.1 mientras el resto del sistema va en 5.3.
+    Ahora extiende layouts.app, así que la barra superior y el sidebar salen de
+    layouts/header.blade.php y layouts/sidebar.blade.php, una sola vez.
+--}}
 
-    <!-- Ionicons -->
-    <link href="//fonts.googleapis.com/css?family=Lato&display=swap" rel="stylesheet">
-    <link href="{{ asset('assets/css/all.css') }}" rel="stylesheet">
-    <link href="{{ asset('assets/css/iziToast.min.css') }}" rel="stylesheet">
-    <link href="{{ asset('assets/css/sweetalert.css') }}" rel="stylesheet">
-    <link href="{{ asset('assets/css/select2.min.css') }}" rel="stylesheet">
-    <link href="{{ asset('assets/css/realtime.css') }}" rel="stylesheet">
-    
-    <!-- Agregados para los Select del Formulario Personas-->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+@section('page_css')
     {{-- Mismos estilos de calendario que la pantalla de bloqueos por sede --}}
     <link href="{{ asset('assets/css/calendario.css') }}" rel="stylesheet">
     <style>
@@ -59,13 +43,6 @@
                 align-items: stretch !important;
             }
 
-            /* Cada botón ocupa todo el ancho disponible */
-            .btn-custom-morado {
-                width: 100% !important;
-                margin-bottom: 5px !important;
-                white-space: normal; /* Permite que el texto del botón use dos líneas si es largo */
-                font-size: 0.85rem;
-            }
 
             /* Quitamos el justify-content-center para que no baile el contenido */
             .justify-content-center {
@@ -122,90 +99,9 @@
 
         }
     </style>
+@endsection
 
-    @livewireStyles
-
-
-    @yield('page_css')
-    <!-- Template CSS -->
-    <link rel="icon" href="{{ asset('assets/images/ccl-r.png') }}">
-    <link href="{{ asset('assets/css/style.css') }}" rel="stylesheet">
-    <link href="{{ asset('assets/css/components.css') }}" rel="stylesheet">
-    @yield('page_css')
-
-    @yield('css')
-</head>
-
-<div id="app">
-    <div class="main-wrapper main-wrapper-1">
-        <div class="navbar-bg"></div>
-        
-        <nav class="navbar navbar-expand-lg main-navbar" style="background-color: #6A0F49">
-            <form class="form-inline mr-auto" action="#">
-                <ul class="navbar-nav mr-3">
-                    <li><a href="#" data-toggle="sidebar" class="nav-link nav-link-lg"><i class="bi bi-bricks"></i></a></li>
-                </ul>
-            </form>
-            <ul class="navbar-nav navbar-right">
-                @if(\Illuminate\Support\Facades\Auth::user())
-                    <li class="dropdown">
-                        <a href="#" data-toggle="dropdown"
-                        class="nav-link dropdown-toggle nav-link-lg nav-link-user">
-                            <img alt="image" src="{{ asset('assets/images/ccl-r.png') }}"
-                                class="rounded-circle mr-1 thumbnail-rounded user-thumbnail ">
-                            <div class="d-sm-none d-lg-inline-block">
-                                Hola, {{\Illuminate\Support\Facades\Auth::user()->name}}</div>
-                        </a>
-
-                        <div class="dropdown-menu dropdown-menu-right">
-                            <a href="{{ route('password_cambiar' ) }}" class="dropdown-item has-icon text-susess">
-                                <i class="bi bi-pass"></i>Cambiar contraseña
-                            </a>
-                            <form id="logout-form" action="{{ route('logout') }}" method="POST" class="m-0">
-                                @csrf
-                                <button type="submit" class="dropdown-item has-icon text-danger d-flex align-items-center" style="border: none; background: none; width: 100%; padding: 10px 20px;">
-                                    <i class="bi bi-door-open me-2"></i> Salir
-                                </button>
-                            </form>
-                        </div>
-                    </li>
-                @else
-                    <li class="dropdown"><a href="#" data-toggle="dropdown" class="nav-link dropdown-toggle nav-link-lg nav-link-user">
-                        <div class="d-sm-none d-lg-inline-block">{{ __('messages.common.hello') }}</div>
-                    </a>
-                    <div class="dropdown-menu dropdown-menu-right">
-                        <div class="dropdown-title">{{ __('messages.common.login') }}
-                                / {{ __('messages.common.register') }}</div>
-                            <a href="{{ route('login') }}" class="dropdown-item has-icon">
-                                <i class="fas fa-sign-in-alt"></i> {{ __('messages.common.login') }}
-                            </a>
-                            <div class="dropdown-divider"></div>
-                            <a href="{{ route('register') }}" class="dropdown-item has-icon">
-                                <i class="fas fa-user-plus"></i> {{ __('messages.common.register') }}
-                            </a>
-                        </div>
-                    </li>
-                @endif
-            </ul>
-        </nav>
-        <div class="main-sidebar main-sidebar-postion">
-            <aside id="sidebar-wrapper">
-                <div class="sidebar-brand">
-                    <img class="navbar-brand-full app-header-logo" src="{{ asset('assets/images/ccl-r.png') }}" width="65"
-                        alt="Infyom Logo">
-                    <a href="{{ url('/') }}"></a>
-                </div>
-                <div class="sidebar-brand sidebar-brand-sm">
-                    <a href="{{ url('/') }}" class="small-sidebar-text">
-                        <img class="navbar-brand-full" src="{{ asset('assets/images/ccl-r.png') }}" width="45px" alt=""/>
-                    </a>
-                </div>
-                <ul class="sidebar-menu">
-                    @include('layouts.menu')
-                </ul>
-            </aside>
-        </div>
-        <div class="main-content">
+@section('content')
             <section class="section">
                 <div class="section-header">
                     <h3 class="page__heading">Sistema integral para la Conciliación</h3>
@@ -345,20 +241,13 @@
                     </div>
                 </div>
             </section>
-        </div>
-        <footer class="main-footer">
-        </footer>
-    </div>
-</div>
 
-<div class="modal fade" id="evento" tabindex="-1" role="dialog" aria-labelledby="modelTitleId" aria-hidden="true">
+    <div class="modal fade" id="evento" tabindex="-1" role="dialog" aria-labelledby="modelTitleId" aria-hidden="true">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Detalles</h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
             </div>
             <div class="modal-body">
                 Cita
@@ -367,39 +256,15 @@
     </div>
 </div>
 
-
-
-<div id="menu_carga" style ="display: none;">
+    <div id="menu_carga" style ="display: none;">
     <div>.</div>
     <div class="loader"></div>
 </div>
-
-
-@section('scripts')
-    <script src="{{asset('assets/js/general/menu.js')}}"></script>
 @endsection
 
-
-</body>
-
-    <script src="{{ asset('assets/js/jquery.min.js') }}"></script>
-    <script src="{{ asset('assets/js/popper.min.js') }}"></script>
-    <script src="{{ asset('assets/js/bootstrap.min.js') }}"></script>
-
-    <script src="{{ asset('assets/js/sweetalert.min.js') }}"></script>
-    <script src="{{ asset('assets/js/select2.min.js') }}"></script>
-    <script src="{{ asset('assets/js/jquery.nicescroll.js') }}"></script>
-
+@section('page_js')
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/locales-all.min.js"></script>
-    <script src="{{ asset('assets/js/calendar.js') }}"></script>
-    <script src="{{ asset('assets/js/stisla.js') }}"></script>
-    <script src="{{ asset('assets/js/scripts.js') }}"></script>
-    <script src="{{ asset('assets/js/profile.js') }}"></script>
-    <script src="{{ asset('assets/js/custom.js') }}"></script>
-    <script src="{{ asset('assets/js/general/menu.js') }}"></script>
-    
     <script>
-    
         const urlCitas          = "{{ route('citas.eventos') }}";
         const urlPagos          = "{{ route('pagos.eventos') }}";
         const urlConciliadores  = "{{ route('conciliador.eventos') }}";
@@ -411,12 +276,11 @@
         // Por si también la usas dentro de tu configuración de FullCalendar:
         const urlBloqueos       = "{{ route('calendario.bloqueos') }}"; 
     </script>
-        <script src="{{ asset('assets/js/calendar.js') }}"></script>
-@yield('page_js')
-@yield('scripts')
+@endsection
 
-
-<script>
-
-</script>
-</html>
+@section('scripts')
+    {{-- calendar.js se cargaba dos veces: su listener de DOMContentLoaded corría
+         doble y montaba dos juegos de calendarios sobre el mismo contenedor. --}}
+    <script src="{{ asset('assets/js/calendar.js') }}"></script>
+    <script src="{{ asset('assets/js/general/menu.js') }}"></script>
+@endsection

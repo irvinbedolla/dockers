@@ -71,22 +71,14 @@ $(function() {
   }
   sidebar_sticky();
 
-  var sidebar_nicescroll;
-  var update_sidebar_nicescroll = function() {
-    let a = setInterval(function() {
-      if(sidebar_nicescroll != null)
-        sidebar_nicescroll.resize();
-    }, 10);
-
-    setTimeout(function() {
-      clearInterval(a);
-    }, 600);
-  }
+  // [SICONCILIO] niceScroll deshabilitado en .main-sidebar: dibujaba su propia barra
+  // encima de la nativa (.main-sidebar tiene overflow-y:auto) y se veían dos scrollbars.
+  // Se deja un stub para no romper las llamadas .resize()/.remove() de más abajo.
+  var sidebar_nicescroll = { resize: function() {}, remove: function() {} };
+  var update_sidebar_nicescroll = function() {};
 
   var sidebar_dropdown = function() {
     if($(".main-sidebar").length) {
-      $(".main-sidebar").niceScroll(sidebar_nicescroll_opts);
-      sidebar_nicescroll = $(".main-sidebar").getNiceScroll();
 
       $(".main-sidebar .sidebar-menu li a.has-dropdown").off('click').on('click', function() {
         var me     = $(this);
@@ -133,9 +125,7 @@ $(function() {
     }).niceScroll();
   }
 
-  $(".main-content").css({
-    minHeight: $(window).outerHeight() - 108
-  })
+  // [SICONCILIO] El alto mínimo de .main-content lo resuelve el layout flex del blade.
 
   $('.nav-collapse-toggle').on('click', function () {
       $(this).parent().find('.navbar-nav').toggleClass('show');
@@ -151,13 +141,6 @@ $(function() {
 
     if(!mini) {
       body.removeClass('sidebar-mini');
-      $(".main-sidebar").css({
-        overflow: 'hidden'
-      });
-      setTimeout(function() {
-        $(".main-sidebar").niceScroll(sidebar_nicescroll_opts);
-        sidebar_nicescroll = $(".main-sidebar").getNiceScroll();
-      }, 500);
       $(".main-sidebar .sidebar-menu > li > ul .dropdown-title").remove();
       $(".main-sidebar .sidebar-menu > li > a").removeAttr('data-toggle');
       $(".main-sidebar .sidebar-menu > li > a").removeAttr('data-original-title');
@@ -165,8 +148,6 @@ $(function() {
     }else{
       body.addClass('sidebar-mini');
       body.removeClass('sidebar-show');
-      sidebar_nicescroll.remove();
-      sidebar_nicescroll = null;
       $(".main-sidebar .sidebar-menu > li").each(function() {
         let me = $(this);
 
@@ -184,32 +165,9 @@ $(function() {
     }
   }
 
-    $('[data-toggle=\'sidebar\']').on('click', function () {
-        var body = $('body'),
-            w = $(window);
-
-        if (w.outerWidth() <= 1024) {
-            body.removeClass('search-show search-gone');
-            if (body.hasClass('sidebar-gone')) {
-                body.removeClass('sidebar-gone');
-                body.addClass('sidebar-show');
-            } else {
-                body.addClass('sidebar-gone');
-        body.removeClass('sidebar-show');
-      }
-
-      update_sidebar_nicescroll();
-    }else{
-      body.removeClass('search-show search-gone');
-      if(body.hasClass('sidebar-mini')) {
-        toggle_sidebar_mini(false);
-      }else{
-        toggle_sidebar_mini(true);
-      }
-    }
-
-    return false;
-  });
+  // [SICONCILIO] Handler de [data-toggle='sidebar'] eliminado: layouts/app.blade.php
+  // registra el suyo y ambos corrían en el mismo clic, anulándose entre sí (el botón
+  // de colapsar no respondía en escritorio). El único dueño ahora es el blade.
 
   var toggleLayout = function() {
     var w = $(window),
@@ -227,8 +185,6 @@ $(function() {
     if(w.outerWidth() <= 1024) {
       if($('body').hasClass('sidebar-mini')) {
         toggle_sidebar_mini(false);
-        $('.main-sidebar').niceScroll(sidebar_nicescroll_opts);
-        sidebar_nicescroll = $(".main-sidebar").getNiceScroll();
       }
 
       $("body").addClass("sidebar-gone");
