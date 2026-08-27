@@ -24,6 +24,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    {{-- Mismos estilos de calendario que la pantalla de bloqueos por sede --}}
+    <link href="{{ asset('assets/css/calendario.css') }}" rel="stylesheet">
     <style>
         .loader {
             position: fixed;
@@ -35,9 +37,11 @@
             background: url('{{ asset("assets/images/pageLoader.gif") }}') 50% 50% no-repeat rgb(249,249,249);
             opacity: .8;
         }
+        /* El display:block de este selector por id le ganaba a .cal-fc.is-oculto,
+           así que el esqueleto se quedaba arriba y el calendario aparecía debajo
+           al mismo tiempo. El ancho lo resuelve el contenedor. */
         #calendar {
             width: 100% !important;
-            display: block;
         }
 
         /* Evita que las celdas se vean comprimidas */
@@ -212,56 +216,127 @@
                             <div class="card">
                                 <div class="card-body">
                                     <div class="row">
-                                        <ul class="navbar-nav flex-grow-1 justify-content-center">
-                                            <li class="nav-item text-center">
-                                                <img src="{{ asset('assets/images/ccl-r.png') }}" alt="Logo" class="img-fluid" style="max-height: 100px;">
-                                            </li>
-                                        </ul><br>
+                                        {{-- El <br> que separaba el logo del calendario se cambió por
+                                             padding: se controla mejor y no depende de una línea vacía. --}}
+                                        <div class="w-100 text-center" style="padding-bottom: 28px;">
+                                            <img src="{{ asset('assets/images/ccl-r.png') }}" alt="SiConcilio"
+                                                 class="img-fluid" style="max-height: 68px; width: auto;">
+                                        </div>
                                         @if($userRole[0] != 'Solicitante')
-                                            <div class="actions-container w-100 w-md-auto">
-                                                <div class="dropdown d-block d-md-none">
-                                                    <button class="btn btn-md btn-custom-morado dropdown-toggle w-100" type="button" data-toggle="dropdown">
-                                                        Tipo de Agenda
-                                                    </button>
-                                                    <div class="dropdown-menu dropdown-menu-right w-100">
-                                                        <a class="dropdown-item btn-calendar" data-tipo="btn-pagos">Cumplimientos</a>
-                                                        <a class="dropdown-item btn-calendar" data-tipo="btn-audiencias">Audiencias</a>
-                                                        <a class="dropdown-item btn-calendar" data-tipo="btn-conciliador">Cumplimientos en Audiencia</a>
-                                                        <a class="dropdown-item btn-calendar" data-tipo="btn-citas">Cumplimientos de Ratificación</a>
-                                                        <a class="dropdown-item btn-calendar" data-tipo="btn-ratificaciones">Ratificaciones</a>
+                                            @php
+                                                $mesesCortos = ['', 'ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+
+                                                // Un conciliador solo puede ver su propia agenda: el selector no
+                                                // le ofrece ninguna decisión, así que va oculto y ya seleccionado.
+                                                $esConciliador = ($userRole[0] ?? '') === 'Conciliador';
+                                                $idUsuario     = auth()->id();
+                                            @endphp
+
+                                            <div class="col-12">
+                                                <div class="cal-wrap">
+
+                                                    <div class="cal-toolbar">
+                                                        <div class="cal-datechip">
+                                                            <small>{{ $mesesCortos[(int) now()->format('n')] }}</small>
+                                                            <b>{{ now()->format('j') }}</b>
+                                                        </div>
+
+                                                        <div class="cal-heading">
+                                                            <h4 class="cal-title" id="calTitulo">&nbsp;</h4>
+                                                            <div class="cal-sub">
+                                                                <span id="calRango">&nbsp;</span>
+                                                                <span id="calAgenda" class="cal-agenda"></span>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="cal-actions">
+                                                            <select id="filtro-sede" class="cal-select" aria-label="Filtrar por sede">
+                                                                <option value="Todos">Todas las sedes</option>
+                                                                @foreach($sedes as $sede)
+                                                                    <option value="{{ $sede }}">{{ $sede }}</option>
+                                                                @endforeach
+                                                            </select>
+
+                                                            @if ($esConciliador)
+                                                                {{-- Oculto, no eliminado: calendar.js lee su valor para filtrar. --}}
+                                                                <input type="hidden" id="filter-conciliador" value="{{ $idUsuario }}">
+                                                            @else
+                                                                <select id="filter-conciliador" class="cal-select" aria-label="Filtrar por conciliador">
+                                                                    <option value="">Todos los conciliadores</option>
+                                                                    @foreach($conciliadores as $conciliador)
+                                                                        <option value="{{ $conciliador['id'] }}" data-delegacion-id="{{ $conciliador['delegacion'] }}">{{ $conciliador['name'] }}</option>
+                                                                    @endforeach
+                                                                </select>
+                                                            @endif
+
+                                                            <div class="cal-nav">
+                                                                <button type="button" id="calPrev" aria-label="Anterior"><i class="bi bi-arrow-left"></i></button>
+                                                                <button type="button" id="calHoy">Hoy</button>
+                                                                <button type="button" id="calNext" aria-label="Siguiente"><i class="bi bi-arrow-right"></i></button>
+                                                            </div>
+
+                                                            <select id="calVista" class="cal-select" aria-label="Cambiar vista">
+                                                                <option value="dayGridMonth">Vista mes</option>
+                                                                <option value="dayGridWeek">Vista semana</option>
+                                                                <option value="listWeek">Vista lista</option>
+                                                            </select>
+                                                        </div>
                                                     </div>
-                                                </div>
 
-                                                <div class="d-none d-md-flex flex-wrap justify-content-end" style="gap: 5px;">
-                                                    <button class="btn btn-md btn-custom-morado btn-calendar" data-tipo="btn-pagos">Cumplimientos</button>
-                                                    <button class="btn btn-md btn-custom-morado btn-calendar" data-tipo="btn-audiencias">Audiencias</button>
-                                                    <button class="btn btn-md btn-custom-morado btn-calendar" data-tipo="btn-conciliador">Cumplimientos en Audiencia</button>
-                                                    <button class="btn btn-md btn-custom-morado btn-calendar" data-tipo="btn-citas">Cumplimientos de Ratificación</button>
-                                                    <button class="btn btn-md btn-custom-morado btn-calendar" data-tipo="btn-ratificaciones">Ratificaciones</button>
-                                                </div>
+                                                    {{-- Los cinco botones morados pasaron a ser pestañas: caben en una
+                                                         línea, se envuelven solas en móvil y ya no hacen falta el
+                                                         desplegable aparte ni la versión de escritorio duplicada. --}}
+                                                    <div class="cal-tabs">
+                                                        @if ($esConciliador)
+                                                            {{-- Vista de mes con todas sus agendas juntas. Es la entrada
+                                                                 natural para quien solo consulta lo suyo. --}}
+                                                            <button type="button" class="cal-tab btn-calendar active" data-tipo="btn-todos">Todos</button>
+                                                        @endif
+                                                        <button type="button" class="cal-tab btn-calendar {{ $esConciliador ? '' : 'active' }}" data-tipo="btn-pagos">Cumplimientos</button>
+                                                        <button type="button" class="cal-tab btn-calendar" data-tipo="btn-audiencias">Audiencias</button>
+                                                        <button type="button" class="cal-tab btn-calendar" data-tipo="btn-conciliador">Cumplimientos en Audiencia</button>
+                                                        <button type="button" class="cal-tab btn-calendar" data-tipo="btn-citas">Cumplimientos de Ratificación</button>
+                                                        <button type="button" class="cal-tab btn-calendar" data-tipo="btn-ratificaciones">Ratificaciones</button>
+                                                    </div>
 
-                                                <div class="filter-container mb-3">
-                                                    <label for="filtro-sede">Filtrar por Sede:</label>
-                                                    <select id="filtro-sede" class="form-control d-inline-block w-auto">
-                                                        <option value="Todos">Todos</option>
-                                                        @foreach($sedes as $sede)
-                                                            <option value="{{ $sede }}">{{ $sede }}</option>
-                                                        @endforeach
-                                                    </select>
-                                                </div>
+                                                    <div class="cal-leyenda" id="calLeyenda" style="display:none;">
+                                                        <span><i class="leyenda" style="background:#6A0F49;"></i> Cumplimientos</span>
+                                                        <span><i class="leyenda" style="background:#496163;"></i> Audiencias</span>
+                                                        <span><i class="leyenda" style="background:#2F6B6B;"></i> Cumplimientos en audiencia</span>
+                                                        <span><i class="leyenda" style="background:#7A5C8E;"></i> Cumplimientos de ratificación</span>
+                                                        <span><i class="leyenda" style="background:#B5824A;"></i> Ratificaciones</span>
+                                                    </div>
 
-                                                <div class="filter-container mb-3">
-                                                    <label>Conciliador:</label>
-                                                    <select id="filter-conciliador" class="form-control d-inline-block w-auto">
-                                                        <option value="">Todos los conciliadores</option>
-                                                        @foreach($conciliadores as $conciliador)
-                                                            <option value="{{$conciliador['id']}}" data-delegacion-id="{{ $conciliador['delegacion'] }}">{{ $conciliador['name'] }}</option>
-                                                        @endforeach
-                                                    </select>
-                                                </div>
+                                                    <div id="calZona" class="cal-zona" aria-busy="true">
+                                                        <div id="calSkeleton" class="cal-skeleton">
+                                                            <span class="sr-only" role="status">Cargando agenda…</span>
 
-                                            </div>  
-                                            <div id="calendar" style="width: 100%;"></div>
+                                                            <div class="sk-head" aria-hidden="true">
+                                                                @for ($i = 0; $i < 7; $i++)
+                                                                    <div class="sk-head-cell"><span class="sk-bar sk-dia"></span></div>
+                                                                @endfor
+                                                            </div>
+
+                                                            <div class="sk-grid" aria-hidden="true">
+                                                                @for ($i = 0; $i < 35; $i++)
+                                                                    <div class="sk-cell">
+                                                                        <span class="sk-bar sk-num"></span>
+                                                                        @if ($i % 3 === 0)
+                                                                            <span class="sk-bar sk-evt"></span>
+                                                                        @endif
+                                                                        @if ($i % 7 === 2)
+                                                                            <span class="sk-bar sk-evt sk-evt-corto"></span>
+                                                                        @endif
+                                                                    </div>
+                                                                @endfor
+                                                            </div>
+                                                        </div>
+
+                                                        <div id="calendar" class="cal-fc is-oculto"></div>
+                                                    </div>
+
+                                                </div>
+                                            </div>
                                         @endif
                                     </div>
                                 </div>
@@ -330,6 +405,8 @@
         const urlConciliadores  = "{{ route('conciliador.eventos') }}";
         const urlAudiencias     = "{{ route('audiencias.eventos') }}";
         const urlRatificaciones = "{{ route('ratificaciones.eventos') }}";
+        // El conciliador entra directo a "Todos", en vista de mes.
+        const calArranqueTodos  = {{ ($userRole[0] ?? '') === 'Conciliador' ? 'true' : 'false' }};
         
         // Por si también la usas dentro de tu configuración de FullCalendar:
         const urlBloqueos       = "{{ route('calendario.bloqueos') }}"; 

@@ -1764,8 +1764,8 @@
         }
         .fc-event-expirado, .fc-est-expirado{ 
             color:#fff !important; 
-            background-color:#F59727 !important; 
-            border-color:#F59727 !important; 
+            background-color:#B5824A !important; 
+            border-color:#B5824A !important; 
         }
         .fc-event-inhabil, .fc-est-inhabil{ 
             color:#fff !important; 
@@ -1791,7 +1791,7 @@
         }
         .fc-list .fc-list-event.fc-event-expirado td,
         .fc-list .fc-list-event.fc-est-expirado td{ 
-            background-color:#F59727 !important; 
+            background-color:#B5824A !important; 
             color:#fff !important; 
         }
         .fc-list .fc-list-event.fc-event-inhabil td,

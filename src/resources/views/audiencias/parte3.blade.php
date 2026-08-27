@@ -339,8 +339,8 @@
 
         .fc-event-expirado {
             color: #ffff !important;
-            background-color: #F59727 !important;
-            border-color: #F59727 !important;
+            background-color: #B5824A !important;
+            border-color: #B5824A !important;
             cursor: not-allowed;
         }
 
