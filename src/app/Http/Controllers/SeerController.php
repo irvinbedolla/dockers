@@ -10302,7 +10302,10 @@ class SeerController extends Controller
 
         DB::transaction(function () use ($id, $solicitud, $ultima, $estatusPrevioS, $estatusPrevioA) {
             
-            SeerPerConciliador::where('id', $solicitud->id)->where('audiencia_id', $ultima->id)->delete();
+            $conciliador = SeerPerConciliador::where('id_solicitud', $id)->orderBy('id', 'desc')->first();
+            if($conciliador){
+                $conciliador->delete();
+            }
             
             $solicitud->update([
                 'estatus'   =>  'Confirmado',
