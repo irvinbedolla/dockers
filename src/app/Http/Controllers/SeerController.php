@@ -13877,7 +13877,7 @@ class SeerController extends Controller
                         case 'expirado':
                             $todosLosEventos[] = [
                                 'title' => 'Expirado', 'start' => $slotStart,
-                                'color' => '#F59727', 'extendedProps' => ['estado' => 'expirado']
+                                'color' => '#B5824A', 'extendedProps' => ['estado' => 'expirado']
                             ];
                             break;
                         case 'disponible':
@@ -14045,7 +14045,7 @@ class SeerController extends Controller
                             $titulo = $esNoInhabil ? 'No disponible' : 'Expirado';
                             $todosLosEventos[] = [
                                 'title' => $titulo, 'start' => $slotStart,
-                                'color' => '#F59727', 'extendedProps' => ['estado' => 'expirado']
+                                'color' => '#B5824A', 'extendedProps' => ['estado' => 'expirado']
                             ];
                             break;
                         case 'disponible':
@@ -14342,7 +14342,7 @@ class SeerController extends Controller
 
                     $colores = [
                         'ocupado' => '#DA0909', 'inhabil' => '#3B78DB',
-                        'expirado' => '#F59727', 'disponible' => '#00CE1C'
+                        'expirado' => '#B5824A', 'disponible' => '#00CE1C'
                     ];
                     $titulos = [
                         'ocupado' => 'Ocupado', 'inhabil' => 'Inhábil',
@@ -14568,7 +14568,7 @@ class SeerController extends Controller
 
                     $colores = [
                         'ocupado' => '#DA0909', 'inhabil' => '#3B78DB',
-                        'expirado' => '#F59727', 'disponible' => '#00CE1C'
+                        'expirado' => '#B5824A', 'disponible' => '#00CE1C'
                     ];
                     $titulos = [
                         'ocupado' => 'Ocupado', 'inhabil' => 'Inhábil',
@@ -14697,7 +14697,7 @@ class SeerController extends Controller
 
                     $colores = [
                         'ocupado' => '#DA0909', 'inhabil' => '#3B78DB',
-                        'expirado' => '#F59727', 'disponible' => '#00CE1C'
+                        'expirado' => '#B5824A', 'disponible' => '#00CE1C'
                     ];
                     $titulos = [
                         'ocupado' => 'Ocupado', 'inhabil' => 'Inhábil',
