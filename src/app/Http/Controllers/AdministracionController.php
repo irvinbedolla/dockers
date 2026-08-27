@@ -258,7 +258,7 @@ class AdministracionController extends Controller{
             'URU' => 'Uruapan',
             'ZAM' => 'Zamora',
             'ZIT' => 'Zitácuaro',
-            'LZC' => 'Lázaro Cárdenas',
+            'LAZ' => 'Lázaro Cárdenas',
             'SAH' => 'Sahuayo',
         ];
     }
@@ -289,12 +289,17 @@ class AdministracionController extends Controller{
         // El NUE se arma igual que en GeneraExpediente(): MOR/RAT/2026/00576
         $nue = $request->delegacion . '/SOL/' . $request->anio . '/'
              . str_pad($request->consecutivo, 5, '0', STR_PAD_LEFT);
+        try{
+            $solicitud = SeerPerGeneral::where('NUE', $nue)->first();
+            $audiencia = Audiencias::where('id_solicitud', $solicitud->id)->orderByDesc('id')->first();
+            $solicitante = SeerSolicitante::where('id_solicitud', $solicitud->id)->pluck('nombre')->first();
+            $citado = SeerCitados::where('id_solicitud', $solicitud->id)->first();
+            $conciliador = User::where('id', $audiencia->id_conciliador)->pluck('name')->first();
+        }
+        catch (\Exception $e) {
+            return back()->withErrors("No se encontró ninguna audiencia con el NUE {$nue}.");
+        }
 
-        $solicitud = SeerPerGeneral::where('NUE', $nue)->first();
-        $audiencia = Audiencias::where('id_solicitud', $solicitud->id)->orderByDesc('id')->first();
-        $solicitante = SeerSolicitante::where('id_solicitud', $solicitud->id)->pluck('nombre')->first();
-        $citado = SeerCitados::where('id_solicitud', $solicitud->id)->first();
-        $conciliador = User::where('id', $audiencia->id_conciliador)->pluck('name')->first();
         if (!$audiencia) {
             return back()->withErrors("No se encontró ninguna audiencia con el NUE {$nue}.");
         }
