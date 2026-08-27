@@ -17422,7 +17422,7 @@ class SeerController extends Controller
         // y lo movemos a documentosSolicitud/{new_id}/ en guardar_solicitudAux().
         $destDir = ($id === 'session') ? $this->documentosSolicitudTmpDir($draftId) : 'documentosSolicitud/' . $id;
 
-        if(isset($data["documentoIdentificacion"])){
+        /*if(isset($data["documentoIdentificacion"])){
             $documentoidentificacion = $data["curp"]."_Identificacion.pdf";
             Storage::disk('s3')->putFileAs(
                 $destDir,
@@ -17437,7 +17437,7 @@ class SeerController extends Controller
                 $request->file('documentoActa'),
                 $documentoidentificacion
             );
-        }
+        }*/
         
          
 
