@@ -16,9 +16,7 @@
                                         <div class="alert alert-success alert-dismissible fade show" role="alert">
                                             <strong>¡Contraseña Actualizada!</strong>
                                             {{ session()->get('success') }}
-                                            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                                                <span aria-hidden="true">&times;</span>
-                                            </button>
+                                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
                                         </div>
                                     @endif
                             <!--Se realiza la validación de campos para ver si dejó alguno vacío-->
@@ -31,9 +29,7 @@
                                             <!--<span class="badge badge-danger">{{ $error }}</span>-->
                                         @endforeach
                                     </ul>
-                                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                                        <span aria-hidden="true">&times;</span>
-                                    </button>
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
                                 </div>
                             @endif
 
@@ -64,8 +60,8 @@
                                     <div class="col-xs-12 col-sm-12 col-md-6">
                                         <button type="submit" class="btn btn-primary">Guardar</button>
                                     </div>
-                                </form>
-                            </div>                            
+                                </div>
+                            </form>
 
                         </div>
                     </div>
@@ -73,14 +69,4 @@
             </div>
         </div>
     </section>
-@endsection
-
-<div id="menu_carga" style ="display: none;">
-    <div>.</div>
-    <div class="loader"></div>
-</div>
-
-
-@section('scripts')
-    <script src="../public/js/roles/roles.js"></script>
 @endsection
