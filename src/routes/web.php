@@ -9,6 +9,7 @@ use App\Http\Controllers\DashboardController;
 use Illuminate\Support\Facades\Route;
 
 use App\Http\Controllers\PDFController;
+use App\Http\Controllers\InicioController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\RolController;
 use App\Http\Controllers\UsuarioController;
@@ -155,6 +156,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/home',                                 [DashboardController::class, 'index'])->name('dashboard');
     Route::get('publico',                               [HomeController::class, 'publico'])->name('publico');
     Route::post('/logout',                              [AuthenticatedSessionController::class, 'destroy'])->name('logout');
+    // Pantalla de Inicio: deslindada del resto para poder colgarle después
+    // datos y notificaciones por rol.
+    Route::get('/inicio',                               [InicioController::class, 'index'])->name('inicio');
     // Panel Común de entrada
     Route::get('/agenda',                               [DashboardController::class, 'index'])->name('agenda');
     // URI en ASCII: la ruta sí viaja por la red y con eñe llega como

@@ -20,6 +20,8 @@
         $userRoles = auth()->user()->getRoleNames()->all();
 
         $menu = [
+            // 'roles' => '*' significa que lo ve cualquiera que haya entrado.
+            ['route' => 'inicio',                     'label' => 'Inicio',                  'icon' => 'bi bi-house-door',          'roles' => '*'],
             ['route' => 'configuracion',              'label' => 'Administración',          'icon' => 'bi bi-file-person',         'roles' => ['Super Usuario', 'Delegado']],
             ['route' => 'agenda',                     'label' => 'Agenda',                  'icon' => 'bi bi-bank',                'roles' => ['Super Usuario', 'Administrador', 'Auxiliar', 'Conciliador', 'Notificador', 'Delegado', 'Excepcion', 'Enlace', 'Cumplimientos']],
             ['route' => 'create_asesoria',            'label' => 'Asesorias',               'icon' => 'bi bi-bank',                'roles' => ['Super Usuario', 'Auxiliar', 'Conciliador', 'Notificador', 'Delegado', 'Enlace', 'Cumplimientos']],
@@ -69,7 +71,9 @@
     @foreach ($menu as $item)
         @php
             // Se omite el ítem si el usuario no tiene ninguno de sus roles.
-            $visible = (bool) array_intersect($item['roles'], $userRoles);
+            $visible = $item['roles'] === '*'
+                ? true
+                : (bool) array_intersect($item['roles'], $userRoles);
 
             // Si la ruta no existe, se omite en lugar de reventar toda la página.
             $destino = null;
