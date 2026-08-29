@@ -1,0 +1,13 @@
+{
+    "name": "SiConcilio — Centro de Conciliación Laboral del Estado de Michoacán",
+    "short_name": "SiConcilio",
+    "icons": [
+        { "src": "/icon-192.png",  "type": "image/png", "sizes": "192x192" },
+        { "src": "/icon-mask.png", "type": "image/png", "sizes": "512x512", "purpose": "maskable" },
+        { "src": "/icon-512.png",  "type": "image/png", "sizes": "512x512" }
+    ],
+    "theme_color": "#496163",
+    "background_color": "#ffffff",
+    "display": "browser",
+    "start_url": "/"
+}
