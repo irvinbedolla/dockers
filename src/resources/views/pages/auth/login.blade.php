@@ -1,60 +1,77 @@
 @extends('layouts.auth_app')
-@section('title')
-    SiConcilio
-@endsection
+
+@section('title', 'Inicio de Sesión')
+
 @section('content')
-    <div class="card card-primary">
-        <div class="card-header"><h4>SiConcilio</h4></div>
+    <h1 class="acceso__titulo">Inicio de Sesión</h1>
 
-        <div class="card-body">
-            <form method="POST" action="{{ route('login.post') }}" id="login.post">
-                @csrf
-                @if ($errors->any())
-                    <div class="alert alert-danger p-0">
-                        <ul>
-                            @foreach ($errors->all() as $error)
-                                <li>{{ $error }}</li>
-                            @endforeach
-                        </ul>
-                    </div>
-                @endif
-                <div class="form-group">
-                    <label for="email">Correo Electrónico</label>
-                    <input aria-describedby="emailHelpBlock" id="email" type="email"
-                           class="form-control{{ $errors->has('email') ? ' is-invalid' : '' }}" name="email"
-                           placeholder="Ingresa tu correo" tabindex="1"
-                           value="{{ (Cookie::get('email') !== null) ? Cookie::get('email') : old('email') }}" autofocus
-                           required>
-                    <div class="invalid-feedback">
-                        {{ $errors->first('email') }}
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <input aria-describedby="passwordHelpBlock" id="password" type="password"
-                           value="{{ (Cookie::get('password') !== null) ? Cookie::get('password') : null }}"
-                           placeholder="Ingresa tu contraseña"
-                           class="form-control{{ $errors->has('password') ? ' is-invalid': '' }}" name="password"
-                           tabindex="2" required>
-                    <div class="invalid-feedback">
-                        {{ $errors->first('password') }}
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <button type="submit" class="btn btn-primary btn-lg btn-block" tabindex="4" style="background-color: #496163" id="boton_login">
-                        Ingresar
-                    </button>
-                </div>
-            </form>
+    {{-- Un solo aviso para todo lo que pueda salir mal. Antes se listaban los
+         errores crudos de Laravel en una lista con viñetas. --}}
+    @if ($errors->any())
+        <div class="acceso__aviso" role="alert">
+            <i class="bi bi-exclamation-circle"></i>
+            <span>
+                <b>No pudimos iniciar tu sesión</b>
+                {{ $errors->first() }}
+            </span>
         </div>
-    </div>
+    @endif
+
+    <form method="POST" action="{{ route('login.post') }}" id="formLogin" novalidate>
+        @csrf
+
+        <div class="campo">
+            <i class="bi bi-person"></i>
+            <input type="email" id="email" name="email" placeholder="Usuario"
+                   value="{{ old('email', Cookie::get('email')) }}"
+                   autocomplete="username" inputmode="email"
+                   tabindex="1" autofocus required>
+        </div>
+
+        <div class="campo">
+            <i class="bi bi-lock"></i>
+            <input type="password" id="password" name="password" placeholder="Contraseña"
+                   class="con-ojo" autocomplete="current-password" tabindex="2" required>
+            <button type="button" class="ojo" id="verContrasena"
+                    aria-label="Mostrar contraseña" aria-pressed="false" tabindex="3">
+                <i class="bi bi-eye" id="iconoOjo"></i>
+            </button>
+        </div>
+
+        <button type="submit" class="acceso__btn" id="botonLogin" tabindex="4">Ingresar</button>
+    </form>
 @endsection
 
 @push('body_end')
-<div id="login_div" style ="display: none;">
-    <div>.</div>
-    <div class="loader"></div>
-</div>
+    <div id="login_div" style="display: none;">
+        <div>.</div>
+        <div class="loader"></div>
+    </div>
 @endpush
 
+@section('scripts')
+    <script>
+        (function () {
+            // Ojito de ver la contraseña.
+            var boton = document.getElementById('verContrasena');
+            var campo = document.getElementById('password');
+            var icono = document.getElementById('iconoOjo');
+
+            boton.addEventListener('click', function () {
+                var visible = campo.type === 'text';
+                campo.type = visible ? 'password' : 'text';
+                icono.className = visible ? 'bi bi-eye' : 'bi bi-eye-slash';
+                boton.setAttribute('aria-label', visible ? 'Mostrar contraseña' : 'Ocultar contraseña');
+                boton.setAttribute('aria-pressed', visible ? 'false' : 'true');
+                campo.focus();
+            });
+
+            // Overlay de carga al enviar. Antes esto buscaba un id que no existía
+            // y reventaba en consola, así que nunca se mostraba.
+            document.getElementById('formLogin').addEventListener('submit', function () {
+                document.getElementById('botonLogin').disabled = true;
+                document.getElementById('login_div').style.display = 'block';
+            });
+        })();
+    </script>
+@endsection

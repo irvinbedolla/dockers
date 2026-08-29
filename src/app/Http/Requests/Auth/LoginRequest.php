@@ -35,6 +35,21 @@ class LoginRequest extends FormRequest
     }
 
     /**
+     * Mensajes en español para la pantalla de inicio de sesión. Sin esto salían
+     * los textos por defecto de Laravel, en inglés.
+     *
+     * @return array
+     */
+    public function messages()
+    {
+        return [
+            'email.required'    => 'Escribe tu usuario para continuar.',
+            'email.email'       => 'El usuario se escribe como un correo electrónico.',
+            'password.required' => 'Escribe tu contraseña para continuar.',
+        ];
+    }
+
+    /**
      * Attempt to authenticate the request's credentials.
      *
      * @return void
