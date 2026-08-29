@@ -11,6 +11,7 @@ use App\Models\PermisosConciliador;
 use Spatie\Permission\Models\Role;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Carbon\Carbon;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\CitasExport;
 use App\Models\SeerCitados;
@@ -19,6 +20,43 @@ use App\Models\SeerSolicitante;
 
 class CitaController extends Controller
 {
+    /**
+     * Acota la consulta al rango visible del calendario.
+     *
+     * FullCalendar manda start y end en cada carga y en cada cambio de mes, pero
+     * estos tres endpoints los ignoraban y devolvían la tabla completa: una sola
+     * respuesta llegó a pesar 924 kB. AudienciasController ya lo hacía bien; esto
+     * es el mismo criterio.
+     *
+     * Si la petición no trae rango se deja pasar todo, para no romper a ningún
+     * otro consumidor de estos métodos.
+     */
+    private function acotarPorRango($query, Request $request, string $columna)
+    {
+        if (!$request->filled('start') || !$request->filled('end')) {
+            return;
+        }
+
+        $query->whereBetween($columna, [
+            Carbon::parse($request->input('start'))->toDateString(),
+            Carbon::parse($request->input('end'))->toDateString(),
+        ]);
+    }
+
+    /**
+     * La sede pedida, o null cuando no hay que filtrar.
+     *
+     * El selector de la interfaz manda la cadena "Todos" para decir "todas las
+     * sedes". Aquí se tomaba como el nombre de una delegación, así que la
+     * consulta buscaba delegacion = 'Todos' y no devolvía absolutamente nada.
+     */
+    private function sedeSolicitada(Request $request)
+    {
+        $sede = $request->input('sede');
+
+        return (!$sede || $sede === 'Todos') ? null : $sede;
+    }
+
     public function create()
     {
         return view('/calendar.crear_cita', [
@@ -82,8 +120,10 @@ class CitaController extends Controller
         }
 
         // 3. Filtros opcionales desde el Request (Selects de la interfaz)
-        $query->when($request->sede, function ($q) use ($request) {
-            return $q->where('pago_solicitud.delegacion', $request->sede);
+        $this->acotarPorRango($query, $request, 'pago_solicitud.fecha');
+
+        $query->when($this->sedeSolicitada($request), function ($q, $sede) {
+            return $q->where('pago_solicitud.delegacion', $sede);
         });
 
         $query->when($request->conciliador, function ($q) use ($request) {
@@ -171,8 +211,10 @@ class CitaController extends Controller
             $query->whereIn('delegacion', $delegacionesPermitidas);
         }
 
-        $query->when($request->sede, function ($q) use ($request) {
-            return $q->where('delegacion', $request->sede);
+        $this->acotarPorRango($query, $request, 'pago_solicitud.fecha');
+
+        $query->when($this->sedeSolicitada($request), function ($q, $sede) {
+            return $q->where('delegacion', $sede);
         });
 
         $query->when($request->filled('conciliador'), function ($q) use ($request) {
@@ -253,8 +295,10 @@ class CitaController extends Controller
             $query->whereIn('delegacion', $delegacionesPermitidas);
         }
 
-        $query->when($request->sede, function ($q) use ($request) {
-            return $q->where('delegacion', $request->sede);
+        $this->acotarPorRango($query, $request, 'pago_solicitud.fecha');
+
+        $query->when($this->sedeSolicitada($request), function ($q, $sede) {
+            return $q->where('delegacion', $sede);
         });
 
         $query->when($request->filled('conciliador'), function ($q) use ($request) {
