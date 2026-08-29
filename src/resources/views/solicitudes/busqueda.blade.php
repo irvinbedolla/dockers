@@ -12,7 +12,7 @@
                         <div class="card-body">
                             <div class="table-responsive">
                                 <table id="tabla1" class="table-striped" style="width:100%">
-                                    <thead style="background-color: #4A001F;">
+                                    <thead style="background-color: #354647;">
                                         <th style="color: #fff;">Folio</th>
                                         <th style="color: #fff;">Fecha Captura</th>
                                         <th style="color: #fff;">Solicitante</th>

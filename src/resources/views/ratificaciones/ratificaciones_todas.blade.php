@@ -21,7 +21,7 @@
                                     <form action="{{ url()->current() }}" method="GET">
                                         <div class="input-group">
                                             <input type="text" name="buscar" class="form-control" placeholder="Buscar ratificación por NUE o Empresa..." value="{{ request('buscar') }}">
-                                            <button class="btn btn-primary" type="submit" style="background-color: #4A001F; border-color: #4A001F;">
+                                            <button class="btn btn-primary" type="submit" style="background-color: #354647; border-color: #354647;">
                                                 <i class="fas fa-search me-1"></i> Buscar
                                             </button>
                                             @if(request('buscar'))
@@ -35,7 +35,7 @@
                             <!-- Tabla de Ratificaciones -->
                             <div class="table-responsive">
                                 <table id="example" class="table table-striped table-hover align-middle w-100"> 
-                                    <thead style="background-color: #4A001F;">
+                                    <thead style="background-color: #354647;">
                                         <tr>
                                             <th class="text-center text-white" style="color: #ffffff !important;">N° Interno</th> 
                                             <th class="text-white" style="color: #ffffff !important;">NUE</th> 
@@ -220,7 +220,7 @@
     <div class="modal fade" id="modalListaDocs" tabindex="-1" aria-labelledby="modalListaDocsLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content border-0 shadow-lg">
-                <div class="modal-header text-white" style="background-color: #4A001F;">
+                <div class="modal-header text-white" style="background-color: #354647;">
                     <h5 class="modal-title fw-bold text-white mb-0" id="modalListaDocsLabel">
                         <i class="bi bi-folder2-open me-2"></i>Documentos Digitales
                     </h5>
@@ -229,7 +229,7 @@
                 <div class="modal-body p-4">
                     <div class="table-responsive rounded border">
                         <table class="table table-striped table-hover align-middle mb-0 w-100">
-                            <thead style="background-color: #4A001F;">
+                            <thead style="background-color: #354647;">
                                 <tr>
                                     <th class="text-white py-3 ps-3" style="width: 45%; color: #ffffff !important;">Nombre del Documento</th>
                                     <th class="text-white py-3" style="width: 35%; color: #ffffff !important;">Archivo</th>

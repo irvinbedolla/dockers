@@ -32,7 +32,7 @@
             height: 100%;
             z-index: 9999;
             background: url('../public/assets/images/pageLoader.gif') 50% 50% no-repeat rgb(249,249,249);
-           /* background-color: #6A0F49;/*<p style="color: #CEA845*/
+           /* background-color: #496163;/*<p style="color: #CEA845*/
             opacity: .8;
         }
         .resultado {
@@ -107,7 +107,7 @@
             height: 50px;
             font-size: 12px;
             padding: 5px 10px;
-            background-color: #6A0F49 !important;
+            background-color: #496163 !important;
             color: #fff !important;
             border: none;
         }

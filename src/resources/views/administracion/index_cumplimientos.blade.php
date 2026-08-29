@@ -63,7 +63,7 @@
                                     <div class="table-responsive">
                                         <table id="example" class="table table-striped mt-1">
                                             @if (session('tipo') == "Audiencia")
-                                                <thead style="background-color: #4A001F;">
+                                                <thead style="background-color: #354647;">
                                                     <tr>
                                                         <th style="color: #fff;">NUE</th>
                                                         <th style="color: #fff; text-align: center;">Fecha</th>
@@ -93,7 +93,7 @@
                                                 </tbody>
                                             @endif
                                             @if (session('tipo') == "Ratificación")
-                                                <thead style="background-color: #4A001F;">
+                                                <thead style="background-color: #354647;">
                                                     <tr>
                                                         <th style="color: #fff;">NUE</th>
                                                         <th style="color: #fff; text-align: center;">Fecha</th>

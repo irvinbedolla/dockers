@@ -20,7 +20,7 @@
                             @can('ver-curso')
                                 <div class="table-responsive">
                                     <table class="table table-striped mt-1">
-                                        <thead style="background-color: #4A001F;">
+                                        <thead style="background-color: #354647;">
                                             <th style="display: none;">ID</th>
                                             <th style="color: #fff;">Modulo</th>
                                             <th style="color: #fff;">Introducción</th>

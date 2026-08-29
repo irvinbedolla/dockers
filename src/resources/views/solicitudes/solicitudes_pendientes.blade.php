@@ -13,7 +13,7 @@
                         <div class="card-body p-4">
                             <div class="table-responsive">
                                 <table id="example" class="table table-striped table-hover align-middle w-100">
-                                    <thead style="background-color: #4A001F;">
+                                    <thead style="background-color: #354647;">
                                         <tr>
                                             <th class="text-white" style="color: #ffffff !important;">Fecha Captura</th>
                                             <th class="text-white" style="color: #ffffff !important;">Solicitante</th>

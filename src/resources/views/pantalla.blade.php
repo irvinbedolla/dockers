@@ -10,7 +10,7 @@
 
 <style>
     :root {
-        --color-guinda: #4A001F;
+        --color-guinda: #354647;
         --color-naranja: #FF4500;
         --color-fondo: #2c3e50;
     }

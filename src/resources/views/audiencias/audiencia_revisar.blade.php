@@ -26,7 +26,7 @@
                         <div class="card-body">
                             <div class="table-responsive">
                                 <table class="table table-striped mt-1">
-                                    <thead style="background-color: #4A001F;">
+                                    <thead style="background-color: #354647;">
                                         <tr> 
                                             <th style="display:none">ID</th>
                                             <th style="color: #ffff;">Tipo parte</th>
@@ -133,7 +133,7 @@
                                 </div>
                             </div>
                             <table class="table table-striped mt-1">
-                                            <thead style="background-color: #4A001F;">
+                                            <thead style="background-color: #354647;">
                                                 <tr> 
                                                     <th style="display:none">ID</th>
                                                     <th style="color: #ffff;">Tipo pago</th>
@@ -191,7 +191,7 @@
                                 </div>
                             </div>
                             <table class="table table-striped mt-1">
-                                            <thead style="background-color: #4A001F;">
+                                            <thead style="background-color: #354647;">
                                                 <tr> 
                                                     <th style="display:none">ID</th>
                                                     <th style="color: #ffff;">Tipo pago</th>
@@ -233,7 +233,7 @@
                                     </div>
                                 </div>
                             <table class="table table-striped mt-1">
-                                            <thead style="background-color: #4A001F;">
+                                            <thead style="background-color: #354647;">
                                                 <tr> 
                                                     <th style="display:none">ID</th>
                                                     <th style="color: #ffff;">Fecha y Hora</th>
@@ -613,7 +613,7 @@
                     <input type="hidden" name="solicitud" value="{{$solicitud->id}}">
                     <input type="hidden" name="origen" value="previa">
                     <table id="tabla1" class="table-striped" style="width:100%">
-                        <thead style="background-color: #4A001F;">   
+                        <thead style="background-color: #354647;">   
                             <!--<th style="display: none;">ID</th>-->
                             <th style="color: #fff;">Folio</th>
                             <th style="color: #fff;">Nombre</th>
@@ -663,7 +663,7 @@
                     <input type="hidden" id="modal-id" name="citado" value="">
                     <input type="hidden" name="solicitud" value="{{$solicitud->id}}">
                     <table id="tabla1" class="table-striped" style="width:100%">
-                        <thead style="background-color: #4A001F;">   
+                        <thead style="background-color: #354647;">   
                             <!--<th style="display: none;">ID</th>-->
                             <th style="color: #fff;">Folio</th>
                             <th style="color: #fff;">Nombre</th>

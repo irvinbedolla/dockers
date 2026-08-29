@@ -37,7 +37,7 @@
                                     </div>
                                     <div class="card-body table-responsive">
                                         <table class="table table-striped datatable-local">
-                                            <thead style="background-color: #4A001F; color: #fff;">
+                                            <thead style="background-color: #354647; color: #fff;">
                                                 <tr>
                                                     <th>Sede</th>
                                                     <th>Módulo Afectado</th>
@@ -89,7 +89,7 @@
                                     </div>
                                     <div class="card-body table-responsive">
                                         <table class="table table-striped datatable-local">
-                                            <thead style="background-color: #4A001F; color: #fff;">
+                                            <thead style="background-color: #354647; color: #fff;">
                                                 <tr>
                                                     <th>Conciliador</th>
                                                     <th>Sede</th>
@@ -140,8 +140,8 @@
                                 <table id="example" class="table table-striped mt-1">
                                     <thead>
                                         <tr>
-                                            <th style="background:#4A001F; color: white;">Delegación</th>
-                                            <th style="background:#4A001F; color: white;" class="text-center">Configurar Bloqueos</th>
+                                            <th style="background:#354647; color: white;">Delegación</th>
+                                            <th style="background:#354647; color: white;" class="text-center">Configurar Bloqueos</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -178,7 +178,7 @@
                     @csrf
                     <input type="hidden" name="sede_id" id="modal_sede_id" value="">
 
-                    <div class="modal-header" style="background:#4A001F; color: white;">
+                    <div class="modal-header" style="background:#354647; color: white;">
                         <h5 class="modal-title"><i class="bi bi-shield-lock"></i> Restricción de Agenda: <span id="txtSedeTitulo" class="fw-bold text-warning"></span></h5>
                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>

@@ -52,7 +52,7 @@
                             <div class="table-responsive">
                                 <spam>1. Señale el número de conciliadoras y conciliadores con los que cuenta el Centro de Conciliación Local/Federal:</spam>
                                 <table class="table table-striped mt-2">
-                                    <thead style="background-color: #4A001F;">
+                                    <thead style="background-color: #354647;">
                                         <th style="color: #fff;  text-align: center;"></th>
                                         <th style="color: #fff;  text-align: center;">Individuales</th>
                                         <th style="color: #fff;  text-align: center;">Colectivos</th>
@@ -87,7 +87,7 @@
                             <div class="table-responsive">
                                 <spam>2. Señale el número de notificadoras y notificadores con los que cuenta el Centro de Conciliación Local/Federal:</spam>
                                 <table class="table table-striped mt-2">
-                                    <thead style="background-color: #4A001F;">
+                                    <thead style="background-color: #354647;">
                                         <th style="color: #fff;  text-align: center;"></th>
                                         <th style="color: #fff;  text-align: center;">Individuales</th>
                                         <th style="color: #fff;  text-align: center;">Colectivos</th>
@@ -124,7 +124,7 @@
                             <div class="table-responsive">
                                 <spam>4. Indique las solicitudes presentadas, por rubro y por género, como se señala a continuación:</spam>
                                 <table class="table table-striped mt-2">
-                                    <thead style="background-color: #4A001F;">
+                                    <thead style="background-color: #354647;">
                                         <th style="color: #fff;  text-align: center;"></th>
                                         <th style="color: #fff;  text-align: center;">Mujeres</th>
                                         <th style="color: #fff;  text-align: center;">Hombres</th>
@@ -171,7 +171,7 @@
                             <div class="table-responsive">
                                 <spam>6. Total de solicitudes que fueron declaradas como incompetencia por parte del Centro de Conciliación Local/Federal:</spam>
                                 <table class="table table-striped mt-2">
-                                    <thead style="background-color: #4A001F;">
+                                    <thead style="background-color: #354647;">
                                         <th style="color: #fff;  text-align: center;">Antes de admisión (confirmación):</th>
                                         <th style="color: #fff;  text-align: center;">Después de admisión:</th>
                                     </thead>
@@ -186,7 +186,7 @@
                             <div class="table-responsive">
                                 <spam>7. Citatorios emitidos durante el periodo:</spam>
                                 <table class="table table-striped mt-2">
-                                    <thead style="background-color: #4A001F;">
+                                    <thead style="background-color: #354647;">
                                         <th style="color: #fff;  text-align: center;">a. Diligenciados por autoridad</th>
                                         <th style="color: #fff;  text-align: center;">b. Diligenciados por trabajador</th>
                                         <th style="color: #fff;  text-align: center;">c. Dilegenciados por ambos</th>
@@ -209,7 +209,7 @@
                             <div class="table-responsive">
                                 <spam>11. Total de asuntos NO conciliados durante el periodo:</spam>
                                 <table class="table table-striped mt-2">
-                                    <thead style="background-color: #4A001F;">
+                                    <thead style="background-color: #354647;">
                                         <th style="color: #fff;  text-align: center;">a. Derivados de conciliación:</th>
                                         <th style="color: #fff;  text-align: center;">b. Incomparecencia del citado:</th>
 ¿                                    </thead>

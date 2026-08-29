@@ -61,7 +61,7 @@
                             <div id="solicitud" class="tabcontent">
                                 <div class="table-responsive">
                                     <table id="tabla_solicitud" class="table-striped" style="width:100%">
-                                        <thead style="background-color: #4A001F;">
+                                        <thead style="background-color: #354647;">
                                             <th style="display: none;">ID</th>
                                             <th style="color: #fff;">Fecha confirmacíon</th>
                                             <th style="color: #fff;">Número unico de identificación</th>
@@ -108,7 +108,7 @@
                             <div id="ratificacion" class="tabcontent">
                                 <div class="table-responsive">
                                     <table id="tabla_ratificaciones" class="table table-striped mt-1">
-                                        <thead style="background-color: #4A001F;">
+                                        <thead style="background-color: #354647;">
                                             <th style="display: none;">ID</th>
                                             <th style="color: #fff;">Fecha confirmacíon</th>
                                             <th style="color: #fff;">Número unico de identificación</th>
@@ -148,7 +148,7 @@
                             <div id="audiencia" class="tabcontent">
                                 <div class="table-responsive">
                                     <table id="tabla_audiencias" class="table table-striped mt-1">
-                                        <thead style="background-color: #4A001F;">
+                                        <thead style="background-color: #354647;">
                                             <th style="display: none;">ID</th>
                                             <th style="color: #fff;">Fecha confirmacíon</th>
                                             <th style="color: #fff;">Fecha conclución</th>
@@ -178,7 +178,7 @@
                             <div id="convenios" class="tabcontent">
                                 <div class="table-responsive">
                                     <table id="tabla_pago" class="table table-striped mt-1">
-                                        <thead style="background-color: #4A001F;">
+                                        <thead style="background-color: #354647;">
                                             <th style="display: none;">ID</th>
                                             <th style="color: #fff;">Fecha</th>
                                             <th style="color: #fff;">Número unico de identificación</th>
@@ -204,7 +204,7 @@
                             <div id="colectiva" class="tabcontent">
                                 <div class="table-responsive">
                                     <table id="tabla_colectiva" class="table table-striped mt-1">
-                                        <thead style="background-color: #4A001F;">
+                                        <thead style="background-color: #354647;">
                                             <th style="display: none;">ID</th>
                                             <th style="color: #fff;">Fecha</th>
                                             <th style="color: #fff;">Número unico de identificación</th>
@@ -250,7 +250,7 @@
                 <div id="audiencia2"> 
                     <div class="table-responsive">
                         <table id="tabla_seer_audienicias" class="table table-striped mt-1">
-                            <thead style="background-color: #4A001F;">
+                            <thead style="background-color: #354647;">
                                 <th style="display: none;">ID</th>
                                 <th style="color: #fff;">Número de audiencia</th>
                                 <th style="color: #fff;">Estatus</th>

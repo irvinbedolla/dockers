@@ -30,7 +30,7 @@
             height: 100%;
             z-index: 9999;
             background: url('{{ asset('assets/images/pageLoader.gif') }}') 50% 50% no-repeat rgb(249,249,249);
-           /* background-color: #6A0F49;/*<p style="color: #CEA845*/
+           /* background-color: #496163;/*<p style="color: #CEA845*/
             opacity: .8;
         }
         
@@ -47,7 +47,7 @@
     <div id="app">  
         <section class="section">
             <div class="col-lg-12" >
-                <div style="background-color:#6A0F49">
+                <div style="background-color:#496163">
                     <div align="right"><br>
                         <img src="{{ asset('assets/images/ccl-r.png') }}" style="max-width: 10%" class="text-center">
                     </div>
@@ -97,7 +97,7 @@
                                             <div id="div1"  class="col-xs-12 col-sm-12 col-md-6">
                                                 <div class="form-group">
                                                     <table id="tabla" class="table table-striped mt-1" style="margin: 0 50%; text-align:center;">
-                                                        <thead style="background-color: #4A001F;">
+                                                        <thead style="background-color: #354647;">
                                                             <th style="color: #fff;">Objeto de la solicitud</th>
                                                             <th style="color: #fff;">Acción</th>
                                                         </thead>
@@ -113,7 +113,7 @@
                                                 <div class="form-group">
                                                     <h4 style="text-align: center">Solicitantes</h4> 
                                                     <table id="tabla" class="table table-striped mt-1" style="margin: 0 50%; text-align:center;">
-                                                        <thead style="background-color: #4A001F;">
+                                                        <thead style="background-color: #354647;">
                                                             <th style="color: #fff;">Nombre</th>
                                                             <th style="color: #fff;">Curp</th>
                                                             <th style="color: #fff;">RFC</th>
@@ -130,7 +130,7 @@
                                                 <div class="form-group">
                                                     <h4 style="text-align: center">Citados</h4>   
                                                     <table id="tabla" class="table table-striped mt-1" style="margin: 0 50%; text-align:center;">
-                                                        <thead style="background-color: #4A001F;">
+                                                        <thead style="background-color: #354647;">
                                                             <th style="color: #fff;">Nombre</th>
                                                             <th style="color: #fff;">Curp</th>
                                                             <th style="color: #fff;">RFC</th>

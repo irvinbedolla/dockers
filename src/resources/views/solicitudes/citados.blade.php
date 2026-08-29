@@ -23,7 +23,7 @@
 
     <style>
         :root {
-            --primary-color: #6A0F49;
+            --primary-color: #496163;
             --secondary-color: #CEA845;
             --secondary-hover: #b89338;
             --bg-light: #F8F9FA;

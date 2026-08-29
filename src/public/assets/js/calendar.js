@@ -52,7 +52,9 @@ function refreshCurrentCalendar() {
 // ---------------------------------------------------------------------------
 // Esqueleto de carga
 // ---------------------------------------------------------------------------
-function calEsqueleto(visible, enFlujo) {
+var calVigia = null;
+
+function calEsqueleto(visible) {
     const sk = document.getElementById('calSkeleton');
     const cal = document.getElementById('calendar');
     const zona = document.getElementById('calZona');
@@ -61,29 +63,30 @@ function calEsqueleto(visible, enFlujo) {
         return;
     }
 
+    // El contenedor del calendario ya nunca se esconde: si el aviso de fin de
+    // carga no llega, se ve la rejilla en lugar de un esqueleto eterno.
+    cal.classList.remove('is-oculto');
+
     if (zona) {
         zona.setAttribute('aria-busy', visible ? 'true' : 'false');
+        zona.classList.toggle('is-cargando', !!visible);
     }
 
+    sk.style.display = visible ? '' : 'none';
+
+    clearTimeout(calVigia);
+
     if (visible) {
-        // enFlujo = la rejilla no existe (primera carga o cambio de agenda): el
-        // esqueleto ocupa su lugar. Si no, va como velo encima de lo que ya hay.
-        if (enFlujo) {
-            sk.classList.remove('is-overlay');
-            cal.classList.add('is-oculto');
-        }
-        sk.style.display = '';
+        // Red de seguridad: pase lo que pase, el velo se quita.
+        calVigia = setTimeout(function () { calEsqueleto(false); }, 6000);
         return;
     }
 
-    cal.classList.remove('is-oculto');
-    sk.style.display = 'none';
     sk.classList.add('is-overlay');
 
-    // FullCalendar midió con el contenedor en display:none y las columnas salen
-    // sin ancho: se remide justo al descubrirlo, no antes.
+    // FullCalendar pudo haber medido con la zona a medio armar
     setTimeout(function () {
-        if (currentCalendar) currentCalendar.updateSize();
+        if (currentCalendar) { currentCalendar.updateSize(); }
     }, 0);
 }
 
@@ -123,7 +126,7 @@ function calPintarEncabezado(view) {
 function calContenidoEvento(info) {
     const props = info.event.extendedProps || {};
     // En "Todos" el color no viene en el evento sino de la fuente que lo trajo.
-    const color = props.color || info.event.backgroundColor || '#6A0F49';
+    const color = props.color || info.event.backgroundColor || '#496163';
 
     const tarjeta = document.createElement('div');
     tarjeta.className = 'evt-agenda';
@@ -191,9 +194,7 @@ document.addEventListener('DOMContentLoaded', function () {
             eventContent: calContenidoEvento,
             moreLinkContent: function (arg) { return arg.num + ' más...'; },
             datesSet: function (info) { calPintarEncabezado(info.view); },
-            loading: function (cargando) {
-                calEsqueleto(cargando, document.getElementById('calendar').classList.contains('is-oculto'));
-            }
+            loading: function (cargando) { calEsqueleto(cargando); }
         };
     }
 
@@ -279,9 +280,7 @@ function switchCalendar(newCalendar, vistaForzada) {
         leyenda.style.display = calEsTodos(newCalendar) ? '' : 'none';
     }
 
-    // Al destruir, el contenedor queda vacío: el esqueleto vuelve a ocupar su
-    // lugar en el flujo para que la tarjeta no se colapse mientras carga.
-    calEsqueleto(true, true);
+    calEsqueleto(true);
 
     currentCalendar = newCalendar;
 

@@ -61,7 +61,7 @@
                             <div class="table-responsive">
                                 <spam>Solicitudes</spam>
                                 <table class="table table-striped mt-2">
-                                    <thead style="background-color: #4A001F;">
+                                    <thead style="background-color: #354647;">
                                         <th style="color: #fff;  text-align: center;">Fecha</th>
                                         <th style="color: #fff;  text-align: center;">Número de Expediente</th>
                                         <th style="color: #fff;  text-align: center;">Solicitante</th>
@@ -87,7 +87,7 @@
                             <div class="table-responsive">
                                 <spam>Ratificaciones</spam>
                                 <table class="table-striped" style="width:100%;">
-                                    <thead style="background-color: #4A001F;">
+                                    <thead style="background-color: #354647;">
                                         <th style="color: #fff;  text-align: center;">Fecha</th>
                                         <th style="color: #fff;  text-align: center;">Número de Expediente</th>
                                         <th style="color: #fff;  text-align: center;">Solicitante</th>
@@ -115,7 +115,7 @@
                             <div class="table-responsive">
                                 <spam>Cumplimientos</spam>
                                 <table class="table table-striped mt-2">
-                                    <thead style="background-color: #4A001F;">
+                                    <thead style="background-color: #354647;">
                                         <th style="color: #fff;  text-align: center;">Fecha</th>
                                         <th style="color: #fff;  text-align: center;">Número de Expediente</th>
                                         <th style="color: #fff;  text-align: center;">Tipo de Pago</th>
@@ -137,7 +137,7 @@
                             <div class="table-responsive">
                                 <spam>Asesorias</spam>
                                 <table class="table table-striped mt-2">
-                                    <thead style="background-color: #4A001F;">
+                                    <thead style="background-color: #354647;">
                                         <th style="color: #fff;  text-align: center;">Asesorado</th>
                                         <th style="color: #fff;  text-align: center;">Sexo</th>
                                     </thead>

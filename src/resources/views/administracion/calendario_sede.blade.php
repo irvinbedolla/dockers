@@ -70,9 +70,9 @@
                 </div>
 
                 <div class="cal-leyenda">
-                    <span><i class="leyenda" style="background:#6A0F49;"></i> Día inhábil</span>
-                    <span><i class="leyenda" style="background:#B5824A;"></i> Horario bloqueado</span>
-                    <span><i class="leyenda" style="background:#496163;"></i> Conciliador</span>
+                    <span><i class="leyenda" style="background:#496163;"></i> Día inhábil</span>
+                    <span><i class="leyenda" style="background:#CEA845;"></i> Horario bloqueado</span>
+                    <span><i class="leyenda" style="background:#8A9A9B;"></i> Conciliador</span>
                     <span id="leyendaJornada" style="display:none;"><i class="leyenda" style="background:#f2f3f5;"></i> Fuera de su jornada</span>
                     <span class="ms-auto text-muted">Clic en un día para crear &middot; clic en un bloqueo para editarlo</span>
                 </div>
@@ -121,7 +121,7 @@
                     <input type="hidden" name="_method" id="form_method" value="">
                     <input type="hidden" name="sede_id" id="sede_id" value="{{ $sede->nombre }}">
 
-                    <div class="modal-header" style="background:#6A0F49; color:#fff;">
+                    <div class="modal-header" style="background:#496163; color:#fff;">
                         <h5 class="modal-title">
                             <i class="bi bi-shield-lock"></i>
                             <span id="tituloModal">Nuevo bloqueo</span> &middot; {{ $sede->nombre }}
@@ -253,7 +253,7 @@
 
                     <div class="modal-footer bg-light">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                        <button type="submit" class="btn text-white" style="background-color:#6A0F49;" id="btnGuardar">Guardar</button>
+                        <button type="submit" class="btn text-white" style="background-color:#496163;" id="btnGuardar">Guardar</button>
                     </div>
                 </form>
 
@@ -311,6 +311,7 @@
             // no puede quedarse con datos viejos.
             var cacheMeses = {};
             var desdeCache = false;
+            var vigiaEsqueleto = null;
             var conciliador = new URLSearchParams(window.location.search).get('conciliador') || '';
 
             // El filtro de ámbito se aplica sobre lo ya descargado: cambiarlo no
@@ -440,31 +441,31 @@
 
                     loading: function (cargando) {
                         var $sk = $('#calSkeleton');
+                        var $zona = $('#calZona');
 
-                        $('#calZona').attr('aria-busy', cargando ? 'true' : 'false');
+                        // El contenedor nunca se esconde: si el aviso de fin de carga
+                        // no llegara, se ve la rejilla y no un esqueleto eterno.
+                        $('#calendarioSede').removeClass('is-oculto');
+                        $zona.attr('aria-busy', cargando ? 'true' : 'false')
+                             .toggleClass('is-cargando', !!cargando);
+
+                        clearTimeout(vigiaEsqueleto);
 
                         if (cargando) {
-                            if (!desdeCache) {
-                                $sk.show();
-                            }
+                            if (!desdeCache) { $sk.show(); }
+                            // Red de seguridad: pase lo que pase, el velo se quita.
+                            vigiaEsqueleto = setTimeout(function () {
+                                $sk.hide().addClass('is-overlay');
+                                $zona.removeClass('is-cargando').attr('aria-busy', 'false');
+                            }, 6000);
                             return;
                         }
 
-                        // Primera carga: se descubre la rejilla y a partir de aquí el
-                        // esqueleto solo actúa como velo.
-                        var $cal = $('#calendarioSede');
-                        var eraPrimera = $cal.hasClass('is-oculto');
-
-                        $cal.removeClass('is-oculto');
                         $sk.hide().addClass('is-overlay');
 
-                        // FullCalendar midió con el contenedor en display:none y las
-                        // columnas salen sin ancho: hay que remedirlo al descubrirlo.
-                        if (eraPrimera) {
-                            setTimeout(function () {
-                                if (calendario) calendario.updateSize();
-                            }, 0);
-                        }
+                        setTimeout(function () {
+                            if (calendario) calendario.updateSize();
+                        }, 0);
                     },
 
                     datesSet: function (info) {
@@ -680,7 +681,7 @@
                         icon: 'warning',
                         title: 'Falta un dato',
                         text: 'Selecciona al menos un día de la semana para la recurrencia.',
-                        confirmButtonColor: '#6A0F49',
+                        confirmButtonColor: '#496163',
                         heightAuto: false
                     });
                     return false;
@@ -708,7 +709,7 @@
                     icon: 'error',
                     title: 'No se pudo guardar',
                     text: @json($errors->first()),
-                    confirmButtonColor: '#6A0F49'
+                    confirmButtonColor: '#496163'
                 });
             @endif
         });

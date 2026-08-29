@@ -14,7 +14,7 @@
                             @can('ver-seer')
                                 <div class="table-responsive">
                                     <table id="HistorialSolicitudes" class="table table-striped mt-1">
-                                        <thead style="background-color: #4A001F;">
+                                        <thead style="background-color: #354647;">
                                             <th style="display: none;">ID</th>
                                             <th style="color: #fff;">Fecha de notificación</th>
                                             <th style="color: #fff;">Número único de identificación</th>

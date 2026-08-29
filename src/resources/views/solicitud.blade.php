@@ -14,7 +14,7 @@
     
     <style>
         :root {
-            --primary-guinda: #4A001F;
+            --primary-guinda: #354647;
             --primary-guinda-hover: #360017;
             --accent-dorado: #CEA845;
             --accent-dorado-hover: #b59239;

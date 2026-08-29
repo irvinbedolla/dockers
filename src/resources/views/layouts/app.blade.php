@@ -85,7 +85,7 @@
                 width: calc(100% - 250px) !important;
                 height: 70px !important;
                 z-index: 850 !important;
-                background-color: #6A0F49 !important;
+                background-color: #496163 !important;
             }
 
             .main-sidebar {
@@ -137,7 +137,7 @@
                 width: 100% !important;
                 height: 70px !important;
                 z-index: 850 !important;
-                background-color: #6A0F49 !important;
+                background-color: #496163 !important;
             }
 
             .main-sidebar {
@@ -292,6 +292,26 @@
 
         /* El primer ítem del menú queda pegado al logo sin este respiro */
         .main-sidebar .sidebar-menu { padding-top: 6px !important; }
+
+        /* ------------------------------------------------------------- */
+        /* Ítem seleccionado del menú                                     */
+        /* ------------------------------------------------------------- */
+        /* Va en el color de apoyo (#CEA845) y no en el predominante, para que
+           se distinga de la barra superior en lugar de fundirse con ella. */
+        .main-sidebar .sidebar-menu li.active > a,
+        body.sidebar-mini .main-sidebar .sidebar-menu > li.active > a {
+            background-color: #CEA845 !important;
+            color: #496163 !important;
+            box-shadow: none !important;
+        }
+
+        /* El <span> de la etiqueta trae la clase text-dark de Bootstrap, que ya
+           viene con !important: hay que ganarle por especificidad. */
+        .main-sidebar .sidebar-menu li.active > a i,
+        .main-sidebar .sidebar-menu li.active > a span,
+        body.sidebar-mini .main-sidebar .sidebar-menu > li.active > a i {
+            color: #496163 !important;
+        }
 
         /* ------------------------------------------------------------- */
         /* [SICONCILIO] Menú en estado colapsado                          */

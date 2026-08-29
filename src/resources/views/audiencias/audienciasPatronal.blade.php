@@ -74,7 +74,7 @@
                             @endif
                             <div class="table-responsive">
                                 <table class="table table-striped mt-1">
-                                    <thead style="background-color: #4A001F;">
+                                    <thead style="background-color: #354647;">
                                         <tr> 
                                             <th style="display:none">ID</th>
                                             <th style="color: #ffff;">Tipo parte</th>
@@ -389,7 +389,7 @@
                 @if($abogadosMatch->count() > 0)
                 <div class="table-responsive">
                     <table class="table table-striped table-hover mt-3">
-                        <thead style="background-color: #4A001F;">
+                        <thead style="background-color: #354647;">
                             <tr>
                                 <th style="color: #ffffff;">Folio</th>
                                 <th style="color: #ffffff;">Nombre de la patronal</th>

@@ -76,13 +76,13 @@
             text-align: center;
             padding: 0.375rem 0.75rem; /* Tamaño del botón */
             font-weight: 400;
-            background-color: #4A001F; /* Color de fondo inicial */
+            background-color: #354647; /* Color de fondo inicial */
             color: white; /* Color del texto */
           }
 
           /* Estilo al pasar el mouse */
           .boton:hover {
-              color: #4A001F;
+              color: #354647;
               background-color: white; /* Nuevo color de fondo cuando el mouse está sobre el botón */
               text-decoration: none;/* Elimina el subrayado del enlace */
               border-radius: 5px; /* Bordes redondeados */

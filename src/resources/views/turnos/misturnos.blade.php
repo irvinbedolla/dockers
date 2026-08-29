@@ -14,7 +14,7 @@
                             <a class="btn btn-warning" href="{{ route('misturnos') }}"  onclick=crear_turnos();>Cargar turnos</a>
                             <div class="table-responsive">
                                 <table id="example" class="table table-striped mt-2">
-                                    <thead style="background-color: #4A001F;">
+                                    <thead style="background-color: #354647;">
                                         <th style="color: #fff;">ID</th>
                                         <th style="color: #fff;">Nombre</th>
                                         <th style="color: #fff;">Estatus</th>

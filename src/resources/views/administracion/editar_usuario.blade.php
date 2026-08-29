@@ -75,7 +75,7 @@
                                     </div>
 
                                     <div class="col-xs-12 col-sm-12 col-md-12">
-                                        <button type="submit" class="btn btn-primary" style="background-color: #6A0F49">Guardar</button>
+                                        <button type="submit" class="btn btn-primary" style="background-color: #496163">Guardar</button>
                                     </div>
                                     
                                 </div>

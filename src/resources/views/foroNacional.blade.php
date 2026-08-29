@@ -22,7 +22,7 @@
 
     <style>
         :root {
-            --color-guinda: #6A0F49;
+            --color-guinda: #496163;
             --color-dorado: #CEA845;
             --color-fondo: #f9f1e7;
         }

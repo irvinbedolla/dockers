@@ -360,7 +360,7 @@
             height: 50px;
             font-size: 12px;
             padding: 5px 10px;
-            background-color: #6A0F49 !important;
+            background-color: #496163 !important;
             color: #fff !important;
             border: none;
         }

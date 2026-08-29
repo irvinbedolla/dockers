@@ -17,7 +17,7 @@
                             @else
                                 <div class="table-responsive">
                                     <table class="table table-striped text-center">
-                                        <thead style="background-color: #4A001F;">
+                                        <thead style="background-color: #354647;">
                                             <th style=color:white;>Solicitud</th>
                                             <th style=color:white;>Solicitante</th>
                                             <!--<th style=color:white;>Citados</th>-->

@@ -16,7 +16,7 @@
                                 @if($userRole[0] == "Conciliador")
                                         <table id="tabla_seer_auxiliar" class="table table-striped mt-1">
                                             <div class="table-responsive">
-                                                <thead style="background-color: #4A001F;">
+                                                <thead style="background-color: #354647;">
                                                     <th style="display: none;">ID</th>
                                                     <th style="color: #fff;">Número unico de identificación</th>
                                                     <th style="color: #fff;">Solicitante</th>

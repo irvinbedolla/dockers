@@ -15,7 +15,7 @@
                                 <div class="table-responsive">
                                     <h3>Aceptados</h3>
                                     <table class="table table-striped mt-1">
-                                        <thead style="background-color: #4A001F;">
+                                        <thead style="background-color: #354647;">
                                             <th style="display: none;">ID</th>
                                             <th style="color: #fff;">Nombre</th>
                                             <th style="color: #fff;">Cargo</th>
@@ -39,7 +39,7 @@
                                 <div class="table-responsive">
                                     <h3>Disponibles</h3>
                                     <table class="table table-striped mt-1">
-                                        <thead style="background-color: #4A001F;">
+                                        <thead style="background-color: #354647;">
                                             <th style="display: none;">ID</th>
                                             <th style="color: #fff;">Nombre</th>
                                             <th style="color: #fff;">Cargo</th>

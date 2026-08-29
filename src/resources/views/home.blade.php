@@ -45,7 +45,7 @@
             <div class="navbar-bg"></div>
             
             <!-- Navbar Superior -->
-            <nav class="navbar navbar-expand-lg main-navbar" style="background-color: #6A0F49">
+            <nav class="navbar navbar-expand-lg main-navbar" style="background-color: #496163">
                 <form class="form-inline mr-auto" action="#">
                     <ul class="navbar-nav mr-3">
                         <li><a href="#" data-toggle="sidebar" class="nav-link nav-link-lg"><i class="fas fa-bars"></i></a></li>

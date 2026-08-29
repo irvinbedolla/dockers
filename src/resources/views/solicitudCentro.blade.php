@@ -84,7 +84,7 @@
         </div>
         <main>
             <div>
-                <h2 style="color: #4A001F; text-align: center;">Realiza tu solicitud en línea</h2>
+                <h2 style="color: #354647; text-align: center;">Realiza tu solicitud en línea</h2>
                 <center><img src="{{ asset('assets/images/Baner.png') }}" class="responsive-img" width="750" height="350" alt="Descripción de la imagen"></center>
             </div>
             <br>

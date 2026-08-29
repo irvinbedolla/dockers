@@ -17,7 +17,7 @@ use Carbon\Carbon;
                                 Total atendidos: {{$suma_turnos->total}}
                                 <div class="table-responsive">
                                     <table id="tabla_usuarios" class="table table-striped">
-                                        <thead style="background-color: #4A001F;">
+                                        <thead style="background-color: #354647;">
                                             <th style="color: #fff">Folio</th>
                                             <th style="color: #fff;">Auxiliar</th>
                                             <th style="color: #fff;">Solicitante</th>

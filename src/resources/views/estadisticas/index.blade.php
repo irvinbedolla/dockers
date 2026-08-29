@@ -26,7 +26,7 @@
                                 @if($userRole == "Auxiliar" || $userRole == "Excepcion")
                                     <div class="table-responsive">
                                         <table id="example" class="table table-striped mt-1">
-                                            <thead style="background-color: #4A001F;">
+                                            <thead style="background-color: #354647;">
                                                 <th style="display: none;">ID</th>
                                                 <th style="color: #fff;">Fecha</th>
                                                 <th style="color: #fff;">Número único de identificación</th>
@@ -77,7 +77,7 @@
                                 @if($userRole == "Conciliador")
                                     <div class="table-responsive">
                                         <table id="example" class="table table-striped mt-1">
-                                            <thead style="background-color: #4A001F;">
+                                            <thead style="background-color: #354647;">
                                                 <th style="display: none;">ID</th>
                                                 <th style="color: #fff;">Fecha</th>
                                                 <th style="color: #fff;">Número único de identificación</th>
@@ -109,7 +109,7 @@
                                 @if($userRole == "Notificador")
                                     <div class="table-responsive">
                                         <table id="example" class="table table-striped mt-1" style="text-align:center">
-                                            <thead style="background-color: #4A001F;">
+                                            <thead style="background-color: #354647;">
                                                 <th style="color: #fff;">ID</th>
                                                 <th style="color: #fff;">Expediente</th>
                                                 <th style="color: #fff;">Solicitante</th>
@@ -149,7 +149,7 @@
                                 @if($userRole == "Delegado")
                                     <div class="table-responsive">
                                         <table id="example" class="table table-striped mt-1">
-                                            <thead style="background-color: #4A001F;">
+                                            <thead style="background-color: #354647;">
                                                 <th style="display: none;">ID</th>
                                                 <th style="color: #fff;">Fecha</th>
                                                 <th style="color: #fff;">Personas atendidas</th>
@@ -225,7 +225,7 @@
                                 @if($userRole == "Enlace")
                                     <div class="table-responsive">
                                         <table id="example" class="table table-striped mt-1" style="text-align:center">
-                                            <thead style="background-color: #4A001F;">
+                                            <thead style="background-color: #354647;">
                                                 <th style="display: none;">ID</th>
                                                 <th style="color: #fff;">Expediente</th>
                                                 <th style="color: #fff;">Solicitante</th>

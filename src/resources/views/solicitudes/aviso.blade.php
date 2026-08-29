@@ -19,7 +19,7 @@
 
     <style>
         :root {
-            --primary-color: #6A0F49;
+            --primary-color: #496163;
             --secondary-color: #CEA845;
             --secondary-hover: #b89338;
             --bg-light: #F8F9FA;
@@ -251,7 +251,7 @@
                         title: 'Trámite Concluido',
                         text: 'Su solicitud ya ha sido registrada correctamente y no es posible regresar a editar los datos.',
                         icon: 'info',
-                        confirmButtonColor: '#6A0F49',
+                        confirmButtonColor: '#496163',
                         confirmButtonText: 'Aceptar'
                     });
                 };

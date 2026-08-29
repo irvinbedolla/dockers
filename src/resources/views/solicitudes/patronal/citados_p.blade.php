@@ -33,7 +33,7 @@
             height: 100%;
             z-index: 9999;
             background: url('{{ asset('assets/images/pageLoader.gif') }}') 50% 50% no-repeat rgb(249,249,249);
-           /* background-color: #6A0F49;/*<p style="color: #CEA845*/
+           /* background-color: #496163;/*<p style="color: #CEA845*/
             opacity: .8;
         }
         #resultado {

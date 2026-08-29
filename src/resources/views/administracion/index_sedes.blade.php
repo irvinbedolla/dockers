@@ -51,7 +51,7 @@
                                             <div class="card-body d-flex flex-column">
                                                 <div class="d-flex align-items-center mb-3">
                                                     <span class="rounded-circle d-inline-flex align-items-center justify-content-center me-3 flex-shrink-0"
-                                                          style="width:44px; height:44px; background:#6A0F49; color:#fff;">
+                                                          style="width:44px; height:44px; background:#496163; color:#fff;">
                                                         <i class="bi bi-geo-alt-fill"></i>
                                                     </span>
                                                     <div>
@@ -83,7 +83,7 @@
                                                 <div class="d-grid gap-2 mt-auto">
                                                     @if ($idSede)
                                                         <a href="{{ route('sede.calendario', $idSede) }}"
-                                                           class="btn text-white" style="background-color:#6A0F49;">
+                                                           class="btn text-white" style="background-color:#496163;">
                                                             <i class="bi bi-calendar3"></i> Ver calendario
                                                         </a>
                                                     @endif
@@ -117,7 +117,7 @@
                     @csrf
                     <input type="hidden" name="sede_id" id="modal_sede_id" value="">
 
-                    <div class="modal-header" style="background:#4A001F; color: white;">
+                    <div class="modal-header" style="background:#354647; color: white;">
                         <h5 class="modal-title"><i class="bi bi-shield-lock"></i> Restricción de Agenda: <span id="txtSedeTitulo" class="fw-bold text-warning"></span></h5>
                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
@@ -326,7 +326,7 @@
                         icon: 'warning',
                         title: 'Falta un dato',
                         text: 'Selecciona al menos un día de la semana para aplicar la recurrencia.',
-                        confirmButtonColor: '#6A0F49'
+                        confirmButtonColor: '#496163'
                     });
                     return false;
                 }
@@ -351,7 +351,7 @@
                     icon: 'error',
                     title: 'No se pudo guardar',
                     text: @json($errors->first()),
-                    confirmButtonColor: '#6A0F49'
+                    confirmButtonColor: '#496163'
                 });
             @endif
         });

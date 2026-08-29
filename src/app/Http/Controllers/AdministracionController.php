@@ -1074,12 +1074,13 @@ class AdministracionController extends Controller{
 
                 if ($esDeSede) {
                     $titulo = $esInhabilCompleto ? 'Día Inhábil' : 'Horario bloqueado';
-                    $color  = $esInhabilCompleto ? '#6A0F49' : '#B5824A';
+                    $color  = $esInhabilCompleto ? '#496163' : '#CEA845';
                     $clase  = $esInhabilCompleto ? 'evt-inhabil' : 'evt-horario';
                 } else {
                     $nombre = $nombresConciliador[$b->user_id] ?? 'Conciliador';
                     $titulo = $esInhabilCompleto ? $nombre . ' — inactivo' : $nombre . ' — bloqueado';
-                    $color  = '#496163';
+                    // Verde desaturado: el predominante ya lo usa el día inhábil
+                    $color  = '#8A9A9B';
                     $clase  = 'evt-conciliador';
                 }
 

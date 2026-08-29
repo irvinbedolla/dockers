@@ -19,7 +19,7 @@
 
     <style>
         :root {
-            --primary-guinda: #6A0F49;
+            --primary-guinda: #496163;
             --primary-hover: #4a0a33;
             --accent-dorado: #CEA845;
             --accent-hover: #b8933b;

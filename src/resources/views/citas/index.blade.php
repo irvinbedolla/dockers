@@ -13,7 +13,7 @@
                             <a class="btn btn-warning" href="{{ route('cita_direccion_crear') }}" onclick=crear_usuario();> Nuevo</a>
                                 <div class="table-responsive">
                                     <table id="example" class="table-striped" style="width:100%">
-                                        <thead style="background-color: #4A001F;">
+                                        <thead style="background-color: #354647;">
                                             <th style="display: none;">ID</th>
                                             <th style="color: #fff;">Fecha</th>
                                             <th style="color: #fff;">Hora Inicio</th>

@@ -77,7 +77,7 @@
             <div class="content">
                 <div class="table-responsive row">
                     <table class="table table-striped mt-2">
-                        <thead style="background-color: #4A001F;">
+                        <thead style="background-color: #354647;">
                             <th style="color: #fff;  text-align: center;">Fecha</th>
                             <th style="color: #fff;  text-align: center;">Solicitante</th>
                             <th style="color: #fff;  text-align: center;">Solicitud</th>

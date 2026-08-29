@@ -38,7 +38,7 @@
     <style>
        
         :root {
-            --color-guinda: #6A0F49;
+            --color-guinda: #496163;
             --color-guinda-dark: #530c3a;
             --color-oro: #CEA845;
             --color-oro-dark: #b59238;

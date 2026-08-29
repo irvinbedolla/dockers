@@ -14,7 +14,7 @@
                         <div class="card-body">
                                 <div class="table-responsive">
                                     <table id="example">
-                                        <thead style="background-color: #4A001F;">
+                                        <thead style="background-color: #354647;">
                                             <th style="color: #fff;">Folio</th>
                                             <th style="color: #fff;">Fecha</th>
                                             <th style="color: #fff;">Solicitante</th>

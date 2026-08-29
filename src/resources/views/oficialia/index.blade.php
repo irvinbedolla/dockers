@@ -31,7 +31,7 @@
                                 
                                 <div class="table-responsive">
                                     <table id="example" class="table table-striped mt-2" style="width:100%">
-                                        <thead style="background-color: #4A001F;">
+                                        <thead style="background-color: #354647;">
                                             <tr>
                                                 
                                                 <th style="color: #fff;">Fecha</th>
@@ -186,7 +186,7 @@
                     <input type="hidden" id="modal-id" name="oficialia_id" value="">
                     <input type="hidden" name="origen" value="previa">
                     <table id="tablaUsuariosTurnar" class="table table-striped mt-2" style="width:100%">
-                        <thead style="background-color: #4A001F;">   
+                        <thead style="background-color: #354647;">   
                             <!--<th style="display: none;">ID</th>-->
                             
                             <th style="color: #fff;">Nombre</th>

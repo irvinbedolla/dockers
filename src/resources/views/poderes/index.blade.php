@@ -28,7 +28,7 @@
                                 <form action="{{ url()->current() }}" method="GET" style="width: 400px; margin: 0;">
                                     <div class="input-group">
                                         <input type="text" name="buscar" class="form-control" placeholder="Buscar por Folio o Nombre..." value="{{ request('buscar') }}">
-                                        <button class="btn btn-primary" type="submit" style="background-color: #4A001F; border-color: #4A001F;">
+                                        <button class="btn btn-primary" type="submit" style="background-color: #354647; border-color: #354647;">
                                             <i class="fas fa-search"></i> Buscar
                                         </button>
                                         @if(request('buscar'))
@@ -41,7 +41,7 @@
                             @can('ver-abogado')
                                 <div class="table-responsive">
                                     <table id="tablaPoderesEstatica" class="table table-striped mt-2" style="width:100%">
-                                        <thead style="background-color: #4A001F;">
+                                        <thead style="background-color: #354647;">
                                             <tr>
                                                 <th style="color: #fff;">Folio</th>
                                                 <th style="color: #fff;">Nombre / Razón Social</th>
@@ -342,7 +342,7 @@
     <div class="modal fade" id="modalExpedienteDigital" tabindex="-1" aria-labelledby="modalExpedienteLabel" aria-hidden="true" style="z-index: 1060;">
         <div class="modal-dialog modal-dialog-centered modal-md">
             <div class="modal-content" style="box-shadow: 0 5px 15px rgba(0,0,0,.5);">
-                <div class="modal-header" style="background-color: #4A001F; color: white;">
+                <div class="modal-header" style="background-color: #354647; color: white;">
                     <h5 class="modal-title" id="modalExpedienteLabel">Documentos del Representante</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>

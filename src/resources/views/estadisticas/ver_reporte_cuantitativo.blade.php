@@ -15,7 +15,7 @@
                             <div id="solicitud" class="tabcontent">
                                 <div class="table-responsive">
                                     <table id="tabla_seer_auxiliares1" class="table table-striped mt-1">
-                                        <thead style="background-color: #4A001F;">
+                                        <thead style="background-color: #354647;">
                                             <th style="color: #fff;">Solicitudes</th>
                                             <th style="color: #fff;">Ratificaciones</th>
                                             <th style="color: #fff;">Convenio en ratificaciones</th>
@@ -29,7 +29,7 @@
                                         </tbody>
                                     </table>
                                     <table id="tabla_seer_auxiliares1" class="table table-striped mt-1">
-                                        <thead style="background-color: #4A001F;">
+                                        <thead style="background-color: #354647;">
                                             <th style="color: #fff;">Audiencias</th>
                                             <th style="color: #fff;">Convenio de audiencias</th>
                                             <th style="color: #fff;">N° Pagos</th>
@@ -49,7 +49,7 @@
                                         </tbody>
                                     </table>
                                     <table id="tabla_seer_auxiliares1" class="table table-striped mt-1">
-                                        <thead style="background-color: #4A001F;">
+                                        <thead style="background-color: #354647;">
                                             <th style="color: #fff;">Porcentaje de Efectividad</th>
                                             <th style="color: #fff;">Total Convenido</th>
                                         </thead>

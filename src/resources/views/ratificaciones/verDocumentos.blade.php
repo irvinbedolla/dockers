@@ -13,7 +13,7 @@
                         <div class="card-body">
                             <div class="table-responsive">
                                  <table class="table table-striped mt-2">
-                                    <thead style="background-color: #4A001F;">
+                                    <thead style="background-color: #354647;">
                                         <th style="color: #fff;">Nombre del Documento</th>
                                         <th style="color: #fff;">Documento</th>
                                         <th style="color: #fff;">Acciones</th>

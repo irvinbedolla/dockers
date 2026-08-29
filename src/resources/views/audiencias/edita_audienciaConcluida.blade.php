@@ -39,7 +39,7 @@
                             @if($conceptos->count() > 0)
                                 <div class="col-xs-12 col-sm-12 col-md-12">
                                     <div class="form-group">
-                                         <h4 class="text-center py-1" style="background-color: #4A001F; color: #ffffff; border-radius: 5px 5px 0 0; margin-bottom: 0;">
+                                         <h4 class="text-center py-1" style="background-color: #354647; color: #ffffff; border-radius: 5px 5px 0 0; margin-bottom: 0;">
                                             Prestaciones
                                         </h4>
                                     
@@ -77,7 +77,7 @@
                             @if($deducciones->count() > 0)
                                 <div class="col-xs-12 col-sm-12 col-md-12 mt-4">
                                     <div class="form-group">
-                                        <h4 class="text-center py-2" style="background-color: #4A001F; color: #ffffff; border-radius: 5px 5px 0 0; margin-bottom: 0;">
+                                        <h4 class="text-center py-2" style="background-color: #354647; color: #ffffff; border-radius: 5px 5px 0 0; margin-bottom: 0;">
                                             Deducciones
                                         </h4>
                                     </div>
@@ -125,7 +125,7 @@
                                 </div>
                             </div>
                             <table class="table table-striped mt-1">
-                                <thead style="background-color: #4A001F;">
+                                <thead style="background-color: #354647;">
                                     <tr> 
                                         <th style="display:none">ID</th>
                                         <th style="color: #ffffff;">Fecha y Hora</th>
@@ -416,7 +416,7 @@
             font-size: 10px;
             padding: 5px 10px;
             margin-bottom: 5px;
-            background-color: #6A0F49 !important;
+            background-color: #496163 !important;
             color: #fff !important;
             border: none;
         }

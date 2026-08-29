@@ -59,7 +59,7 @@
                                     <div class="table-responsive">
                                           <input type="hidden" id="modal-id" name="citado" value="">
                                         <table id="example" class="table table-striped table-hover mt-3 border shadow-sm">
-                                            <thead style="background-color: #4A001F; color: white;">
+                                            <thead style="background-color: #354647; color: white;">
                                                 <tr>
                                                     <th class="text-center text-white" style="color: white;">NUE</th>
                                                     <th class="text-center text-white" style="color: white;">Delegación</th>

@@ -15,7 +15,7 @@
                             <a class="btn btn-warning" href="{{ route('todas_ratificaciones') }}"  onclick=nuevo_poder();> Regresar</a>
                                 <div class="table-responsive">
                                     <table id="example" class="table table-striped mt-2">
-                                        <thead style="background-color: #4A001F;">
+                                        <thead style="background-color: #354647;">
                                             <th style="color: #fff;">Fecha</th>
                                             <th style="color: #fff;">Hora</th>
                                             <th style="color: #fff;">Monto</th>

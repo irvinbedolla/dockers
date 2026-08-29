@@ -51,7 +51,7 @@
                             <div class="table-responsive">
                                 <spam>Solicitudes</spam>
                                 <table class="table table-striped mt-2">
-                                    <thead style="background-color: #4A001F;">
+                                    <thead style="background-color: #354647;">
                                         <th style="color: #fff;  text-align: center;">Usuario</th>
                                         <th style="color: #fff;  text-align: center;">Solicitudes</th>
                                     </thead>
@@ -61,7 +61,7 @@
                             <div class="table-responsive">
                                 <spam>Ratificaciones</spam>
                                 <table class="table table-striped mt-2">
-                                    <thead style="background-color: #4A001F;">
+                                    <thead style="background-color: #354647;">
                                         <th style="color: #fff; text-align: center;">Usuario</th>
                                         <th style="color: #fff; text-align: center;">Ratificaciones</th>
                                         <th style="color: #fff; text-align: center;">Monto</th>
@@ -72,7 +72,7 @@
                             <div class="table-responsive">
                                 <spam>Audiencias</spam>
                                 <table class="table table-striped mt-2">
-                                    <thead style="background-color: #4A001F;">
+                                    <thead style="background-color: #354647;">
                                         <th style="color: #fff;  text-align: center;">Usuario</th>
                                         <th style="color: #fff;  text-align: center;">Audiencia</th>
                                         <th style="color: #fff;  text-align: center;">Monto</th>
@@ -83,7 +83,7 @@
                             <div class="table-responsive">
                                 <spam>Audiencias Colectivas</spam>
                                 <table class="table table-striped mt-2">
-                                    <thead style="background-color: #4A001F;">
+                                    <thead style="background-color: #354647;">
                                         <th style="color: #fff;  text-align: center;">Usuario</th>
                                         <th style="color: #fff;  text-align: center;">Audiencia</th>
                                     </thead>
@@ -94,7 +94,7 @@
                             <div class="table-responsive">
                                 <spam>Pagos</spam>
                                 <table class="table table-striped mt-2">
-                                    <thead style="background-color: #4A001F;">
+                                    <thead style="background-color: #354647;">
                                         <th style="color: #fff;  text-align: center;">Usuario</th>
                                         <th style="color: #fff;  text-align: center;">Pagos</th>
                                         <th style="color: #fff;  text-align: center;">Total</th>
@@ -105,7 +105,7 @@
                             <div class="table-responsive">
                                 <spam>Asesorias</spam>
                                 <table class="table table-striped mt-2">
-                                    <thead style="background-color: #4A001F;">
+                                    <thead style="background-color: #354647;">
                                         <th style="color: #fff;  text-align: center;">Usuario</th>
                                         <th style="color: #fff;  text-align: center;">Total</th>
                                     </thead>

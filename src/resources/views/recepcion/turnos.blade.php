@@ -17,7 +17,7 @@
                             @can('ver-turno')
                                 <div class="table-responsive">
                                     <table id="example" class="table table-striped table-hover align-middle w-100">
-                                        <thead style="background-color: #4A001F;">
+                                        <thead style="background-color: #354647;">
                                             <tr>
                                                 <th class="text-center text-white" style="width: 5%; color: #ffffff !important;">Folio</th>
                                                 <th class="text-white" style="color: #ffffff !important;">Solicitante</th>

@@ -13,7 +13,7 @@
                             <form action="{{ url()->current() }}" method="GET" class="mb-4">
                                 <div class="input-group" style="max-width: 450px;">
                                     <input type="text" name="buscar" class="form-control" placeholder="Buscar por NUE" value="{{ request('buscar') }}">
-                                    <button class="btn btn-primary" type="submit" style="background-color: #4A001F; border-color: #4A001F;">Buscar</button>
+                                    <button class="btn btn-primary" type="submit" style="background-color: #354647; border-color: #354647;">Buscar</button>
                                     @if(request('buscar'))
                                         <a href="{{ url()->current() }}" class="btn btn-secondary">Limpiar</a>
                                     @endif
@@ -21,7 +21,7 @@
                             </form>
                                 <div class="table-responsive">
                                     <table id="example" class="table-striped" style="width:100%">
-                                        <thead style="background-color: #4A001F;">
+                                        <thead style="background-color: #354647;">
                                             <th style="color: #fff;">Fecha</th>
                                             <th style="color: #fff;">Hora</th>
                                             <th style="color: #fff;">Número de Expediente</th>

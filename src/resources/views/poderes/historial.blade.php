@@ -12,7 +12,7 @@
                             @can('ver-abogado')
                                 <div class="table-responsive">
                                     <table id="example" class="table table-striped mt-2">
-                                        <thead style="background-color: #4A001F;">
+                                        <thead style="background-color: #354647;">
                                             <th style="color: #fff; text-align: center;">Folio</th>
                                             <th style="color: #fff; text-align: center;">Editor</th>
                                             <th style="color: #fff; text-align: center;">Fecha y hora de la edición</th>

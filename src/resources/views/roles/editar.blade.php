@@ -52,7 +52,7 @@
                                                 @endforeach
                                         </div>
                                     </div>
-                                    <button type="submit" class="btn btn-primary" style="background-color: #6A0F49">Guardar</button>                                
+                                    <button type="submit" class="btn btn-primary" style="background-color: #496163">Guardar</button>                                
                                 </div>
                             </form>
                         </div>
