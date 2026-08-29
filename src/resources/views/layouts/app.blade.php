@@ -305,14 +305,20 @@
             background-color: #CEA845 !important;
             color: #496163 !important;
             box-shadow: none !important;
+            font-weight: 700 !important;
         }
 
         /* El <span> de la etiqueta trae la clase text-dark de Bootstrap, que ya
-           viene con !important: hay que ganarle por especificidad. */
+           viene con !important: hay que ganarle por especificidad. El peso se
+           repite aquí porque el <span> hereda del tema, no del <a>. */
         .main-sidebar .sidebar-menu li.active > a i,
         .main-sidebar .sidebar-menu li.active > a span,
         body.sidebar-mini .main-sidebar .sidebar-menu > li.active > a i {
             color: #496163 !important;
+        }
+
+        .main-sidebar .sidebar-menu li.active > a span {
+            font-weight: 700 !important;
         }
 
         /* ------------------------------------------------------------- */
