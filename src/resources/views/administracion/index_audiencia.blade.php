@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'Cambio de Fecha en Audiencia')
 @section('content')
     <section class="section">
         <div class="section-header">

@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'Solicitud')
     <style>
         .loader {
             position: fixed;

@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'Agenda')
 
 {{--
     Esta pantalla era un layout completo aparte: repetía navbar, sidebar y footer,

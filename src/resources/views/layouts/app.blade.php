@@ -4,7 +4,9 @@
     <meta charset="UTF-8">
     @include('partials.favicon')
     <meta name="csrf-token" content="{{ csrf_token() }}"/>
-    <title>Si concilio</title>
+    {{-- Cada vista declara su @section('title'); el segundo argumento de
+         @yield es el texto de respaldo si alguna no lo hiciera. --}}
+    <title>@yield('title', 'Sistema Integral para la Conciliación') | SiConcilio</title>
     <meta content='width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no' name='viewport'>
 
     {{-- Se abre la conexión con los CDN antes de necesitarlos: ahorra el DNS y el

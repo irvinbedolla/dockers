@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'Edición de Ratificación')
     @php
         $fechaActual = date('Y-m-d');
         $contador = 0;

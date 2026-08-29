@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'Administración')
 @php
     $fechaActual = date('Y-m-d');
 

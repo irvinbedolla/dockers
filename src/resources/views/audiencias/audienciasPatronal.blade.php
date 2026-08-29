@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'Audiencia Patronal Iniciada')
 @php
     $fechaActual = date('Y-m-d');
     $contador = 0;

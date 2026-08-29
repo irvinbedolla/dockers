@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'Resultado de la Búsqueda')
 
 <style>
     /* Evita que los dropdowns se corten dentro de la tabla en Bootstrap 5 */

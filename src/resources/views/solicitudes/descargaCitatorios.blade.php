@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'Citatorios de la Solicitud')
 
 @section('content')
 <section class="section">

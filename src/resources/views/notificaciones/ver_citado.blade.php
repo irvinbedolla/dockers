@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'Información del citado')
 
 @section('content')
     <section class="section">

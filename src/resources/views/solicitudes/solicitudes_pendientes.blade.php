@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'Solicitudes Pendientes')
 
 @section('content')
     <section class="section">

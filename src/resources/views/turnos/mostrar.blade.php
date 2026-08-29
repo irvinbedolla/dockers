@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'Estadistica de turno')
 
 <?php 
 use Carbon\Carbon;

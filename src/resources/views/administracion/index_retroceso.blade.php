@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'Gestión de Agenda y Sedes')
 
 @section('content')
     <section class="section">

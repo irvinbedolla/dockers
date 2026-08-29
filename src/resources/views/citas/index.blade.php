@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'Citas de Dirección General')
 
 @section('content')
     <section class="section">

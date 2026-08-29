@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'Búsqueda de Incidencias')
 
 @section('content')
 <div class="container-fluid">

@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'Plantillas Ratificaciones')
 @section('content')
     <section class="section">
         <div class="section-header">

@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'Bloqueos por Sede')
 
 @php
     $mesesCortos = ['', 'ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];

@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'Revisar Solicitud')
 
 <style>
     /* Style the tab */

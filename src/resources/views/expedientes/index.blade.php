@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'Expediente')
 @php
     $fechaActual = date('Y-m-d');
     $id = auth()->user()->id;

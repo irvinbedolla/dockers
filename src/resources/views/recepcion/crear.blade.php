@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'Genera tu Turno')
 
     @section('content')
         <section class="section"> 

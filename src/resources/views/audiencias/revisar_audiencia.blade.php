@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'Revisar Audiencia')
 
 <style>
     /* Style the tab */

@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'Solicitud')
 <style type="text/css">
     .d-flex {
         display: flex !important;

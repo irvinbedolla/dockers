@@ -1,4 +1,5 @@
-¿@extends('layouts.app')
+@extends('layouts.app')
+@section('title', 'SEER - Colectiva')
 
 @section('content')
     <section class="section">

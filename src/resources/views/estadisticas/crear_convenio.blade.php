@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'SEER')
 
 @section('content')
     <section class="section">
