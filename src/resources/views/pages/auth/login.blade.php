@@ -51,8 +51,10 @@
     </div>
 @endsection
 
+@push('body_end')
 <div id="login_div" style ="display: none;">
     <div>.</div>
     <div class="loader"></div>
 </div>
+@endpush
 

@@ -96,10 +96,12 @@
     </section>
 @endsection
 
+@push('body_end')
 <div id="menu_carga" style ="display: none;">
     <div>.</div>
     <div class="loader"></div>
 </div>
+@endpush
 
 @section('scripts')
     <script src="../../public/js/estadistica/estadistica.js"></script>

@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    @include('partials.favicon')
     <meta name="csrf-token" content="{{ csrf_token() }}"/>
     <title>Si Concilio</title>
     <meta content='width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no' name='viewport'>
@@ -18,7 +19,6 @@
     <link href="{{ asset('assets/css/sweetalert.css') }}" rel="stylesheet" type="text/css"/>
     <link href="{{ asset('assets/css/select2.min.css') }}" rel="stylesheet" type="text/css"/>
     <link href="{{ asset('assets/css/realtime.css') }}" rel="stylesheet" type="text/css"/>
-    <link rel="icon" href="{{ asset('assets/images/ccl-r.png') }}" type="image/x-icon">
     <link rel="stylesheet" href="{{ asset('assets/css/style.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/components.css') }}">
 

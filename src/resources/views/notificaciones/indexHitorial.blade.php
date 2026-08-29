@@ -129,10 +129,12 @@
             </div>
         </div>
         
+        @push('body_end')
         <div id="menu_carga" style ="display: none;">
             <div>.</div>
             <div class="loader"></div>
         </div>
+        @endpush
 
         @push('modals')
             <div class="modal fade" id="expediente" tabindex="-1" aria-labelledby="modalLabel" aria-hidden="true">

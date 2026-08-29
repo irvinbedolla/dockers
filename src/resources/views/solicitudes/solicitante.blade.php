@@ -2,11 +2,11 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    @include('partials.favicon')
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}"/>
     <meta name="description" content="SiConcilio - Datos del Solicitante">
     <meta name="author" content="Centro de Conciliación Laboral de Michoacán">
-    <link rel="icon" href="{{ asset('public/assets/images/ccl-r.png') }}" type="image/x-icon">
     
     <title>SiConcilio - Datos del Solicitante</title>
 

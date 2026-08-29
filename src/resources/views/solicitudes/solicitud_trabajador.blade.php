@@ -2,10 +2,10 @@
 <html lang="es">
 <head>
     <meta charset="utf-8">
+    @include('partials.favicon')
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="SiConcilio - Datos generales de la solicitud">
     <meta name="author" content="Centro de Conciliación Laboral de Michoacán">
-    <link rel="icon" href="{{ asset('assets/images/logo-ccl.png') }}" type="image/x-icon">
     <title>Si Concilio - Solicitud de Conciliación</title>
 
     <!-- Bootstrap 5 CSS & Icons -->

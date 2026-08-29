@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="utf-8">
+    @include('partials.favicon')
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="Sistema Integral Concilio">
     <meta name="generator" content="Ing. ISBM">
@@ -13,7 +14,6 @@
     
     <!-- Bootstrap 5.3.3 CSS -->
     <link href="{{ asset('assets/css/bootstrap.min.css') }}" rel="stylesheet" type="text/css"/>
-    <link rel="icon" href="{{ asset('assets/images/ccl-r.png') }}" type="image/x-icon">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="{{ asset('assets/css/all.css') }}" rel="stylesheet" type="text/css">
 

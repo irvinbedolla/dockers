@@ -109,10 +109,12 @@
 @endsection
 
 @section('scripts')
+    @push('body_end')
     <div id="crear_poder" style ="display: none;">
         <div>.</div>
         <div class="loader"></div>
     </div>
+    @endpush
 
     <script src="../../js/personas/crear.js"></script>
     <script>

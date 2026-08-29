@@ -161,10 +161,12 @@
     </div>
 @endsection
                              
+    @push('body_end')
     <div id="crear_poder" style ="display: none;">
         <div>.</div>
         <div class="loader"></div>
     </div>
+    @endpush
 
     @section('scripts')
        <script>

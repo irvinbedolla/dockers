@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    @include('partials.favicon')
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Asistencia</title>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>

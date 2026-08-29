@@ -146,10 +146,12 @@
     </section>
 @endsection
 
+@push('body_end')
 <div id="verPersonaAux" style ="display: none;">
     <div>.</div>
     <div class="loader"></div>
 </div>
+@endpush
 
 @section('scripts')
     <script src="../../public/js/estadisticas/general.js"></script>

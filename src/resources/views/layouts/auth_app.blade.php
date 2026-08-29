@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    @include('partials.favicon')
     <meta content="width=device-width, initial-scale=1, maximum-scale=1, shrink-to-fit=no" name="viewport">
     <title>@yield('title') | SICCL</title>
 
@@ -64,5 +65,11 @@
 <script src="{{ asset('assets/js/stisla.js') }}"></script>
 <script src="{{ asset('assets/js/scripts.js') }}"></script>
 <!-- Page Specific JS File -->
+    {{-- Bloques que las vistas hijas empujan al final del cuerpo (overlays de
+         carga, modales sueltos). Antes se escribían fuera de @section y Blade
+         los emitía ANTES del <!DOCTYPE>, lo que dejaba el documento en quirks
+         mode y el <head> vacío. --}}
+    @stack('body_end')
+
 </body>
 </html>

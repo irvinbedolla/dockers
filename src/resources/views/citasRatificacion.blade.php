@@ -2,12 +2,12 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    @include('partials.favicon')
     <meta name="csrf-token" content="{{ csrf_token() }}"/>
     <title>Sí Concilio - Cita para Ratificación</title>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 
     <!-- Icono y Fuentes -->
-    <link rel="icon" href="{{ asset('assets/images/ccl-r.png') }}" type="image/x-icon">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
 
     <!-- Bootstrap 5.3 CSS -->

@@ -260,10 +260,12 @@
     
 @endsection
 
+@push('body_end')
 <div id="nuevo_poder" style ="display: none;">
     <div>.</div>
     <div class="loader"></div>
 </div>
+@endpush
 
 @section('scripts')
     <script src="../public/js/poderes/general.js"></script>

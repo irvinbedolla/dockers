@@ -47,10 +47,12 @@
     </section>
 @endsection
 
+@push('body_end')
 <div id="nuevo_usuario" style ="display: none;">
     <div>.</div>
     <div class="loader"></div>
 </div>
+@endpush
 
 
 @section('scripts')

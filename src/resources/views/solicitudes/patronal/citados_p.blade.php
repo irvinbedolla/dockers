@@ -2,6 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
+    @include('partials.favicon')
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="description" content="">
         <meta name="author" content="Mark Otto, Jacob Thornton, and Bootstrap contributors">
@@ -11,7 +12,6 @@
     <link href="{{ asset('assets/css/bootstrap.min.css') }}" rel="stylesheet" type="text/css"/>
 
     <!-- Ionicons -->
-    <link rel="icon" href="{{ asset('assets/images/ccl-r.png') }}" type="image/x-icon">
     <link href="//fonts.googleapis.com/css?family=Lato&display=swap" rel="stylesheet">
     <link href="{{ asset('assets/css/all.css') }}" rel="stylesheet" type="text/css">
     <link href="{{ asset('assets/css/iziToast.min.css') }}" rel="stylesheet">

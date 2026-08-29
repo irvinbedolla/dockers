@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    @include('partials.favicon')
     <meta name="csrf-token" content="{{ csrf_token() }}"/>
     <title>Si concilio</title>
     <meta content='width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no' name='viewport'>
@@ -37,7 +38,6 @@
          assets/js/select2.min.js. Se deja solo la copia local. --}}
 
     <!-- Template CSS (Stisla) -->
-    <link rel="icon" href="{{ asset('assets/images/ccl-r.png') }}">
     <link href="{{ asset('assets/css/style.css') }}" rel="stylesheet">
     <link href="{{ asset('assets/css/components.css') }}" rel="stylesheet">
 
@@ -529,5 +529,11 @@
             });
         </script>
     @endif
+    {{-- Bloques que las vistas hijas empujan al final del cuerpo (overlays de
+         carga, modales sueltos). Antes se escribían fuera de @section y Blade
+         los emitía ANTES del <!DOCTYPE>, lo que dejaba el documento en quirks
+         mode y el <head> vacío. --}}
+    @stack('body_end')
+
 </body>
 </html>
