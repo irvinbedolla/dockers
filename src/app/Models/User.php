@@ -65,6 +65,18 @@ class User extends Authenticatable
         return $this->profile_photo_path;
     }
 
+    /**
+     * URL del avatar, siempre con imagen: si el usuario todavía no sube su
+     * foto devuelve el marcador. Va aparte de profile_photo_url porque varias
+     * vistas usan ese como bandera (@if) para decidir si pintan iniciales.
+     */
+    public function getAvatarUrlAttribute(): string
+    {
+        return $this->profile_photo_path
+            ? asset('storage/' . $this->profile_photo_path)
+            : asset('assets/images/user-not-found.png');
+    }
+
     public function addresses()
     {
         return $this->hasMany(Address::class);

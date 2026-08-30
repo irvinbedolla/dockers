@@ -26,7 +26,11 @@
 
         <li class="dropdown nav-item">
             <a href="#" data-bs-toggle="dropdown" class="nav-link dropdown-toggle nav-link-lg nav-link-user d-flex align-items-center text-white">
-                <img alt="image" src="{{ asset('assets/images/ccl-r.png') }}" class="rounded-circle me-2 user-thumbnail">
+                {{-- La máscara es el <span>: la foto que el usuario suba, con
+                     cualquier proporción, se recorta al círculo por object-fit. --}}
+                <span class="avatar-usuario me-2">
+                    <img src="{{ $usuarioBarra->avatar_url }}" alt="Foto de {{ $nombreBarra }}">
+                </span>
                 <span class="usuario-barra d-none d-lg-flex">
                     <span class="usuario-barra__nombre">{{ $nombreBarra }}</span>
                     @if ($rolBarra)

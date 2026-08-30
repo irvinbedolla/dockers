@@ -328,6 +328,41 @@
             height: 35px !important;
             object-fit: contain !important;
         }
+
+        /* Avatar del header. El círculo lo hace el contenedor y no la imagen,
+           para que al implementar la carga de foto cualquier archivo quede
+           recortado al círculo en vez de deformarse. */
+        .avatar-usuario {
+            flex: 0 0 auto;
+            display: block;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            overflow: hidden;
+            /* Sin fondo propio: el marcador trae unos píxeles transparentes de
+               orilla y un fondo claro ahí se veía como un halo entre la figura
+               y el aro. */
+            background: transparent;
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, .22);
+        }
+
+        /* El ancho va con !important porque style.css trae
+           `.navbar .nav-link.nav-link-user img { width: 30px }`, que le gana por
+           especificidad: la imagen quedaba de 30x36 dentro de un contenedor de
+           36x36 y el recorte circular salía chico y cargado a la izquierda.
+
+           El recorte se hace con clip-path además del overflow del contenedor:
+           dentro de la navbar, que tiene transition: all, el recorte por
+           border-radius se dibuja con las esquinas rectas. */
+        .avatar-usuario img {
+            width: 100% !important;
+            height: 100% !important;
+            display: block;
+            object-fit: cover;
+            object-position: center;
+            border-radius: 50%;
+            clip-path: circle(50% at 50% 50%);
+        }
         /* Manejo de visibilidad de los logos según el estado del sidebar */
         /* Estado normal (expandido): Mostrar logo completo y ocultar logo pequeño */
         .main-sidebar .sidebar-brand {
