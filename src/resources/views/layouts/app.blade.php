@@ -280,6 +280,27 @@
             .boton-menu__raya, .boton-menu__cajon { transition: none; }
         }
 
+        /* Nombre y rol del usuario en la barra superior */
+        .usuario-barra {
+            flex-direction: column;
+            align-items: flex-start;
+            line-height: 1.15;
+            text-align: left;
+        }
+
+        .usuario-barra__nombre {
+            font-size: 13.5px;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .usuario-barra__rol {
+            font-size: 11.5px;
+            font-weight: 400;
+            color: rgba(255, 255, 255, .68);
+            margin-top: 2px;
+        }
+
         /* Icono de Bricks y botón lateral */
         .main-navbar .form-inline {
             display: flex !important;

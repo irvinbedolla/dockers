@@ -1,6 +1,8 @@
 <form class="form-inline me-auto mb-0" action="#">
     <ul class="navbar-nav me-3 mb-0 d-flex align-items-center">
         <li class="nav-item">
+            {{-- Botón de menú: tres rayas dibujadas con <span>, no un glifo de
+                 icono, para poder animarlas al abrir y cerrar. --}}
             <a href="#" data-toggle="sidebar" role="button" class="nav-link nav-link-lg boton-menu"
                aria-label="Mostrar u ocultar el menú" aria-expanded="true" aria-controls="sidebar-wrapper">
                 <span class="boton-menu__cajon" aria-hidden="true">
@@ -15,11 +17,21 @@
 
 <ul class="navbar-nav navbar-right ms-auto mb-0 d-flex align-items-center">
     @if(\Illuminate\Support\Facades\Auth::user())
+        @php
+            $usuarioBarra = \Illuminate\Support\Facades\Auth::user();
+            // users.name viene en mayúsculas y con espacios de sobra.
+            $nombreBarra  = \Illuminate\Support\Str::title(preg_replace('/\s+/', ' ', trim($usuarioBarra->name)));
+            $rolBarra     = $usuarioBarra->getRoleNames()->first();
+        @endphp
+
         <li class="dropdown nav-item">
             <a href="#" data-bs-toggle="dropdown" class="nav-link dropdown-toggle nav-link-lg nav-link-user d-flex align-items-center text-white">
                 <img alt="image" src="{{ asset('assets/images/ccl-r.png') }}" class="rounded-circle me-2 user-thumbnail">
-                <span class="d-none d-lg-inline-block">
-                    Hola, {{\Illuminate\Support\Facades\Auth::user()->name}}
+                <span class="usuario-barra d-none d-lg-flex">
+                    <span class="usuario-barra__nombre">{{ $nombreBarra }}</span>
+                    @if ($rolBarra)
+                        <span class="usuario-barra__rol">{{ $rolBarra }}</span>
+                    @endif
                 </span>
             </a>
 
