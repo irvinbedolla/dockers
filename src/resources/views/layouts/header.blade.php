@@ -1,8 +1,13 @@
 <form class="form-inline me-auto mb-0" action="#">
     <ul class="navbar-nav me-3 mb-0 d-flex align-items-center">
         <li class="nav-item">
-            <a href="#" data-toggle="sidebar" class="nav-link nav-link-lg d-flex align-items-center text-white">
-                <i class="bi bi-bricks"></i>
+            <a href="#" data-toggle="sidebar" role="button" class="nav-link nav-link-lg boton-menu"
+               aria-label="Mostrar u ocultar el menú" aria-expanded="true" aria-controls="sidebar-wrapper">
+                <span class="boton-menu__cajon" aria-hidden="true">
+                    <span class="boton-menu__raya"></span>
+                    <span class="boton-menu__raya"></span>
+                    <span class="boton-menu__raya"></span>
+                </span>
             </a>
         </li>
     </ul>

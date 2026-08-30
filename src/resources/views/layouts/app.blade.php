@@ -209,6 +209,77 @@
             padding: 0 20px !important;
         }
 
+        /* ------------------------------------------------------------- */
+        /* [SICONCILIO] Botón de menú                                     */
+        /* ------------------------------------------------------------- */
+
+        .main-navbar .boton-menu {
+            padding: 0 !important;
+            justify-content: center !important;
+        }
+
+        .boton-menu__cajon {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 5px;
+            width: 38px;
+            height: 38px;
+            padding: 0 9px;
+            border-radius: 11px;
+            background: rgba(255, 255, 255, .10);
+            transition: background-color .2s ease;
+        }
+
+        .boton-menu:hover .boton-menu__cajon { background: rgba(255, 255, 255, .20); }
+
+        .boton-menu:focus-visible .boton-menu__cajon {
+            outline: 2px solid #CEA845;
+            outline-offset: 2px;
+        }
+
+        .boton-menu__raya {
+            display: block;
+            width: 20px;
+            height: 2px;
+            border-radius: 2px;
+            background: #fff;
+            transition: width .22s ease, transform .28s ease, opacity .18s ease, background-color .2s ease;
+        }
+
+        /* La raya de en medio va más corta: es lo que lo saca del hamburger
+           genérico. Al pasar el mouse se empareja y las tres toman el dorado. */
+        .boton-menu__raya:nth-child(2) { width: 13px; }
+        .boton-menu:hover .boton-menu__raya:nth-child(2) { width: 20px; }
+        .boton-menu:hover .boton-menu__raya { background: #CEA845; }
+
+        /* En escritorio con el menú colapsado se invierte el ritmo de las rayas:
+           avisa del estado sin convertirse en una equis, que ahí significaría
+           "cerrar" y el menú no está cerrado, está angosto. */
+        body.sidebar-mini .boton-menu__raya:nth-child(1),
+        body.sidebar-mini .boton-menu__raya:nth-child(3) { width: 13px; }
+        body.sidebar-mini .boton-menu__raya:nth-child(2) { width: 20px; }
+
+        /* En móvil el menú sí se abre encima, así que ahí las rayas se cruzan. */
+        @media (max-width: 1024px) {
+            body.sidebar-show .boton-menu__raya:nth-child(1) {
+                width: 20px;
+                transform: translateY(7px) rotate(45deg);
+            }
+
+            body.sidebar-show .boton-menu__raya:nth-child(2) { opacity: 0; }
+
+            body.sidebar-show .boton-menu__raya:nth-child(3) {
+                width: 20px;
+                transform: translateY(-7px) rotate(-45deg);
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .boton-menu__raya, .boton-menu__cajon { transition: none; }
+        }
+
         /* Icono de Bricks y botón lateral */
         .main-navbar .form-inline {
             display: flex !important;
@@ -493,9 +564,11 @@
                     if ($(window).width() > 1024) {
                         // Modo Escritorio: Alternar vista mini (65px) / expandida (250px)
                         $body.toggleClass('sidebar-mini');
+                        $('[data-toggle="sidebar"]').attr('aria-expanded', !$body.hasClass('sidebar-mini'));
                     } else {
                         // Modo Móvil: Mostrar / Ocultar lateral
                         $body.toggleClass('sidebar-show');
+                        $('[data-toggle="sidebar"]').attr('aria-expanded', $body.hasClass('sidebar-show'));
                     }
                 });
 
