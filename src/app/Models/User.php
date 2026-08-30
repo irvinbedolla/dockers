@@ -6,6 +6,7 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 
@@ -72,9 +73,28 @@ class User extends Authenticatable
      */
     public function getAvatarUrlAttribute(): string
     {
-        return $this->profile_photo_path
+        return $this->tieneFotoDePerfil()
             ? asset('storage/' . $this->profile_photo_path)
             : asset('assets/images/user-not-found.png');
+    }
+
+    /**
+     * ¿profile_photo_path apunta de verdad a una foto?
+     *
+     * La columna trae basura de cargas anteriores: valores 'tmp_1', 'tmp_10'…
+     * que quedaron de registros a medias y nunca correspondieron a un archivo.
+     * Se descartan para que el avatar caiga en el marcador en vez de pedir una
+     * imagen que no existe y quedarse con el ícono de imagen rota.
+     */
+    public function tieneFotoDePerfil(): bool
+    {
+        $ruta = trim((string) $this->profile_photo_path);
+
+        if ($ruta === '') {
+            return false;
+        }
+
+        return ! Str::startsWith(Str::lower(basename($ruta)), 'tmp_');
     }
 
     public function addresses()
