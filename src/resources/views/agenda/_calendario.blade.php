@@ -8,12 +8,6 @@
                             <div class="card">
                                 <div class="card-body">
                                     <div class="row">
-                                        {{-- El <br> que separaba el logo del calendario se cambió por
-                                             padding: se controla mejor y no depende de una línea vacía. --}}
-                                        <div class="w-100 text-center" style="padding-bottom: 28px;">
-                                            <img src="{{ asset('assets/images/ccl-r.png') }}" alt="SiConcilio"
-                                                 class="img-fluid" style="max-height: 68px; width: auto;">
-                                        </div>
                                         @if($userRole[0] != 'Solicitante')
                                             @php
                                                 $mesesCortos = ['', 'ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];

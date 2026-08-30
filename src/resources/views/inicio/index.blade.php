@@ -18,8 +18,18 @@
             background: #fff;
             border: 1px solid #E3E8E8;
             border-radius: 12px;
-            padding: 22px 24px;
+            padding: 26px 24px;
             margin-bottom: 18px;
+            text-align: center;
+        }
+
+        /* El logo vive aquí, no en el parcial del calendario: es la bienvenida
+           del sistema y no tiene por qué repetirse en /agenda. */
+        .inicio-saludo__logo {
+            display: block;
+            max-height: 68px;
+            width: auto;
+            margin: 0 auto 18px;
         }
 
         .inicio-saludo h2 {
@@ -45,12 +55,10 @@
     @endphp
 
     <section class="section">
-        <div class="section-header">
-            <h3 class="page__heading">Sistema integral para la Conciliación</h3>
-        </div>
-
         <div class="section-body">
             <div class="inicio-saludo">
+                <img class="inicio-saludo__logo" src="{{ asset('assets/images/ccl-r.png') }}"
+                     alt="SiConcilio — Sistema Integral para la Conciliación">
                 <h2>Hola, {{ $nombre }}</h2>
                 <p>¡Bienvenid@!</p>
             </div>
