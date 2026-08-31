@@ -179,7 +179,7 @@ class HomeController extends Controller
 
     public function citas(){
         $estados = Estados::all();
-        $municipios = Municipios::all();
+        $municipios=Municipios::where('estado',16)->get();
         return view('turnos', compact('estados', 'municipios'));
     }
 
@@ -249,11 +249,13 @@ class HomeController extends Controller
         }
         else{
             if($sede == 'Morelia'){
-            $auxiliaresOcupados = Recepcion::where('hora', $hora_turno)->where('fecha', $fecha_turno)->where('delegacion', $sede)->where('tipo', $tipo)->pluck('auxiliar')->toArray();
-            $disponibles = array_diff($auxiliares, $auxiliaresOcupados);
-            $random = array_rand($disponibles);
-            $modulo = $this->asignarModulo($disponibles[$random]);
-            $id_aux=$disponibles[$random];
+                $auxiliaresOcupados = Recepcion::where('hora', $hora_turno)->where('fecha', $fecha_turno)->where('delegacion', $sede)->where('tipo', $tipo)->pluck('auxiliar')->toArray();
+                $disponibles = array_diff($auxiliares, $auxiliaresOcupados);
+                if($hora_turno === '13:00:00') $disponibles = array_diff($disponibles, [5]);
+                elseif($hora_turno === '13:30:00') $disponibles = array_diff($disponibles, [209]);
+                $random = array_rand($disponibles);
+                $modulo = $this->asignarModulo($disponibles[$random]);
+                $id_aux=$disponibles[$random];
             }
             else{
                 $modulo = $this->asignarModulo($auxiliares[$random]);
