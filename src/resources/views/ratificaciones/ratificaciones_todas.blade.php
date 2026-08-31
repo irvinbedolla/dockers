@@ -34,7 +34,7 @@
                             </div>
 
                             <!-- Tabla de Ratificaciones -->
-                            <div class="table-responsive">
+                            <div class="table-responsive menu-visible">
                                 <table id="example" class="table table-striped table-hover align-middle w-100"> 
                                     <thead style="background-color: #354647;">
                                         <tr>
@@ -106,7 +106,7 @@
                                                                 </button>
                                                                 <ul class="dropdown-menu dropdown-menu-end shadow-sm">
                                                                     <li>
-                                                                        <button type="button" class="dropdown-item btn-cargar-lista-docs" data-id="{{ $solicitud->id }}">
+                                                                        <button type="button" class="dropdown-item btn-cargar-lista-docs" data-id="{{ $solicitud->id }}" data-doc-url="{{ signedDocRoute('VerDocumentosRatificacionModal', ['id' => $solicitud->id]) }}">
                                                                             Documentos Digitales
                                                                         </button>
                                                                     </li>
@@ -297,8 +297,7 @@
                 const modalInstance = bootstrap.Modal.getInstance(modalElement) || new bootstrap.Modal(modalElement);
 
                 // Utiliza la ruta nombrada para consultar documentos de la ratificación (versión JSON del modal)
-                const routeTemplate = '{{ route("VerDocumentosRatificacionModal", ["id" => "xxx"]) }}';
-                const finalUrl = routeTemplate.replace('xxx', solicitudId);
+                const finalUrl = $(this).data('docUrl');
 
                 tbody.html(`
                     <tr>

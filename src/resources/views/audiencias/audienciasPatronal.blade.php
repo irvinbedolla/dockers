@@ -137,7 +137,8 @@
                                                             data-audiencia="{{ request()->query('audiencia_id') }}"
                                                             data-tipo="{{ $citado->tipo_identificacion_comparecencia }}"
                                                             data-num="{{ $citado->num_identificacion_comparecencia }}"
-                                                            data-doc="{{ $citado->identificacion_comparecencia }}">
+                                                            data-doc="{{ $citado->identificacion_comparecencia }}"
+                                                            data-doc-url="{{ $citado->identificacion_comparecencia ? signedDocRoute('documentos.ver', ['tipo' => 'solicitud', 'id' => $solicitud->id, 'archivo' => $citado->identificacion_comparecencia]) : '' }}">
                                                             Registrar Comparecencia
                                                         </button>
                                                     @else
@@ -2440,10 +2441,7 @@
                 $('#comp_num_identificacion').val(num);
                 
                 if(doc && doc !== '') {
-                    const docUrlTemplate = "{{ route('documentos.ver', ['tipo' => 'solicitud', 'id' => '__ID__', 'archivo' => '__ARCHIVO__']) }}";
-                    const docUrl = docUrlTemplate
-                        .replace('__ID__', encodeURIComponent(solicitud))
-                        .replace('__ARCHIVO__', encodeURIComponent(doc));
+                    const docUrl = $(this).data('docUrl');
                     $('#comp_doc_existente_container').show();
                     $('#comp_btn_ver_doc').attr('href', docUrl);
                     $('#comp_doc_input').removeAttr('required');

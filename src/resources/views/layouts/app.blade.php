@@ -63,8 +63,16 @@
             background-color: #f4f6f9 !important;
         }
 
-        /* Fixes de Dropdowns en Tablas para BS5 */
-        .table-responsive {
+        /* .table-responsive vuelve a su comportamiento de Bootstrap
+           (`overflow-x: auto`): la tabla ancha se desplaza dentro de su tarjeta.
+           Aquí estaba anulado con `overflow: visible !important` para que los
+           desplegables dentro de tablas no se recortaran, pero eso quitaba la
+           contención a las 94 vistas con tabla y cualquiera ancha empujaba la
+           página entera, sacando barra horizontal en toda la vista.
+
+           Las 15 pantallas que sí tienen desplegables dentro de la tabla marcan
+           su contenedor con .menu-visible y conservan el comportamiento viejo. */
+        .table-responsive.menu-visible {
             overflow: visible !important;
         }
 
@@ -164,6 +172,19 @@
                 padding-left: 15px !important;
                 padding-right: 15px !important;
                 width: 100% !important;
+            }
+
+            /* style.css le da a .section-header `margin: 0 -30px` para que la
+               franja blanca llegue de orilla a orilla, contando con los 30px de
+               padding que .main-content tiene en escritorio. Aquí el padding es
+               de 15, así que esos -30 se salían 15px por cada lado y empujaban
+               la página: ésa era la barra horizontal que aparecía en todas las
+               vistas, porque todas tienen encabezado de sección. */
+            .main-wrapper-1 .section .section-header {
+                margin-left: -15px !important;
+                margin-right: -15px !important;
+                padding-left: 20px !important;
+                padding-right: 20px !important;
             }
         }
         /* Posicionamiento y superposición del Dropdown de Usuario */

@@ -289,7 +289,7 @@
                                         <div class="form-group">
                                             <label for="email">*INE</label><br>
                                             @if(!empty($folio->ine))
-                                                <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => $tipo_doc_abogado, 'id' => $id_doc_abogado, 'archivo' => $folio->ine]) }}">Existente</a>
+                                                <a target="_blank" class="btn btn-primary" href="{{ signedDocRoute('documentos.ver', ['tipo' => $tipo_doc_abogado, 'id' => $id_doc_abogado, 'archivo' => $folio->ine]) }}">Existente</a>
                                             @endif
                                             <input type="file" name="documentoIne" class="form-control-file" accept=".pdf">
                                         </div>
@@ -298,7 +298,7 @@
                                         <div class="form-group">
                                             <label>*Documento que acredite la representación</label><br>
                                             @if(!empty($folio->representacion))
-                                                <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => $tipo_doc_abogado, 'id' => $id_doc_abogado, 'archivo' => $folio->representacion]) }}">Existente</a>
+                                                <a target="_blank" class="btn btn-primary" href="{{ signedDocRoute('documentos.ver', ['tipo' => $tipo_doc_abogado, 'id' => $id_doc_abogado, 'archivo' => $folio->representacion]) }}">Existente</a>
                                             @endif
                                             <input type="file" name="documentoRepresentacion" class="form-control-file" accept=".pdf">
                                         </div>
@@ -307,7 +307,7 @@
                                         <div class="form-group">
                                             <label for="email">*Documento curp</label><br>
                                             @if(!empty($folio->documentoCurp))
-                                                <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'ratificacion', 'id' => $folio->id, 'archivo' => $folio->documentoCurp]) }}">Existente</a>
+                                                <a target="_blank" class="btn btn-primary" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'ratificacion', 'id' => $folio->id, 'archivo' => $folio->documentoCurp]) }}">Existente</a>
                                             @endif
                                             <input type="file" name="documentoCurp" class="form-control-file" accept=".pdf">
                                         </div>
@@ -316,7 +316,7 @@
                                         <div class="form-group">
                                             <label for="email">*Documento identificación</label><br>
                                             @if(!empty($folio->documentoidentificacion))
-                                                <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'ratificacion', 'id' => $folio->id, 'archivo' => $folio->documentoidentificacion]) }}">Existente</a>
+                                                <a target="_blank" class="btn btn-primary" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'ratificacion', 'id' => $folio->id, 'archivo' => $folio->documentoidentificacion]) }}">Existente</a>
                                             @endif
                                             <input type="file" name="documentoidentificacion" class="form-control-file" accept=".pdf">
                                         </div>

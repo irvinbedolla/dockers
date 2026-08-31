@@ -12559,7 +12559,7 @@ class SeerController extends Controller
             $path2 = "{$folder}/{$filename}";
 
             if (\Storage::disk('s3')->exists($path1) || \Storage::disk('s3')->exists($path2)) {
-                return route('documentos.ver', ['tipo' => $tipoRoute, 'id' => $subId, 'archivo' => $filename]);
+                return signedDocRoute('documentos.ver', ['tipo' => $tipoRoute, 'id' => $subId, 'archivo' => $filename]);
             }
             return null;
         };
@@ -12649,7 +12649,7 @@ class SeerController extends Controller
                 $lista[] = [
                     'nombre' => $doc->nombre_documento,
                     'archivo' => $doc->nombre_documento,
-                    'url' => route('documento_solicitud_ver', $doc->id)
+                    'url' => signedDocRoute('documento_solicitud_ver', $doc->id)
                 ];
             }
         }

@@ -842,7 +842,7 @@
             if (industriasFederales.includes(nombreIndustria)) {
                 modalCompetencia.show();
             } else {
-                window.location.href = "{{ route('solicitud_trabajador', [$tipo_solicitud]) }}";
+                //window.location.href = "{{ route('solicitud_trabajador', [$tipo_solicitud]) }}";
             }
         }
 

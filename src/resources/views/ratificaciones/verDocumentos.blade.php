@@ -25,7 +25,7 @@
                                             <td>{{$documento_general->trabajador_curp}}</td>
                                             <td>
                                                 @if(!empty($documento_general->documentoCurp))
-                                                    <a target='_blank' href="{{ route('documentos.ver', ['tipo' => 'ratificacion', 'id' => $documento_general->id, 'archivo' => $documento_general->documentoCurp]) }}">PDF</a>
+                                                    <a target='_blank' href="{{ signedDocRoute('documentos.ver', ['tipo' => 'ratificacion', 'id' => $documento_general->id, 'archivo' => $documento_general->documentoCurp]) }}">PDF</a>
                                                 @else
                                                     <span class="text-muted">No disponible</span>
                                                 @endif
@@ -36,7 +36,7 @@
                                             <td>{{$documento_general->tipo_identificacion}}</td>
                                             <td>
                                                 @if(!empty($documento_general->documentoidentificacion))
-                                                    <a target='_blank' href="{{ route('documentos.ver', ['tipo' => 'ratificacion', 'id' => $documento_general->id, 'archivo' => $documento_general->documentoidentificacion]) }}">PDF</a>
+                                                    <a target='_blank' href="{{ signedDocRoute('documentos.ver', ['tipo' => 'ratificacion', 'id' => $documento_general->id, 'archivo' => $documento_general->documentoidentificacion]) }}">PDF</a>
                                                 @else
                                                     <span class="text-muted">No disponible</span>
                                                 @endif
@@ -50,7 +50,7 @@
                                             <td>{{$documento_abogado->ineDocumento}}</td>
                                             <td>
                                                 @if(!empty($documento_abogado->ineDocumento))
-                                                    <a target='_blank' href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $documento_abogado->idAbogado, 'archivo' => $documento_abogado->ineDocumento]) }}">PDF</a>
+                                                    <a target='_blank' href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $documento_abogado->idAbogado, 'archivo' => $documento_abogado->ineDocumento]) }}">PDF</a>
                                                 @else
                                                     <span class="text-muted">No disponible</span>
                                                 @endif
@@ -61,7 +61,7 @@
                                             <td>{{$documento_abogado->representacionDocumento}}</td>
                                             <td>
                                                 @if(!empty($documento_abogado->representacionDocumento))
-                                                    <a target='_blank' href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $documento_abogado->idAbogado, 'archivo' => $documento_abogado->representacionDocumento]) }}">PDF</a>
+                                                    <a target='_blank' href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $documento_abogado->idAbogado, 'archivo' => $documento_abogado->representacionDocumento]) }}">PDF</a>
                                                 @else
                                                     <span class="text-muted">No disponible</span>
                                                 @endif
@@ -72,7 +72,7 @@
                                             <td>{{$documento_abogado->cedulaDocumento}}</td>
                                             <td>
                                                 @if(!empty($documento_abogado->cedulaDocumento))
-                                                    <a target='_blank' href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $documento_abogado->idAbogado, 'archivo' => $documento_abogado->cedulaDocumento]) }}">PDF</a>
+                                                    <a target='_blank' href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $documento_abogado->idAbogado, 'archivo' => $documento_abogado->cedulaDocumento]) }}">PDF</a>
                                                 @else
                                                     <span class="text-muted">No disponible</span>
                                                 @endif
@@ -83,7 +83,7 @@
                                             <td>{{$documento_abogado->anexo_documeto}}</td>
                                             <td>
                                                 @if(!empty($documento_abogado->anexo_documeto) && $documento_abogado->anexo_documeto !== 'Sin anexo')
-                                                    <a target='_blank' href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $documento_abogado->idAbogado, 'archivo' => $documento_abogado->anexo_documeto]) }}">PDF</a>
+                                                    <a target='_blank' href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $documento_abogado->idAbogado, 'archivo' => $documento_abogado->anexo_documeto]) }}">PDF</a>
                                                 @else
                                                     <span class="text-muted">No disponible</span>
                                                 @endif
@@ -97,7 +97,7 @@
                                             @foreach($documento_subidos as $solicitud)
                                             <tr>
                                                 <td colspan="4">{{$solicitud->nombre_documento}}</td> 
-                                                <td><a target='_blank' href="{{ route('documento_ratificacion_ver', $solicitud->id) }}">PDF</a></td>
+                                                <td><a target='_blank' href="{{ signedDocRoute('documento_ratificacion_ver', $solicitud->id) }}">PDF</a></td>
                                             </tr>
                                             @endforeach
                                         @endif

@@ -13,7 +13,7 @@
                 <div class="col-lg-12">
                     <div class="card">
                         <div class="card-body">
-                                <div class="table-responsive">
+                                <div class="table-responsive menu-visible">
                                     <table id="example">
                                         <thead style="background-color: #354647;">
                                             <th style="color: #fff;">Folio</th>
@@ -57,7 +57,7 @@
                                                             <a class="btn btn-info" href="{{ route('PDFacuse_solicitud', $solicitud->id) }}"  target="_blank">Acuse de solicitud</a>
                                                         @endif
                                                         @if($solicitud->estatus === "Concluida")
-                                                            <a class="btn btn-info" style="width: 100%" href="{{ route('VerDocumentosAudiencia', $solicitud->id) }}"    target="_blank">Documentos Digitales</a>
+                                                            <a class="btn btn-info" style="width: 100%" href="{{ signedDocRoute('VerDocumentosAudiencia', $solicitud->id) }}"    target="_blank">Documentos Digitales</a>
                                                             <a class="btn btn-success" style="width: 100%"  href="{{ route('PDFconveniosolicitud', $solicitud->id) }}"  target="_blank">Convenio</a>
                                                         @endif
                                                     </td>

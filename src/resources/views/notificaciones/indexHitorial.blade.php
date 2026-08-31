@@ -13,7 +13,7 @@
                         <div class="card-body">
                             
                             @can('ver-seer')
-                                    <div class="table-responsive">
+                                    <div class="table-responsive menu-visible">
                                         <table id="example" class="table table-striped mt-1" style="text-align:center">
                                             <thead style="background-color: #354647;">
                                                 <th style="color: #fff;">Expediente</th>
@@ -52,7 +52,7 @@
                                                                         <i class="bi bi-file-earmark-text-fill"></i> Documentos
                                                                     </button>
                                                                     <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
-                                                                        <li><a class="dropdown-item" href="{{ route('VerDocumentosAudiencia', $notificacion->id_solicitud) }}"  target="_blank">Identificaciones</a></li>
+                                                                        <li><a class="dropdown-item" href="{{ signedDocRoute('VerDocumentosAudiencia', $notificacion->id_solicitud) }}"  target="_blank">Identificaciones</a></li>
                                                                         @if($notificacion->tipo_notificacion === "Citatorio")
                                                                             <li><a class="dropdown-item" style="width: 100%" href="{{ route('PDFRazonNoticacion', [$notificacion->id_citado, $notificacion->id_solicitud]) }}"  target="_blank">Notificación</a></li>
                                                                         @endif
@@ -67,7 +67,7 @@
                                                                         <i class="bi bi-file-earmark-text-fill"></i> Documentos
                                                                     </button>
                                                                     <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
-                                                                        <li><a class="dropdown-item" href="{{ route('VerDocumentosAudiencia', $notificacion->id_solicitud) }}"  target="_blank">Identificaciones</a></li>
+                                                                        <li><a class="dropdown-item" href="{{ signedDocRoute('VerDocumentosAudiencia', $notificacion->id_solicitud) }}"  target="_blank">Identificaciones</a></li>
                                                                         @if($notificacion->tipo_notificacion === "Citatorio")
                                                                             <li><a class="btn btn-info" style="width: 100%" href="{{ route('PDFInstructivo', [$notificacion->id_citado, $notificacion->id_solicitud]) }}" target="_blank">Notificación</a></li>
                                                                         @endif
@@ -82,7 +82,7 @@
                                                                         <i class="bi bi-file-earmark-text-fill"></i> Documentos
                                                                     </button>
                                                                     <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
-                                                                        <li><a class="dropdown-item" href="{{ route('VerDocumentosAudiencia', $notificacion->id_solicitud) }}"  target="_blank">Identificaciones</a></li>
+                                                                        <li><a class="dropdown-item" href="{{ signedDocRoute('VerDocumentosAudiencia', $notificacion->id_solicitud) }}"  target="_blank">Identificaciones</a></li>
                                                                         @if($notificacion->tipo_notificacion === "Citatorio")
                                                                             {{--@if($notificacion->problema_diligencia === "CERRADO")
                                                                                 <li><a class="btn btn-info" style="width: 100%" href="{{ route('PDFNoExitosa', [$notificacion->id_citado, $notificacion->id_solicitud]) }}" target="_blank">Notificación</a></li>
@@ -101,7 +101,7 @@
                                                                         <i class="bi bi-file-earmark-text-fill"></i> Documentos
                                                                     </button>
                                                                     <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
-                                                                        <li><a class="dropdown-item" href="{{ route('VerDocumentosAudiencia', $notificacion->id_solicitud) }}"  target="_blank">Identificaciones</a></li>
+                                                                        <li><a class="dropdown-item" href="{{ signedDocRoute('VerDocumentosAudiencia', $notificacion->id_solicitud) }}"  target="_blank">Identificaciones</a></li>
                                                                         @if($notificacion->tipo_notificacion === "Citatorio")
                                                                             <li><a class="dropdown-item" style="width: 100%" href="{{ route('PDFnotificadoNoexitosaNS', [$notificacion->id_citado, $notificacion->id_solicitud]) }}"  target="_blank">Notificación</a></li>
                                                                         @endif

@@ -358,7 +358,7 @@
                                                         <label>Acta Constitutiva <span style="color:red;">(*)</span></label><br>
                                                         <input type="file" name="documentoIne_Moral" id="documentoIne_Moral" class="form-control" accept=".pdf" {{ empty($poder->ineDocumento) ? 'required' : '' }}>
                                                         @if(!empty($poder->ineDocumento))
-                                                            <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $poder->idAbogado, 'archivo' => $poder->ineDocumento]) }}">Existente</a>
+                                                            <a target="_blank" class="btn btn-primary" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $poder->idAbogado, 'archivo' => $poder->ineDocumento]) }}">Existente</a>
                                                         @endif
                                                         <div class="invalid-feedback">
                                                             La Identificación es obligatoria.
@@ -370,7 +370,7 @@
                                                         <label>Identificación del Representante Legal <span style="color:red;">(*)</span></label><br>
                                                         <input type="file" name="documentoRepresentacion_Moral" id="documentoRepresentacion_Moral" class="form-control" accept=".pdf" {{ empty($poder->representacionDocumento) ? 'required' : '' }}>
                                                         @if($poder->representacionDocumento != NULL)
-                                                            <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $poder->idAbogado, 'archivo' => $poder->representacionDocumento]) }}">Existente</a>
+                                                            <a target="_blank" class="btn btn-primary" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $poder->idAbogado, 'archivo' => $poder->representacionDocumento]) }}">Existente</a>
                                                         @endif
                                                         <div class="invalid-feedback">
                                                             El documento de representación es obligatorio.
@@ -382,7 +382,7 @@
                                                         <label>Documento que acredite la personería <span style="color:red;">(*)</span></label><br>
                                                         <input type="file" name="documentoPoder" id="documentoPoder" class="form-control" accept=".pdf" {{ empty($poder->cedulaDocumento) ? 'required' : '' }}>
                                                         @if($poder->cedulaDocumento != NULL)
-                                                            <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $poder->idAbogado, 'archivo' => $poder->cedulaDocumento]) }}">Existente</a>
+                                                            <a target="_blank" class="btn btn-primary" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $poder->idAbogado, 'archivo' => $poder->cedulaDocumento]) }}">Existente</a>
                                                         @endif
                                                     </div>
                                                 </div>
@@ -391,7 +391,7 @@
                                                         <label>Anexo (Documentos Complementarios)</label><br>
                                                         <input type="file" name="documentoAnexo" class="form-control" accept=".pdf">
                                                         @if($poder->anexo_documeto != "Sin anexo")
-                                                            <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $poder->idAbogado, 'archivo' => $poder->anexo_documeto]) }}">Existente</a>
+                                                            <a target="_blank" class="btn btn-primary" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $poder->idAbogado, 'archivo' => $poder->anexo_documeto]) }}">Existente</a>
                                                         @endif
                                                         
                                                     </div>
@@ -794,7 +794,7 @@
                                                         <label>*Identificación del Empleador</label><br>
                                                         <input type="file" name="documentoIne_pF"  class="form-control" accept=".pdf" {{ empty($poder->ineDocumento) ? 'required' : '' }}>
                                                         @if(!empty($poder->ineDocumento))
-                                                            <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $poder->idAbogado, 'archivo' => $poder->ineDocumento]) }}">Existente</a>
+                                                            <a target="_blank" class="btn btn-primary" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $poder->idAbogado, 'archivo' => $poder->ineDocumento]) }}">Existente</a>
                                                         @endif
                                                         <div class="invalid-feedback">
                                                             La Identificación es obligatoria.
@@ -806,7 +806,7 @@
                                                         <label>*Identificación del Representante Legal</label><br>
                                                         <input type="file" name="documentoRepresentacion_pF"  class="form-control" accept=".pdf" {{ empty($poder->representacionDocumento) ? 'required' : '' }}>
                                                         @if($poder->representacionDocumento != NULL)
-                                                            <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $poder->idAbogado, 'archivo' => $poder->representacionDocumento]) }}">Existente</a>
+                                                            <a target="_blank" class="btn btn-primary" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $poder->idAbogado, 'archivo' => $poder->representacionDocumento]) }}">Existente</a>
                                                         @endif
                                                         <div class="invalid-feedback">
                                                             El documento de representación es obligatorio.
@@ -818,7 +818,7 @@
                                                         <label>*Documento que acredite la personería</label><br>
                                                         <input type="file" name="documentoPoder_pF" class="form-control" accept=".pdf" {{ empty($poder->cedulaDocumento) ? 'required' : '' }}>
                                                         @if($poder->cedulaDocumento != NULL)
-                                                            <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $poder->idAbogado, 'archivo' => $poder->cedulaDocumento]) }}">Existente</a>
+                                                            <a target="_blank" class="btn btn-primary" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $poder->idAbogado, 'archivo' => $poder->cedulaDocumento]) }}">Existente</a>
                                                         @endif
                                                     </div>
                                                 </div>
@@ -827,7 +827,7 @@
                                                         <label>Anexo (Documentos Complementarios)</label><br>
                                                         <input type="file" name="documentoAnexo_pF" class="form-control" accept=".pdf">
                                                         @if($poder->anexo_documeto != "Sin anexo")
-                                                            <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $poder->idAbogado, 'archivo' => $poder->anexo_documeto]) }}">Existente</a>
+                                                            <a target="_blank" class="btn btn-primary" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $poder->idAbogado, 'archivo' => $poder->anexo_documeto]) }}">Existente</a>
                                                         @endif
                                                         
                                                     </div>
@@ -887,7 +887,7 @@
                                                             <label>*Identificación Oficial</label><br>
                                                             <input type="file" name="documentoIne_pFSR" id="documentoIne_pFSR" class="form-control" accept=".pdf" {{ empty($poder->ineDocumento) ? 'required' : '' }}>
                                                             @if(!empty($poder->ineDocumento))
-                                                            <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $poder->idAbogado, 'archivo' => $poder->ineDocumento]) }}">Existente</a>
+                                                            <a target="_blank" class="btn btn-primary" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $poder->idAbogado, 'archivo' => $poder->ineDocumento]) }}">Existente</a>
                                                         @endif
 
                                                             <div class="invalid-feedback">
@@ -900,7 +900,7 @@
                                                             <label>Anexo (Documentos Complementarios)</label><br>
                                                             <input type="file" name="documentoAnexo_pFSR" class="form-control" accept=".pdf">
                                                             @if($poder->anexo_documeto != "Sin anexo")
-                                                                <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $poder->idAbogado, 'archivo' => $poder->anexo_documeto]) }}">Existente</a>
+                                                                <a target="_blank" class="btn btn-primary" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $poder->idAbogado, 'archivo' => $poder->anexo_documeto]) }}">Existente</a>
                                                             @endif
                                                         </div>
                                                     </div>

@@ -80,10 +80,10 @@ class PoderController extends Controller
                 data-bs-toggle="modal"
                 data-bs-target="#modalExpedienteDigital"
                 data-abogado="' . $poder->nombre_representante_combinado . '"
-                data-ine="' . ($poder->ineDocumento ? route('documentos.ver', ['tipo' => 'poder', 'id' => $poder->idAbogado, 'archivo' => $poder->ineDocumento]) : '') . '"
-                data-cedula="' . ($poder->cedulaDocumento ? route('documentos.ver', ['tipo' => 'poder', 'id' => $poder->idAbogado, 'archivo' => $poder->cedulaDocumento]) : '') . '"
-                data-representacion="' . ($poder->representacionDocumento ? route('documentos.ver', ['tipo' => 'poder', 'id' => $poder->idAbogado, 'archivo' => $poder->representacionDocumento]) : '') . '"
-                data-cartapoder="' . ($poder->cedula === "Sin carta poder" ? 'S/A' : ($poder->cedulaDocumento ? route('documentos.ver', ['tipo' => 'poder', 'id' => $poder->idAbogado, 'archivo' => $poder->cedulaDocumento]) : '')) . '"
+                data-ine="' . ($poder->ineDocumento ? signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $poder->idAbogado, 'archivo' => $poder->ineDocumento]) : '') . '"
+                data-cedula="' . ($poder->cedulaDocumento ? signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $poder->idAbogado, 'archivo' => $poder->cedulaDocumento]) : '') . '"
+                data-representacion="' . ($poder->representacionDocumento ? signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $poder->idAbogado, 'archivo' => $poder->representacionDocumento]) : '') . '"
+                data-cartapoder="' . ($poder->cedula === "Sin carta poder" ? 'S/A' : ($poder->cedulaDocumento ? signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $poder->idAbogado, 'archivo' => $poder->cedulaDocumento]) : '')) . '"
                 data-registro="' . ($poder->estatus === "Validado" ? route('PDFregistroAbogado', $poder->idAbogado) : '') . '">
                 <i class="bi bi-folder2-open"></i> Ver Expediente
             </button>';
@@ -177,10 +177,10 @@ class PoderController extends Controller
             data-bs-toggle="modal"
             data-bs-target="#modalExpedienteDigital"
             data-abogado="' . $poder->nombre_representante_combinado . '"
-            data-ine="' . ($poder->ineDocumento ? route('documentos.ver', ['tipo' => 'poder', 'id' => $poder->idAbogado, 'archivo' => $poder->ineDocumento]) : '') . '"
-            data-cedula="' . ($poder->cedulaDocumento ? route('documentos.ver', ['tipo' => 'poder', 'id' => $poder->idAbogado, 'archivo' => $poder->cedulaDocumento]) : '') . '"
-            data-representacion="' . ($poder->representacionDocumento ? route('documentos.ver', ['tipo' => 'poder', 'id' => $poder->idAbogado, 'archivo' => $poder->representacionDocumento]) : '') . '"
-            data-cartapoder="' . ($poder->cedula === "Sin carta poder" ? 'S/A' : ($poder->cedulaDocumento ? route('documentos.ver', ['tipo' => 'poder', 'id' => $poder->idAbogado, 'archivo' => $poder->cedulaDocumento]) : '')) . '"
+            data-ine="' . ($poder->ineDocumento ? signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $poder->idAbogado, 'archivo' => $poder->ineDocumento]) : '') . '"
+            data-cedula="' . ($poder->cedulaDocumento ? signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $poder->idAbogado, 'archivo' => $poder->cedulaDocumento]) : '') . '"
+            data-representacion="' . ($poder->representacionDocumento ? signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $poder->idAbogado, 'archivo' => $poder->representacionDocumento]) : '') . '"
+            data-cartapoder="' . ($poder->cedula === "Sin carta poder" ? 'S/A' : ($poder->cedulaDocumento ? signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $poder->idAbogado, 'archivo' => $poder->cedulaDocumento]) : '')) . '"
             data-registro="' . ($poder->estatus === "Validado" ? route('PDFregistroAbogado', $poder->idAbogado) : '') . '">
             <i class="bi bi-folder2-open"></i> Ver Expediente
         </button>';
@@ -616,6 +616,11 @@ class PoderController extends Controller
                 'updated_at',
             ]);
         }
+
+        $historial->url_ine = signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $historial->id_abogado, 'archivo' => $historial->ineDocumento]);
+        $historial->url_representacion = signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $historial->id_abogado, 'archivo' => $historial->representacionDocumento]);
+        $historial->url_cedula = signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $historial->id_abogado, 'archivo' => $historial->cedulaDocumento]);
+        $historial->url_anexo = signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $historial->id_abogado, 'archivo' => $historial->anexo_documeto]);
 
         return response()->json($historial);
     }

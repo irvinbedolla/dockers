@@ -12,7 +12,7 @@
                     <div class="card">
                         <div class="card-body">
                             
-                            <div class="table-responsive">
+                            <div class="table-responsive menu-visible">
                                 <table id="example" class="table table-striped mt-1" style="text-align:center">
                                     <thead style="background-color: #354647;">
                                         <th style="color: #fff;">Expediente</th>
