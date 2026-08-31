@@ -7,7 +7,7 @@
     {{-- Cada vista declara su @section('title'); el segundo argumento de
          @yield es el texto de respaldo si alguna no lo hiciera. --}}
     <title>@yield('title', 'Sistema Integral para la Conciliación') | SiConcilio</title>
-    <meta content='width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no' name='viewport'>
+    <meta content='width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover' name='viewport'>
 
     {{-- Se abre la conexión con los CDN antes de necesitarlos: ahorra el DNS y el
          handshake TLS cuando el navegador llega a cada archivo. --}}
@@ -104,10 +104,12 @@
                 left: 0 !important;
                 width: 250px !important;
                 height: 100vh !important;
+                height: 100dvh !important;
                 z-index: 890 !important;
                 background-color: #ffffff !important;
                 box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05) !important;
                 overflow-y: auto !important;
+                -webkit-overflow-scrolling: touch !important;
             }
 
             .main-content {
@@ -156,10 +158,13 @@
                 left: -250px !important;
                 width: 250px !important;
                 height: 100vh !important;
+                height: 100dvh !important;
                 z-index: 999 !important;
                 background-color: #ffffff !important;
                 box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1) !important;
                 overflow-y: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+                overscroll-behavior-y: contain !important;
             }
 
             body.sidebar-show .main-sidebar {
@@ -440,8 +445,14 @@
             height: auto !important;
         }
 
-        /* El primer ítem del menú queda pegado al logo sin este respiro */
-        .main-sidebar .sidebar-menu { padding-top: 6px !important; }
+        /* El primer ítem del menú queda pegado al logo sin este respiro, y en móvil
+           se añade espacio al fondo para que la barra inferior de Chrome/iOS no tape
+           los últimos ítems del menú. */
+        .main-sidebar .sidebar-menu {
+            padding-top: 6px !important;
+            padding-bottom: 90px !important;
+            padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px)) !important;
+        }
 
         /* ------------------------------------------------------------- */
         /* Ítem seleccionado del menú                                     */
