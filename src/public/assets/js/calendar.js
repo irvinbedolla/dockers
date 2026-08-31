@@ -10,10 +10,26 @@ var CAL_MESES  = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
 var CAL_CORTOS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun',
                   'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
+function getConciliadorSeleccionado() {
+    const el = document.getElementById('filter-conciliador');
+    return el ? el.value.trim() : '';
+}
+
+function hayConciliadorSeleccionado() {
+    return Boolean(getConciliadorSeleccionado());
+}
+
+function getDayMaxEventsOption() {
+    // Si hay un conciliador seleccionado (o usuario con rol conciliador),
+    // se desactiva el límite para expandir la casilla y mostrar todos los eventos.
+    // Si están "Todos los conciliadores", se limitan a 3 para no saturar la vista.
+    return hayConciliadorSeleccionado() ? false : 3;
+}
+
 // Función para obtener los parámetros de filtro actuales
 function getFilterParams() {
     const sede = document.getElementById('filtro-sede').value;
-    const conciliador = document.getElementById('filter-conciliador').value;
+    const conciliador = getConciliadorSeleccionado();
     return `?sede=${encodeURIComponent(sede)}&conciliador=${encodeURIComponent(conciliador)}`;
 }
 
@@ -37,6 +53,8 @@ function refreshCurrentCalendar() {
     if (!currentCalendar) {
         return;
     }
+
+    currentCalendar.setOption('dayMaxEvents', getDayMaxEventsOption());
 
     if (calEsTodos(currentCalendar)) {
         currentCalendar.setOption('eventSources', calFuentesTodos());
@@ -184,7 +202,7 @@ document.addEventListener('DOMContentLoaded', function () {
             locale: 'es',
             firstDay: 1,
             height: 'auto',
-            dayMaxEvents: 3,
+            dayMaxEvents: getDayMaxEventsOption(),
             dayHeaderFormat: { weekday: 'short' },
             // La barra la pinta el HTML de la vista, no FullCalendar.
             headerToolbar: false,
@@ -283,6 +301,8 @@ function switchCalendar(newCalendar, vistaForzada) {
     calEsqueleto(true);
 
     currentCalendar = newCalendar;
+
+    currentCalendar.setOption('dayMaxEvents', getDayMaxEventsOption());
 
     if (calEsTodos(currentCalendar)) {
         currentCalendar.setOption('eventSources', calFuentesTodos());
