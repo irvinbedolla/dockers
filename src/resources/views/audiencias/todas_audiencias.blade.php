@@ -90,7 +90,7 @@
                                                                         <i class="bi bi-file-earmark-text-fill"></i> Documentos
                                                                     </button>
                                                                     <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
-                                                                        <li><button type="button" class="btn btn-info btn-cargar-lista-docs" style="width: 100%" data-id="{{ $audiencia->id_solicitud }}">Documentos Digitales</button></li>
+                                                                        <li><button type="button" class="btn btn-info btn-cargar-lista-docs" style="width: 100%" data-id="{{ $audiencia->id_solicitud }}" data-doc-url="{{ signedDocRoute('VerDocumentosAudiencia', ['id' => $audiencia->id_solicitud]) }}">Documentos Digitales</button></li>
                                                                         <li><a class="btn btn-info" style="width: 100%" href="{{ route('PDFfalltaInteres', $audiencia->id_solicitud) }}"        target="_blank">Acta de Archivo</a></li>
                                                                         <li><a class="btn btn-info" style="width: 100%" href="{{ route('VerPDFAudiencia', $audiencia->id_solicitud) . '?audiencia_id=' . $audiencia->id }}"  target="_blank">Acta de Audiencia</a></li>
                                                                         <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $audiencia->id_solicitud }}">Citatorios</button></li>
@@ -104,7 +104,7 @@
                                                                         <i class="bi bi-file-earmark-text-fill"></i> Documentos
                                                                     </button>
                                                                     <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
-                                                                        <li><button type="button" class="btn btn-info btn-cargar-lista-docs" style="width: 100%" data-id="{{ $audiencia->id_solicitud }}">Documentos Digitales</button></li>
+                                                                        <li><button type="button" class="btn btn-info btn-cargar-lista-docs" style="width: 100%" data-id="{{ $audiencia->id_solicitud }}" data-doc-url="{{ signedDocRoute('VerDocumentosAudiencia', ['id' => $audiencia->id_solicitud]) }}">Documentos Digitales</button></li>
                                                                         <li><a class="btn btn-info" style="width: 100%" href="{{ route('PDFfalltaInteres', $audiencia->id_solicitud) }}"        target="_blank">Acta de Archivo</a></li>
                                                                         <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $audiencia->id_solicitud }}">Citatorios</button></li>
                                                                     </ul>
@@ -117,7 +117,7 @@
                                                                         <i class="bi bi-file-earmark-text-fill"></i> Documentos
                                                                     </button>
                                                                     <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
-                                                                        <li><button type="button" class="btn btn-info btn-cargar-lista-docs" style="width: 100%" data-id="{{ $audiencia->id_solicitud }}">Documentos Digitales</button></li>
+                                                                        <li><button type="button" class="btn btn-info btn-cargar-lista-docs" style="width: 100%" data-id="{{ $audiencia->id_solicitud }}" data-doc-url="{{ signedDocRoute('VerDocumentosAudiencia', ['id' => $audiencia->id_solicitud]) }}">Documentos Digitales</button></li>
                                                                         <li><a class="btn btn-info" style="width: 100%" href="{{ route('PDFincompetencia', $audiencia->id_solicitud) }}"        target="_blank">Incompetencia</a></li>
                                                                         <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $audiencia->id_solicitud }}">Citatorios</button></li>
                                                                     </ul>
@@ -130,7 +130,7 @@
                                                                         <i class="bi bi-file-earmark-text-fill"></i> Documentos
                                                                     </button>
                                                                     <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
-                                                                        <li><button type="button" class="btn btn-info btn-cargar-lista-docs" style="width: 100%" data-id="{{ $audiencia->id_solicitud }}">Documentos Digitales</button></li>
+                                                                        <li><button type="button" class="btn btn-info btn-cargar-lista-docs" style="width: 100%" data-id="{{ $audiencia->id_solicitud }}" data-doc-url="{{ signedDocRoute('VerDocumentosAudiencia', ['id' => $audiencia->id_solicitud]) }}">Documentos Digitales</button></li>
                                                                         <li><a class="btn btn-info" style="width: 100%" href="{{ route('PDFinteres', $audiencia->id_solicitud) }}"              target="_blank">Acta de incomparecencia</a></li>
                                                                         <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $audiencia->id_solicitud }}">Citatorios</button></li>
                                                                     </ul>
@@ -143,7 +143,7 @@
                                                                         <i class="bi bi-file-earmark-text-fill"></i> Documentos
                                                                     </button>
                                                                     <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
-                                                                        <li><button type="button" class="btn btn-info btn-cargar-lista-docs" style="width: 100%" data-id="{{ $audiencia->id_solicitud }}">Documentos Digitales</button></li>
+                                                                        <li><button type="button" class="btn btn-info btn-cargar-lista-docs" style="width: 100%" data-id="{{ $audiencia->id_solicitud }}" data-doc-url="{{ signedDocRoute('VerDocumentosAudiencia', ['id' => $audiencia->id_solicitud]) }}">Documentos Digitales</button></li>
                                                                         <li><a class="btn btn-info" style="width: 100%" href="{{ route('PDFnotificacion_solicitante', $audiencia->id_solicitud) }}" target="_blank">Notificación al solicitante</a></li>
                                                                         <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $audiencia->id_solicitud }}">Citatorios</button></li>
                                                                     </ul>
@@ -156,7 +156,7 @@
                                                                         <i class="bi bi-file-earmark-text-fill"></i> Documentos
                                                                     </button>
                                                                     <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
-                                                                        <li><button type="button" class="btn btn-info btn-cargar-lista-docs" style="width: 100%" data-id="{{ $audiencia->id_solicitud }}">Documentos Digitales</button></li>
+                                                                        <li><button type="button" class="btn btn-info btn-cargar-lista-docs" style="width: 100%" data-id="{{ $audiencia->id_solicitud }}" data-doc-url="{{ signedDocRoute('VerDocumentosAudiencia', ['id' => $audiencia->id_solicitud]) }}">Documentos Digitales</button></li>
                                                                         <li><a class="btn btn-info" style="width: 100%" href="{{ route('PDFno_conciliacion', $audiencia->id_solicitud) }}" target="_blank">Constancias de no conciliación (En un solo archivo)</a></li>
                                                                         <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#noConciliacion" data-id="{{ $audiencia->id_solicitud }}">Constancias de no conciliación</button></li>
                                                                         <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $audiencia->id_solicitud }}">Citatorios</button></li>
@@ -170,7 +170,7 @@
                                                                         <i class="bi bi-file-earmark-text-fill"></i> Documentos
                                                                     </button>
                                                                     <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
-                                                                        <li><button type="button" class="btn btn-info btn-cargar-lista-docs" style="width: 100%" data-id="{{ $audiencia->id_solicitud }}">Documentos Digitales</button></li>
+                                                                        <li><button type="button" class="btn btn-info btn-cargar-lista-docs" style="width: 100%" data-id="{{ $audiencia->id_solicitud }}" data-doc-url="{{ signedDocRoute('VerDocumentosAudiencia', ['id' => $audiencia->id_solicitud]) }}">Documentos Digitales</button></li>
                                                                         <li><a class="btn btn-info" style="width: 100%" href="{{ route('PDFincumplimientoAudiencia', $audiencia->id_solicitud) }}"      target="_blank">Constancia de Incumplimiento</a></li>
                                                                         <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $audiencia->id_solicitud }}">Citatorios</button></li>
                                                                     </ul>
@@ -183,7 +183,7 @@
                                                                         <i class="bi bi-file-earmark-text-fill"></i> Documentos
                                                                     </button>
                                                                     <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
-                                                                        <li><button type="button" class="dropdown-item btn-cargar-lista-docs" data-id="{{ $audiencia->id_solicitud }}">Documentos Digitales</button></li>
+                                                                        <li><button type="button" class="dropdown-item btn-cargar-lista-docs" data-id="{{ $audiencia->id_solicitud }}" data-doc-url="{{ signedDocRoute('VerDocumentosAudiencia', ['id' => $audiencia->id_solicitud]) }}">Documentos Digitales</button></li>
                                                                         <li><a class="dropdown-item" href="{{ route('VerPDFAudiencia', $audiencia->id_solicitud) . '?audiencia_id=' . $audiencia->id }}"  target="_blank">Acta de Audiencia</a></li>
                                                                         <li>
                                                                             <a class="dropdown-item"
@@ -206,7 +206,7 @@
                                                                         <i class="bi bi-file-earmark-text-fill"></i> Documentos
                                                                     </button>
                                                                     <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
-                                                                        <li><button type="button" class="dropdown-item btn-cargar-lista-docs" data-id="{{ $audiencia->id_solicitud }}">Documentos Digitales</button></li>
+                                                                        <li><button type="button" class="dropdown-item btn-cargar-lista-docs" data-id="{{ $audiencia->id_solicitud }}" data-doc-url="{{ signedDocRoute('VerDocumentosAudiencia', ['id' => $audiencia->id_solicitud]) }}">Documentos Digitales</button></li>
                                                                         <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $audiencia->id_solicitud }}">Citatorios</button></li>
                                                                     </ul>
                                                                 </div>
@@ -218,7 +218,7 @@
                                                                         <i class="bi bi-file-earmark-text-fill"></i> Documentos
                                                                     </button>
                                                                     <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
-                                                                        <li><button type="button" class="dropdown-item btn-cargar-lista-docs" data-id="{{ $audiencia->id_solicitud }}">Documentos Digitales</button></li>
+                                                                        <li><button type="button" class="dropdown-item btn-cargar-lista-docs" data-id="{{ $audiencia->id_solicitud }}" data-doc-url="{{ signedDocRoute('VerDocumentosAudiencia', ['id' => $audiencia->id_solicitud]) }}">Documentos Digitales</button></li>
                                                                         <li><a class="btn btn-info" style="width: 100%" href="{{ route('PDFfalltaInteres', $audiencia->id_solicitud) }}"        target="_blank">Acta de Desistimiento</a></li>
                                                                         <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $audiencia->id_solicitud }}">Citatorios</button></li>
                                                                     </ul>
@@ -456,8 +456,7 @@
                 const modalElement = document.getElementById('modalListaDocs');
                 const modalInstance = bootstrap.Modal.getInstance(modalElement) || new bootstrap.Modal(modalElement);
 
-                const routeTemplate = '{{ route("VerDocumentosAudiencia", ["id" => "xxx"]) }}';
-                const finalUrl = routeTemplate.replace('xxx', solicitudId);
+                const finalUrl = $(this).data('docUrl');
 
                 tbody.html(`
                     <tr>

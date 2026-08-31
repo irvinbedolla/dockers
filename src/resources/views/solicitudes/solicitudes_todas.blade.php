@@ -95,7 +95,7 @@
                                                                 </button>
                                                                 <ul class="dropdown-menu dropdown-menu-end shadow-sm">
                                                                     <li>
-                                                                        <button type="button" class="dropdown-item btn-cargar-lista-docs" data-id="{{ $solicitud->id }}">
+                                                                        <button type="button" class="dropdown-item btn-cargar-lista-docs" data-id="{{ $solicitud->id }}" data-doc-url="{{ signedDocRoute('VerDocumentosAudiencia', ['id' => $solicitud->id]) }}">
                                                                             Documentos Digitales
                                                                         </button>
                                                                     </li>
@@ -457,8 +457,7 @@
                 const modalElement = document.getElementById('modalListaDocs');
                 const modalInstance = bootstrap.Modal.getInstance(modalElement) || new bootstrap.Modal(modalElement);
 
-                const routeTemplate = '{{ route("VerDocumentosAudiencia", ["id" => "xxx"]) }}';
-                const finalUrl = routeTemplate.replace('xxx', solicitudId);
+                const finalUrl = $(this).data('docUrl');
 
                 tbody.html(`
                     <tr>

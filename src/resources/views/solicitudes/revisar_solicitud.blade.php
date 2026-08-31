@@ -668,7 +668,7 @@
                                                 <div class="col-xs-12 col-sm-12 col-md-6">
                                                     <label for="password">Referencia 1</label><br>
                                                     @if (!empty($citado->imagen_domicilio1) && $citado->imagen_domicilio1 !== 'Sin documento')
-                                                        <a target='_blank' href="{{ route('documentos.ver', ['tipo' => 'solicitud', 'id' => $id, 'archivo' => $citado->imagen_domicilio1]) }}">VER IMAGEN</a><br>
+                                                        <a target='_blank' href="{{ signedDocRoute('documentos.ver', ['tipo' => 'solicitud', 'id' => $id, 'archivo' => $citado->imagen_domicilio1]) }}">VER IMAGEN</a><br>
                                                     @else
                                                         <span class="text-muted">No se subió imagen</span>
                                                     @endif
@@ -678,7 +678,7 @@
                                                 <div class="col-xs-12 col-sm-12 col-md-6">
                                                     <label for="password">Referencia 2</label><br>
                                                     @if (!empty($citado->imagen_domicilio2) && $citado->imagen_domicilio2 !== 'Sin documento')
-                                                        <a target='_blank' href="{{ route('documentos.ver', ['tipo' => 'solicitud', 'id' => $id, 'archivo' => $citado->imagen_domicilio2]) }}">VER IMAGEN</a><br>
+                                                        <a target='_blank' href="{{ signedDocRoute('documentos.ver', ['tipo' => 'solicitud', 'id' => $id, 'archivo' => $citado->imagen_domicilio2]) }}">VER IMAGEN</a><br>
                                                     @else
                                                         <span class="text-muted">No se subió imagen</span>
                                                     @endif
@@ -713,7 +713,7 @@
                                         <div class="col-xs-12 col-sm-12 col-md-6">
                                             <label for="password">Identificación Oficial</label><br>
                                             @if(!empty($solicitante->documentoIdentificacion))
-                                                <a target='_blank' href="{{ route('documentos.ver', ['tipo' => 'solicitud', 'id' => $id, 'archivo' => $solicitante->documentoIdentificacion]) }}">PDF</a><br>
+                                                <a target='_blank' href="{{ signedDocRoute('documentos.ver', ['tipo' => 'solicitud', 'id' => $id, 'archivo' => $solicitante->documentoIdentificacion]) }}">PDF</a><br>
                                             @endif
                                             <input type="file" name="documentoIdentificacion" accept=".pdf" class="form-control">
                                         </div>
