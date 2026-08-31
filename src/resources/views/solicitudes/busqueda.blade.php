@@ -11,7 +11,7 @@
                 <div class="col-lg-12">
                     <div class="card">
                         <div class="card-body">
-                            <div class="table-responsive">
+                            <div class="table-responsive menu-visible">
                                 <table id="tabla1" class="table-striped" style="width:100%">
                                     <thead style="background-color: #354647;">
                                         <th style="color: #fff;">Folio</th>

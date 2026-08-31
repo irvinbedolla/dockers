@@ -30,7 +30,7 @@
                                 </div>
                             </form>
 
-                            <div class="table-responsive">
+                            <div class="table-responsive menu-visible">
                                 <table id="example" class="table table-striped mt-1 w-100" style="text-align:center;">
                                     <thead style="background-color: #354647;">
                                         <tr>

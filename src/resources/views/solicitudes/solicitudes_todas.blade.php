@@ -36,7 +36,7 @@
                             </div>
 
                             <!-- Tabla Principal de Resultados -->
-                            <div class="table-responsive">
+                            <div class="table-responsive menu-visible">
                                 <table id="example" class="table table-striped table-hover align-middle w-100">
                                     <thead style="background-color: #354647;">
                                         <tr>

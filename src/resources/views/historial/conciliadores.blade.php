@@ -13,7 +13,7 @@
                         <div class="card-body">
                             <h3 class="text-center">Historial</h3>
                             @can('ver-seer')
-                                <div class="table-responsive">
+                                <div class="table-responsive menu-visible">
                                     <table id="HistorialSolicitudes" class="table table-striped mt-1">
                                         <thead style="background-color: #354647;">
                                             <th style="display: none;">ID</th>

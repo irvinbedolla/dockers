@@ -13,7 +13,7 @@
                     <div class="card">
                         <div class="card-body">
                             
-                            <div class="table-responsive">
+                            <div class="table-responsive menu-visible">
                                 <table id="example" class="table table-striped mt-2">
                                     <thead style="background-color: #354647;">
                                         <th style="color: #fff;">ID</th>
