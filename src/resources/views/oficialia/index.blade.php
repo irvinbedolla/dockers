@@ -77,7 +77,7 @@
                                                         <div class="dropdown">
                                                         
                                                             @if (!empty($oficialia->ruta_oficio) )
-                                                                <a target="_blank" class="btn btn-primary mt-1" href="{{ route('documentos.ver', ['tipo' => 'oficialia', 'id' =>  $oficialia->id, 'archivo' => $oficialia->ruta_oficio]) }}"><i class="bi bi-file-earmark-pdf"></i> Oficio</a>
+                                                                <a target="_blank" class="btn btn-primary mt-1" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'oficialia', 'id' =>  $oficialia->id, 'archivo' => $oficialia->ruta_oficio]) }}"><i class="bi bi-file-earmark-pdf"></i> Oficio</a>
                                                             @else
                                                                 <span class="text-muted">No se subió oficio</span>
                                                             @endif
