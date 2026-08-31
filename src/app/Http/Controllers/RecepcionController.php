@@ -108,6 +108,8 @@ class RecepcionController extends Controller
             if($sede == 'Morelia'){
             $auxiliaresOcupados = Recepcion::where('hora', $hora_turno)->where('fecha', $fecha_asignada_str)->where('delegacion', $sede)->where('tipo', $tipoTramite)->pluck('auxiliar')->toArray();
             $disponibles = array_diff($auxiliares, $auxiliaresOcupados);
+            if($hora_turno === '13:00:00') $disponibles = array_diff($disponibles, [5]);
+            elseif($hora_turno === '13:30:00') $disponibles = array_diff($disponibles, [209]);
             $random = array_rand($disponibles);
             $modulo = $this->asignarModulo($disponibles[$random]);
             $id_aux=$disponibles[$random];
@@ -545,6 +547,8 @@ class RecepcionController extends Controller
         if($turno->delegacion == 'Morelia'){
             $auxiliaresOcupados = Recepcion::where('delegacion',$turno->delegacion)->where('fecha', $turno->fecha)->where('hora', $turno->hora)->where('tipo', $turno->tipo)->pluck('auxiliar')->toArray();
             $disponibles = array_diff($auxiliares, $auxiliaresOcupados);
+            if($turno->hora === '13:00:00') $disponibles = array_diff($disponibles, [5]);
+            elseif($turno->hora=== '13:30:00') $disponibles = array_diff($disponibles, [209]);
             if($disponibles){
                 $random = array_rand($disponibles);
                 $modulo = $this->asignarModulo($disponibles[$random]);
@@ -820,21 +824,30 @@ class RecepcionController extends Controller
 
     public function nueva_cita(){
         $estados = Estados::all();
-        $municipios = Municipios::all();
+        $municipios=Municipios::where('estado',16)->get();
         return view('turnos.crear', compact('estados','municipios'));
     }
 
     // Duración del slot (minutos) y hora de cierre de jornada según el tipo de trámite y si es caso de excepción.
-    private function configuracionHorarioTurno($tipo, $excepcion){
+    private function configuracionHorarioTurno($tipo, $excepcion, $sede){
         if ($excepcion === 'Si') {
             return ['intervalo' => 75, 'fin' => ['hour' => 17, 'minute' => 00],'comida' => ['hour' => 14, 'minute' => 0]];
         }
+        if($sede == 'Morelia' || $sede == 'Zitácuaro' ){
 
+            if ($tipo === 'Ratificación') {
+                return ['intervalo' => 50, 'fin' => ['hour' => 15, 'minute' => 40],'comida' => ['hour' => 13, 'minute' => 30]];
+            }
+
+            return ['intervalo' => 30, 'fin' => ['hour' => 15, 'minute' => 30],'comida' => ['hour' => 15, 'minute' => 20]]; //cambio fin a las 16:50
+
+        }
         if ($tipo === 'Ratificación') {
-            return ['intervalo' => 60, 'fin' => ['hour' => 16, 'minute' => 30],'comida' => ['hour' => 13, 'minute' => 0]];
+            return ['intervalo' => 60, 'fin' => ['hour' => 15, 'minute' => 30],'comida' => ['hour' => 16, 'minute' => 30]];
         }
 
-        return ['intervalo' => 40, 'fin' => ['hour' => 16, 'minute' => 50],'comida' => ['hour' => 12, 'minute' => 20]]; //cambio fin a las 16:50
+        return ['intervalo' => 60, 'fin' => ['hour' => 15, 'minute' => 30],'comida' => ['hour' => 16, 'minute' => 30]]; //cambio fin a las 16:50
+        
     }
 
     public function obtenerTurnosDisponibles(Request $request){
@@ -846,12 +859,16 @@ class RecepcionController extends Controller
         $sede = $request->input('sede');
         $tipo = $request->input('tipo');
         $excepcion = $request->input('excepcion');
+        $bandera = $request->input('externo', false);
+        
+
 
         $fecha_inicio_str = $request->input('start', now()->format('Y-m-d'));
         $fecha_fin_str = $request->input('end', now()->addDays(60)->format('Y-m-d'));
 
-        $config = $this->configuracionHorarioTurno($tipo, $excepcion);
-
+        $config = $this->configuracionHorarioTurno($tipo, $excepcion, $sede);
+        
+        
         $inhabiles = DiasInhabiles::where('centro', $sede)
             ->whereNull('user_id')
             ->where(function ($query) use ($fecha_inicio_str, $fecha_fin_str) {
@@ -887,6 +904,7 @@ class RecepcionController extends Controller
         $eventos = [];
         $fecha = (new \DateTime($fecha_inicio_str))->setTime(0, 0, 0);
         $fin = (new \DateTime($fecha_fin_str))->setTime(0, 0, 0);
+        $horas_ocupadas = ['13:00:00', '13:30:00', '14:00:00'];
 
         $colores = [
             'ocupado' => '#DA0909', 'inhabil' => '#3B78DB',
@@ -900,7 +918,20 @@ class RecepcionController extends Controller
 
         while ($fecha <= $fin) {
             if ((int) $fecha->format('N') < 6) { // Saltar fines de semana
-                $slot = (clone $fecha)->setTime(9, 0, 0);
+                $lleno = false;
+                if($bandera == '1'){
+                    $ocupados_dia = Recepcion::where('fecha', $fecha)->where('tipo', $tipo)->where('delegacion', $sede)->count();
+                    if(($ocupados_dia >= 30 && $tipo === 'Solicitud') || ($ocupados_dia >= 15 && $tipo === 'Ratificación')){
+                        $lleno= true;
+                    }
+                }
+                if(!($sede == 'Morelia' || $sede == 'Zitácuaro') && ($tipo === 'Solicitud' || $tipo === 'Asesoría')){
+                    $slot = (clone $fecha)->setTime(9, 0, 0);
+                }
+                else{
+                    $slot = (clone $fecha)->setTime(8, 30, 0);
+                }
+                
                 $finJornada = (clone $fecha)->setTime($config['fin']['hour'], $config['fin']['minute'], 0);
                 $hora_comida = (clone $fecha)->setTime($config['comida']['hour'], $config['comida']['minute'], 0);
                 while ($slot < $finJornada) {
@@ -922,8 +953,10 @@ class RecepcionController extends Controller
                     }
 
                     $cantidadOcupados = $ocupadosCount[$slotStart] ?? 0;
-
-                    if ($esInhabil) {
+                    if($lleno){
+                        $estado = 'expirado';
+                    }
+                    elseif ($esInhabil) {
                         $estado = 'inhabil';
                     } elseif ($esNoInhabil || $ahora > $slot) {
                         $estado = 'expirado';
@@ -932,7 +965,14 @@ class RecepcionController extends Controller
                         $estado = 'expirado';
                     }
                     elseif ($cantidadOcupados > 0 && $cantidadOcupados < $maxEmpalme) {
-                        $estado = 'turnos';
+                        $hora_actual = $slot->format('H:i:s');
+                        if($cantidadOcupados === 2 && in_array($hora_actual, $horas_ocupadas)){
+                            $estado = 'ocupado';
+                        }
+                        else{
+                            $estado = 'turnos';
+                        }
+                        
                     }
                     elseif ($cantidadOcupados > 0) {
                         $estado = 'ocupado';
@@ -941,7 +981,7 @@ class RecepcionController extends Controller
                         $estado = 'disponible';
                     }
 
-                    $titulo = $estado === 'turnos' ? "Turnos ({$cantidadOcupados})" : $titulos[$estado];
+                    $titulo = $estado === 'turnos' ? "Disponible" : $titulos[$estado];
 
                     $eventos[] = [
                         'title' => $titulo,
