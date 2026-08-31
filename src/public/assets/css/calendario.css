@@ -309,7 +309,57 @@
 
 .cal-fc .fc-non-business { background: #f2f3f5; }
 .cal-fc .fc-list-day-cushion { background: #fafbfc; }
-.cal-fc .fc-list-event td { cursor: pointer; }
+
+/* -----------------------------------------------------------------------------
+   Vista de Lista (Móvil)
+   -------------------------------------------------------------------------- */
+.cal-fc .fc-list {
+    border-width: 0 !important;
+}
+
+.cal-fc .fc-list-table {
+    table-layout: fixed !important;
+    width: 100% !important;
+}
+
+.cal-fc .fc-list-event td {
+    cursor: pointer;
+    vertical-align: middle;
+    padding: 6px 4px !important;
+}
+
+.cal-fc .fc-list-event-time {
+    width: 68px !important;
+    max-width: 68px !important;
+    white-space: nowrap !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    color: #475467 !important;
+    padding-left: 10px !important;
+}
+
+.cal-fc .fc-list-event-graphic {
+    width: 18px !important;
+    max-width: 18px !important;
+    padding: 0 2px !important;
+    text-align: center !important;
+}
+
+.cal-fc .fc-list-event-title {
+    width: auto !important;
+    overflow: hidden !important;
+}
+
+.cal-fc .fc-list-event-title .evt-agenda {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+.cal-fc .fc-list-event-title .evt-linea {
+    white-space: normal !important;
+    word-break: break-word !important;
+}
 
 /* -----------------------------------------------------------------------------
    Eventos de una línea (bloqueos por sede)
@@ -468,9 +518,34 @@
    Pantallas chicas
    -------------------------------------------------------------------------- */
 @media (max-width: 767px) {
-    .cal-actions { margin-left: 0; width: 100%; }
-    .cal-toolbar { gap: 10px; }
-    .cal-select { max-width: 100%; flex: 1 1 140px; }
+    .cal-wrap {
+        border-radius: 10px;
+        overflow-x: hidden;
+    }
+    .cal-toolbar {
+        gap: 8px;
+        padding: 10px 12px;
+    }
+    .cal-actions {
+        margin-left: 0;
+        width: 100%;
+        gap: 6px;
+    }
+    .cal-select {
+        max-width: 100%;
+        flex: 1 1 120px;
+        min-width: 0;
+        font-size: 12px;
+        padding: 6px 8px;
+    }
+    .cal-tabs {
+        padding: 8px 10px;
+        gap: 4px;
+    }
+    .cal-tab {
+        font-size: 11px;
+        padding: 4px 10px;
+    }
     .cal-fc .fc-daygrid-day-frame { min-height: 84px; }
     .sk-cell { min-height: 84px; }
 }

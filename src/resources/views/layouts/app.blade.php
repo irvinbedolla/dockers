@@ -59,8 +59,15 @@
             background: none !important;
         }
 
-        body {
+        html, body {
+            overflow-x: hidden !important;
+            max-width: 100vw !important;
             background-color: #f4f6f9 !important;
+        }
+
+        #app, .main-wrapper, .main-content {
+            overflow-x: hidden !important;
+            max-width: 100% !important;
         }
 
         /* .table-responsive vuelve a su comportamiento de Bootstrap
