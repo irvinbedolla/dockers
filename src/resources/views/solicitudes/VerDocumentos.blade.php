@@ -30,7 +30,7 @@
                                                 $existe = \Storage::exists("documentosSolicitud/{$solicitudId}/{$filename}")
                                                     || \Storage::exists("documentosSolicitud/{$filename}");
                                                 return $existe
-                                                    ? route('documentos.ver', ['tipo' => 'solicitud', 'id' => $solicitudId, 'archivo' => $filename])
+                                                    ? signedDocRoute('documentos.ver', ['tipo' => 'solicitud', 'id' => $solicitudId, 'archivo' => $filename])
                                                     : null;
                                             };
 
@@ -40,7 +40,7 @@
                                                 $existe = \Storage::exists("documentos_abogados/{$idAbogado}/{$filename}")
                                                     || \Storage::exists("documentos_abogados/{$filename}");
                                                 return $existe
-                                                    ? route('documentos.ver', ['tipo' => 'poder', 'id' => $idAbogado, 'archivo' => $filename])
+                                                    ? signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $idAbogado, 'archivo' => $filename])
                                                     : null;
                                             };
                                         @endphp
@@ -172,7 +172,7 @@
                                                 @foreach($documento_subidos as $solicitud)
                                                     <tr>
                                                         <td colspan="4">{{$solicitud->nombre_documento}}</td>
-                                                        <td><a target='_blank' href="{{ route('documento_solicitud_ver', $solicitud->id) }}">PDF</a></td>
+                                                        <td><a target='_blank' href="{{ signedDocRoute('documento_solicitud_ver', $solicitud->id) }}">PDF</a></td>
                                                     </tr>
                                                 @endforeach
                                             @endif

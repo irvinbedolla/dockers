@@ -301,17 +301,10 @@
                         $('#tipo_identificacion').val(data.tipo_identificacion || '');
                         $('#numero_identificacion').val(data.num_identificacion || '');
 
-                        var docUrlTemplate = "{{ route('documentos.ver', ['tipo' => 'poder', 'id' => '__ID__', 'archivo' => '__ARCHIVO__']) }}";
-                        function docUrl(archivo) {
-                            return docUrlTemplate
-                                .replace('__ID__', encodeURIComponent(data.id_abogado))
-                                .replace('__ARCHIVO__', encodeURIComponent(archivo));
-                        }
-
-                        $('#link_acta_constitutiva').removeClass('d-none').attr('href', docUrl(data.ineDocumento));
-                        $('#link_identificacion_representante').removeClass('d-none').attr('href', docUrl(data.representacionDocumento));
-                        $('#link_poder_representante').removeClass('d-none').attr('href', docUrl(data.cedulaDocumento));
-                        $('#link_anexo_representante').removeClass('d-none').attr('href', docUrl(data.anexo_documeto));
+                        $('#link_acta_constitutiva').removeClass('d-none').attr('href', data.url_ine);
+                        $('#link_identificacion_representante').removeClass('d-none').attr('href', data.url_representacion);
+                        $('#link_poder_representante').removeClass('d-none').attr('href', data.url_cedula);
+                        $('#link_anexo_representante').removeClass('d-none').attr('href', data.url_anexo);
 
                     },
                     error: function (xhr) {

@@ -5,9 +5,9 @@
         $contador = 0;
         // El fallback entre carpeta con ID y ruta plana legacy lo resuelve documentos.ver/verPDF,
         // que sirve el archivo real vía el disco 's3' (antes esto apuntaba a storage/app en disco local).
-        $curpUrl   = route('documentos.ver', ['tipo' => 'ratificacion', 'id' => $idSolicitud, 'archivo' => $solicitud->documentoCurp]);
-        $identUrl  = route('documentos.ver', ['tipo' => 'ratificacion', 'id' => $idSolicitud, 'archivo' => $solicitud->documentoidentificacion]);
-        $cuantiUrl = route('documentos.ver', ['tipo' => 'ratificacion', 'id' => $idSolicitud, 'archivo' => $solicitud->documentoCuanti]);
+        $curpUrl   = signedDocRoute('documentos.ver', ['tipo' => 'ratificacion', 'id' => $idSolicitud, 'archivo' => $solicitud->documentoCurp]);
+        $identUrl  = signedDocRoute('documentos.ver', ['tipo' => 'ratificacion', 'id' => $idSolicitud, 'archivo' => $solicitud->documentoidentificacion]);
+        $cuantiUrl = signedDocRoute('documentos.ver', ['tipo' => 'ratificacion', 'id' => $idSolicitud, 'archivo' => $solicitud->documentoCuanti]);
     @endphp
     <style>
         .loader {

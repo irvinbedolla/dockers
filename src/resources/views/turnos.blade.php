@@ -703,6 +703,7 @@
                             sede: delegacion,
                             tipo: tipo,
                             excepcion: excepcion,
+                            externo: 1,
                             start: fetchInfo.startStr,
                             end: fetchInfo.endStr
                         });

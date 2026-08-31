@@ -27,7 +27,7 @@
                                                     <td>{{ $doc->documento }}</td>
                                                     <td>
                                                         @if(!empty($doc->documento))
-                                                            <a target="_blank" class="btn btn-info" href="{{ route('documentos.ver', ['tipo' => 'personal', 'id' => $doc->id_usuario, 'archivo' => $doc->documento]) }}">PDF</a>
+                                                            <a target="_blank" class="btn btn-info" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'personal', 'id' => $doc->id_usuario, 'archivo' => $doc->documento]) }}">PDF</a>
                                                         @endif
                                                     </td>
                                                 </td>

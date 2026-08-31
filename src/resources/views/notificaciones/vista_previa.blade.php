@@ -60,7 +60,7 @@
                                     <div class="col-xs-12 col-sm-12 col-md-6 mb-3">
                                         <label for="name">Referencia 1</label><br>
                                         @if (!empty($registro->imagen_domicilio1) && $registro->imagen_domicilio1 !== 'Sin documento')
-                                            <a target='_blank' href="{{ route('documentos.ver', ['tipo' => 'solicitud', 'id' => $registro->id_solicitud, 'archivo' => $registro->imagen_domicilio1]) }}">VER IMAGEN</a>
+                                            <a target='_blank' href="{{ signedDocRoute('documentos.ver', ['tipo' => 'solicitud', 'id' => $registro->id_solicitud, 'archivo' => $registro->imagen_domicilio1]) }}">VER IMAGEN</a>
                                         @else
                                             <span class="text-muted">No se subió imagen</span>
                                         @endif
@@ -69,7 +69,7 @@
                                     <div class="col-xs-12 col-sm-12 col-md-6 mb-3">
                                         <label for="name">Referencia 2</label><br>
                                         @if (!empty($registro->imagen_domicilio2) && $registro->imagen_domicilio2 !== 'Sin documento')
-                                            <a target='_blank' href="{{ route('documentos.ver', ['tipo' => 'solicitud', 'id' => $registro->id_solicitud, 'archivo' => $registro->imagen_domicilio2]) }}">VER IMAGEN</a><br>
+                                            <a target='_blank' href="{{ signedDocRoute('documentos.ver', ['tipo' => 'solicitud', 'id' => $registro->id_solicitud, 'archivo' => $registro->imagen_domicilio2]) }}">VER IMAGEN</a><br>
                                         @else
                                             <span class="text-muted">No se subió imagen</span>
                                         @endif
@@ -436,7 +436,7 @@
                                                 <label for="name">Imagen 1 <span style="color:red;">(*)</span></label><br>
                                                 <input type="file" class="form-control" name="foto" accept="image/*" {{ (!empty($registro->documento) && $registro->documento !== 'Sin documento') ? '' : 'required' }}>
                                                 @if(!empty($registro->documento) && $registro->documento !== 'Sin documento')
-                                                    <a target='_blank' href="{{ route('documentos.ver', ['tipo' => 'notificacion', 'id' => $registro->id_solicitud, 'archivo' => $registro->documento]) }}" class="badge badge-info mb-2">VER IMAGEN ACTUAL</a>
+                                                    <a target='_blank' href="{{ signedDocRoute('documentos.ver', ['tipo' => 'notificacion', 'id' => $registro->id_solicitud, 'archivo' => $registro->documento]) }}" class="badge badge-info mb-2">VER IMAGEN ACTUAL</a>
                                                     <input type="hidden" name="documento_actual" value="{{ $registro->documento }}">
                                                 @endif
                                                 <small class="text-muted">Selecciona un archivo solo si deseas reemplazar la imagen actual.</small>
@@ -448,7 +448,7 @@
                                                 <label for="name">Imagen 2</label><br>
                                                 <input type="file" class="form-control" name="foto1" accept="image/*">
                                                 @if(!empty($registro->documento1) && $registro->documento1 !== 'Sin documento')
-                                                    <a target='_blank' href="{{ route('documentos.ver', ['tipo' => 'notificacion', 'id' => $registro->id_solicitud, 'archivo' => $registro->documento1]) }}" class="badge badge-info mb-2">VER IMAGEN ACTUAL</a>
+                                                    <a target='_blank' href="{{ signedDocRoute('documentos.ver', ['tipo' => 'notificacion', 'id' => $registro->id_solicitud, 'archivo' => $registro->documento1]) }}" class="badge badge-info mb-2">VER IMAGEN ACTUAL</a>
                                                     <input type="hidden" name="documento1_actual" value="{{ $registro->documento1 }}">
                                                 @endif
                                                 <small class="text-muted">Selecciona un archivo solo si deseas reemplazar la imagen actual.</small>
@@ -460,7 +460,7 @@
                                                 <label for="name">Imagen 3</label><br>
                                                 <input type="file" class="form-control" name="foto2" accept="image/*">
                                                 @if(!empty($registro->documento2) && $registro->documento2 !== 'Sin documento')
-                                                    <a target='_blank' href="{{ route('documentos.ver', ['tipo' => 'notificacion', 'id' => $registro->id_solicitud, 'archivo' => $registro->documento2]) }}" class="badge badge-info mb-2">VER IMAGEN ACTUAL</a>
+                                                    <a target='_blank' href="{{ signedDocRoute('documentos.ver', ['tipo' => 'notificacion', 'id' => $registro->id_solicitud, 'archivo' => $registro->documento2]) }}" class="badge badge-info mb-2">VER IMAGEN ACTUAL</a>
                                                     <input type="hidden" name="documento2_actual" value="{{ $registro->documento2 }}">
                                                 @endif
                                                 <small class="text-muted">Selecciona un archivo solo si deseas reemplazar la imagen actual.</small>
