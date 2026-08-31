@@ -401,6 +401,7 @@ class SeerController extends Controller
             'ratificacion' => 'documentos_ratificacion',
             'personal' => 'documentos_personal',
             'modulo' => 'documentos_modulo',
+            'oficialia' => 'documentosOficios'
         ];
 
         if (!array_key_exists($tipo, $carpetas)) {
@@ -20004,20 +20005,27 @@ class SeerController extends Controller
             'Uruapan' => ['Uruapan', 'Lázaro Cárdenas'],
             'Zamora'  => ['Zamora', 'Sahuayo'],
         ];
+
+        $ultimos_id = Oficialia::select(DB::raw('MAX(id) as id'))->groupBy('oficio_id');
+
         $usuariosR = User::where('delegacion', $user->delegacion)
             ->whereDoesntHave('roles', function ($query) {
                 $query->where('name', 'Solicitante');
-            })
-            ->select('users.id', 'users.name')
-            ->get();
+            })->select('users.id', 'users.name')->get();
+            
             if($userRole == 'Turnos'){
-                $oficialias = Oficialia::where('user_id', $id)->with('usuarioResponsable')->orderBy('oficio_id', 'asc')->paginate(50)->withQueryString();
+                $oficialias = Oficialia::whereIn('id', $ultimos_id)->where('user_id', $id)->with('usuarioResponsable')->orderBy('oficio_id', 'asc')->paginate(50)->withQueryString();
             }
             else{
-                $oficialias = Oficialia::where('usuario_responsable', $id)->with('usuarioResponsable')->orderBy('oficio_id', 'asc')->paginate(50)->withQueryString();
+                $oficialias = Oficialia::whereIn('id', $ultimos_id)->where('usuario_responsable', $id)->with('usuarioResponsable')->orderBy('oficio_id', 'asc')->paginate(50)->withQueryString();
             }
+        $oficiosIdsPaginados = $oficialias->pluck('oficio_id');
+
+        $historial = Oficialia::whereIn('oficio_id', $oficiosIdsPaginados)->select('oficio_id','fecha','hora', 'fecha_turno', 'hora_turno','fecha_termino','hora_termino', 'usuario_responsable')->with('usuarioResponsable:id,name')->orderBy('id', 'asc') 
+        ->get()->groupBy('oficio_id');
         
-        return view('oficialia.index', compact('user','userRole', 'id','oficialias', 'usuariosR')); 
+        
+        return view('oficialia.index', compact('user','userRole', 'id','oficialias', 'usuariosR', 'historial')); 
 
     }
     public function generar_oficialia(Request $request){
@@ -20025,6 +20033,9 @@ class SeerController extends Controller
         $data = $request->all();
         $fecha_actual = date('Y-m-d');
         $hora_actual = date('H:i');
+        if(!isset($data['termino'])){
+            $data['termino'] = 0;
+        }
 
         $oficialia = Oficialia::create([
             'user_id'             => $user->id, 
@@ -20032,9 +20043,17 @@ class SeerController extends Controller
             'tipo_tramite'        => $request->tipo_tramite,
             'oficio'              => $request->oficio,
             'area_turno'          => $request->area_turno,
+            'precedencia'         => $data['precedencia'],
             'usuario_responsable' => $user->id,
             'fecha'               => $fecha_actual,
-            'hora'                => $hora_actual, 
+            'hora'                => $hora_actual,
+            'fecha_registro'      => $data['fecha_registro'],
+            'hora_registro'       => $data['hora_registro'],
+            'fecha_turno'         => null,
+            'hora_turno'          => null,
+            'fecha_termino'       => $data['fecha_termino'],
+            'hora_termino'       => $data['hora_termino'],
+            'termino'             => $data['termino'],
             'estatus'             => "creado",
             'ruta_oficio'         => null,
             'conclusion'          => null
@@ -20048,10 +20067,12 @@ class SeerController extends Controller
             $nombreArchivo = 'oficio-' . Str::random(8) . '-' . $oficialia->id . ".pdf";
             $rutaCarpeta = "documentosOficios/" . $oficialia->id;
             
-            Storage::disk('s3')->putFileAs($rutaCarpeta, $request->file('documento_oficio'), $nombreArchivo);
-
+            
+            Storage::disk('s3')->putFileAs(
+                $rutaCarpeta, $file, $nombreArchivo
+            );
             $oficialia->update([
-                'ruta_oficio' => $rutaCarpeta . '/' . $nombreArchivo
+                'ruta_oficio' => $nombreArchivo
             ]);
         }
 
@@ -20064,22 +20085,11 @@ class SeerController extends Controller
         $fecha_actual = date('Y-m-d');
         $hora_actual = date('H:i');
         
-
         if ($oficialia) {
             $oficialia->update([
-                'estatus' => "turnado"
-            ]);
-            $oficialia_conclusion = Oficialia::create([
-                'user_id'             => $oficialia->user_id,
-                'oficio_id'           => $oficialia->oficio_id,
-                'tipo_tramite'        => $oficialia->tipo_tramite,
-                'oficio'              => $oficialia->oficio,
-                'area_turno'          => $oficialia->area_turno,
-                'usuario_responsable' => $oficialia->usuario_responsable,
-                'fecha'               => $fecha_actual,
-                'hora'                => $hora_actual, 
                 'estatus'             => "concluido",
-                'ruta_oficio'         => $oficialia->ruta_oficio,
+                'fecha_termino'       => $fecha_actual,
+                'hora_termino'       =>  $hora_actual,
                 'conclusion'          => $request->conclusion,
             ]);
             
@@ -20094,6 +20104,8 @@ class SeerController extends Controller
         
         if ($oficialia) {
             $oficialia->update([
+                'fecha_turno'         => $fecha_actual,
+                'hora_turno'          => $hora_actual,
                 'estatus' => "turnado"
             ]);
             $oficialia_turnado = Oficialia::create([
@@ -20102,9 +20114,17 @@ class SeerController extends Controller
                 'tipo_tramite'        => $oficialia->tipo_tramite,
                 'oficio'              => $oficialia->oficio,
                 'area_turno'          => $oficialia->area_turno,
+                'precedencia'         => $oficialia->precedencia,
                 'usuario_responsable' => $data['usuario_responsable'],
                 'fecha'               => $fecha_actual,
-                'hora'                => $hora_actual, 
+                'hora'                => $hora_actual,
+                'fecha_registro'      => $oficialia->fecha_registro,
+                'hora_registro'       => $oficialia->hora_registro,
+                'fecha_turno'         => null,
+                'hora_turno'          => null,
+                'fecha_termino'       => null,
+                'hora_termino'       =>  null,
+                'termino'             => $oficialia->termino,
                 'estatus'              => "creado",
                 'ruta_oficio'         => $oficialia->ruta_oficio,
                 'conclusion'          => null,
