@@ -10199,7 +10199,7 @@ class SeerController extends Controller
             // Con una sola audiencia y ninguna previamente reagendada no hay nada
             // a lo que retroceder (no existe una audiencia anterior que restaurar).
             $existeReagendada = $audiencias->whereIn('estatus', ['No conciliacion reagendada', 'Reagendada'])->isNotEmpty();
-            $retrocedible = $ultima !== null && (!($audiencias->count() === 1 && !$existeReagendada) || $ultima->estatus === 'Conciliacion');
+            $retrocedible = $ultima !== null && (!($audiencias->count() === 1 && !$existeReagendada && $ultima->estatus === 'Pendiente'));
 
             $estatusAudiencia = $ultima->estatus ?? null;
             if ($ultima && $ultima->estatus === 'Pendiente') {
@@ -10294,7 +10294,7 @@ class SeerController extends Controller
             ->whereIn('estatus', ['No conciliacion reagendada', 'Reagendada'])
             ->exists();
 
-        if ($totalAudiencias === 1 && !$existeReagendada) {
+        if (($totalAudiencias === 1 && !$existeReagendada && $ultima->estatus ==='Pendiente')) {
             return back()->withErrors('No hay una audiencia anterior a la cual retroceder.');
         }
 
