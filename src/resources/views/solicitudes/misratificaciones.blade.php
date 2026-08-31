@@ -42,7 +42,7 @@
                                                                     Documentos
                                                                 </button>
                                                                 <ul class="dropdown-menu" aria-labelledby="dropdownCitatoriosBtn-{{ $solicitud->id }}">
-                                                                    <li><a class="btn btn-info" href="{{ route('VerDocumentosRatificacion', $solicitud->id) }}"       target="_blank">Documentos Digitales</a></li>
+                                                                    <li><a class="btn btn-info" href="{{ signedDocRoute('VerDocumentosRatificacion', $solicitud->id) }}"       target="_blank">Documentos Digitales</a></li>
                                                                     <li><a class="dropdown-item" href="{{ route('PDFratifi', $solicitud->id) }}" target="_blank">Acuse</a></li>
                                                                     <li class="dropdown-divider"></li>
                                                                 </ul>
@@ -53,7 +53,7 @@
                                                                     Documentos
                                                                 </button>
                                                                 <ul class="dropdown-menu" aria-labelledby="dropdownCitatoriosBtn-{{ $solicitud->id }}">
-                                                                    <li><a class="btn btn-info" href="{{ route('VerDocumentosRatificacion', $solicitud->id) }}" target="_blank">Documentos Digitales</a></li>
+                                                                    <li><a class="btn btn-info" href="{{ signedDocRoute('VerDocumentosRatificacion', $solicitud->id) }}" target="_blank">Documentos Digitales</a></li>
                                                                     <li><a class="btn btn-success" href="{{ route('PDFconvenioratificacion', $solicitud->id) }}" target="_black">Convenio</a></li>
                                                                     <li><a class="btn btn-success" href="{{ route('PDFcumplimiento', $solicitud->id) }}"  target="_blank">Constancia de cumplimiento</a></li>
                                                                 </ul>
@@ -64,7 +64,7 @@
                                                                     Documentos
                                                                 </button>
                                                                 <ul class="dropdown-menu" aria-labelledby="dropdownCitatoriosBtn-{{ $solicitud->id }}">
-                                                                    <li><a class="btn btn-info" href="{{ route('VerDocumentosRatificacion', $solicitud->id) }}" target="_blank">Documentos Digitales</a></li>
+                                                                    <li><a class="btn btn-info" href="{{ signedDocRoute('VerDocumentosRatificacion', $solicitud->id) }}" target="_blank">Documentos Digitales</a></li>
                                                                     <li><a class="btn btn-success" href="{{ route('PDFconvenioratificacion', $solicitud->id) }}" target="_black">Convenio</a></li>
                                                                     <li><a class="btn btn-success" href="{{ route('PDFaudiencia', $solicitud->id) }}"  target="_blank">Acta de audiencia</a></li>
                                                                 </ul>
@@ -75,7 +75,7 @@
                                                                     Documentos
                                                                 </button>
                                                                 <ul class="dropdown-menu" aria-labelledby="dropdownCitatoriosBtn-{{ $solicitud->id }}">
-                                                                    <li><a class="btn btn-info" href="{{ route('VerDocumentosRatificacion', $solicitud->id) }}" target="_blank">Documentos Digitales</a></li>
+                                                                    <li><a class="btn btn-info" href="{{ signedDocRoute('VerDocumentosRatificacion', $solicitud->id) }}" target="_blank">Documentos Digitales</a></li>
                                                                     <li><a class="btn btn-success" href="{{ route('PDFincumplimiento', $solicitud->id) }}" target="_black">Incumplimiento</a></li>
                                                                 </ul>
                                                             </div>
@@ -85,7 +85,7 @@
                                                                     Documentos
                                                                 </button>
                                                                 <ul class="dropdown-menu" aria-labelledby="dropdownCitatoriosBtn-{{ $solicitud->id }}">
-                                                                    <li><a class="btn btn-info" href="{{ route('VerDocumentosAudiencia', $solicitud->id) }}" target="_blank">Documentos Digitales</a></li>
+                                                                    <li><a class="btn btn-info" href="{{ signedDocRoute('VerDocumentosAudiencia', $solicitud->id) }}" target="_blank">Documentos Digitales</a></li>
                                                                     <li><a class="btn btn-success" href="{{ route('PDFinteres', $solicitud->id) }}" target="_black">Acta de Archivo</a></li>
                                                                 </ul>
                                                             </div>

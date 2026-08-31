@@ -493,7 +493,7 @@
 
                 $('#expediente_nombre_abogado').text(abogado);
 
-                // Los data-* ya vienen como URLs completas y correctas (route('documentos.ver', ...) generado en el backend), aquí solo se envuelven en el link.
+                // Los data-* ya vienen como URLs completas y correctas (signedDocRoute('documentos.ver', ...) generado en el backend), aquí solo se envuelven en el link.
                 function buildLink(url, fallbackText = 'S/D') {
                     if (!url || url === '') return '<span class="text-muted fw-semibold">' + fallbackText + '</span>';
                     if (url === 'S/A') return '<span class="text-muted fw-semibold">S/A</span>';

@@ -43,27 +43,27 @@
                                                     if($modulo->anexo1 == null){
                                                         echo "<td>S/A</td>";
                                                     }else{
-                                                        echo "<td><a target='_blank' class='btn btn-info' href='" . route('documentos.ver', ['tipo' => 'modulo', 'id' => $modulo->id, 'archivo' => $modulo->anexo1]) . "'>Ver</a></td>";
+                                                        echo "<td><a target='_blank' class='btn btn-info' href='" . signedDocRoute('documentos.ver', ['tipo' => 'modulo', 'id' => $modulo->id, 'archivo' => $modulo->anexo1]) . "'>Ver</a></td>";
                                                     }
                                                     if($modulo->anexo2 == null){
                                                         echo "<td>S/A</td>";
                                                     }else{
-                                                        echo "<td><a target='_blank' class='btn btn-info' href='" . route('documentos.ver', ['tipo' => 'modulo', 'id' => $modulo->id, 'archivo' => $modulo->anexo2]) . "'>Ver</a></td>";
+                                                        echo "<td><a target='_blank' class='btn btn-info' href='" . signedDocRoute('documentos.ver', ['tipo' => 'modulo', 'id' => $modulo->id, 'archivo' => $modulo->anexo2]) . "'>Ver</a></td>";
                                                     }
                                                     if($modulo->anexo3 == null){
                                                         echo "<td>S/A</td>";
                                                     }else{
-                                                        echo "<td><a target='_blank' class='btn btn-info' href='" . route('documentos.ver', ['tipo' => 'modulo', 'id' => $modulo->id, 'archivo' => $modulo->anexo3]) . "'>Ver</a></td>";
+                                                        echo "<td><a target='_blank' class='btn btn-info' href='" . signedDocRoute('documentos.ver', ['tipo' => 'modulo', 'id' => $modulo->id, 'archivo' => $modulo->anexo3]) . "'>Ver</a></td>";
                                                     }
                                                     if($modulo->anexo4 == null){
                                                         echo "<td>S/A</td>";
                                                     }else{
-                                                        echo "<td><a target='_blank' class='btn btn-info' href='" . route('documentos.ver', ['tipo' => 'modulo', 'id' => $modulo->id, 'archivo' => $modulo->anexo4]) . "'>Ver</a></td>";
+                                                        echo "<td><a target='_blank' class='btn btn-info' href='" . signedDocRoute('documentos.ver', ['tipo' => 'modulo', 'id' => $modulo->id, 'archivo' => $modulo->anexo4]) . "'>Ver</a></td>";
                                                     }
                                                     if($modulo->anexo5 == null){
                                                         echo "<td>S/A</td>";
                                                     }else{
-                                                        echo "<td><a target='_blank' class='btn btn-info' href='" . route('documentos.ver', ['tipo' => 'modulo', 'id' => $modulo->id, 'archivo' => $modulo->anexo5]) . "'>Ver</a></td>";
+                                                        echo "<td><a target='_blank' class='btn btn-info' href='" . signedDocRoute('documentos.ver', ['tipo' => 'modulo', 'id' => $modulo->id, 'archivo' => $modulo->anexo5]) . "'>Ver</a></td>";
                                                     }
                                                     @endphp
                                                     <td>

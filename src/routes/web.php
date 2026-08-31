@@ -328,7 +328,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::post('/representante/quitar',                                [SeerController::class, 'quitarRepresentante'])->name('representante.quitar'); //Eliminar/Quitar representante legal asiganado al iniciar la audiencia
             Route::delete('/audieniecias/deduccion_eliminar_pago/{id_solicitud}',[SeerController::class, 'eliminar_deduccion_audiencia'])->name('eliminar_deduccion_audiencia');
             Route::get('/audiencias/buscar-abogados-ajax',                      [SeerController::class, 'buscar_abogados_audiencia_ajax'])->name('buscar_abogados_audiencia_ajax');
-            Route::get('/VerDcocumentos/{id}',                                  [SeerController::class, 'VerDocumentosAudiencia'])->name('VerDocumentosAudiencia');
+            Route::get('/VerDcocumentos/{id}',                                  [SeerController::class, 'VerDocumentosAudiencia'])->name('VerDocumentosAudiencia')->middleware('signed');
             Route::get('/VerpdfactaAudiencia/{id}',                             [SeerController::class, 'VerPDFAudiencia'])->name('VerPDFAudiencia');
             Route::get('/Verpdfcr/{id}',                                        [SeerController::class, 'VerPDFConvenioRei'])->name('PDFconvenioreinstalacion');
             Route::get('/Verpdfincompetencias/{id}',                            [SeerController::class, 'VerPDFIncompetencia'])->name('PDFincompetencia');
@@ -495,7 +495,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/cumplimiento/pagar/pena/audiencia',           [SeerController::class, 'cumplimiento_pagar_con_pena_audiencia'])->name('cumplimiento_pagar_pena_audiencia');
         Route::get('/notificaciones/consultar/{id}',                [SeerController::class, 'mostrar_citados'])->name('editar_citado');
 
-        Route::get('/documentos/solicitante/identificacion/{id}',       [SeerController::class, 'ver_identificacion_solicitante'])->name('documento_identificacion_solicitante_ver');
+        Route::get('/documentos/solicitante/identificacion/{id}',       [SeerController::class, 'ver_identificacion_solicitante'])->name('documento_identificacion_solicitante_ver')->middleware('signed');
         Route::get('/ObtenerCitatorios/{id}',                           [SeerController::class, 'mostrar_citatorios']);
         Route::get('/Verpdfcasosprevistos/{id}', [RecepcionController::class, 'VerPDFCasosPrevistos'])->name('VerPDFCasosPrevistos');
         Route::get('/Verpdfcanalizacion/{id}',   [RecepcionController::class, 'VerPDFCanalizacion'])->name('VerPDFCanalizacion');
@@ -616,13 +616,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     //Documentos
             Route::get('/INE_Solicitante/{id}',                         [SeerController::class, 'Ver_INE_Solicitante'])->name('PDF_INE_solicitante');
-            Route::get('/documentos/solicitante/identificacion/{id}',   [SeerController::class, 'ver_identificacion_solicitante'])->name('documento_identificacion_solicitante_ver');
-            Route::get('/VerDcocumentosRatificacion/{id}',              [TurnosController::class, 'VerDocumentosRatificacion'])->name('VerDocumentosRatificacion');
-            Route::get('/VerDcocumentosRatificacionModal/{id}',         [TurnosController::class, 'VerDocumentosRatificacionModal'])->name('VerDocumentosRatificacionModal');
-            Route::get('/documentos/ratificacion/{id}',                 [TurnosController::class, 'ver_documento_subido'])->name('documento_ratificacion_ver');
-            Route::get('/documentos/solicitud/{id}',                    [SeerController::class, 'ver_documento_subido'])->name('documento_solicitud_ver');
-            Route::get('/VerDcocumentos/{id}',                          [SeerController::class, 'VerDocumentosAudiencia'])->name('VerDocumentosAudiencia');
-            Route::get('/documentos/solicitud/{id_solicitud}/{filename}', [SeerController::class, 'verImagenDocumento'])->name('documentos.ver_imagen');
-            Route::get('/documento/identificacion-solicitante/{id}',    [SeerController::class, 'documento_identificacion_solicitante_ver'])->name('documento_identificacion_solicitante_ver');
-            Route::get('/documentos_ver/{tipo}/{id}/{archivo}',             [SeerController::class, 'verPDF'])->name('documentos.ver');
+            Route::get('/documentos/solicitante/identificacion/{id}',   [SeerController::class, 'ver_identificacion_solicitante'])->name('documento_identificacion_solicitante_ver')->middleware('signed');
+            Route::get('/VerDcocumentosRatificacion/{id}',              [TurnosController::class, 'VerDocumentosRatificacion'])->name('VerDocumentosRatificacion')->middleware('signed');
+            Route::get('/VerDcocumentosRatificacionModal/{id}',         [TurnosController::class, 'VerDocumentosRatificacionModal'])->name('VerDocumentosRatificacionModal')->middleware('signed');
+            Route::get('/documentos/ratificacion/{id}',                 [TurnosController::class, 'ver_documento_subido'])->name('documento_ratificacion_ver')->middleware('signed');
+            Route::get('/documentos/solicitud/{id}',                    [SeerController::class, 'ver_documento_subido'])->name('documento_solicitud_ver')->middleware('signed');
+            Route::get('/VerDcocumentos/{id}',                          [SeerController::class, 'VerDocumentosAudiencia'])->name('VerDocumentosAudiencia')->middleware('signed');
+            Route::get('/documentos/solicitud/{id_solicitud}/{filename}', [SeerController::class, 'verImagenDocumento'])->name('documentos.ver_imagen')->middleware('signed');
+            Route::get('/documento/identificacion-solicitante/{id}',    [SeerController::class, 'documento_identificacion_solicitante_ver'])->name('documento_identificacion_solicitante_ver')->middleware('signed');
+            Route::get('/documentos_ver/{tipo}/{id}/{archivo}',             [SeerController::class, 'verPDF'])->name('documentos.ver')->middleware('signed');
 });

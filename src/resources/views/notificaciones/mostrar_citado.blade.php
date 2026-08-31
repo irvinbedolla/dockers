@@ -201,19 +201,19 @@
                                     <div class="col-xs-12 col-sm-12 col-md-6">
                                         <div class="form-group">
                                             <label for="name">Imagen 1 <span style="color:red;">(*)</span></label>
-                                            <img src="<?= $folio['documento'] ? route('documentos.ver', ['tipo' => 'notificacion', 'id' => $folio['id_solicitud'], 'archivo' => $folio['documento']]) : ''; ?>" style="width: 100%;"/>
+                                            <img src="<?= $folio['documento'] ? signedDocRoute('documentos.ver', ['tipo' => 'notificacion', 'id' => $folio['id_solicitud'], 'archivo' => $folio['documento']]) : ''; ?>" style="width: 100%;"/>
                                         </div>
                                     </div>
                                     <div class="col-xs-12 col-sm-12 col-md-6">
                                         <div class="form-group">
                                             <label for="name">Imagen 2</label>
-                                            <img src="<?= $folio['documento1'] ? route('documentos.ver', ['tipo' => 'notificacion', 'id' => $folio['id_solicitud'], 'archivo' => $folio['documento1']]) : ''; ?>" style="width: 100%;"/>
+                                            <img src="<?= $folio['documento1'] ? signedDocRoute('documentos.ver', ['tipo' => 'notificacion', 'id' => $folio['id_solicitud'], 'archivo' => $folio['documento1']]) : ''; ?>" style="width: 100%;"/>
                                         </div>
                                     </div>
                                     <div class="col-xs-12 col-sm-12 col-md-6">
                                         <div class="form-group">
                                             <label for="name">Imagen 3</label>
-                                            <img src="<?= $folio['documento2'] ? route('documentos.ver', ['tipo' => 'notificacion', 'id' => $folio['id_solicitud'], 'archivo' => $folio['documento2']]) : ''; ?>" style="width: 100%;"/>
+                                            <img src="<?= $folio['documento2'] ? signedDocRoute('documentos.ver', ['tipo' => 'notificacion', 'id' => $folio['id_solicitud'], 'archivo' => $folio['documento2']]) : ''; ?>" style="width: 100%;"/>
                                         </div>
                                     </div>  
 

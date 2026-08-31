@@ -698,7 +698,7 @@
                                                                     <label>*Acta Constitutiva</label><br>
                                                                 @endif
                                                                 @if(!empty($audienciaCurrent->poder->ineDocumento))
-                                                                    <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $audienciaCurrent->poder->idAbogado, 'archivo' => $audienciaCurrent->poder->ineDocumento]) }}">Existente</a>
+                                                                    <a target="_blank" class="btn btn-primary" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $audienciaCurrent->poder->idAbogado, 'archivo' => $audienciaCurrent->poder->ineDocumento]) }}">Existente</a>
                                                                 @endif
                                                                 <div class="invalid-feedback">
                                                                     La Identificación es obligatoria.
@@ -709,7 +709,7 @@
                                                             <div class="form-group">
                                                                 <label>*Identificación del Representante Legal</label><br>
                                                                 @if($audienciaCurrent->poder->representacionDocumento != NULL)
-                                                                    <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $audienciaCurrent->poder->idAbogado, 'archivo' => $audienciaCurrent->poder->representacionDocumento]) }}">Existente</a>
+                                                                    <a target="_blank" class="btn btn-primary" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $audienciaCurrent->poder->idAbogado, 'archivo' => $audienciaCurrent->poder->representacionDocumento]) }}">Existente</a>
                                                                 @endif
                                                                 <div class="invalid-feedback">
                                                                     El documento de representación es obligatorio.
@@ -720,7 +720,7 @@
                                                             <div class="form-group">
                                                                 <label>*Documento que acredite la personería</label><br>
                                                                 @if($audienciaCurrent->poder->cedulaDocumento != NULL)
-                                                                    <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $audienciaCurrent->poder->idAbogado, 'archivo' => $audienciaCurrent->poder->cedulaDocumento]) }}">Existente</a>
+                                                                    <a target="_blank" class="btn btn-primary" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $audienciaCurrent->poder->idAbogado, 'archivo' => $audienciaCurrent->poder->cedulaDocumento]) }}">Existente</a>
                                                                 @endif
                                                             </div>
                                                         </div>
@@ -728,7 +728,7 @@
                                                             <div class="form-group">
                                                                 <label>Anexo (Documentos Complementarios)</label><br>
                                                                 @if($audienciaCurrent->poder->anexo_documeto != "Sin anexo")
-                                                                    <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $audienciaCurrent->poder->idAbogado, 'archivo' => $audienciaCurrent->poder->anexo_documeto]) }}">Existente</a>
+                                                                    <a target="_blank" class="btn btn-primary" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $audienciaCurrent->poder->idAbogado, 'archivo' => $audienciaCurrent->poder->anexo_documeto]) }}">Existente</a>
                                                                 @else
                                                                     <a class="btn btn-secondary disabled" href="#" tabindex="-1" aria-disabled="true">Sin anexo</a>
                                                                 @endif
@@ -745,7 +745,7 @@
                                                             <div class="form-group">
                                                                 <label>*Identificación del Empleador</label><br>
                                                                 @if(!empty($audienciaCurrent->poder->ineDocumento))
-                                                                    <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $audienciaCurrent->poder->idAbogado, 'archivo' => $audienciaCurrent->poder->ineDocumento]) }}">Existente</a>
+                                                                    <a target="_blank" class="btn btn-primary" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $audienciaCurrent->poder->idAbogado, 'archivo' => $audienciaCurrent->poder->ineDocumento]) }}">Existente</a>
                                                                 @endif
                                                                 <div class="invalid-feedback">
                                                                     La Identificación es obligatoria.
@@ -757,7 +757,7 @@
                                                             <div class="form-group">
                                                                 <label>Anexo (Documentos Complementarios)</label><br>
                                                                 @if($audienciaCurrent->poder->anexo_documeto != "Sin anexo")
-                                                                    <a target="_blank" class="btn btn-primary" href="{{ route('documentos.ver', ['tipo' => 'poder', 'id' => $audienciaCurrent->poder->idAbogado, 'archivo' => $audienciaCurrent->poder->anexo_documeto]) }}">Existente</a>
+                                                                    <a target="_blank" class="btn btn-primary" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $audienciaCurrent->poder->idAbogado, 'archivo' => $audienciaCurrent->poder->anexo_documeto]) }}">Existente</a>
                                                                 @else
                                                                     <a class="btn btn-secondary disabled" href="#" tabindex="-1" aria-disabled="true">Sin anexo</a>
                                                                 @endif
@@ -1159,7 +1159,7 @@
                                                     $solicitudId = $idSolicitud ?? $citado->solicitud_id ?? $id; 
 
                                                     $urlImg1 = ($img1 && $img1 !== 'Sin documento')
-                                                        ? route('documentos.ver', [
+                                                        ? signedDocRoute('documentos.ver', [
                                                             'tipo'    => 'solicitud', 
                                                             'id'      => $solicitudId, 
                                                             'archivo' => trim($img1)
@@ -1167,7 +1167,7 @@
                                                         : null;
 
                                                     $urlImg2 = ($img2 && $img2 !== 'Sin documento')
-                                                        ? route('documentos.ver', [
+                                                        ? signedDocRoute('documentos.ver', [
                                                             'tipo'    => 'solicitud', 
                                                             'id'      => $solicitudId, 
                                                             'archivo' => trim($img2)
@@ -1315,7 +1315,7 @@
                                             </div><br>
                                             <div class="col-xs-12 col-sm-12 col-md-6">
                                                 <label for="password">Identificación Oficial</label><br>
-                                                <a class="btn btn-info" target="_blank" href="{{ route('documento_identificacion_solicitante_ver', $id) }}">Visualizar</a>
+                                                <a class="btn btn-info" target="_blank" href="{{ signedDocRoute('documento_identificacion_solicitante_ver', $id) }}">Visualizar</a>
                                             </div>
                                             @if($general->tipo_solicitud != 2)
                                             <div class="col-xs-12 col-sm-12 col-md-6">
