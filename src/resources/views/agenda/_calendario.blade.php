@@ -131,16 +131,24 @@
                     </div>
                 </div>
 
-    <div class="modal fade" id="evento" tabindex="-1" role="dialog" aria-labelledby="modelTitleId" aria-hidden="true">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Detalles</h5>
+{{--
+    El modal se empuja al final del <body>, fuera de <section class="section">.
+    Esa clase trae `position: relative; z-index: 1` en style.css, lo que abre un
+    contexto de apilamiento: adentro, el z-index 1055 del modal sólo compite con
+    sus hermanos, mientras que el .modal-backdrop que Bootstrap cuelga del <body>
+    queda en 1050 por encima de toda la sección. El modal se abría detrás del
+    velo oscuro.
+--}}
+@push('body_end')
+    <div class="modal fade" id="evento" tabindex="-1" aria-labelledby="tituloEvento" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="tituloEvento">Detalles</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
-            </div>
-            <div class="modal-body">
-                Cita
+                </div>
+                <div class="modal-body"></div>
             </div>
         </div>
     </div>
-</div>
+@endpush

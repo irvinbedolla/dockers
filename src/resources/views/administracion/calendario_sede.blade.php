@@ -113,159 +113,168 @@
         </div>
     </section>
 
-    {{-- Un solo modal para alta y edición: cambia su action y su _method según el caso. --}}
-    <div class="modal fade" id="modalBloqueo" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <form method="POST" id="formBloqueo" action="{{ route('bloqueoSede') }}">
-                    @csrf
-                    <input type="hidden" name="_method" id="form_method" value="">
-                    <input type="hidden" name="sede_id" id="sede_id" value="{{ $sede->nombre }}">
+{{--
+    El modal va empujado al final del <body>. Cualquier ancestro con
+    `position: relative; z-index: N` —como `.section` de style.css— abre un
+    contexto de apilamiento y deja al modal por debajo del .modal-backdrop, que
+    Bootstrap cuelga del <body>. Fuera de todo eso no puede pasar.
+--}}
+@push('body_end')
+        {{-- Un solo modal para alta y edición: cambia su action y su _method según el caso. --}}
+        <div class="modal fade" id="modalBloqueo" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <form method="POST" id="formBloqueo" action="{{ route('bloqueoSede') }}">
+                        @csrf
+                        <input type="hidden" name="_method" id="form_method" value="">
+                        <input type="hidden" name="sede_id" id="sede_id" value="{{ $sede->nombre }}">
 
-                    <div class="modal-header" style="background:#496163; color:#fff;">
-                        <h5 class="modal-title">
-                            <i class="bi bi-shield-lock"></i>
-                            <span id="tituloModal">Nuevo bloqueo</span> &middot; {{ $sede->nombre }}
-                        </h5>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
-                    </div>
-
-                    <div class="modal-body">
-
-                        <div class="row mb-3" id="wrapper_cobertura">
-                            <div class="col-12">
-                                <label class="form-label d-block fw-bold text-dark">1. Ámbito</label>
-                                <div class="form-check form-check-inline">
-                                    <input class="form-check-input" type="radio" name="cobertura" id="cobSede" value="todos" checked>
-                                    <label class="form-check-label text-dark" for="cobSede">Toda la sede</label>
-                                </div>
-                                <div class="form-check form-check-inline">
-                                    <input class="form-check-input" type="radio" name="cobertura" id="cobConciliador" value="individual">
-                                    <label class="form-check-label text-dark" for="cobConciliador">Un conciliador</label>
-                                </div>
-                            </div>
+                        <div class="modal-header" style="background:#496163; color:#fff;">
+                            <h5 class="modal-title">
+                                <i class="bi bi-shield-lock"></i>
+                                <span id="tituloModal">Nuevo bloqueo</span> &middot; {{ $sede->nombre }}
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                         </div>
 
-                        <div class="row mb-3" id="wrapper_conciliador" style="display:none;">
-                            <div class="col-12">
-                                <label class="form-label fw-bold text-dark">Conciliador</label>
-                                <select name="conciliador_id" id="conciliador_id" class="form-control">
-                                    <option value="">Selecciona...</option>
-                                    @foreach ($conciliadores as $con)
-                                        <option value="{{ $con->id }}">{{ $con->name }}</option>
-                                    @endforeach
-                                </select>
-                                @if ($conciliadores->isEmpty())
-                                    <small class="text-muted">No hay conciliadores registrados en esta sede.</small>
-                                @endif
-                            </div>
-                        </div>
+                        <div class="modal-body">
 
-                        <div id="detalle_edicion" class="alert alert-light border small text-dark" style="display:none;"></div>
-
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold text-dark">2. Fecha inicio</label>
-                                <input type="date" name="fecha_inicio" id="fecha_inicio" class="form-control" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold text-dark">Fecha final</label>
-                                <input type="date" name="fecha_final" id="fecha_final" class="form-control" required>
-                            </div>
-                        </div>
-
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold text-dark">3. Módulo afectado</label>
-                                <select name="tipo" id="tipo" class="form-control" required>
-                                    <option value="Todos">Todos</option>
-                                    <option value="Audiencias">Audiencias</option>
-                                    <option value="Ratificaciones">Ratificaciones</option>
-                                    <option value="Cumplimientos">Cumplimientos</option>
-                                    <option value="Bloqueo por permiso">Bloqueo por permiso</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold text-dark">Régimen</label>
-                                <select name="descripcion" id="descripcion" class="form-control" required>
-                                    <option value="Inhabil">Inhábil</option>
-                                    <option value="No inhabil">No inhábil</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" id="bloquear_todo_el_dia"
-                                           name="bloquear_todo_el_dia" value="1" checked style="cursor:pointer;">
-                                    <label class="form-check-label text-dark" for="bloquear_todo_el_dia">Bloquear todo el día</label>
-                                </div>
-                            </div>
-                            <div class="col-md-6" id="wrapper_recurrente">
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" id="es_recurrente"
-                                           name="es_recurrente" value="1" style="cursor:pointer;">
-                                    <label class="form-check-label text-dark" for="es_recurrente">Repetir por día de la semana</label>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="row mb-3" id="wrapper_horas" style="display:none;">
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold text-dark">Hora inicio</label>
-                                <input type="time" class="form-control" name="hora_inicio" id="hora_inicio" value="08:00">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold text-dark">Hora final</label>
-                                <input type="time" class="form-control" name="hora_final" id="hora_final" value="15:00">
-                            </div>
-                        </div>
-
-                        <div class="row mb-3" id="wrapper_dias_recurrentes" style="display:none;">
-                            <div class="col-12">
-                                <label class="form-label fw-bold text-dark">Días de la semana</label>
-                                <div class="d-flex flex-wrap gap-3">
-                                    <div class="form-check">
-                                        <input class="form-check-input chk-dia-semana" type="checkbox" name="dias_semana[]" id="chk_lunes" value="1">
-                                        <label class="form-check-label text-dark" for="chk_lunes">Lunes</label>
+                            <div class="row mb-3" id="wrapper_cobertura">
+                                <div class="col-12">
+                                    <label class="form-label d-block fw-bold text-dark">1. Ámbito</label>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="radio" name="cobertura" id="cobSede" value="todos" checked>
+                                        <label class="form-check-label text-dark" for="cobSede">Toda la sede</label>
                                     </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input chk-dia-semana" type="checkbox" name="dias_semana[]" id="chk_martes" value="2">
-                                        <label class="form-check-label text-dark" for="chk_martes">Martes</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input chk-dia-semana" type="checkbox" name="dias_semana[]" id="chk_miercoles" value="3">
-                                        <label class="form-check-label text-dark" for="chk_miercoles">Miércoles</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input chk-dia-semana" type="checkbox" name="dias_semana[]" id="chk_jueves" value="4">
-                                        <label class="form-check-label text-dark" for="chk_jueves">Jueves</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input chk-dia-semana" type="checkbox" name="dias_semana[]" id="chk_viernes" value="5">
-                                        <label class="form-check-label text-dark" for="chk_viernes">Viernes</label>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="radio" name="cobertura" id="cobConciliador" value="individual">
+                                        <label class="form-check-label text-dark" for="cobConciliador">Un conciliador</label>
                                     </div>
                                 </div>
                             </div>
+
+                            <div class="row mb-3" id="wrapper_conciliador" style="display:none;">
+                                <div class="col-12">
+                                    <label class="form-label fw-bold text-dark">Conciliador</label>
+                                    <select name="conciliador_id" id="conciliador_id" class="form-control">
+                                        <option value="">Selecciona...</option>
+                                        @foreach ($conciliadores as $con)
+                                            <option value="{{ $con->id }}">{{ $con->name }}</option>
+                                        @endforeach
+                                    </select>
+                                    @if ($conciliadores->isEmpty())
+                                        <small class="text-muted">No hay conciliadores registrados en esta sede.</small>
+                                    @endif
+                                </div>
+                            </div>
+
+                            <div id="detalle_edicion" class="alert alert-light border small text-dark" style="display:none;"></div>
+
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold text-dark">2. Fecha inicio</label>
+                                    <input type="date" name="fecha_inicio" id="fecha_inicio" class="form-control" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold text-dark">Fecha final</label>
+                                    <input type="date" name="fecha_final" id="fecha_final" class="form-control" required>
+                                </div>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold text-dark">3. Módulo afectado</label>
+                                    <select name="tipo" id="tipo" class="form-control" required>
+                                        <option value="Todos">Todos</option>
+                                        <option value="Audiencias">Audiencias</option>
+                                        <option value="Ratificaciones">Ratificaciones</option>
+                                        <option value="Cumplimientos">Cumplimientos</option>
+                                        <option value="Bloqueo por permiso">Bloqueo por permiso</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold text-dark">Régimen</label>
+                                    <select name="descripcion" id="descripcion" class="form-control" required>
+                                        <option value="Inhabil">Inhábil</option>
+                                        <option value="No inhabil">No inhábil</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="bloquear_todo_el_dia"
+                                               name="bloquear_todo_el_dia" value="1" checked style="cursor:pointer;">
+                                        <label class="form-check-label text-dark" for="bloquear_todo_el_dia">Bloquear todo el día</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6" id="wrapper_recurrente">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="es_recurrente"
+                                               name="es_recurrente" value="1" style="cursor:pointer;">
+                                        <label class="form-check-label text-dark" for="es_recurrente">Repetir por día de la semana</label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row mb-3" id="wrapper_horas" style="display:none;">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold text-dark">Hora inicio</label>
+                                    <input type="time" class="form-control" name="hora_inicio" id="hora_inicio" value="08:00">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold text-dark">Hora final</label>
+                                    <input type="time" class="form-control" name="hora_final" id="hora_final" value="15:00">
+                                </div>
+                            </div>
+
+                            <div class="row mb-3" id="wrapper_dias_recurrentes" style="display:none;">
+                                <div class="col-12">
+                                    <label class="form-label fw-bold text-dark">Días de la semana</label>
+                                    <div class="d-flex flex-wrap gap-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input chk-dia-semana" type="checkbox" name="dias_semana[]" id="chk_lunes" value="1">
+                                            <label class="form-check-label text-dark" for="chk_lunes">Lunes</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input chk-dia-semana" type="checkbox" name="dias_semana[]" id="chk_martes" value="2">
+                                            <label class="form-check-label text-dark" for="chk_martes">Martes</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input chk-dia-semana" type="checkbox" name="dias_semana[]" id="chk_miercoles" value="3">
+                                            <label class="form-check-label text-dark" for="chk_miercoles">Miércoles</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input chk-dia-semana" type="checkbox" name="dias_semana[]" id="chk_jueves" value="4">
+                                            <label class="form-check-label text-dark" for="chk_jueves">Jueves</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input chk-dia-semana" type="checkbox" name="dias_semana[]" id="chk_viernes" value="5">
+                                            <label class="form-check-label text-dark" for="chk_viernes">Viernes</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                         </div>
 
-                    </div>
+                        <div class="modal-footer bg-light">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="submit" class="btn text-white" style="background-color:#496163;" id="btnGuardar">Guardar</button>
+                        </div>
+                    </form>
 
-                    <div class="modal-footer bg-light">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                        <button type="submit" class="btn text-white" style="background-color:#496163;" id="btnGuardar">Guardar</button>
-                    </div>
-                </form>
-
-                {{-- Form aparte: un form no puede anidarse dentro de otro. --}}
-                <form method="POST" id="formEliminar" action="" class="d-none">
-                    @csrf
-                    @method('DELETE')
-                </form>
+                    {{-- Form aparte: un form no puede anidarse dentro de otro. --}}
+                    <form method="POST" id="formEliminar" action="" class="d-none">
+                        @csrf
+                        @method('DELETE')
+                    </form>
+                </div>
             </div>
         </div>
-    </div>
+@endpush
+
 @endsection
 
 @section('page_css')
