@@ -171,6 +171,14 @@
                 left: 0 !important;
             }
 
+            /* Evitar que iOS haga zoom automático al enfocar campos en iPhone */
+            input:not([type="checkbox"]):not([type="radio"]),
+            select,
+            textarea,
+            .form-control {
+                font-size: 16px !important;
+            }
+
             .main-content {
                 margin-left: 0 !important;
                 padding-top: 85px !important;

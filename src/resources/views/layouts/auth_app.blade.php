@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     @include('partials.favicon')
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <title>@yield('title') | SiConcilio</title>
 
     <link href="{{ asset('assets/css/bootstrap.min.css') }}" rel="stylesheet" type="text/css"/>
@@ -103,7 +103,7 @@
             border: 1px solid #DDE3E3;
             border-radius: 10px;
             padding: 12px 14px 12px 40px;
-            font-size: 14px;
+            font-size: 16px;
             color: #2B3839;
             background: #fff;
             transition: border-color .15s ease, box-shadow .15s ease;
