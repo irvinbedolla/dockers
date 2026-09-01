@@ -431,6 +431,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/expedientes/index',                    [ExpedienteController::class, 'index'])->name('expedientes.index');
     Route::get('/ratificaciones/index',                 [TurnosController::class, 'index_ratificacion'])->name('index_ratificacion');
     Route::get('/cumplimientos/index',                  [SeerController::class, 'audiencias_cumplimiento'])->name('audiencias.cumplimiento');
+    Route::get('/cumplimientos/detalle/{id}',                           [SeerController::class, 'ver_pago_cumplimiento'])->name('pago_cumplimiento');
     Route::get('/seer/asseria',                         [SeerController::class, 'create_asesoria'])->name('create_asesoria');
     Route::get('/revisar/indexAudiencia',               [SeerController::class, 'todas_audiencias'])->name('todas_audiencias');
     Route::get('/revisar/indexSolictudes',              [SeerController::class, 'todas_solicitudes'])->name('todas_solicitudes');
