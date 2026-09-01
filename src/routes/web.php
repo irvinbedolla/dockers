@@ -321,7 +321,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::delete('/audieniecias/pago_eliminar_pago/{id_solicitud}',    [SeerController::class, 'pago_eliminar_pago'])->name('pago_eliminar_pago');
             Route::post('/solicitudes/terminar_audiencia',                      [SeerController::class, 'terminar_audiencia'])->name('terminar_audiencia');
             Route::post('/audiencias/eliminar_item_sesion/{id}',                [SeerController::class, 'eliminar_item_sesion'])->name('eliminar_item_sesion');
-            
+            Route::get('/audienicas/cumplimietos/{id}',                         [SeerController::class, 'ver_pagos_audiencia'])->name('audiencia_cumplimientos');
             Route::get('/cumplimientos/detalle/{id}',                           [SeerController::class, 'ver_pago_cumplimiento'])->name('pago_cumplimiento');
             Route::post('/guardar_edicion_audiencia',                           [SeerController::class, 'audiencia_confirmar'])->name('audiencia_confirmar');
             Route::post('/audiencias/pagoA',                                    [SeerController::class, 'pagoA_audiencia'])->name('pagoA_audiencia'); // cumplimiento en audiencias
@@ -442,6 +442,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/seer/aserorias',                      [SeerController::class, 'store_asesorias'])->name('seer.store_asesoria');
     Route::get('/seer/index',                           [SeerController::class, 'index'])->name('seer');
     Route::get('/audienicas/cumplimietos/{id}',                         [SeerController::class, 'ver_pagos_audiencia'])->name('audiencia_cumplimientos');
+    Route::get('/audiencias_Revisar/{id}/{isAudiencia?}',               [SeerController::class, 'solicitud_audiencia_revisar'])->name('solicitud_audiencia');
+    Route::get('/VerpdfPago/{id}',           [TurnosController::class, 'VerPDFPagos'])->name('PDFpagos');
 
 
     //Solicitudes y casos de exepcion
