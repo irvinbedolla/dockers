@@ -15096,6 +15096,16 @@ class SeerController extends Controller
                 // O buscar por coincidencia en el nombre del solicitante
                 ->orWhereHas('solicitante', function($sub) use ($buscar) {
                     $sub->where('nombre', 'LIKE', "%{$buscar}%");
+                })
+                ->orWhereIn('id_solicitud', function ($sub) use ($buscar) {
+                    $sub->select('id_solicitud')
+                        ->distinct()
+                        ->from('seer_citados')
+                        ->where(function ($w) use ($buscar) {
+                            $w->where('nombre', 'LIKE', "%{$buscar}%")
+                                ->orWhere('primer_apellido', 'LIKE', "%{$buscar}%")
+                                ->orWhere('segundo_apellido', 'LIKE', "%{$buscar}%");
+                        });
                 });
             });
         }
@@ -15362,7 +15372,11 @@ class SeerController extends Controller
                     $sub->select('id_solicitud')
                     ->distinct()
                     ->from('seer_citados')
-                    ->where('nombre', 'LIKE', "%{$buscar}%");
+                    ->where(function ($w) use ($buscar) {
+                        $w->where('nombre', 'LIKE', "%{$buscar}%")
+                            ->orWhere('primer_apellido', 'LIKE', "%{$buscar}%")
+                            ->orWhere('segundo_apellido', 'LIKE', "%{$buscar}%");
+                    });
                     });
             });
         }
