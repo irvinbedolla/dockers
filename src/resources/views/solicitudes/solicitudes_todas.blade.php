@@ -23,7 +23,7 @@
                                 <div class="col-md-5">
                                     <form action="{{ url()->current() }}" method="GET">
                                         <div class="input-group">
-                                            <input type="text" name="buscar" class="form-control" placeholder="Buscar solicitud por NUE o Solicitante..." value="{{ request('buscar') }}">
+                                            <input type="text" name="buscar" class="form-control" placeholder="Buscar solicitud por NUE, Solicitante o Citado..." value="{{ request('buscar') }}">
                                             <button class="btn btn-primary" type="submit" style="background-color: #354647; border-color: #354647;">
                                                 <i class="fas fa-search me-1"></i> Buscar
                                             </button>
