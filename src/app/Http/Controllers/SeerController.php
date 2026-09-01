@@ -15537,20 +15537,36 @@ class SeerController extends Controller
         //return view('notificaciones.index_busqueda',compact('notificaciones','personas','userRole','fecha_inicio','fecha_fin'));
     }
 
-    public function hitorialnotificacador(){
+    public function hitorialnotificacador(Request $request){
         $id = auth()->user()->id;
         $user = User::find($id);
         $roles = Role::pluck('name','name')->all();
         $userRole = $user->roles->pluck('name')->all();
 
-        $mis_notificaciones  = SeerPerGeneral::where('seer_citados.id_notificador', $id)
+        $query = SeerPerGeneral::where('seer_citados.id_notificador', $id)
         ->join('seer_citados','seer_citados.id_solicitud','=','seer_general.id')
         ->join('seer_solicitante','seer_solicitante.id_solicitud','=','seer_general.id')
         ->join('municipios', 'seer_citados.municipio_citado', '=', 'municipios.id')
         ->join('estados', 'seer_citados.estado_citado', '=', 'estados.id')
         ->join('users', 'users.id', '=', 'seer_citados.id_notificador')
-        ->where('seer_citados.estatus', "!=", 'Pendiente')
-        ->select('seer_citados.id as id_citado','seer_general.NUE','seer_solicitante.nombre as nombre_solicitado','seer_citados.nombre','seer_citados.primer_apellido',
+        ->where('seer_citados.estatus', "!=", 'Pendiente');
+
+        // Búsqueda por coincidencia en expediente, solicitante, citado o dirección
+        if ($request->filled('buscar')) {
+            $buscar = $request->input('buscar');
+            $query->where(function($q) use ($buscar) {
+                $q->where('seer_general.NUE', 'LIKE', "%{$buscar}%")
+                    ->orWhere('seer_solicitante.nombre', 'LIKE', "%{$buscar}%")
+                    ->orWhereRaw("CONCAT_WS(' ', seer_citados.nombre, seer_citados.primer_apellido, seer_citados.segundo_apellido) LIKE ?", ["%{$buscar}%"])
+                    ->orWhere('seer_citados.colonia', 'LIKE', "%{$buscar}%")
+                    ->orWhere('seer_citados.calle', 'LIKE', "%{$buscar}%")
+                    ->orWhere('seer_citados.tipo_vialidad', 'LIKE', "%{$buscar}%")
+                    ->orWhere('municipios.nombre', 'LIKE', "%{$buscar}%")
+                    ->orWhere('estados.nombre', 'LIKE', "%{$buscar}%");
+            });
+        }
+
+        $mis_notificaciones = $query->select('seer_citados.id as id_citado','seer_general.NUE','seer_solicitante.nombre as nombre_solicitado','seer_citados.nombre','seer_citados.primer_apellido',
         'seer_citados.segundo_apellido','municipios.nombre as municipio_citado','seer_citados.colonia','seer_citados.calle','seer_citados.tipo_vialidad','estados.nombre as estado_citado',
         'seer_citados.n_ext','seer_citados.estatus','seer_citados.tipo_notificacion','seer_citados.id_solicitud as id_solicitud','users.name as notificador_nombre')
         ->orderBy('seer_citados.created_at', 'desc')
@@ -15560,7 +15576,7 @@ class SeerController extends Controller
         return view('notificaciones.indexHitorial',compact('mis_notificaciones'));
     }
 
-    public function todas_notificaciones(){
+    public function todas_notificaciones(Request $request){
         // 1. Obtención eficiente del usuario y sus datos
         $user = auth()->user();
         $delegacionUsuario = $user->delegacion;
@@ -15576,17 +15592,30 @@ class SeerController extends Controller
         $delegacionesFiltrar = $grupos[$delegacionUsuario] ?? [$delegacionUsuario];
 
         // 3. Consulta optimizada
-        $mis_notificaciones = SeerPerGeneral::join('seer_citados', 'seer_citados.id_solicitud', '=', 'seer_general.id')
+        $query = SeerPerGeneral::join('seer_citados', 'seer_citados.id_solicitud', '=', 'seer_general.id')
         ->join('seer_solicitante', 'seer_solicitante.id_solicitud', '=', 'seer_general.id')
         ->join('municipios', 'seer_citados.municipio_citado', '=', 'municipios.id')
         ->leftJoin('users', 'seer_citados.id_notificador', '=', 'users.id')
-        
+
         // Filtros
         ->where('seer_citados.estatus', "!=", 'Sin asignar')
-        ->whereIn('seer_general.delegacion', $delegacionesFiltrar) // Corregido: ahora usa el array de grupos
-        
+        ->whereIn('seer_general.delegacion', $delegacionesFiltrar); // Corregido: ahora usa el array de grupos
+
+        // Búsqueda por coincidencia en expediente, solicitante, citado o dirección
+        if ($request->filled('buscar')) {
+            $buscar = $request->input('buscar');
+            $query->where(function($q) use ($buscar) {
+                $q->where('seer_general.NUE', 'LIKE', "%{$buscar}%")
+                    ->orWhere('seer_solicitante.nombre', 'LIKE', "%{$buscar}%")
+                    ->orWhereRaw("CONCAT_WS(' ', seer_citados.nombre, seer_citados.primer_apellido, seer_citados.segundo_apellido) LIKE ?", ["%{$buscar}%"])
+                    ->orWhere('seer_citados.colonia', 'LIKE', "%{$buscar}%")
+                    ->orWhere('seer_citados.calle', 'LIKE', "%{$buscar}%")
+                    ->orWhere('municipios.nombre', 'LIKE', "%{$buscar}%");
+            });
+        }
+
         // Selección de campos específica
-        ->select(
+        $mis_notificaciones = $query->select(
             'seer_citados.id as id_citado',
             'seer_general.NUE',
             'seer_solicitante.nombre as nombre_solicitado',
