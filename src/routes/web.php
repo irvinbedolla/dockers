@@ -287,6 +287,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/solicitud/archivar_audienciaParte3', [SeerController::class, 'guardar_audiencia_archivo_parte3'])->name('archivar_audiencia_parte3');
         Route::get('/seer/convenios',                   [SeerController::class, 'index_convenios'])->name('index_convenios');
         Route::get('/seer/colectivas',                  [SeerController::class, 'index_colectivas'])->name('index_colectivas');
+        Route::get('/audiencias_Revisar/{id}/{isAudiencia?}',               [SeerController::class, 'solicitud_audiencia_revisar'])->name('solicitud_audiencia');
 
         //Audiencias
             Route::get('/audiencias/index',                                     [SeerController::class, 'audiencia_index'])->name('audiencia_index');
@@ -372,6 +373,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/excepciones/index',         [RecepcionController::class, 'index_excepciones'])->name('excepcion');
         Route::get('/excepciones/atender/{id}',  [RecepcionController::class, 'atender_excepcion'])->name('atender_excepcion');
         Route::post('/excepciones/guardar',       [RecepcionController::class, 'guardar_excepcion'])->name('guardar_excepcion');
+        Route::get('/audiencias_Revisar/{id}/{isAudiencia?}',               [SeerController::class, 'solicitud_audiencia_revisar'])->name('solicitud_audiencia');
+
     });
 
     /*
@@ -438,7 +441,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/solicitudes/home',                     [SeerController::class, 'solicitudes'])->name('solicitudes_index');
     Route::post('/seer/aserorias',                      [SeerController::class, 'store_asesorias'])->name('seer.store_asesoria');
     Route::get('/seer/index',                           [SeerController::class, 'index'])->name('seer');
-    Route::get('/audiencias_Revisar/{id}/{isAudiencia?}',               [SeerController::class, 'solicitud_audiencia_revisar'])->name('solicitud_audiencia');
 
 
     //Solicitudes y casos de exepcion
