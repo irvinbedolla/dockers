@@ -384,6 +384,7 @@
                 "pageLength": 10,
                 "searching": true,
                 "ordering": true,
+                "order": [],
                 "info": true,
                 "language": {
                     "search": "Filtrar en esta pantalla:",

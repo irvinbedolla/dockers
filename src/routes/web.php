@@ -287,10 +287,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/solicitud/archivar_audienciaParte3', [SeerController::class, 'guardar_audiencia_archivo_parte3'])->name('archivar_audiencia_parte3');
         Route::get('/seer/convenios',                   [SeerController::class, 'index_convenios'])->name('index_convenios');
         Route::get('/seer/colectivas',                  [SeerController::class, 'index_colectivas'])->name('index_colectivas');
+        Route::get('/audiencias_Revisar/{id}/{isAudiencia?}',               [SeerController::class, 'solicitud_audiencia_revisar'])->name('solicitud_audiencia');
 
         //Audiencias
             Route::get('/audiencias/index',                                     [SeerController::class, 'audiencia_index'])->name('audiencia_index');
-            Route::get('/audiencias_Revisar/{id}/{isAudiencia?}',               [SeerController::class, 'solicitud_audiencia_revisar'])->name('solicitud_audiencia');
             Route::get('/citatorio/{id}',                                       [SeerController::class, 'pdfCitatorioAudiencia'])->name('pdfCitatorioAudiencia');
             Route::get('/solicitud/indexA',                                     [SeerController::class, 'indexA'])->name('audiencias.conciliador'); 
             Route::get('/solicitud/iniciar/{id}',                               [SeerController::class, 'iniciar_audiencia'])->name('inicioAudiencia');
@@ -344,13 +344,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
      |-- (Pre-registro presencial, validación inicial y asignación de turnos rápidos)
      |*/
     Route::middleware(['role:Super Usuario|Auxiliar|Recepcion|Turnos'])->group(function () {
-        Route::get('/turnos/index',                     [RecepcionController::class, 'index_turnos'])->name('turnos');
-        Route::get('/turnos/misturnos',                 [RecepcionController::class, 'misturnos'])->name('misturnos');
+        Route::get('/turnos/index',                                         [RecepcionController::class, 'index_turnos'])->name('turnos');
+        Route::get('/turnos/misturnos',                                     [RecepcionController::class, 'misturnos'])->name('misturnos');
         
-        Route::get('/solicitudes/pedientes',            [SeerController::class, 'solicitudes_pendientes'])->name('solicitudes_pendientes');
-        Route::get('/solicitudes_revisar/{id}',         [SeerController::class, 'solicitudes_pendientes_revisar'])->name('solicitud_revisar');
-        Route::post('/confirmar_solicitudes',           [SeerController::class, 'solicitud_confirmar'])->name('confirmar_solicitud');
-        Route::post('/solicitudes/guardar',             [SeerController::class, 'guardar_rechazo'])->name('rechazar_solicitud');
+        Route::get('/solicitudes/pedientes',                                [SeerController::class, 'solicitudes_pendientes'])->name('solicitudes_pendientes');
+        Route::get('/solicitudes_revisar/{id}',                             [SeerController::class, 'solicitudes_pendientes_revisar'])->name('solicitud_revisar');
+        Route::post('/confirmar_solicitudes',                               [SeerController::class, 'solicitud_confirmar'])->name('confirmar_solicitud');
+        Route::post('/solicitudes/guardar',                                 [SeerController::class, 'guardar_rechazo'])->name('rechazar_solicitud');
 
         //Recepcion
         Route::get('/turnos/create',             [RecepcionController::class, 'create'])->name('turnos.create');
@@ -373,6 +373,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/excepciones/index',         [RecepcionController::class, 'index_excepciones'])->name('excepcion');
         Route::get('/excepciones/atender/{id}',  [RecepcionController::class, 'atender_excepcion'])->name('atender_excepcion');
         Route::post('/excepciones/guardar',       [RecepcionController::class, 'guardar_excepcion'])->name('guardar_excepcion');
+        Route::get('/audiencias_Revisar/{id}/{isAudiencia?}',               [SeerController::class, 'solicitud_audiencia_revisar'])->name('solicitud_audiencia');
+
     });
 
     /*
@@ -439,6 +441,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/solicitudes/home',                     [SeerController::class, 'solicitudes'])->name('solicitudes_index');
     Route::post('/seer/aserorias',                      [SeerController::class, 'store_asesorias'])->name('seer.store_asesoria');
     Route::get('/seer/index',                           [SeerController::class, 'index'])->name('seer');
+
 
     //Solicitudes y casos de exepcion
         Route::get('/solicitudes/pedientes',                        [SeerController::class, 'solicitudes_pendientes'])->name('solicitudes_pendientes');
