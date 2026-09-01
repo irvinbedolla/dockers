@@ -5,9 +5,9 @@
         $contador = 0;
         // El fallback entre carpeta con ID y ruta plana legacy lo resuelve documentos.ver/verPDF,
         // que sirve el archivo real vía el disco 's3' (antes esto apuntaba a storage/app en disco local).
-        $curpUrl   = signedDocRoute('documentos.ver', ['tipo' => 'ratificacion', 'id' => $idSolicitud, 'archivo' => $solicitud->documentoCurp]);
-        $identUrl  = signedDocRoute('documentos.ver', ['tipo' => 'ratificacion', 'id' => $idSolicitud, 'archivo' => $solicitud->documentoidentificacion]);
-        $cuantiUrl = signedDocRoute('documentos.ver', ['tipo' => 'ratificacion', 'id' => $idSolicitud, 'archivo' => $solicitud->documentoCuanti]);
+        $curpUrl   = $solicitud->documentoCurp ? signedDocRoute('documentos.ver', ['tipo' => 'ratificacion', 'id' => $idSolicitud, 'archivo' => $solicitud->documentoCurp]) : null;
+        $identUrl  = $solicitud->documentoidentificacion ? signedDocRoute('documentos.ver', ['tipo' => 'ratificacion', 'id' => $idSolicitud, 'archivo' => $solicitud->documentoidentificacion]) : null;
+        $cuantiUrl = $solicitud->documentoCuanti ? signedDocRoute('documentos.ver', ['tipo' => 'ratificacion', 'id' => $idSolicitud, 'archivo' => $solicitud->documentoCuanti]) : null;
     @endphp
     <style>
         .loader {
@@ -212,8 +212,10 @@
                                             <div  class="col-xs-12 col-sm-12 col-md-4">
                                                 <div class="form-group">
                                                     <label for="name">Documento de la CURP (Opcional)</span></label>
-                                                    <input type="file" id="documentoCurp" name="documentoCurp" class="form-control" accept=".pdf"> 
-                                                    <a target="_blank" class="btn btn-primary" href="{{ $curpUrl }}">Existente</a>
+                                                    <input type="file" id="documentoCurp" name="documentoCurp" class="form-control" accept=".pdf">
+                                                    @if($curpUrl)
+                                                        <a target="_blank" class="btn btn-primary" href="{{ $curpUrl }}">Existente</a>
+                                                    @endif
                                                     <div class="invalid-feedback">
                                                         El campo edad es obligatorio.
                                                     </div>
@@ -260,8 +262,10 @@
                                             <div  class="col-xs-12 col-sm-12 col-md-4">
                                                 <div class="form-group">
                                                     <label for="name">Subir Identificación Oficial <span style="color:red;">(*)</span></label>
-                                                    <input type="file" id="documentoidentificacion" name="documentoidentificacion" class="form-control" accept=".pdf"> 
-                                                    <a target="_blank" class="btn btn-primary" href="{{ $identUrl }}">Existente</a>
+                                                    <input type="file" id="documentoidentificacion" name="documentoidentificacion" class="form-control" accept=".pdf">
+                                                    @if($identUrl)
+                                                        <a target="_blank" class="btn btn-primary" href="{{ $identUrl }}">Existente</a>
+                                                    @endif
                                                     <div class="invalid-feedback">
                                                         El campo identificación es obligatorio.
                                                     </div>
@@ -552,8 +556,10 @@
                                             <div class="col-xs-12 col-sm-12 col-md-3">
                                                 <div class="form-group">
                                                     <label for="name">Sube tu cuantificación (Opcional)</label>
-                                                    <input type="file" id="cuantificacion" name="cuantificacion" class="form-control" accept=".pdf"> 
-                                                    <a target="_blank" class="btn btn-primary" href="{{ $cuantiUrl }}">Existente</a>
+                                                    <input type="file" id="cuantificacion" name="cuantificacion" class="form-control" accept=".pdf">
+                                                    @if($cuantiUrl)
+                                                        <a target="_blank" class="btn btn-primary" href="{{ $cuantiUrl }}">Existente</a>
+                                                    @endif
                                                     <div class="invalid-feedback">
                                                         El campo edad es obligatorio.
                                                     </div>
