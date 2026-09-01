@@ -3835,7 +3835,7 @@ body.layout-3 .main-footer {
 }
 
 .main-sidebar .sidebar-menu {
-    padding: 0;
+    padding: 0 0 90px 0;
     margin: 0;
 }
 
