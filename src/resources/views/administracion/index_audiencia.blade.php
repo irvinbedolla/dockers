@@ -230,14 +230,14 @@
         .fc-event-disponible, .fc-est-disponible{ color:#fff !important; background-color:#00CE1C !important; border-color:#00CE1C !important; }
         .fc-event-expirado, .fc-est-expirado{ color:#fff !important; background-color:#969696 !important; border-color:#969696 !important; }
         .fc-event-inhabil, .fc-est-inhabil{ color:#fff !important; background-color:#3B78DB !important; border-color:#3B78DB !important; }
-        .fc-event-ocupado, .fc-est-ocupado{ color:#fff !important; background-color:#eca130 !important; border-color:#eca130 !important; }
+        .fc-event-ocupado, .fc-est-ocupado{ color:#fff !important; background-color:#287532 !important; border-color:#287532 !important; }
         .fc-event-actual, .fc-est-actual{ color:#fff !important; background-color:#8163a8 !important; border-color:#8163a8 !important; }
         .fc-event-selected { border: 2px solid #FFD700 !important; box-shadow: 0 0 8px #FFD700; }
         .fc .fc-event-main, .fc .fc-event-time { color:#fff !important; }
         .fc-list .fc-list-event.fc-event-disponible td, .fc-list .fc-list-event.fc-est-disponible td{ background-color:#00CE1C !important; color:#fff !important; }
         .fc-list .fc-list-event.fc-event-expirado td, .fc-list .fc-list-event.fc-est-expirado td{ background-color:#969696 !important; color:#fff !important; }
         .fc-list .fc-list-event.fc-event-inhabil td, .fc-list .fc-list-event.fc-est-inhabil td{ background-color:#3B78DB !important; color:#fff !important; }
-        .fc-list .fc-list-event.fc-event-ocupado td, .fc-list .fc-list-event.fc-est-ocupado td{ background-color:#eca130 !important; color:#fff !important; }
+        .fc-list .fc-list-event.fc-event-ocupado td, .fc-list .fc-list-event.fc-est-ocupado td{ background-color:#287532 !important; color:#fff !important; }
         .fc-list .fc-list-event.fc-event-ocupado td, .fc-list .fc-list-event.fc-est-actual td{ background-color:#8163a8 !important; color:#fff !important; }
         @media (min-width: 1200px){ .modal-xl{ --bs-modal-width: 95vw; } }
         .modal .modal-body{ max-height: calc(100vh - 200px); overflow-y: auto; }

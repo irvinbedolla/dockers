@@ -117,7 +117,8 @@
                                                                             <li><a class="dropdown-item" href="{{ route('PDFCaratulaInfoConcilio', ['tipo' => 'caratula', 'id' => $solicitud->id]) }}" target="_blank">Carátula de Solicitud</a></li>
                                                                         @endif
                                                                     @elseif($solicitud->estatus == "No conciliacion")
-                                                                        <li><a class="dropdown-item" href="{{ route('PDFno_conciliacion', $solicitud->id) }}" target="_blank">Constancia de no conciliación</a></li>
+                                                                        <li><a class="dropdown-item" href="{{ route('PDFno_conciliacion', $solicitud->id) }}" target="_blank">Constancias de no conciliación</a></li>
+                                                                        <li><a class="dropdown-item" data-bs-toggle="modal" data-bs-target="#noConciliacion" data-id="{{ $solicitud->id }}">Constancia de no conciliación</a></li>
                                                                         <li><a class="dropdown-item" href="{{ route('PDFCaratulaInfoConcilio', ['tipo' => 'seguimiento', 'id' => $solicitud->id]) }}" target="_blank">Carátula de Seguimiento</a></li>
                                                                         <li><a class="dropdown-item" href="{{ route('PDFCaratulaInfoConcilio', ['tipo' => 'caratula', 'id' => $solicitud->id]) }}" target="_blank">Carátula de Solicitud</a></li>
                                                                     @elseif(in_array($solicitud->estatus, ['Conciliacion', 'Concluida', 'Reinstalacion']))
@@ -297,6 +298,28 @@
                     <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Cerrar</button>
                 </div>
             </div>
+        </div>
+    </div>
+<!-- Modal Consatncias de no conciliacion separadas -->
+    <div class="modal fade" id="noConciliacion" tabindex="-1" aria-labelledby="modalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+            <h5 class="modal-title">Constancias de No Conciliación</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <table class="table table-striped" style="width: 100%; text-align: center;">
+                    <thead style="background-color: #D2D3D5;">
+                    <tr>
+                        <th>Citado</th>
+                        <th>Acción</th>
+                    </tr>
+                    </thead>
+                    <tbody id="listaNoConciliacion"></tbody> 
+                </table>
+            </div>
+        </div>
         </div>
     </div>
 @endsection
@@ -520,6 +543,48 @@
             // Limpiar el iframe al cerrar el modal para no consumir memoria
             $('#modalDocumentosIframe').on('hidden.bs.modal', function () {
                 $('#iframeDocumentos').attr('src', '');
+            });
+        });
+        $(document).on('click', '[data-bs-target="#noConciliacion"]', function() {
+            const idSolicitud = $(this).data('id');
+            const tabla = $('#listaNoConciliacion');
+            const urlData = "{{ url('ObtenerConstancias') }}/" + idSolicitud;
+            
+            // Ruta base para el PDF individual
+            const routePdfBase = "{{ route('PDFnoConciliacionIndividual', ['id' => 'XXX']) }}";
+
+            tabla.empty().append('<tr><td colspan="2">Cargando...</td></tr>');
+
+            $.ajax({
+                url: urlData,
+                type: 'GET',
+                success: function(data) {
+                    tabla.empty();
+                    if (data.length > 0) {
+                        $.each(data, function(index, registro) {
+                            // Reemplazamos el placeholder XXX por el ID del citado
+                            const finalPdfUrl = routePdfBase.replace('XXX', registro.id);
+                            
+                            const row = `
+                                <tr>
+                                    <td style="text-align: left;">
+                                        <strong>${registro.nombre} ${registro.primer_apellido} ${registro.segundo_apellido || ''}</strong>
+                                    </td>
+                                    <td>
+                                        <a href="${finalPdfUrl}" class="btn btn-danger btn-sm" target="_blank">
+                                           Ver PDF
+                                        </a>
+                                    </td>
+                                </tr>`;
+                            tabla.append(row);
+                        });
+                    } else {
+                        tabla.append('<tr><td colspan="2">No hay registros disponibles.</td></tr>');
+                    }
+                },
+                error: function() {
+                    tabla.empty().append('<tr><td colspan="2" class="text-danger">Error al cargar datos.</td></tr>');
+                }
             });
         });
     </script>

@@ -406,7 +406,9 @@ class AdministracionController extends Controller{
 
         $duracionSlotMinutos = 75;
 
-        $horasBase = [[9, 0], [10, 15], [12, 0], [14, 15], [15, 30]];
+        $horasviejas = [[8,30],[9, 0], [10, 15],[11,30], [12, 0],[13,45], [14, 15], [15, 30]];
+        
+        $horasnuevas = [[8,30],[9, 45], [11, 00],[12,15], [13, 0],[14,15], [15, 30]];
 
         $audienciasExistentes = Audiencias::whereBetween('fecha', [$fecha_inicio, $fecha_fin])
             ->where('id_conciliador', $id_conciliador)
@@ -436,7 +438,12 @@ class AdministracionController extends Controller{
             if ($fecha->format('N') < 6) { // Saltar fines de semana
 
                 $fechaDia = $fecha->format('Y-m-d');
-
+                if($fechaDia >= '2026-10-05'){
+                    $horasBase=$horasnuevas;
+                }
+                else{
+                    $horasBase = $horasviejas;
+                }
                 $horarios = array_map(
                     fn ($h) => (clone $fecha)->setTime($h[0], $h[1], 0),
                     $horasBase
@@ -457,7 +464,8 @@ class AdministracionController extends Controller{
                             $audienciasEnSlot++;
                         }
                     }
-                    $ocupado = $audienciasEnSlot >= 1;
+                    $cantidadAudiencias = Audiencias::where('fecha', $fechaDia)->where('hora', $horario)->where('id_conciliador', $id_conciliador )->count();
+                    $ocupado = $cantidadAudiencias >= 1;
 
                     $esInhabil = false;
                     $esNoInhabil = false;
@@ -489,7 +497,7 @@ class AdministracionController extends Controller{
                     }
 
                     $colores = [
-                        'ocupado' => '#eca130', 'inhabil' => '#3B78DB',
+                        'ocupado' => '#287532', 'inhabil' => '#3B78DB',
                         'expirado' => '#969696', 'disponible' => '#00CE1C',
                         'actual'  => '#8163a8',
                     ];
