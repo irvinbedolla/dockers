@@ -305,8 +305,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::post('/desistimiento_audiencia',                             [SeerController::class, 'desistimiento_audiencia'])->name('desistimiento_audiencia');
             Route::get('/audieniecias/complimientos',                           [SeerController::class, 'audiencias_cumplimiento'])->name('audiencias.cumplimiento');
             Route::post('/audiencia/consulta/solictud',                         [SeerController::class, 'solicitudes_busqueda'])->name('solicitudes_busqueda');
-            Route::post('/solicitud/guardarExpediente',                         [SeerController::class, 'guardar_expediente'])->name('subir_expediente'); //Subir expediente 
-            Route::post('/solicitud/guardarExpedienteR',                        [TurnosController::class, 'guardar_expediente'])->name('subir_expediente_ratificacion'); //Subir expediente ratificacion
             Route::get('/audiencias/vista_previa/{id_solicitud}',               [SeerController::class, 'vista_previa'])->name('vista_previa');
             Route::get('/audiencias/vista_previa_patronal/{id_solicitud}',      [SeerController::class, 'vista_previa_patronal'])->name('vista_previa_patronal');
             Route::post('/audiencia/guardar-seleccion-convenio',                [SeerController::class, 'guardarSeleccionConvenioSession'])->name('guardar_seleccion_convenio');
@@ -448,6 +446,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/VerpdfPago/{id}',           [TurnosController::class, 'VerPDFPagos'])->name('PDFpagos');
     Route::get('/cumplimiento/consulta/{id}/{tipo}',    [SeerController::class, 'consulta_cumplimiento'])->name('consulta_cumplimiento');
     Route::get('/cumplimiento/consultar/{id}/{tipo}',   [SeerController::class, 'consulta_cumplimiento_ratificacion'])->name('consulta_cumplimiento_ratificacion');
+    Route::post('/solicitud/guardarExpediente',                         [SeerController::class, 'guardar_expediente'])->name('subir_expediente'); //Subir expediente 
+            Route::post('/solicitud/guardarExpedienteR',                        [TurnosController::class, 'guardar_expediente'])->name('subir_expediente_ratificacion'); //Subir expediente ratificacion
 
 
     //Solicitudes y casos de exepcion

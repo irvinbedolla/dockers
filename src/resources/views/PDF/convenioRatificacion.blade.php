@@ -13,6 +13,7 @@
         <style>
             @page {
                 margin: 0px 0px;
+                size: A4 portrait;
             }
             body{
                 padding-top: 95px;
