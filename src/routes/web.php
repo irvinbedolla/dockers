@@ -444,6 +444,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/audienicas/cumplimietos/{id}',                         [SeerController::class, 'ver_pagos_audiencia'])->name('audiencia_cumplimientos');
     Route::get('/audiencias_Revisar/{id}/{isAudiencia?}',               [SeerController::class, 'solicitud_audiencia_revisar'])->name('solicitud_audiencia');
     Route::get('/VerpdfPago/{id}',           [TurnosController::class, 'VerPDFPagos'])->name('PDFpagos');
+    Route::get('/cumplimiento/consulta/{id}/{tipo}',    [SeerController::class, 'consulta_cumplimiento'])->name('consulta_cumplimiento');
+    Route::get('/cumplimiento/consultar/{id}/{tipo}',   [SeerController::class, 'consulta_cumplimiento_ratificacion'])->name('consulta_cumplimiento_ratificacion');
 
 
     //Solicitudes y casos de exepcion
