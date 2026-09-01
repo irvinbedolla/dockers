@@ -2250,15 +2250,33 @@
                             $('#horaSeleccionada').val(hora+':00');
                             $('#btnGuardarReagenda').prop('disabled', false);
 
-                            if (slotYMD < fechaMinNotificacionStr) {
-                                if (window.Swal && typeof Swal.fire === 'function') {
-                                    Swal.fire({
-                                        icon: 'warning',
-                                        title: 'Aviso de notificación',
-                                        html: 'La fecha seleccionada está <b>dentro de los ' + (diasHabilesNotificacion - 1) + ' días hábiles</b> requeridos para notificar.' +
-                                            '<br><br>Fecha mínima sugerida: <b>' + fechaMinNotificacionStr + '</b>.',
-                                    });
+                            function mostrarAvisoNotificacionSiAplica() {
+                                if (slotYMD < fechaMinNotificacionStr) {
+                                    if (window.Swal && typeof Swal.fire === 'function') {
+                                        Swal.fire({
+                                            icon: 'warning',
+                                            title: 'Aviso de notificación',
+                                            html: 'La fecha seleccionada está <b>dentro de los ' + (diasHabilesNotificacion - 1) + ' días hábiles</b> requeridos para notificar.' +
+                                                '<br><br>Fecha mínima sugerida: <b>' + fechaMinNotificacionStr + '</b>.',
+                                        });
+                                    }
                                 }
+                            }
+
+                            const slotFin = info.event.end ? new Date(info.event.end) : null;
+                            const duracionSlotMin = slotFin ? (slotFin.getTime() - slot.getTime()) / 60000 : null;
+                            const esHorarioCorto = duracionSlotMin !== null && duracionSlotMin <= 30;
+
+                            if (esHorarioCorto && window.Swal && typeof Swal.fire === 'function') {
+                                Swal.fire({
+                                    icon: 'warning',
+                                    title: '¡Aviso importante!',
+                                    html: 'El horario seleccionado tiene una duración máxima de <b>30 minutos</b>.' +
+                                        '<br><br>Se sugiere utilizar este espacio para audiencias de <b>rápido desahogo</b>.' +
+                                        '<br><br>¿Desea <b>continuar</b>?',
+                                }).then(mostrarAvisoNotificacionSiAplica);
+                            } else {
+                                mostrarAvisoNotificacionSiAplica();
                             }
                         } else {
                             Swal.fire({

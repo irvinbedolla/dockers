@@ -1617,6 +1617,20 @@
                             $('#fechaSeleccionada').val(fecha);
                             $('#horaSeleccionada').val(hora+':00');
                             $('#btnGuardarReagenda').prop('disabled', false);
+
+                            const slotFin = info.event.end ? new Date(info.event.end) : null;
+                            const duracionSlotMin = slotFin ? (slotFin.getTime() - slot.getTime()) / 60000 : null;
+                            const esHorarioCorto = duracionSlotMin !== null && duracionSlotMin <= 30;
+
+                            if (esHorarioCorto && window.Swal && typeof Swal.fire === 'function') {
+                                Swal.fire({
+                                    icon: 'warning',
+                                    title: '¡Aviso importante!',
+                                    html: 'El horario seleccionado tiene una duración máxima de <b>30 minutos</b>.' +
+                                        '<br><br>Se sugiere utilizar este espacio para audiencias de <b>rápido desahogo</b>.' +
+                                        '<br><br>¿Desea <b>continuar</b>?',
+                                });
+                            }
                         } else {
                             Swal.fire({
                                 icon: 'warning',
