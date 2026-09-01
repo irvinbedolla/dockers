@@ -443,6 +443,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/seer/index',                           [SeerController::class, 'index'])->name('seer');
     Route::get('/audienicas/cumplimietos/{id}',                         [SeerController::class, 'ver_pagos_audiencia'])->name('audiencia_cumplimientos');
     Route::get('/audiencias_Revisar/{id}/{isAudiencia?}',               [SeerController::class, 'solicitud_audiencia_revisar'])->name('solicitud_audiencia');
+    Route::post('/audiencias/pagoA',                                    [SeerController::class, 'pagoA_audiencia'])->name('pagoA_audiencia'); // cumplimiento en audiencias
+    Route::post('/guardar_edicion_audiencia',                           [SeerController::class, 'audiencia_confirmar'])->name('audiencia_confirmar');
     Route::get('/VerpdfPago/{id}',           [TurnosController::class, 'VerPDFPagos'])->name('PDFpagos');
     Route::get('/cumplimiento/consulta/{id}/{tipo}',    [SeerController::class, 'consulta_cumplimiento'])->name('consulta_cumplimiento');
     Route::get('/cumplimiento/consultar/{id}/{tipo}',   [SeerController::class, 'consulta_cumplimiento_ratificacion'])->name('consulta_cumplimiento_ratificacion');
