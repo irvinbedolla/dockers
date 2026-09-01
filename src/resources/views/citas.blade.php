@@ -208,16 +208,16 @@
                                 <div class="row g-3 mb-3">
                                     <div class="col-md-4">
                                         <label class="form-label fw-bold">Primer apellido <span class="text-danger">*</span></label>
-                                        <input type="text" name="primero_trabajador" class="form-control text-uppercase soloLetras" required>
+                                        <input type="text" name="primero_trabajador" class="form-control text-uppercase soloLetras" oninput="this.value = this.value.toUpperCase()" required>
                                         <div class="invalid-feedback">El primer apellido es obligatorio.</div>
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label fw-bold">Segundo apellido</label>
-                                        <input type="text" name="segundo_trabajador" id="segundo_apellido" class="form-control text-uppercase soloLetras">
+                                        <input type="text" name="segundo_trabajador" id="segundo_apellido" class="form-control text-uppercase soloLetras" oninput="this.value = this.value.toUpperCase()">
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label fw-bold">Nombre(s) <span class="text-danger">*</span></label>
-                                        <input type="text" name="trabajador" class="form-control text-uppercase soloLetras" required>
+                                        <input type="text" name="trabajador" class="form-control text-uppercase soloLetras" oninput="this.value = this.value.toUpperCase()" required>
                                         <div class="invalid-feedback">El nombre es obligatorio.</div>
                                     </div>
                                 </div>
@@ -247,7 +247,7 @@
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label fw-bold">CURP del trabajador <span class="text-danger">*</span></label>
-                                        <input type="text" name="trabajador_curp" id="trabajador_curp" class="form-control text-uppercase" maxlength="18" required>
+                                        <input type="text" name="trabajador_curp" id="trabajador_curp" class="form-control text-uppercase" maxlength="18" oninput="this.value = this.value.toUpperCase()" required>
                                         <div class="invalid-feedback">El CURP es obligatorio.</div>
                                     </div>
                                 </div>
@@ -276,7 +276,7 @@
                                         <label class="form-label fw-bold">Núm. de Identificación <span class="text-danger">*</span> 
                                             <i class="bi bi-question-circle-fill text-primary" data-bs-toggle="modal" data-bs-target="#helpModal" style="cursor: pointer;" title="¿Dónde ubicarlo?"></i>
                                         </label>
-                                        <input type="text" name="num_identificacion" maxlength="13" minlength="3" class="form-control text-uppercase" placeholder="De 3 a 13 caracteres" required>
+                                        <input type="text" name="num_identificacion" maxlength="13" minlength="3" class="form-control text-uppercase" placeholder="De 3 a 13 caracteres" oninput="this.value = this.value.toUpperCase()" required>
                                         <div class="invalid-feedback">Ingrese número válido.</div>
                                     </div>
                                     <div class="col-md-6">
@@ -393,7 +393,7 @@
                                     </div>
                                     <div class="col-md-3">
                                         <label class="form-label fw-bold">Categoría o Puesto <span class="text-danger">*</span></label>
-                                        <input type="text" name="categoria" class="form-control text-uppercase" required>
+                                        <input type="text" name="categoria" class="form-control text-uppercase" oninput="this.value = this.value.toUpperCase()" required>
                                         <div class="invalid-feedback">Categoría requerida.</div>
                                     </div>
                                     <div class="col-md-3">

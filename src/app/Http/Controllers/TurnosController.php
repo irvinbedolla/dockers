@@ -569,6 +569,11 @@ class TurnosController extends Controller
     public function store_publico(Request $request)
     {
         $data = $request->all();
+        foreach (['primero_trabajador', 'segundo_trabajador', 'trabajador', 'trabajador_curp', 'num_identificacion', 'categoria'] as $campoMayuscula) {
+            if (isset($data[$campoMayuscula]) && is_string($data[$campoMayuscula])) {
+                $data[$campoMayuscula] = mb_strtoupper($data[$campoMayuscula]);
+            }
+        }
         $año_actual = date('Y');
         $fecha_actual = date('Y-m-d');
         $hora_actual =  date("H:i:s");
