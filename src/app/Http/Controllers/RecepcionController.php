@@ -921,7 +921,7 @@ class RecepcionController extends Controller
                 $lleno = false;
                 if($bandera == '1'){
                     $ocupados_dia = Recepcion::where('fecha', $fecha)->where('tipo', $tipo)->where('delegacion', $sede)->count();
-                    if(($ocupados_dia >= 30 && $tipo === 'Solicitud') || ($ocupados_dia >= 15 && $tipo === 'Ratificación')){
+                    if(($ocupados_dia >= 30 && $tipo === 'Solicitud' && $sede ==='Morelia') || ($ocupados_dia >= 10 && $tipo === 'Solicitud') || ($ocupados_dia >= 15 && $tipo === 'Ratificación')){
                         $lleno= true;
                     }
                 }
