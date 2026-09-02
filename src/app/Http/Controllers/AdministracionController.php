@@ -332,6 +332,243 @@ class AdministracionController extends Controller{
                 ]);
         return redirect()->route('cambio_fecha_audiencia');
     }
+
+    private function prefijosDelegacionRatificacion(): array
+    {
+        return [
+            'MOR' => 'Morelia',
+            'URU' => 'Uruapan',
+            'ZAM' => 'Zamora',
+            'ZIT' => 'Zitácuaro',
+            'LZC' => 'Lázaro Cárdenas',
+            'SAH' => 'Sahuayo',
+        ];
+    }
+
+    public function cambio_cumplimiento(){
+        $delegacionesSol = $this->prefijosDelegacion();
+        $delegacionesRat = $this->prefijosDelegacionRatificacion();
+
+        return view('administracion.index_cumplimiento', compact('delegacionesSol', 'delegacionesRat'));
+    }
+
+    public function fecha_cumplimiento_buscar(Request $request)
+    {
+        $delegacionesSol = $this->prefijosDelegacion();
+        $delegacionesRat = $this->prefijosDelegacionRatificacion();
+
+        $request->validate([
+            'tipo'        => 'required|string|in:SOL,RAT',
+            'delegacion'  => 'required|string',
+            'anio'        => 'required|integer|min:' . (date('Y') - 5) . '|max:' . date('Y'),
+            'consecutivo' => 'required|integer|min:1',
+        ], [
+            'tipo.required'         => 'Debe seleccionar el tipo de expediente.',
+            'tipo.in'               => 'El tipo de expediente seleccionado no es válido.',
+            'delegacion.required'   => 'Debe seleccionar la delegación del NUE.',
+            'anio.required'         => 'Debe seleccionar el año del NUE.',
+            'anio.min'              => 'El año seleccionado está fuera del rango permitido.',
+            'anio.max'              => 'El año seleccionado está fuera del rango permitido.',
+            'consecutivo.required'  => 'El consecutivo es obligatorio.',
+            'consecutivo.integer'   => 'El consecutivo debe ser un número entero.',
+            'consecutivo.min'       => 'El consecutivo debe ser mayor a 0.',
+        ]);
+
+        $esRatificacion = $request->tipo === 'RAT';
+        $mapaPrefijos = $esRatificacion ? $delegacionesRat : $delegacionesSol;
+
+        if (!array_key_exists($request->delegacion, $mapaPrefijos)) {
+            return back()->withErrors('La delegación seleccionada no es válida para el tipo de expediente elegido.');
+        }
+
+        // El NUE se arma igual que en GeneraExpediente() de cada módulo: MOR/SOL/2026/00576 o MOR/RAT/2026/00576
+        $nue = $request->delegacion . '/' . $request->tipo . '/' . $request->anio . '/'
+             . str_pad($request->consecutivo, 5, '0', STR_PAD_LEFT);
+
+        if ($esRatificacion) {
+            $turno = Turnos::where('NUE', $nue)->first();
+
+            if (!$turno) {
+                return back()->withErrors("No se encontró ninguna ratificación con el NUE {$nue}.");
+            }
+
+            $idSolicitud = $turno->id;
+            $tipoPago = 'Ratificacion';
+            $delegacionExpediente = $turno->delegacion;
+            $interesado = trim($turno->trabajador . ' ' . $turno->primero_trabajador . ' ' . $turno->segundo_trabajador);
+        } else {
+            $solicitud = SeerPerGeneral::where('NUE', $nue)->first();
+
+            if (!$solicitud) {
+                return back()->withErrors("No se encontró ningún expediente con el NUE {$nue}.");
+            }
+
+            $idSolicitud = $solicitud->id;
+            $tipoPago = 'Audiencia';
+            $delegacionExpediente = $solicitud->delegacion;
+            $interesado = SeerSolicitante::where('id_solicitud', $solicitud->id)->pluck('nombre')->first() ?: 'N/A';
+        }
+
+        $cumplimientos = Pagos::where('id_solicitud', $idSolicitud)
+            ->where('tipo_pago', $tipoPago)
+            ->orderByDesc('fecha')
+            ->get()
+            ->map(function ($pago) use ($nue, $delegacionExpediente) {
+                return [
+                    'id'          => $pago->id,
+                    'NUE'         => $nue,
+                    'fecha'       => optional($pago->fecha)->format('Y-m-d'),
+                    'hora'        => optional($pago->hora)->format('H:i'),
+                    'descripcion' => $pago->descripcion,
+                    'tipo_pago'   => $pago->tipo_pago,
+                    'estatus'     => $pago->estatus,
+                    'monto'       => $pago->monto,
+                    'delegacion'  => $pago->delegacion ?: $delegacionExpediente,
+                ];
+            })
+            ->toArray();
+
+        if (count($cumplimientos) === 0) {
+            return back()->withErrors("No se encontraron cumplimientos para el expediente {$nue}.");
+        }
+
+        return back()
+            ->with('message', "Expediente localizado: {$nue}")
+            ->with('nue_buscado', $nue)
+            ->with('interesado_buscado', $interesado)
+            ->with('cumplimientos', $cumplimientos);
+    }
+
+    public function cambiar_fecha_cumplimiento(Request $request){
+        $data = $request->all();
+        $pagoOld = Pagos::where('id', $data["id_pago"])->first();
+
+        if ($pagoOld && $pagoOld->estatus === 'Pagado') {
+            return back()->withErrors('No se puede reagendar un cumplimiento que ya fue pagado.');
+        }
+
+        if ($pagoOld) {
+            $pagoOld->update([
+                'fecha' => $data["fecha"],
+                'hora'  => $data["hora"],
+            ]);
+        }
+        return redirect()->route('cambio_fecha_cumplimiento');
+    }
+
+    /**
+     * Calendario simplificado para reagendar un cumplimiento ya capturado:
+     * solo bloquea fines de semana y días inhábiles de la sede. No hay
+     * restricción de horario ni de cupo.
+     */
+    public function obtenerCumplimientosAdmin(Request $request)
+    {
+        $request->validate([
+            'sede' => 'required|string',
+        ]);
+
+        $fecha_inicio_str = $request->input('start', now()->format('Y-m-d'));
+        $fecha_fin_str = $request->input('end', now()->addDays(370)->format('Y-m-d'));
+
+        $fecha_inicio = (new \DateTime($fecha_inicio_str))->setTime(0, 0, 0);
+        $fecha_fin = (new \DateTime($fecha_fin_str))->setTime(23, 59, 59);
+
+        $sede = $request->input('sede');
+        $pago_id = (int) $request->input('pago');
+
+        // Calcular fecha mínima para reagendar: permitir desde el siguiente día natural
+        $fechaMinima = (new \DateTime())->setTime(0, 0, 0)->modify('+1 day');
+        $minDateStr = $fechaMinima->format('Y-m-d');
+
+        // Solo inhábiles generales de la sede (sin distinción por conciliador)
+        $inhabiles = DiasInhabiles::where('centro', $sede)
+            ->whereNull('user_id')
+            ->whereIn('descripcion', ['Inhabil', 'No inhabil'])
+            ->whereIn('tipo', ['Cumplimientos', 'Todos'])
+            ->where(function ($query) use ($fecha_inicio, $fecha_fin) {
+                $query->where('fecha_inicio', '<=', $fecha_fin)
+                    ->where('fecha_final', '>=', $fecha_inicio);
+            })
+            ->get();
+
+        $pago = Pagos::where('id', $pago_id)->first();
+        $pagoActualStart = null;
+        if ($pago && $pago->fecha && $pago->hora) {
+            $fechaPago = (new \DateTime($pago->fecha))->format('Y-m-d');
+            $horaPago = (new \DateTime($pago->hora))->format('H:i:s');
+            $pagoActualStart = $fechaPago . 'T' . $horaPago;
+        }
+
+        $ahora = new \DateTime();
+
+        $todosLosEventos = [];
+        $fecha = (new \DateTime($fecha_inicio_str))->setTime(0, 0, 0);
+        $fin_loop = (new \DateTime($fecha_fin_str))->setTime(0, 0, 0);
+
+        while ($fecha <= $fin_loop) {
+            if ($fecha->format('N') < 6) { // Saltar fines de semana
+                $inicioJornada = (clone $fecha)->setTime(9, 0, 0);
+                $finJornada = (clone $fecha)->setTime(16, 30, 0);
+
+                $slot = clone $inicioJornada;
+                while ($slot < $finJornada) {
+                    $slotStart = $slot->format('Y-m-d\TH:i:s');
+
+                    $esInhabil = false;
+                    $esNoInhabil = false;
+                    foreach ($inhabiles as $dia) {
+                        $fechaInhabilInicio = $dia->fecha_inicio . 'T' . $dia->horario_inicio;
+                        $fechaInhabilFinal = $dia->fecha_final . 'T' . $dia->horario_final;
+                        if ($slotStart >= $fechaInhabilInicio && $slotStart <= $fechaInhabilFinal) {
+                            if ($dia->descripcion === 'No inhabil') {
+                                $esNoInhabil = true;
+                            } else {
+                                $esInhabil = true;
+                            }
+                            break;
+                        }
+                    }
+
+                    if ($pagoActualStart && $slotStart === $pagoActualStart) {
+                        $estado = 'actual';
+                    } elseif ($slot->format('Y-m-d') < $minDateStr) {
+                        $estado = 'expirado';
+                    } elseif ($esInhabil) {
+                        $estado = 'inhabil';
+                    } elseif ($esNoInhabil) {
+                        $estado = 'expirado';
+                    } elseif ($ahora > $slot) {
+                        $estado = 'expirado';
+                    } else {
+                        $estado = 'disponible';
+                    }
+
+                    $colores = [
+                        'inhabil' => '#3B78DB', 'expirado' => '#969696',
+                        'disponible' => '#00CE1C', 'actual' => '#8163a8',
+                    ];
+                    $titulos = [
+                        'inhabil' => 'Inhábil', 'expirado' => 'No disponible',
+                        'disponible' => 'Disponible', 'actual' => 'Actual',
+                    ];
+
+                    $todosLosEventos[] = [
+                        'title' => $titulos[$estado],
+                        'start' => $slotStart,
+                        'color' => $colores[$estado],
+                        'extendedProps' => ['estado' => $estado],
+                    ];
+
+                    // Bloques de 30 minutos para elegir horario
+                    $slot->modify('+30 minutes');
+                }
+            }
+            $fecha->modify('+1 day');
+        }
+
+        return response()->json($todosLosEventos);
+    }
+
     public function obtenerAudienciasConciliador(Request $request)
     {
         $request->validate([
