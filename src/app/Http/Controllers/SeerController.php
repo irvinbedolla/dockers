@@ -424,14 +424,14 @@ class SeerController extends Controller
         return Storage::disk('s3')->response($rutaS3);
     }
 
-    public function index()
+    public function index(Request $request)
     {
         // 1. Carga del usuario con sus roles de una sola vez
         $user = auth()->user()->load('roles');
         $id = $user->id;
         $userRole = $user->roles->pluck('name')->first(); // Tomamos el primer rol principal
         $fecha_actual = now()->format('Y-m-d'); // Carbon es más limpio que date()
-        
+
         // Inicialización de variables
         $estadisticas = null;
         $personas = null;
@@ -447,11 +447,27 @@ class SeerController extends Controller
         // 3. Switch Case para manejo de Roles (más limpio que múltiples if/else)
         switch ($userRole) {
             case 'Notificador':
-                $estadisticas = SeerPerGeneral::join('seer_citados','seer_citados.id_solicitud','=','seer_general.id')
+                $queryEstadisticas = SeerPerGeneral::join('seer_citados','seer_citados.id_solicitud','=','seer_general.id')
                     ->join('seer_solicitante','seer_solicitante.id_solicitud','=','seer_general.id')
                     ->join('municipios', 'seer_citados.municipio_citado', '=', 'municipios.id')
                     ->where('seer_citados.id_notificador', $id)
-                    ->where('seer_citados.estatus', 'Pendiente')
+                    ->where('seer_citados.estatus', 'Pendiente');
+
+                // Búsqueda por coincidencia en expediente, solicitante, citado o dirección
+                if ($request->filled('buscar')) {
+                    $buscar = $request->input('buscar');
+                    $queryEstadisticas->where(function($q) use ($buscar) {
+                        $q->where('seer_general.NUE', 'LIKE', "%{$buscar}%")
+                            ->orWhere('seer_solicitante.nombre', 'LIKE', "%{$buscar}%")
+                            ->orWhereRaw("CONCAT_WS(' ', seer_citados.nombre, seer_citados.primer_apellido, seer_citados.segundo_apellido) LIKE ?", ["%{$buscar}%"])
+                            ->orWhere('seer_citados.colonia', 'LIKE', "%{$buscar}%")
+                            ->orWhere('seer_citados.calle', 'LIKE', "%{$buscar}%")
+                            ->orWhere('seer_citados.tipo_vialidad', 'LIKE', "%{$buscar}%")
+                            ->orWhere('municipios.nombre', 'LIKE', "%{$buscar}%");
+                    });
+                }
+
+                $estadisticas = $queryEstadisticas
                     ->select(
                         'seer_citados.id','seer_general.NUE','seer_solicitante.nombre as nombre_solicitado',
                         'seer_citados.nombre','seer_citados.primer_apellido','seer_citados.segundo_apellido',
