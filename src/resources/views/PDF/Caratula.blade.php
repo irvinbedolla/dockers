@@ -624,7 +624,7 @@
         <div class="trasera-header" style="margin-left: 30px; margin-right: 30px;">
             <span>DECÁLOGO DE DERECHOS Y OBLIGACIONES DE LOS USUARIOS QUE ACUDEN AL CENTRO DE CONCILIACIÓN LABORAL DEL ESTADO DE MICHOACÁN. </span>
             <p style="text-align: center;">Expediente:@if($bandera == 'Solicitud') {{ $solicitud->NUE ? $solicitud->NUE : '________________' }} @else {{ $ratificacion->NUE ? $ratificacion->NUE : '________________' }} @endif 
-                Morelia, Michoacán, 
+                {{$solicitud->delegacion}}, Michoacán, 
                 @if($bandera == 'Solicitud')
                     {{ $solicitud->fecha ? \Carbon\Carbon::parse($solicitud->fecha)->translatedFormat('d \d\e F \d\e\l Y') :  'a____________de____________del año_____________.'}}
                     
