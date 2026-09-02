@@ -908,6 +908,45 @@ class TurnosController extends Controller
 
         return redirect()->route('todas_ratificaciones');
     }
+    public function pagarTotalRatificacion(Request $request)
+    {
+        $data = $request->all();
+        $id = $data["id"];
+        $numeroCumplimiento = $data["numero_cumplimiento"] ?? 1;
+
+        // 1. Obtener el pago actual
+        $pagoActual = Pagos::find($id);
+
+        if (!$pagoActual) {
+            return redirect()->back()->with('error', 'Registro no encontrado.');
+        }
+
+        $idSolicitud = $pagoActual->id_solicitud;
+
+        // 2. Actualizar el pago actual seleccionado
+        Pagos::find($id)->update([
+            'estatus'          => "Pagado",
+            'observaciones'    => $data["observaciones"],
+            'fecha_conclucion' => \Carbon\Carbon::now()->format('Y-m-d')
+        ]);
+
+        // 3. Actualizar los pagos posteriores de la misma solicitud
+        Pagos::where('id_solicitud', $idSolicitud)
+            ->where('estatus', 'Pendiente')
+            ->update([
+                'estatus'          => "Pagado",
+                'observaciones'    => "Pagado en el cumplimiento #" . $numeroCumplimiento,
+                'monto'            => 0,
+                'fecha_conclucion' => \Carbon\Carbon::now()->format('Y-m-d')
+            ]);
+
+        // 4. Actualizar el estatus en la tabla Turnos a 'Concluida'
+        Turnos::find($idSolicitud)->update([
+            'estatus' => "Concluida"
+        ]);
+
+        return redirect()->back()->with('success', 'Pago total registrado correctamente.');
+    }
 
     public function obtenerHorario($fecha_revisar,$sede){
         $array_final = array();
@@ -3286,6 +3325,6 @@ class TurnosController extends Controller
        
         return back()->with('success', 'Solicitud Capturada Correctamente.'  ); 
     }
-
+    
 
 }
