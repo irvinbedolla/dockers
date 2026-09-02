@@ -424,14 +424,14 @@ class SeerController extends Controller
         return Storage::disk('s3')->response($rutaS3);
     }
 
-    public function index()
+    public function index(Request $request)
     {
         // 1. Carga del usuario con sus roles de una sola vez
         $user = auth()->user()->load('roles');
         $id = $user->id;
         $userRole = $user->roles->pluck('name')->first(); // Tomamos el primer rol principal
         $fecha_actual = now()->format('Y-m-d'); // Carbon es más limpio que date()
-        
+
         // Inicialización de variables
         $estadisticas = null;
         $personas = null;
@@ -447,11 +447,27 @@ class SeerController extends Controller
         // 3. Switch Case para manejo de Roles (más limpio que múltiples if/else)
         switch ($userRole) {
             case 'Notificador':
-                $estadisticas = SeerPerGeneral::join('seer_citados','seer_citados.id_solicitud','=','seer_general.id')
+                $queryEstadisticas = SeerPerGeneral::join('seer_citados','seer_citados.id_solicitud','=','seer_general.id')
                     ->join('seer_solicitante','seer_solicitante.id_solicitud','=','seer_general.id')
                     ->join('municipios', 'seer_citados.municipio_citado', '=', 'municipios.id')
                     ->where('seer_citados.id_notificador', $id)
-                    ->where('seer_citados.estatus', 'Pendiente')
+                    ->where('seer_citados.estatus', 'Pendiente');
+
+                // Búsqueda por coincidencia en expediente, solicitante, citado o dirección
+                if ($request->filled('buscar')) {
+                    $buscar = $request->input('buscar');
+                    $queryEstadisticas->where(function($q) use ($buscar) {
+                        $q->where('seer_general.NUE', 'LIKE', "%{$buscar}%")
+                            ->orWhere('seer_solicitante.nombre', 'LIKE', "%{$buscar}%")
+                            ->orWhereRaw("CONCAT_WS(' ', seer_citados.nombre, seer_citados.primer_apellido, seer_citados.segundo_apellido) LIKE ?", ["%{$buscar}%"])
+                            ->orWhere('seer_citados.colonia', 'LIKE', "%{$buscar}%")
+                            ->orWhere('seer_citados.calle', 'LIKE', "%{$buscar}%")
+                            ->orWhere('seer_citados.tipo_vialidad', 'LIKE', "%{$buscar}%")
+                            ->orWhere('municipios.nombre', 'LIKE', "%{$buscar}%");
+                    });
+                }
+
+                $estadisticas = $queryEstadisticas
                     ->select(
                         'seer_citados.id','seer_general.NUE','seer_solicitante.nombre as nombre_solicitado',
                         'seer_citados.nombre','seer_citados.primer_apellido','seer_citados.segundo_apellido',
@@ -12735,7 +12751,7 @@ class SeerController extends Controller
         return $pdf->stream($nombreArchivo);                  
     }
 
-    public function notificaciones_consultar(){
+    public function notificaciones_consultar(Request $request){
         $user = auth()->user();
         $userRoles = $user->roles->pluck('name')->toArray();
         $esRestringido = in_array('Enlace', $userRoles) || in_array('Estadistica', $userRoles);
@@ -12754,6 +12770,20 @@ class SeerController extends Controller
             )
             ->orderBy('seer_citados.created_at', 'desc') // Especificamos la tabla para evitar ambigüedad
             ->limit(3000);
+
+        // Búsqueda por coincidencia en expediente, citado o dirección
+        if ($request->filled('buscar')) {
+            $buscar = $request->input('buscar');
+            $query->where(function($q) use ($buscar) {
+                $q->where('seer_general.NUE', 'LIKE', "%{$buscar}%")
+                    ->orWhereRaw("CONCAT_WS(' ', seer_citados.nombre, seer_citados.primer_apellido, seer_citados.segundo_apellido) LIKE ?", ["%{$buscar}%"])
+                    ->orWhere('seer_citados.colonia', 'LIKE', "%{$buscar}%")
+                    ->orWhere('seer_citados.calle', 'LIKE', "%{$buscar}%")
+                    ->orWhere('seer_citados.tipo_vialidad', 'LIKE', "%{$buscar}%")
+                    ->orWhere('municipios.nombre', 'LIKE', "%{$buscar}%")
+                    ->orWhere('estados.nombre', 'LIKE', "%{$buscar}%");
+            });
+        }
 
         // 4. Aplicar filtro condicional de delegaciones si corresponde
         if ($esRestringido) {
@@ -15104,7 +15134,8 @@ class SeerController extends Controller
                         ->where(function ($w) use ($buscar) {
                             $w->where('nombre', 'LIKE', "%{$buscar}%")
                                 ->orWhere('primer_apellido', 'LIKE', "%{$buscar}%")
-                                ->orWhere('segundo_apellido', 'LIKE', "%{$buscar}%");
+                                ->orWhere('segundo_apellido', 'LIKE', "%{$buscar}%")
+                                ->orWhereRaw("CONCAT_WS(' ', nombre, primer_apellido, segundo_apellido) LIKE ?", ["%{$buscar}%"]);
                         });
                 });
             });
@@ -15375,7 +15406,8 @@ class SeerController extends Controller
                     ->where(function ($w) use ($buscar) {
                         $w->where('nombre', 'LIKE', "%{$buscar}%")
                             ->orWhere('primer_apellido', 'LIKE', "%{$buscar}%")
-                            ->orWhere('segundo_apellido', 'LIKE', "%{$buscar}%");
+                            ->orWhere('segundo_apellido', 'LIKE', "%{$buscar}%")
+                            ->orWhereRaw("CONCAT_WS(' ', nombre, primer_apellido, segundo_apellido) LIKE ?", ["%{$buscar}%"]);
                     });
                     });
             });
