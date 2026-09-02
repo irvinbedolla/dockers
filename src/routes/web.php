@@ -243,7 +243,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/administracion/cambiarFecha/buscar',  [AdministracionController::class, 'fecha_audiencia_buscar'])->name('fecha_audiencia_buscar');
         Route::post('/administracion/cambiarFecha/cambio',   [AdministracionController::class, 'cambiar_fecha'])->name('cambiar_fecha');
         Route::post('/administracion/cambiarFecha/cambioFecha',[AdministracionController::class, 'cambio_fecha'])->name('cambio_fecha');
-        
+        Route::get('/administracion/cambiarFechaCumplimiento',         [AdministracionController::class, 'cambio_cumplimiento'])->name('cambio_fecha_cumplimiento');
+        Route::post('/administracion/cambiarFechaCumplimiento/buscar', [AdministracionController::class, 'fecha_cumplimiento_buscar'])->name('fecha_cumplimiento_buscar');
+        Route::post('/administracion/cambiarFechaCumplimiento/cambio', [AdministracionController::class, 'cambiar_fecha_cumplimiento'])->name('cambiar_fecha_cumplimiento');
+
 
         //Direccion General
         Route::get('/DireccionGeneral/index',           [CitaDireccionController::class, 'index'])->name('indexDireccionGeneral');
