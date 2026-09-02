@@ -5,6 +5,7 @@
     <style>
         @page { 
             margin: 0px; 
+            size: A4 portrait;
         }
         body { 
             margin: 0px; 
@@ -37,9 +38,9 @@
             padding: 5px 12px;
             min-height: 14px;
             display: block;
-            font-weight: normal; 
+            font-weight: bold; 
             color: #333;
-            font-size: 14px;
+            font-size: 15px;
         }
 
         
