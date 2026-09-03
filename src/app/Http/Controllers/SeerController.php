@@ -8743,11 +8743,16 @@ class SeerController extends Controller
                 }
             }*/
             else {
-                $audienciaId = request()->query('audiencia_id');
-                $citados = SeerCitados::where('audiencia_id', $audienciaId)
-                        ->where('tipo_notificacion', '!=', 'Multa')
-                        ->where('aparece_convenio', 1)
-                        ->get();
+                if ($request->filled('audiencia_id')) {
+                    $audienciaId = request()->query('audiencia_id');
+                    $citados = SeerCitados::where('audiencia_id', $audienciaId)
+                            ->where('tipo_notificacion', '!=', 'Multa')
+                            ->where('aparece_convenio', 1)
+                            ->get();
+                }
+                else{
+                    $citados = SeerCitados::where('id_solicitud', $id)->where('tipo_notificacion', '!=', 'Multa')->where('aparece_convenio', 1)->get();
+                }
             }
         } else if ($solicitud->tipo_solicitud == 2) {
             $audienciaId = request()->query('audiencia_id');
