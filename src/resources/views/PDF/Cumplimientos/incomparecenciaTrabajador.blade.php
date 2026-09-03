@@ -14,6 +14,7 @@
         <style>
            @page {
                 margin: 0px 0px;
+                size: A4 portrait;
             }
             body{
                 padding-top: 85px;
@@ -92,11 +93,11 @@
                     Empresa/Patrón: {{ $solicitud->empresa }} {{ $solicitud->primero_empresa ?? ''}} {{ $solicitud->segundo_empresa ?? ''}}<br>
                 </b></p><br>  
                 <p>
-                    En la Ciudad de <b>{{ $solicitud->delegacion }}</b>, Michoacán, siendo las <b>{{\Carbon\Carbon::parse($solicitud->hora)->translatedFormat('h:i')}}</b> horas, del día 
+                    En la Ciudad de <b>{{ $solicitud->delegacion }}</b>, Michoacán, siendo las <b>{{\Carbon\Carbon::parse($solicitud->hora)->translatedFormat('H:i')}}</b> horas, del día 
                     <b>{{\Carbon\Carbon::parse($solicitud->fecha)->translatedFormat('d \d\e F \d\e\l Y')}}</b>, fecha y hora señalada para El 
                     Cumplimiento de Pago establecido en la Clausula 5° y 6° del Convenio de Conciliación celebrado en Audiencia 
                     <b>{{ \Carbon\Carbon::parse($solicitud->fecha_audiencia)->translatedFormat('d \d\e F \d\e\l Y') }}</b> a las
-                    <b>{{ \Carbon\Carbon::parse($solicitud->hora_audiencia)->translatedFormat('h:i') }}</b> horas, dentro del número único de registro citado al rubro; ante la fe pública de la persona Conciliadora de nombre <b>{{$conciliador->name}}</b>, 
+                    <b>{{ \Carbon\Carbon::parse($solicitud->hora_audiencia)->translatedFormat('H:i') }}</b> horas, dentro del número único de registro citado al rubro; ante la fe pública de la persona Conciliadora de nombre <b>{{$conciliador->name}}</b>, 
                     adscrita a la Delegación Regional <b>{{ $solicitud->delegacion }}</b> del Centro de Conciliación Laboral del Estado de Michoacán de Ocampo, en ejercicio de mis facultades 
                     establecidas en el artículo 684-E fracción XIII y XIV  párrafo cuarto de la Ley Federal del Trabajo y 20 fracción I, VI y XIII del Reglamento Interior del Centro de 
                     Conciliación Laboral del Estado de Michoacán de Ocampo, hago constar la siguiente:
@@ -111,7 +112,7 @@
                         {{ $representante['nombres_patronal'] ?? $representante['empresa_representante'] ?? '' }} {{ $representante['primer_apellido_patronal'] ?? ''}} {{ $representante['segundo_apellido_patronal'] ?? '' }} </b>
                     @endif
                     , a dar cumplimiento al Convenio celebrado entre las partes ante este Centro el día 
-                    <b>{{ \Carbon\Carbon::parse($solicitud->fecha_audiencia)->translatedFormat('d \d\e F \d\e\l Y') }}</b> a las <b>{{ \Carbon\Carbon::parse($solicitud->hora_audiencia)->translatedFormat('h:i') }}</b> hrs., 
+                    <b>{{ \Carbon\Carbon::parse($solicitud->fecha_audiencia)->translatedFormat('d \d\e F \d\e\l Y') }}</b> a las <b>{{ \Carbon\Carbon::parse($solicitud->hora_audiencia)->translatedFormat('H:i') }}</b> hrs., 
                     haciendo constar la inasistencia de la parte trabajadora, no obstante de encontrarse legal y debidamente notificada de la fecha y hora del cumplimiento de pago de convenio, 
                     sin que exista causa justificada, motivo por el cual se <b>EMITE CONSTANCIA DE INCOMPARECENCIA DE PAGO</b> dejando a salvo los derechos de la parte compareciente para hacerlos valer ante 
                     la autoridad competente, para los efectos legales y administrativos a los que haya lugar.- Archívese el presente asunto y Notifíquese.- 

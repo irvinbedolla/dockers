@@ -84,8 +84,7 @@
                                                 <td class="text-center">
                                                     @if($solicitud->estatus == "Confirmado")
                                                         <a class="btn btn-info btn-sm text-white" href="{{ route('ratificacion_concluir', $solicitud->id) }}">Concluir</a>
-                                                    @elseif($solicitud->estatus == "Concluida Pagos")
-                                                        <a class="btn btn-info btn-sm text-white" href="{{ route('ratificacion_pagar', $solicitud->id) }}">Pagar</a> 
+                                                    
                                                     @endif
                                                 </td>
                                                 <td class="text-center">

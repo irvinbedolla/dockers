@@ -161,11 +161,13 @@
                             <tbody>
                                 @foreach($pagos as $pago)
                                     <tr>
-                                        <td style="display: none;">{{$pago->id_solicitud}}</td>
-                                        <td>{{ \Carbon\Carbon::parse($pago->fecha)->translatedFormat('d/m/y') }}</td> 
-                                        <td>{{ \Carbon\Carbon::parse(str_replace(' HORAS', '', $pago->hora))->format('H:i') }} HORAS</td>
-                                        <td>${{ number_format($pago->monto, 2) }}</td>
-                                        <td><p>{{$pago->observaciones}}</p></td>
+                                        @if($pago->monto != 0)
+                                            <td style="display: none;">{{$pago->id_solicitud}}</td>
+                                            <td>{{ \Carbon\Carbon::parse($pago->fecha)->translatedFormat('d/m/y') }}</td> 
+                                            <td>{{ \Carbon\Carbon::parse(str_replace(' HORAS', '', $pago->hora))->format('H:i') }} HORAS</td>
+                                            <td>${{ number_format($pago->monto, 2) }}</td>
+                                            <td><p>{{$pago->observaciones}}</p></td>
+                                        @endif
                                     </tr>
                                 @endforeach
                             </tbody>
