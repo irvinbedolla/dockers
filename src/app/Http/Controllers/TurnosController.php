@@ -899,7 +899,7 @@ class TurnosController extends Controller
 
         $pagos = Pagos::find($data["id"]);
         $id_solicitud = $pagos["id_solicitud"];
-        $faltantes =  Pagos::where('id_solicitud',$id_solicitud)->where('estatus',"Pendiente")->get();
+        $faltantes =  Pagos::where('id_solicitud',$id_solicitud)->where('estatus',"Pendiente")->where('tipo_pago', 'Ratificacion')->get();
 
         if(count($faltantes) == 0){
             Turnos::find($id_solicitud)
@@ -922,17 +922,18 @@ class TurnosController extends Controller
         }
 
         $idSolicitud = $pagoActual->id_solicitud;
-
+        $total = Pagos::where('id_solicitud', $idSolicitud)->where('estatus', 'Pendiente')->where('tipo_pago', 'Ratificacion')->sum('monto');
         // 2. Actualizar el pago actual seleccionado
         Pagos::find($id)->update([
             'estatus'          => "Pagado",
             'observaciones'    => $data["observaciones"],
             'fecha_conclucion' => \Carbon\Carbon::now()->format('Y-m-d')
         ]);
+        $pagoActual->update(['monto' => $total]);
 
         // 3. Actualizar los pagos posteriores de la misma solicitud
         Pagos::where('id_solicitud', $idSolicitud)
-            ->where('estatus', 'Pendiente')
+            ->where('estatus', 'Pendiente')->where('tipo_pago', 'Ratificacion')
             ->update([
                 'estatus'          => "Pagado",
                 'observaciones'    => "Pagado en el cumplimiento #" . $numeroCumplimiento,
@@ -2570,8 +2571,9 @@ class TurnosController extends Controller
         ->select('pago_solicitud.id','pago_solicitud.id_solicitud','turnos.NUE','pago_solicitud.fecha','pago_solicitud.hora','pago_solicitud.monto','pago_solicitud.descripcion','pago_solicitud.estatus','pago_solicitud.forma_pago')
         ->get(); 
         $total = $solicitudes->count();
+        $estatus = Turnos::where('id', $id)->pluck('estatus')->first();
 
-        return view('/cumplimientos/pagar_ratificacion',compact('solicitudes','total'));
+        return view('/cumplimientos/pagar_ratificacion',compact('solicitudes','total', 'id', 'estatus'));
     }
 
     public function vista_previa_ratificacion($id) {
