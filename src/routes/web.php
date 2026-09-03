@@ -450,6 +450,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/cumplimiento/consultar/{id}/{tipo}',   [SeerController::class, 'consulta_cumplimiento_ratificacion'])->name('consulta_cumplimiento_ratificacion');
     Route::post('/solicitud/guardarExpediente',                         [SeerController::class, 'guardar_expediente'])->name('subir_expediente'); //Subir expediente 
             Route::post('/solicitud/guardarExpedienteR',                        [TurnosController::class, 'guardar_expediente'])->name('subir_expediente_ratificacion'); //Subir expediente ratificacion
+    Route::post('/cumplimientos/pagar-total',                        [SeerController::class, 'pagarTotalAudiencia'])->name('audiencia_pagar_total');
 
 
     //Solicitudes y casos de exepcion
@@ -601,6 +602,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('/ratificaciones/pago_eliminar_pago/{id_solicitud}',          [TurnosController::class, 'pago_eliminar_pago_ratificacion'])->name('pago_eliminar_pago_ratificacion');
         Route::post('/ratificaciones/terminar_ratificacion',            [TurnosController::class, 'terminar_ratificacion'])->name('terminar_ratificacion');
         Route::post('/ratificacion/pagar-total',                        [TurnosController::class, 'pagarTotalRatificacion'])->name('ratificacion_pagar_total');
+        Route::get('/cumplimiento/incomparecenciaRati/{id}', [SeerController::class, 'PDFIncomparecenciaCumplimientoRati'])->name('PDFIncomparecenciaCumplimientoRati');
         
     //Oficialia de Partes
         Route::get('/oficialia/index_oficialia',                                    [SeerController::class, 'index_oficialia'])->name('index_oficialia');
