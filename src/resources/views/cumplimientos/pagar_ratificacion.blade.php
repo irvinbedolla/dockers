@@ -42,7 +42,11 @@
                                                 <td class="text-center fw-bold">${{ number_format($pago->monto, 2) }}</td>
                                                 <td class="text-center">
                                                     @if($pago->estatus == 'Pagado')
-                                                        <span class="badge bg-success rounded-pill px-3 py-2">Pagado</span>
+                                                        @if($pago->monto != 0)
+                                                            <span class="badge bg-success rounded-pill px-3 py-2">Pagado</span>
+                                                        @else 
+                                                            <span class="badge bg-success bg-opacity-50 rounded-pill px-3 py-2">Adelantado</span>
+                                                        @endif
                                                     @elseif($pago->estatus == 'Pendiente')
                                                         <span class="badge bg-warning text-dark rounded-pill px-3 py-2">Pendiente</span>
                                                     @elseif($pago->estatus == 'No pagado' || $pago->estatus == 'Incomparecencia trabajador')
@@ -60,9 +64,9 @@
                                                             </button>
 
                                                             <!-- Pagar Total (Abre el mismo Modal) -->
-                                                            <button type="button" class="btn btn-success btn-sm text-white fw-semibold open-warning" data-bs-toggle="modal" data-bs-target="#warningModal" data-id="{{ $pago->id }}" data-numero="{{ $index + 1 }}" data-tipo="total">
+                                                            <!--button type="button" class="btn btn-success btn-sm text-white fw-semibold open-warning" data-bs-toggle="modal" data-bs-target="#warningModal" data-id="{{ $pago->id }}" data-numero="{{ $index + 1 }}" data-tipo="total">
                                                                 <i class="bi bi-cash-stack me-1"></i> Generar Cumplimiento Total
-                                                            </button>
+                                                            </button-->
 
                                                             <!-- Incumplimiento -->
                                                             <a class="btn btn-danger btn-sm" href="{{ route('cumplimiento_rechazar', $pago->id) }}" onclick="consultar_estadistica();">
@@ -108,9 +112,18 @@
                                         @endforeach
                                         
                                     </tbody>
-                                    @if($estatus === 'Concluida' && !$solicitudes->contains('estatus', 'Pendiente'))
-                                        <a class="btn btn-primary btn-sm" href="{{ route('PDFcumplimientoR', $id) }} " target="_blank">Constancia de cumplimiento</a>
-                                    @endif
+                                    
+                                    <!--tr>
+                                        <td class="text-center fw-bold">Monto Total</td>
+                                        <td></td>
+                                        <td></td>
+                                        <td class="text-center fw-bold">${{ number_format($monto_total, 2) }}</td>
+                                        <td></td>
+                                        <td></td>
+                                        <td>
+                                            
+                                        </td>
+                                    </tr-->
                                 </table>
                                 
                             </div>
@@ -155,7 +168,7 @@
                         <h5 class="modal-title fw-bold text-white mb-0" id="modalTitulo">Descripción de Cumplimiento</h5>
                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                     </div>
-                    <div class="modal-body p-4 text-center">
+                    <!--div class="modal-body p-4 text-center">
                         <button type="button" class="btn btn-outline-primary btn-sm" id="efectivo" data-valor="Téngase a la parte patronal por exhibiendo en este acto la cantidad de $**,***.** (** PESOS **/100 M.N.) en efectivo, correspondiente al cumplimiento (total/parcial) -según corresponda- del convenio celebrado entre las partes. Dicho cantidad es recibida a entera satisfacción por la persona trabajadora, C. (NOMBRE COMPLETO DE LA PERSONA TRABAJADORA), quien se identifica con credencial para votar, cuya fotografía coincide con los rasgos del compareciente y de la cual obra copia en el expediente en que se actúa. El trabajador firma al margen como constancia legal y recibo de estilo. Lo anterior para todos los efectos legales a que haya lugar. Doy fe.">
                         Pago en Efectivo</button>
                         <button type="button" class="btn btn-outline-primary btn-sm" id="cheque" data-valor="Téngase a la parte patronal por exhibiendo en este acto la cantidad de $**,***.** (*** PESOS **/100 M.N.), mediante CHEQUE (señalar si es de caja, no negociable, certificado, digital, etc.), de número 4627010, expedido con fecha 04 de octubre de 2025 por la Institución de Banca Múltiple HSBC México, S.A., Grupo Financiero HSBC (señalar el nombre completo de la institución bancaria que expide) , a la orden del (la) trabajador(a) C. (NOMBRE COMPLETO DE LA PERSONA TRABAJADORA) quien se identifica con credencial para votar, cuya fotografía coincide con los rasgos del compareciente y de la cual obra copia en el expediente. La cantidad referida corresponde al pago (total o de la primera, segunda, tercera, etc., parcialidad) del convenio celebrado entre las partes, y se entrega a entera satisfacción de la persona trabajadora, quien firma al margen como constancia legal y recibo de estilo, salvo el buen cobro del referido título de crédito. Lo anterior para todos los efectos legales a que haya lugar. Doy fe.">
@@ -169,12 +182,12 @@ Dicha cantidad corresponde al cumplimiento (total o parcial, según corresponda)
                         <button type="button" class="btn btn-outline-primary btn-sm" id="otro" data-valor="">
                         Otro Metodo</button>
 
-                        <!--<button type="button" class="btn btn-outline-primary btn-sm" id="pena" data-valor="Por lo que ve a la pena de convencional establecida en el convenio, a consecuencia de efectuar el pago fuera del plazo señalado en el convenio, la parte trabajadora manifiesta BAJO PROTESTA DE DECIR VERDAD, que se da por pagada de la misma en este acto, por así convenir a sus intereses y bajo  su más estricta responsabilidad, toda vez que fue explicada por esta autoridad los alcances y consecuencias, lo anterior para todos los efectos legales que hubiere lugar. Doy fe.">
+                        <button type="button" class="btn btn-outline-primary btn-sm" id="pena" data-valor="Por lo que ve a la pena de convencional establecida en el convenio, a consecuencia de efectuar el pago fuera del plazo señalado en el convenio, la parte trabajadora manifiesta BAJO PROTESTA DE DECIR VERDAD, que se da por pagada de la misma en este acto, por así convenir a sus intereses y bajo  su más estricta responsabilidad, toda vez que fue explicada por esta autoridad los alcances y consecuencias, lo anterior para todos los efectos legales que hubiere lugar. Doy fe.">
                         Pena Convencional</button>
                         <button type="button" class="btn btn-outline-primary btn-sm" id="reinstalacion" data-valor="Asimismo, se anexa Constancia de Presentación de Movimientos Afiliatorios de la empresa, con número de folio *******************, con la cual se acredita que la trabajadora fue dada de alta en el Instituto Mexicano del Seguro Social. ">
-                        Pago con reinstalación</button> -->
+                        Pago con reinstalación</button> 
       
-                </div>
+                </div-->
                     <div class="modal-body p-2">
                         <div class="form-group mb-0">
                                 <label class="form-label fw-semibold">Observaciones / Descripción</label>
