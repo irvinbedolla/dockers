@@ -161,6 +161,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/inicio',                               [InicioController::class, 'index'])->name('inicio');
     // Panel Común de entrada
     Route::get('/agenda',                               [DashboardController::class, 'index'])->name('agenda');
+    // Descarga la agenda del rango visible del calendario, una hoja por
+    // conciliador. El alcance lo acota AgendaContexto dentro del controlador.
+    Route::get('/agenda/exportar',                      [DashboardController::class, 'exportar'])->name('agenda.exportar');
     // URI en ASCII: la ruta sí viaja por la red y con eñe llega como
     // /cambio_contrase%C3%B1a/index. Eso pasa por CloudFront y por el WAF, donde
     // las secuencias percent-encoded son justo lo que miran las reglas de evasión.

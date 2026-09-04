@@ -9,6 +9,9 @@
         const urlConciliadores  = "{{ route('conciliador.eventos') }}";
         const urlAudiencias     = "{{ route('audiencias.eventos') }}";
         const urlRatificaciones = "{{ route('ratificaciones.eventos') }}";
+        // Descarga de la agenda; no es una fuente de eventos, pero comparte
+        // los mismos filtros de la barra.
+        const urlAgendaExportar = "{{ route('agenda.exportar') }}";
         // El conciliador entra directo a "Todos", en vista de mes.
         const calArranqueTodos  = {{ ($userRole[0] ?? '') === 'Conciliador' ? 'true' : 'false' }};
         

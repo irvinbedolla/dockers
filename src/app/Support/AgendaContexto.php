@@ -67,6 +67,24 @@ class AgendaContexto
         ];
     }
 
+    /**
+     * ¿Este usuario sólo puede ver y descargar su propia agenda?
+     *
+     * Es la misma regla que AudienciasController@audiencias aplica sobre el
+     * calendario: al Conciliador se le fija `audiencias.id_conciliador` a su
+     * propio id, y a todos los demás roles se les acota por sede, no por
+     * persona. Vive aquí para que la pantalla y la descarga no se separen.
+     *
+     * Deliberadamente NO restringe por id a Delegado ni Enlace: sus sedes ya
+     * acotan lo que ven, y filtrar además por la lista de conciliadores de su
+     * delegación escondería las audiencias celebradas en su sede por alguien
+     * adscrito a otra.
+     */
+    public static function soloSuAgenda(User $usuario): bool
+    {
+        return $usuario->roles->pluck('name')->first() === 'Conciliador';
+    }
+
     private static function conciliadores(?string $delegacion = null, ?int $id = null)
     {
         return User::whereHas('roles', fn ($q) => $q->where('name', 'Conciliador'))
