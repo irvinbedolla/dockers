@@ -446,7 +446,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/cumplimiento/consulta/{id}/{tipo}',                    [SeerController::class, 'consulta_cumplimiento'])->name('consulta_cumplimiento');
     Route::get('/cumplimiento/consultar/{id}/{tipo}',                   [SeerController::class, 'consulta_cumplimiento_ratificacion'])->name('consulta_cumplimiento_ratificacion');
     Route::post('/solicitud/guardarExpediente',                         [SeerController::class, 'guardar_expediente'])->name('subir_expediente'); //Subir expediente 
-    oute::post('/solicitud/guardarExpedienteR',                        [TurnosController::class, 'guardar_expediente'])->name('subir_expediente_ratificacion'); //Subir expediente ratificacion
+    Route::post('/solicitud/guardarExpedienteR',                        [TurnosController::class, 'guardar_expediente'])->name('subir_expediente_ratificacion'); //Subir expediente ratificacion
     Route::post('/cumplimientos/pagar-total',                        [SeerController::class, 'pagarTotalAudiencia'])->name('audiencia_pagar_total');
 
 
