@@ -14,6 +14,7 @@
         <style>
            @page {
                 margin: 0px 0px;
+                size: A4 portrait;
             }
             body{
                 padding-top: 85px;
@@ -137,13 +138,27 @@
                     </p>
                     <table style="width: 100%; margin-top: 50px;">
                         <tr>
-                            <td style="width: 100%; vertical-align: top; padding: 0 5px; text-align: center;">
-                                <div style="border-top: 2px solid #000; width: 50%; margin: 0 auto 5px auto;"></div>
-                                <b>
-                                    {{ mb_strtoupper($delegado ? $delegado->name : 'N/A', 'UTF-8') }}<br>
-                                    {!! nl2br(e($nombramiento_delegado)) !!}
-                                </b>
+                            <td colspan="2" style="text-align:center; vertical-align:top; padding:0 10px;">
+                                <table style="width:60%; margin: 0 auto; border-collapse: collapse;">
+                                    <tr>
+                                        <td style="text-align:center; vertical-align:top; padding:0;">
+                                            <b>Doy fe</b><br><br><br><br>
+                                            <div style="border-top: 2px solid #000; width:80%; margin: 0 auto 5px auto;"></div>
+                                            <b>{{ mb_strtoupper($conciliador->name, 'UTF-8') }}<br>
+                                                    FUNCIONARIO/A CONCILIADOR/A<br>
+                                                    DEL CENTRO DE CONCILIACIÓN LABORAL
+                                                    DEL ESTADO DE MICHOACÁN DE OCAMPO
+                                            </b>
+                                        </td>
+                                    </tr>
+                                </table>
                             </td>
+                            <!--td style="width:60%; vertical-align:top; padding:0 10px;"><b>Vo. Bo.</b><br><br><br><br>
+                                <div style="border-top: 2px solid #000; width:80%; margin: 0 auto 5px auto;"></div>
+                                <b>{{ mb_strtoupper($delegado->name, 'UTF-8') }}<br>
+                                {{ $nombramiento_delegado }}                         
+                                </b>
+                            </td-->
                         </tr>
                     </table> <br>
                     <p style="font-size: 10px;">
