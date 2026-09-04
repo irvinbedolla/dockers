@@ -294,7 +294,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         //Audiencias
             Route::get('/audiencias/index',                                     [SeerController::class, 'audiencia_index'])->name('audiencia_index');
-            Route::get('/citatorio/{id}',                                       [SeerController::class, 'pdfCitatorioAudiencia'])->name('pdfCitatorioAudiencia');
             Route::get('/solicitud/indexA',                                     [SeerController::class, 'indexA'])->name('audiencias.conciliador'); 
             Route::post('/reagendar_audiencia',                                 [SeerController::class, 'reagendar_audiencia'])->name('reagendar_audiencia');
             Route::post('/reagendar_audiencia_parte3',                          [SeerController::class, 'reagendar_audiencia_parte3'])->name('reagendar_audiencia_parte3');          
@@ -561,6 +560,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/VerpdfmultaInst/{id}/{id_solicitud}',              [SeerController::class, 'VerPDFMultaInstructivo'])->name('VerPDFMultaInstructivo'); // Notificación de multa por
         Route::get('/VerpdfmultaNConst/{id}/{id_solicitud}',            [SeerController::class, 'VerPDFMultaNoExitConstituye'])->name('VerPDFMultaNoExitConstituye'); // Notificación de multa NO Exitosa Se Constituye
         Route::get('/VerpdfNExitConst/{id}/{id_solicitud}',             [SeerController::class, 'VerPDFNoExitConstituye'])->name('VerPDFNoExitConstituye'); // Notificación NO Exitosa Se Constituye
+        Route::get('/ObtenerCitatorios/{id}',           [SeerController::class, 'mostrar_citatorios']);
+        Route::get('/ObtenerConstancias/{id}',         [SeerController::class, 'mostrar_noConciliacion']); //Constancias de no conciliación para visualizar en un modal
+        Route::get('/citatorio/{id}',                                       [SeerController::class, 'pdfCitatorioAudiencia'])->name('pdfCitatorioAudiencia');
     
 
     //Plantillas
