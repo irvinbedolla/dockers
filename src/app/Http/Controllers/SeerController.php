@@ -8704,11 +8704,16 @@ class SeerController extends Controller
                 }
             }*/
             else {
-                $audienciaId = request()->query('audiencia_id');
-                $citados = SeerCitados::where('audiencia_id', $audienciaId)
-                        ->where('tipo_notificacion', '!=', 'Multa')
-                        ->where('aparece_convenio', 1)
-                        ->get();
+                if ($request->filled('audiencia_id')) {
+                    $audienciaId = request()->query('audiencia_id');
+                    $citados = SeerCitados::where('audiencia_id', $audienciaId)
+                            ->where('tipo_notificacion', '!=', 'Multa')
+                            ->where('aparece_convenio', 1)
+                            ->get();
+                }
+                else{
+                    $citados = SeerCitados::where('id_solicitud', $id)->where('tipo_notificacion', '!=', 'Multa')->where('aparece_convenio', 1)->get();
+                }
             }
         } else if ($solicitud->tipo_solicitud == 2) {
             $audienciaId = request()->query('audiencia_id');
@@ -15869,19 +15874,14 @@ class SeerController extends Controller
             $cumplimientos = Pagos::where('NUE', $pago->NUE)
                 ->select('id', 'id_solicitud', 'NUE', 'fecha', 'hora', 'monto', 'descripcion', 'estatus', 'forma_pago')
                 ->get();
-        } else {
-            if ($tipo == 'Ratificacion') {
-                $cumplimientos = Pagos::join('turnos','turnos.id',"=",'pago_solicitud.id_solicitud')
-                ->where('pago_solicitud.id_solicitud',$idSolicitud)
-                ->select('pago_solicitud.id','pago_solicitud.id_solicitud','turnos.NUE','pago_solicitud.fecha','pago_solicitud.hora','pago_solicitud.monto','pago_solicitud.descripcion','pago_solicitud.estatus','pago_solicitud.forma_pago')
-                ->get();
-
-            } else {
-                $cumplimientos = Pagos::join('seer_general','seer_general.id',"=",'pago_solicitud.id_solicitud')
-                ->where('pago_solicitud.id_solicitud',$idSolicitud)
-                ->select('pago_solicitud.id','pago_solicitud.id_solicitud','seer_general.NUE','pago_solicitud.fecha','pago_solicitud.hora','pago_solicitud.monto','pago_solicitud.descripcion','pago_solicitud.estatus','pago_solicitud.forma_pago')
-                ->get();
-            }
+        }
+        else {
+            $cumplimientos = Pagos::join('seer_general','seer_general.id',"=",'pago_solicitud.id_solicitud')
+            ->where('pago_solicitud.id_solicitud',$idSolicitud)
+            ->where('pago_solicitud.tipo_pago', 'Audiencia')
+            ->select('pago_solicitud.id','pago_solicitud.id_solicitud','seer_general.NUE','pago_solicitud.fecha','pago_solicitud.hora','pago_solicitud.monto','pago_solicitud.descripcion','pago_solicitud.estatus','pago_solicitud.forma_pago')
+            ->get();
+            
         }
 
         return view('/cumplimientos/pagar_audiencia',compact('cumplimientos'));
@@ -16406,7 +16406,7 @@ class SeerController extends Controller
 
         $pagos = Pagos::find($data["id"]);
         $id_solicitud = $pagos["id_solicitud"];
-        $faltantes =  Pagos::where('id_solicitud',$id_solicitud)->where('estatus',"Pendiente")->get();
+        $faltantes =  Pagos::where('id_solicitud',$id_solicitud)->where('estatus',"Pendiente")->where('tipo_pago', 'Audiencia')->get();
 
         if(count($faltantes) == 0){
             SeerPerGeneral::find($id_solicitud)
@@ -16414,6 +16414,47 @@ class SeerController extends Controller
         }
 
         return redirect()->route('audiencias.cumplimiento'); 
+    }
+    public function pagarTotalAudiencia(Request $request)
+    {
+        $data = $request->all();
+        $id = $data["id"];
+        $numeroCumplimiento = $data["numero_cumplimiento"] ?? 1;
+
+      
+        // 1. Obtener el pago actual
+        $pagoActual = Pagos::find($id);
+
+        if (!$pagoActual) {
+            return redirect()->back()->with('error', 'Registro no encontrado.');
+        }
+
+        $idSolicitud = $pagoActual->id_solicitud;
+        $total = Pagos::where('id_solicitud', $idSolicitud)->where('estatus', 'Pendiente')->where('tipo_pago', 'Audiencia')->sum('monto');
+        // 2. Actualizar el pago actual seleccionado
+        Pagos::find($id)->update([
+            'estatus'          => "Pagado",
+            'observaciones'    => $data["observaciones"],
+            'fecha_conclucion' => \Carbon\Carbon::now()->format('Y-m-d')
+        ]);
+        $pagoActual->update(['monto' => $total]);
+
+        // 3. Actualizar los pagos posteriores de la misma solicitud
+        Pagos::where('id_solicitud', $idSolicitud)
+            ->where('estatus', 'Pendiente')->where('tipo_pago', 'Audiencia')
+            ->update([
+                'estatus'          => "Pagado",
+                'observaciones'    => "Pagado en el cumplimiento #" . $numeroCumplimiento,
+                'monto'            => 0,
+                'fecha_conclucion' => \Carbon\Carbon::now()->format('Y-m-d')
+            ]);
+
+        // 4. Actualizar el estatus en la tabla Turnos a 'Concluida'
+        SeerPerGeneral::find($idSolicitud)->update([
+            'estatus' => "Concluida"
+        ]);
+
+        return redirect()->back()->with('success', 'Pago total registrado correctamente.');
     }
 
     // Eliminar/Quitar representante legal asiganado al de iniciar la audiencia

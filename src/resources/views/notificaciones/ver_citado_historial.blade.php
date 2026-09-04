@@ -79,7 +79,7 @@
                                     
                                     <div class="col-xs-12 col-sm-12 col-md-4">
                                         <div class="form-group">
-                                            <label for="name">CURP <span style="color:red;">(*)</span></label>
+                                            <label for="name">CURP</label>
                                             <input type="text" name="curp" maxlength="18" id="curp_input" class="form-control" value="<?=$folio["curp"];?>"  oninput="validarInput(this)"> 
                                             <pre id="resultado"></pre>
                                             <div class="invalid-feedback">
