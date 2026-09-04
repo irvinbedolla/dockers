@@ -562,6 +562,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/VerpdfNExitConst/{id}/{id_solicitud}',             [SeerController::class, 'VerPDFNoExitConstituye'])->name('VerPDFNoExitConstituye'); // Notificación NO Exitosa Se Constituye
         Route::get('/ObtenerCitatorios/{id}',           [SeerController::class, 'mostrar_citatorios']);
         Route::get('/ObtenerConstancias/{id}',         [SeerController::class, 'mostrar_noConciliacion']); //Constancias de no conciliación para visualizar en un modal
+        Route::get('/citatorio/{id}',                                       [SeerController::class, 'pdfCitatorioAudiencia'])->name('pdfCitatorioAudiencia');
     
 
     //Plantillas
