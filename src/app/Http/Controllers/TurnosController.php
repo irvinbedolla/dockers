@@ -2572,8 +2572,9 @@ class TurnosController extends Controller
         ->get(); 
         $total = $solicitudes->count();
         $estatus = Turnos::where('id', $id)->pluck('estatus')->first();
+        $monto_total = Pagos::where('id_solicitud', $id)->where('tipo_pago', 'Ratificacion')->sum('monto');
 
-        return view('/cumplimientos/pagar_ratificacion',compact('solicitudes','total', 'id', 'estatus'));
+        return view('/cumplimientos/pagar_ratificacion',compact('solicitudes','total', 'id', 'estatus', 'monto_total'));
     }
 
     public function vista_previa_ratificacion($id) {
