@@ -45,7 +45,7 @@
                                                         @if($pago->monto != 0)
                                                             <span class="badge bg-success rounded-pill px-3 py-2">Pagado</span>
                                                         @else 
-                                                            <span class="badge rounded-pill px-3 py-2" style="background-color: #95b89d; color: white;"> Pago Adelantado</span>
+                                                            <span class="badge rounded-pill px-3 py-2" style="background-color: #95b89d; color: white;"> Pago Anticipado</span>
                                                         @endif
                                                     @elseif($pago->estatus == 'Pendiente')
                                                         <span class="badge bg-warning text-dark rounded-pill px-3 py-2">Pendiente</span>
@@ -140,19 +140,32 @@
     <div class="modal fade" id="warningModal" tabindex="-1" aria-labelledby="warningModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 shadow-lg text-center">
-                <div class="modal-header " style="background-color: #354647; border-color: #354647; color: #ffffff !important;">
-                    <h5 class="modal-title fw-bold center-text" id="warningModalLabel">
-                        <i class="bi bi-exclamation-triangle-fill me-2"></i> ¡Advertencia!
+                <div class="modal-header border-0 position-relative py-3" style="background-color: #354647; color: #ffffff;">
+                    <h5 class="modal-title fw-bold w-100" id="warningModalLabel">
+                       
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i> ¡ADVERTENCIA!
                     </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    <button type="button" class="btn-close btn-close-white position-absolute end-0 me-3" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                 </div>
                 <div class="modal-body p-4">
-                    <p class="mb-0 fs-5">¿Estás seguro de que deseas continuar con el pago del cumplimiento total?</p>
-                    <small class="text-muted" style="font-size: 14px; font-weight: bold;">Esta acción generará todos los cumplimientos que esten pendientes.</small>
+                    <h4 class="fw-bold mb-3" style="color: #354647;">Confirmación de pago anticipado</h4>
+                    
+                    <p class=" mb-4" style="font-size: 1rem; line-height: 1.5; font-weight: bold;">
+                        Esta acción generará el cumplimiento total del convenio, registrando como "Parcialidad anticipada" al resto de los pagos parciales pendientes.
+                    </p>
+                    
+                    <div class="mt-4">
+                        <p class="text-muted fw-bold mb-1" style="font-size: 0.9rem;">
+                            Por favor, verifica la información antes de proceder.
+                        </p>
+                        <p class="text-muted fw-bold mb-0" style="font-size: 0.9rem;">
+                            ¿Estás seguro de generar esta acción?
+                        </p>
+                    </div>
                 </div>
-                <div class="modal-footer bg-light border-0" >
-                    <button type="button" class="btn btn-secondary px-4 btn-sm" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-warning px-4 fw-bold btn-sm " style="background-color: #CEA845; border-color: #CEA845; color: #ffffff !important;" id="btnContinuarModal">Continuar</button>
+                <div class="modal-footer bg-light border-0 justify-content-center gap-2 py-3">
+                    <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn px-4 fw-bold" style="background-color: #CEA845; color: #ffffff;" id="btnContinuarModal">Continuar</button>
                 </div>
             </div>
         </div>
@@ -281,10 +294,10 @@ Dicha cantidad corresponde al cumplimiento (total o parcial, según corresponda)
                 
                 if (datosTemporales.tipo === 'total') {
                     form.action = "{{ route('ratificacion_pagar_total') }}";
-                    titulo.innerText = "Descripción para Pagar Total";
+                    titulo.innerText = "Descripción de la forma de pago";
                 } else {
                     form.action = "{{ route('ratificacion_pagoA') }}";
-                    titulo.innerText = "Descripción de Cumplimiento";
+                    titulo.innerText = "Descripción de la forma de pago";
                 }
                 setTimeout(function() {
                     $('#exampleModal').modal('show');
