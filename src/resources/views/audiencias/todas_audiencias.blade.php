@@ -31,211 +31,239 @@
             <div class="row">
                 <div class="col-lg-12">
                     <div class="card">
-                        <div class="card-body">
-                            <div class="row mb-3">
-                                <div class="col-md-5">
-                                    <form action="{{ url()->current() }}" method="GET">
-                                        <div class="input-group">
-                                            <input type="text" name="buscar" class="form-control" placeholder="Escribe el NUE, nombre del solicitante o del citado..." value="{{ request('buscar') }}">
-                                            <button class="btn btn-primary" type="submit" style="background-color: #354647; border-color: #354647;">
-                                                <i class="fas fa-search"></i> Buscar
-                                            </button>
-                                            @if(request('buscar'))
-                                                <a href="{{ url()->current() }}" class="btn btn-secondary">Limpiar Filtro</a>
-                                            @endif
-                                        </div>
-                                    </form>
+                        @can('audiencias_consultar')
+                            <div class="card-body">
+                                <div class="row mb-3">
+                                    <div class="col-md-5">
+                                        <form action="{{ url()->current() }}" method="GET">
+                                            <div class="input-group">
+                                                <input type="text" name="buscar" class="form-control" placeholder="Escribe el NUE, nombre del solicitante o del citado..." value="{{ request('buscar') }}">
+                                                <button class="btn btn-primary" type="submit" style="background-color: #354647; border-color: #354647;">
+                                                    <i class="fas fa-search"></i> Buscar
+                                                </button>
+                                                @if(request('buscar'))
+                                                    <a href="{{ url()->current() }}" class="btn btn-secondary">Limpiar Filtro</a>
+                                                @endif
+                                            </div>
+                                        </form>
+                                    </div>
                                 </div>
-                            </div>
-                                <div class="table-responsive menu-visible">
-                                    <table id="example" class="table table-striped mt-1">
-                                        <thead style="background-color: #354647;">
-                                            <th style="color: #fff;">Núm. expediente</th>
-                                            <th style="color: #fff;">Fecha y Hora</th>
-                                            <th style="color: #fff;">Solicitante</th>
-                                            <th style="color: #fff;">Conciliador</th>
-                                            <th style="color: #fff;">Estatus</th>
-                                            <th style="color: #fff;">Detalles</th>
-                                            <th style="color: #fff;">Acciones</th>
-                                            <th style="color: #fff;">Cumplimientos</th>
-                                            <th class="text-center text-white" style="width: 15%; color: #ffffff !important;">Documentos</th>
-                                        </thead>
-                                        <tbody>
-                                            @foreach($audiencias as $audiencia)
-                                            <tr>
-                                                <td>{{$audiencia->NUE}}</td>
-                                                <td>{{ \Carbon\Carbon::parse($audiencia->fecha)->format('d-m-y') }} {{ \Carbon\Carbon::parse($audiencia->hora)->format('H:i') }} hrs.</td>
-                                                <td>{{$audiencia->nombre}}</td>
-                                                <td>{{$audiencia->conciliador_nombre}}</td>
-                                                <td>{{$audiencia->estatus_modelo}}</td>
-                                                <td><a class="btn btn-info btn-sm" href="{{ route('solicitud_audiencia', $audiencia->id_solicitud) }}?isAudiencia=Si&audiencia_id={{ $audiencia->id }}" onclick=editar_usuario();><i class="bi bi-eye-fill"></i> Revisar</a></td>
-                                                <td>
-                                                    @if($audiencia->estatus_modelo == "Pendiente")
-                                                        <a class="btn btn-success btn-sm" href="{{ route('inicioAudiencia', $audiencia->id_solicitud) }}?audiencia_id={{ $audiencia->id }}"><i class="bi bi-play-fill"></i> Iniciar</a><br>
-                                                    @endif
-                                                </td>
-                                                <td>
-                                                    @if($audiencia->estatus_modelo == "Conciliacion" || $audiencia->estatus_modelo == "Reinstalacion" || $audiencia->estatus_modelo == "Concluida Pagos")
-                                                        <a class="btn btn-primary" href="{{ route('audiencia_cumplimientos', $audiencia->id_solicitud) }}"><i class="bi bi-receipt"></i> Cumplimiento</a>
-                                                    @endif
-                                                </td>
-                                                <td>
-                                                    <div class="d-flex justify-content-center gap-2">
-                                                        <button type="button" class="btn btn-warning open-expediente-modal btn-sm" data-bs-toggle="modal" data-bs-target="#expediente" data-id="{{ $audiencia->id_solicitud }}"> <i class="bi bi-cloud-upload"></i> Subir Documento</button>
-                                                        
-                                                        @if($audiencia->estatus_modelo == "Archivada en Audiencia")
-                                                            <div class="dropdown">
-                                                                <div class="dropdown">
-                                                                    <button class="btn btn-secondary dropdown-toggle btn-sm" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
-                                                                        <i class="bi bi-file-earmark-text-fill"></i> Documentos
-                                                                    </button>
-                                                                    <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
-                                                                        <li><button type="button" class="btn btn-info btn-cargar-lista-docs" style="width: 100%" data-id="{{ $audiencia->id_solicitud }}" data-doc-url="{{ signedDocRoute('VerDocumentosAudiencia', ['id' => $audiencia->id_solicitud]) }}">Documentos Digitales</button></li>
-                                                                        <li><a class="btn btn-info" style="width: 100%" href="{{ route('PDFfalltaInteres', $audiencia->id_solicitud) }}"        target="_blank">Acta de Archivo</a></li>
-                                                                        <li><a class="btn btn-info" style="width: 100%" href="{{ route('VerPDFAudiencia', $audiencia->id_solicitud) . '?audiencia_id=' . $audiencia->id }}"  target="_blank">Acta de Audiencia</a></li>
-                                                                        <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $audiencia->id_solicitud }}">Citatorios</button></li>
-                                                                    </ul>
-                                                                </div>
-                                                            </div>
-                                                        @elseif($audiencia->estatus_modelo == "Archivada")
-                                                            <div class="dropdown">
-                                                                <div class="dropdown">
-                                                                    <button class="btn btn-secondary dropdown-toggle btn-sm" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
-                                                                        <i class="bi bi-file-earmark-text-fill"></i> Documentos
-                                                                    </button>
-                                                                    <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
-                                                                        <li><button type="button" class="btn btn-info btn-cargar-lista-docs" style="width: 100%" data-id="{{ $audiencia->id_solicitud }}" data-doc-url="{{ signedDocRoute('VerDocumentosAudiencia', ['id' => $audiencia->id_solicitud]) }}">Documentos Digitales</button></li>
-                                                                        <li><a class="btn btn-info" style="width: 100%" href="{{ route('PDFfalltaInteres', $audiencia->id_solicitud) }}"        target="_blank">Acta de Archivo</a></li>
-                                                                        <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $audiencia->id_solicitud }}">Citatorios</button></li>
-                                                                    </ul>
-                                                                </div>
-                                                            </div>
-                                                        @elseif($audiencia->estatus_modelo == "Incompetencia")
-                                                            <div class="dropdown">
-                                                                <div class="dropdown">
-                                                                    <button class="btn btn-secondary dropdown-toggle btn-sm" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
-                                                                        <i class="bi bi-file-earmark-text-fill"></i> Documentos
-                                                                    </button>
-                                                                    <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
-                                                                        <li><button type="button" class="btn btn-info btn-cargar-lista-docs" style="width: 100%" data-id="{{ $audiencia->id_solicitud }}" data-doc-url="{{ signedDocRoute('VerDocumentosAudiencia', ['id' => $audiencia->id_solicitud]) }}">Documentos Digitales</button></li>
-                                                                        <li><a class="btn btn-info" style="width: 100%" href="{{ route('PDFincompetencia', $audiencia->id_solicitud) }}"        target="_blank">Incompetencia</a></li>
-                                                                        <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $audiencia->id_solicitud }}">Citatorios</button></li>
-                                                                    </ul>
-                                                                </div>
-                                                            </div>
-                                                        @elseif($audiencia->estatus_modelo == "Comparecencia")
-                                                            <div class="dropdown">
-                                                                <div class="dropdown">
-                                                                    <button class="btn btn-secondary dropdown-toggle btn-sm" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
-                                                                        <i class="bi bi-file-earmark-text-fill"></i> Documentos
-                                                                    </button>
-                                                                    <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
-                                                                        <li><button type="button" class="btn btn-info btn-cargar-lista-docs" style="width: 100%" data-id="{{ $audiencia->id_solicitud }}" data-doc-url="{{ signedDocRoute('VerDocumentosAudiencia', ['id' => $audiencia->id_solicitud]) }}">Documentos Digitales</button></li>
-                                                                        <li><a class="btn btn-info" style="width: 100%" href="{{ route('PDFinteres', $audiencia->id_solicitud) }}"              target="_blank">Acta de incomparecencia</a></li>
-                                                                        <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $audiencia->id_solicitud }}">Citatorios</button></li>
-                                                                    </ul>
-                                                                </div>
-                                                            </div>
-                                                        @elseif($audiencia->estatus_modelo == "Reagendada" || $audiencia->estatus_modelo == "No conciliacion reagendada")
-                                                            <div class="dropdown">
-                                                                <div class="dropdown">
-                                                                    <button class="btn btn-secondary dropdown-toggle btn-sm" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
-                                                                        <i class="bi bi-file-earmark-text-fill"></i> Documentos
-                                                                    </button>
-                                                                    <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
-                                                                        <li><button type="button" class="btn btn-info btn-cargar-lista-docs" style="width: 100%" data-id="{{ $audiencia->id_solicitud }}" data-doc-url="{{ signedDocRoute('VerDocumentosAudiencia', ['id' => $audiencia->id_solicitud]) }}">Documentos Digitales</button></li>
-                                                                        <li><a class="btn btn-info" style="width: 100%" href="{{ route('PDFnotificacion_solicitante', $audiencia->id_solicitud) }}" target="_blank">Notificación al solicitante</a></li>
-                                                                        <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $audiencia->id_solicitud }}">Citatorios</button></li>
-                                                                    </ul>
-                                                                </div>
-                                                            </div>                                                        
-                                                        @elseif($audiencia->estatus_modelo == "No conciliacion")
-                                                            <div class="dropdown">
-                                                                <div class="dropdown">
-                                                                    <button class="btn btn-secondary dropdown-toggle btn-sm" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
-                                                                        <i class="bi bi-file-earmark-text-fill"></i> Documentos
-                                                                    </button>
-                                                                    <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
-                                                                        <li><button type="button" class="btn btn-info btn-cargar-lista-docs" style="width: 100%" data-id="{{ $audiencia->id_solicitud }}" data-doc-url="{{ signedDocRoute('VerDocumentosAudiencia', ['id' => $audiencia->id_solicitud]) }}">Documentos Digitales</button></li>
-                                                                        <li><a class="btn btn-info" style="width: 100%" href="{{ route('PDFno_conciliacion', $audiencia->id_solicitud) }}" target="_blank">Constancias de no conciliación (En un solo archivo)</a></li>
-                                                                        <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#noConciliacion" data-id="{{ $audiencia->id_solicitud }}">Constancias de no conciliación</button></li>
-                                                                        <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $audiencia->id_solicitud }}">Citatorios</button></li>
-                                                                    </ul>
-                                                                </div>
-                                                            </div> 
-                                                        @elseif($audiencia->estatus_modelo == "Incumplimiento")
-                                                            <div class="dropdown">
-                                                                <div class="dropdown">
-                                                                    <button class="btn btn-secondary dropdown-toggle btn-sm" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
-                                                                        <i class="bi bi-file-earmark-text-fill"></i> Documentos
-                                                                    </button>
-                                                                    <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
-                                                                        <li><button type="button" class="btn btn-info btn-cargar-lista-docs" style="width: 100%" data-id="{{ $audiencia->id_solicitud }}" data-doc-url="{{ signedDocRoute('VerDocumentosAudiencia', ['id' => $audiencia->id_solicitud]) }}">Documentos Digitales</button></li>
-                                                                        <li><a class="btn btn-info" style="width: 100%" href="{{ route('PDFincumplimientoAudiencia', $audiencia->id_solicitud) }}"      target="_blank">Constancia de Incumplimiento</a></li>
-                                                                        <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $audiencia->id_solicitud }}">Citatorios</button></li>
-                                                                    </ul>
-                                                                </div>
-                                                            </div> 
-                                                        @elseif($audiencia->estatus_modelo == "Conciliacion" || $audiencia->estatus_modelo == "Concluida" || $audiencia->estatus_modelo == "Reinstalacion")
-                                                            <div class="dropdown">
-                                                                <div class="dropdown">
-                                                                    <button class="btn btn-secondary dropdown-toggle btn-sm" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
-                                                                        <i class="bi bi-file-earmark-text-fill"></i> Documentos
-                                                                    </button>
-                                                                    <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
-                                                                        <li><button type="button" class="dropdown-item btn-cargar-lista-docs" data-id="{{ $audiencia->id_solicitud }}" data-doc-url="{{ signedDocRoute('VerDocumentosAudiencia', ['id' => $audiencia->id_solicitud]) }}">Documentos Digitales</button></li>
-                                                                        <li><a class="dropdown-item" href="{{ route('VerPDFAudiencia', $audiencia->id_solicitud) . '?audiencia_id=' . $audiencia->id }}"  target="_blank">Acta de Audiencia</a></li>
-                                                                        <li>
-                                                                            <a class="dropdown-item"
-                                                                            href="{{ ($audiencia->tienePTU ? route('PDFconvenioPTU_SI_S', $audiencia->id_solicitud) : ($audiencia->estatus_modelo == 'Reinstalacion' ? route('PDFconvenioreinstalacion', $audiencia->id_solicitud) : route('PDFconveniosolicitud', $audiencia->id_solicitud))) . '?audiencia_id=' . $audiencia->id }}" 
-                                                                            target="_blank">
-                                                                                Convenio
-                                                                            </a>
-                                                                        </li>
-                                                                        @if($audiencia->constancia == 0)
-                                                                            <li><a class="dropdown-item" href="{{ route('PDFcumplimientoTotal', $audiencia->id_solicitud) }}"  target="_blank">Constancia de cumplimiento</a></li>
-                                                                        @endif
-                                                                        <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $audiencia->id_solicitud }}">Citatorios</button></li>
-                                                                    </ul>
-                                                                </div>
-                                                            </div> 
-                                                        @elseif($audiencia->estatus_modelo == "Confirmado" || $audiencia->estatus_modelo == "Pendiente")
-                                                            <div class="dropdown">
-                                                                <div class="dropdown">
-                                                                    <button class="btn btn-secondary dropdown-toggle btn-sm" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
-                                                                        <i class="bi bi-file-earmark-text-fill"></i> Documentos
-                                                                    </button>
-                                                                    <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
-                                                                        <li><button type="button" class="dropdown-item btn-cargar-lista-docs" data-id="{{ $audiencia->id_solicitud }}" data-doc-url="{{ signedDocRoute('VerDocumentosAudiencia', ['id' => $audiencia->id_solicitud]) }}">Documentos Digitales</button></li>
-                                                                        <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $audiencia->id_solicitud }}">Citatorios</button></li>
-                                                                    </ul>
-                                                                </div>
-                                                            </div>
-                                                        @elseif($audiencia->estatus_modelo == "Desistimiento") 
-                                                            <div class="dropdown">
-                                                                <div class="dropdown">
-                                                                    <button class="btn btn-secondary dropdown-toggle btn-sm" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
-                                                                        <i class="bi bi-file-earmark-text-fill"></i> Documentos
-                                                                    </button>
-                                                                    <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
-                                                                        <li><button type="button" class="dropdown-item btn-cargar-lista-docs" data-id="{{ $audiencia->id_solicitud }}" data-doc-url="{{ signedDocRoute('VerDocumentosAudiencia', ['id' => $audiencia->id_solicitud]) }}">Documentos Digitales</button></li>
-                                                                        <li><a class="btn btn-info" style="width: 100%" href="{{ route('PDFfalltaInteres', $audiencia->id_solicitud) }}"        target="_blank">Acta de Desistimiento</a></li>
-                                                                        <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $audiencia->id_solicitud }}">Citatorios</button></li>
-                                                                    </ul>
-                                                                </div>
-                                                            </div>
-                                                        @endif 
-                                                    </div>
-                                                </td>
+                                    <div class="table-responsive menu-visible">
+                                        <table id="example" class="table table-striped mt-1">
+                                            <thead style="background-color: #354647;">
+                                                <th style="color: #fff;">Núm. expediente</th>
+                                                <th style="color: #fff;">Fecha y Hora</th>
+                                                <th style="color: #fff;">Solicitante</th>
+                                                <th style="color: #fff;">Conciliador</th>
+                                                <th style="color: #fff;">Estatus</th>
+                                                <th style="color: #fff;">Detalles</th>
+                                                <th style="color: #fff;">Acciones</th>
+                                                <th style="color: #fff;">Cumplimientos</th>
+                                                <th class="text-center text-white" style="width: 15%; color: #ffffff !important;">Documentos</th>
+                                            </thead>
+                                            <tbody>
+                                                @foreach($audiencias as $audiencia)
+                                                <tr>
+                                                    <td>{{$audiencia->NUE}}</td>
+                                                    <td>{{ \Carbon\Carbon::parse($audiencia->fecha)->format('d-m-y') }} {{ \Carbon\Carbon::parse($audiencia->hora)->format('H:i') }} hrs.</td>
+                                                    <td>{{$audiencia->nombre}}</td>
+                                                    <td>{{$audiencia->conciliador_nombre}}</td>
+                                                    <td>{{$audiencia->estatus_modelo}}</td>
+                                                    <td>
+                                                        @can('audiencias_revisar')
+                                                            <a class="btn btn-info btn-sm" href="{{ route('solicitud_audiencia', $audiencia->id_solicitud) }}?isAudiencia=Si&audiencia_id={{ $audiencia->id }}" onclick=editar_usuario();><i class="bi bi-eye-fill"></i> Revisar</a>
+                                                        @endcan
+                                                    </td>
+                                                    <td>
+                                                        @if($audiencia->estatus_modelo == "Pendiente")
+                                                            <a class="btn btn-success btn-sm" href="{{ route('inicioAudiencia', $audiencia->id_solicitud) }}?audiencia_id={{ $audiencia->id }}"><i class="bi bi-play-fill"></i> Iniciar</a><br>
+                                                        @endif
+                                                    </td>
+                                                    <td>
+                                                        @if($audiencia->estatus_modelo == "Conciliacion" || $audiencia->estatus_modelo == "Reinstalacion" || $audiencia->estatus_modelo == "Concluida Pagos")
+                                                            <a class="btn btn-primary" href="{{ route('audiencia_cumplimientos', $audiencia->id_solicitud) }}"><i class="bi bi-receipt"></i> Cumplimiento</a>
+                                                        @endif
+                                                    </td>
+                                                    <td>
+                                                        <div class="d-flex justify-content-center gap-2">
+                                                            @can('audiencias_subir_documentos')
+                                                                <button type="button" class="btn btn-warning open-expediente-modal btn-sm" data-bs-toggle="modal" data-bs-target="#expediente" data-id="{{ $audiencia->id_solicitud }}"> <i class="bi bi-cloud-upload"></i> Subir Documento</button>
+                                                            @endcan
+                                                            
+                                                            @can('audiencias_ver_documento_digital')
+                                                                @if($audiencia->estatus_modelo == "Archivada en Audiencia")
+                                                                    <div class="dropdown">
+                                                                        <div class="dropdown">
+                                                                            <button class="btn btn-secondary dropdown-toggle btn-sm" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
+                                                                                <i class="bi bi-file-earmark-text-fill"></i> Documentos
+                                                                            </button>
+                                                                            <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
+                                                                                <li><button type="button" class="btn btn-info btn-cargar-lista-docs" style="width: 100%" data-id="{{ $audiencia->id_solicitud }}" data-doc-url="{{ signedDocRoute('VerDocumentosAudiencia', ['id' => $audiencia->id_solicitud]) }}">Documentos Digitales</button></li>
+                                                                                <li><a class="btn btn-info" style="width: 100%" href="{{ route('PDFfalltaInteres', $audiencia->id_solicitud) }}"        target="_blank">Acta de Archivo</a></li>
+                                                                                <li><a class="btn btn-info" style="width: 100%" href="{{ route('VerPDFAudiencia', $audiencia->id_solicitud) . '?audiencia_id=' . $audiencia->id }}"  target="_blank">Acta de Audiencia</a></li>
+                                                                                @can('audiencias_ver_citatorios')
+                                                                                    <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $audiencia->id_solicitud }}">Citatorios</button></li>
+                                                                                @endcan
+                                                                            </ul>
+                                                                        </div>
+                                                                    </div>
+                                                                @elseif($audiencia->estatus_modelo == "Archivada")
+                                                                    <div class="dropdown">
+                                                                        <div class="dropdown">
+                                                                            <button class="btn btn-secondary dropdown-toggle btn-sm" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
+                                                                                <i class="bi bi-file-earmark-text-fill"></i> Documentos
+                                                                            </button>
+                                                                            <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
+                                                                                <li><button type="button" class="btn btn-info btn-cargar-lista-docs" style="width: 100%" data-id="{{ $audiencia->id_solicitud }}" data-doc-url="{{ signedDocRoute('VerDocumentosAudiencia', ['id' => $audiencia->id_solicitud]) }}">Documentos Digitales</button></li>
+                                                                                <li><a class="btn btn-info" style="width: 100%" href="{{ route('PDFfalltaInteres', $audiencia->id_solicitud) }}"        target="_blank">Acta de Archivo</a></li>
+                                                                                @can('audiencias_ver_citatorios')
+                                                                                    <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $audiencia->id_solicitud }}">Citatorios</button></li>
+                                                                                @endcan
+                                                                            </ul>
+                                                                        </div>
+                                                                    </div>
+                                                                @elseif($audiencia->estatus_modelo == "Incompetencia")
+                                                                    <div class="dropdown">
+                                                                        <div class="dropdown">
+                                                                            <button class="btn btn-secondary dropdown-toggle btn-sm" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
+                                                                                <i class="bi bi-file-earmark-text-fill"></i> Documentos
+                                                                            </button>
+                                                                            <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
+                                                                                <li><button type="button" class="btn btn-info btn-cargar-lista-docs" style="width: 100%" data-id="{{ $audiencia->id_solicitud }}" data-doc-url="{{ signedDocRoute('VerDocumentosAudiencia', ['id' => $audiencia->id_solicitud]) }}">Documentos Digitales</button></li>
+                                                                                <li><a class="btn btn-info" style="width: 100%" href="{{ route('PDFincompetencia', $audiencia->id_solicitud) }}"        target="_blank">Incompetencia</a></li>
+                                                                                @can('audiencias_ver_citatorios')
+                                                                                    <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $audiencia->id_solicitud }}">Citatorios</button></li>
+                                                                                @endcan
+                                                                            </ul>
+                                                                        </div>
+                                                                    </div>
+                                                                @elseif($audiencia->estatus_modelo == "Comparecencia")
+                                                                    <div class="dropdown">
+                                                                        <div class="dropdown">
+                                                                            <button class="btn btn-secondary dropdown-toggle btn-sm" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
+                                                                                <i class="bi bi-file-earmark-text-fill"></i> Documentos
+                                                                            </button>
+                                                                            <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
+                                                                                <li><button type="button" class="btn btn-info btn-cargar-lista-docs" style="width: 100%" data-id="{{ $audiencia->id_solicitud }}" data-doc-url="{{ signedDocRoute('VerDocumentosAudiencia', ['id' => $audiencia->id_solicitud]) }}">Documentos Digitales</button></li>
+                                                                                <li><a class="btn btn-info" style="width: 100%" href="{{ route('PDFinteres', $audiencia->id_solicitud) }}"              target="_blank">Acta de incomparecencia</a></li>
+                                                                                @can('audiencias_ver_citatorios')
+                                                                                    <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $audiencia->id_solicitud }}">Citatorios</button></li>
+                                                                                @endcan
+                                                                            </ul>
+                                                                        </div>
+                                                                    </div>
+                                                                @elseif($audiencia->estatus_modelo == "Reagendada" || $audiencia->estatus_modelo == "No conciliacion reagendada")
+                                                                    <div class="dropdown">
+                                                                        <div class="dropdown">
+                                                                            <button class="btn btn-secondary dropdown-toggle btn-sm" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
+                                                                                <i class="bi bi-file-earmark-text-fill"></i> Documentos
+                                                                            </button>
+                                                                            <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
+                                                                                <li><button type="button" class="btn btn-info btn-cargar-lista-docs" style="width: 100%" data-id="{{ $audiencia->id_solicitud }}" data-doc-url="{{ signedDocRoute('VerDocumentosAudiencia', ['id' => $audiencia->id_solicitud]) }}">Documentos Digitales</button></li>
+                                                                                <li><a class="btn btn-info" style="width: 100%" href="{{ route('PDFnotificacion_solicitante', $audiencia->id_solicitud) }}" target="_blank">Notificación al solicitante</a></li>
+                                                                                @can('audiencias_ver_citatorios')
+                                                                                    <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $audiencia->id_solicitud }}">Citatorios</button></li>
+                                                                                @endcan
+                                                                            </ul>
+                                                                        </div>
+                                                                    </div>                                                        
+                                                                @elseif($audiencia->estatus_modelo == "No conciliacion")
+                                                                    <div class="dropdown">
+                                                                        <div class="dropdown">
+                                                                            <button class="btn btn-secondary dropdown-toggle btn-sm" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
+                                                                                <i class="bi bi-file-earmark-text-fill"></i> Documentos
+                                                                            </button>
+                                                                            <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
+                                                                                <li><button type="button" class="btn btn-info btn-cargar-lista-docs" style="width: 100%" data-id="{{ $audiencia->id_solicitud }}" data-doc-url="{{ signedDocRoute('VerDocumentosAudiencia', ['id' => $audiencia->id_solicitud]) }}">Documentos Digitales</button></li>
+                                                                                <li><a class="btn btn-info" style="width: 100%" href="{{ route('PDFno_conciliacion', $audiencia->id_solicitud) }}" target="_blank">Constancias de no conciliación (En un solo archivo)</a></li>
+                                                                                <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#noConciliacion" data-id="{{ $audiencia->id_solicitud }}">Constancias de no conciliación</button></li>
+                                                                                @can('audiencias_ver_citatorios')
+                                                                                    <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $audiencia->id_solicitud }}">Citatorios</button></li>
+                                                                                @endcan
+                                                                            </ul>
+                                                                        </div>
+                                                                    </div> 
+                                                                @elseif($audiencia->estatus_modelo == "Incumplimiento")
+                                                                    <div class="dropdown">
+                                                                        <div class="dropdown">
+                                                                            <button class="btn btn-secondary dropdown-toggle btn-sm" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
+                                                                                <i class="bi bi-file-earmark-text-fill"></i> Documentos
+                                                                            </button>
+                                                                            <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
+                                                                                <li><button type="button" class="btn btn-info btn-cargar-lista-docs" style="width: 100%" data-id="{{ $audiencia->id_solicitud }}" data-doc-url="{{ signedDocRoute('VerDocumentosAudiencia', ['id' => $audiencia->id_solicitud]) }}">Documentos Digitales</button></li>
+                                                                                <li><a class="btn btn-info" style="width: 100%" href="{{ route('PDFincumplimientoAudiencia', $audiencia->id_solicitud) }}"      target="_blank">Constancia de Incumplimiento</a></li>
+                                                                                @can('audiencias_ver_citatorios')
+                                                                                    <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $audiencia->id_solicitud }}">Citatorios</button></li>
+                                                                                @endcan
+                                                                    </div> 
+                                                                @elseif($audiencia->estatus_modelo == "Conciliacion" || $audiencia->estatus_modelo == "Concluida" || $audiencia->estatus_modelo == "Reinstalacion")
+                                                                    <div class="dropdown">
+                                                                        <div class="dropdown">
+                                                                            <button class="btn btn-secondary dropdown-toggle btn-sm" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
+                                                                                <i class="bi bi-file-earmark-text-fill"></i> Documentos
+                                                                            </button>
+                                                                            <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
+                                                                                <li><button type="button" class="dropdown-item btn-cargar-lista-docs" data-id="{{ $audiencia->id_solicitud }}" data-doc-url="{{ signedDocRoute('VerDocumentosAudiencia', ['id' => $audiencia->id_solicitud]) }}">Documentos Digitales</button></li>
+                                                                                <li><a class="dropdown-item" href="{{ route('VerPDFAudiencia', $audiencia->id_solicitud) . '?audiencia_id=' . $audiencia->id }}"  target="_blank">Acta de Audiencia</a></li>
+                                                                                <li>
+                                                                                    <a class="dropdown-item"
+                                                                                    href="{{ ($audiencia->tienePTU ? route('PDFconvenioPTU_SI_S', $audiencia->id_solicitud) : ($audiencia->estatus_modelo == 'Reinstalacion' ? route('PDFconvenioreinstalacion', $audiencia->id_solicitud) : route('PDFconveniosolicitud', $audiencia->id_solicitud))) . '?audiencia_id=' . $audiencia->id }}" 
+                                                                                    target="_blank">
+                                                                                        Convenio
+                                                                                    </a>
+                                                                                </li>
+                                                                                @if($audiencia->constancia == 0)
+                                                                                    <li><a class="dropdown-item" href="{{ route('PDFcumplimientoTotal', $audiencia->id_solicitud) }}"  target="_blank">Constancia de cumplimiento</a></li>
+                                                                                @endif
+                                                                                @can('audiencias_ver_citatorios')
+                                                                                    <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $audiencia->id_solicitud }}">Citatorios</button></li>
+                                                                                @endcan
+                                                                            </ul>
+                                                                        </div>
+                                                                    </div> 
+                                                                @elseif($audiencia->estatus_modelo == "Confirmado" || $audiencia->estatus_modelo == "Pendiente")
+                                                                    <div class="dropdown">
+                                                                        <div class="dropdown">
+                                                                            <button class="btn btn-secondary dropdown-toggle btn-sm" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
+                                                                                <i class="bi bi-file-earmark-text-fill"></i> Documentos
+                                                                            </button>
+                                                                            <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
+                                                                                <li><button type="button" class="dropdown-item btn-cargar-lista-docs" data-id="{{ $audiencia->id_solicitud }}" data-doc-url="{{ signedDocRoute('VerDocumentosAudiencia', ['id' => $audiencia->id_solicitud]) }}">Documentos Digitales</button></li>
+                                                                                @can('audiencias_ver_citatorios')
+                                                                                    <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $audiencia->id_solicitud }}">Citatorios</button></li>
+                                                                                @endcan
+                                                                            </ul>
+                                                                        </div>
+                                                                    </div>
+                                                                @elseif($audiencia->estatus_modelo == "Desistimiento") 
+                                                                    <div class="dropdown">
+                                                                        <div class="dropdown">
+                                                                            <button class="btn btn-secondary dropdown-toggle btn-sm" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
+                                                                                <i class="bi bi-file-earmark-text-fill"></i> Documentos
+                                                                            </button>
+                                                                            <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
+                                                                                <li><button type="button" class="dropdown-item btn-cargar-lista-docs" data-id="{{ $audiencia->id_solicitud }}" data-doc-url="{{ signedDocRoute('VerDocumentosAudiencia', ['id' => $audiencia->id_solicitud]) }}">Documentos Digitales</button></li>
+                                                                                <li><a class="btn btn-info" style="width: 100%" href="{{ route('PDFfalltaInteres', $audiencia->id_solicitud) }}"        target="_blank">Acta de Desistimiento</a></li>
+                                                                                @can('audiencias_ver_citatorios')
+                                                                                    <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $audiencia->id_solicitud }}">Citatorios</button></li>
+                                                                                @endcan
+                                                                            </ul>
+                                                                        </div>
+                                                                    </div>
+                                                                @endif 
+                                                            @endcan
+                                                        </div>
+                                                    </td>
 
-                                            </tr>
-                                        @endforeach
-                                        </tbody>
-                                    </table>
-                                </div>
-                            <!-- Centramos la paginación a la derecha-->
-                            <div class="pagination justify-content-end"></div>
-                        </div>
+                                                </tr>
+                                            @endforeach
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                <!-- Centramos la paginación a la derecha-->
+                                <div class="pagination justify-content-end"></div>
+                            </div>
+                        @endcan
                     </div>
                 </div>
             </div>

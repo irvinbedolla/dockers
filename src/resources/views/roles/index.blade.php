@@ -5,7 +5,7 @@
     <section class="section">
         <div class="section-header d-flex justify-content-between align-items-center mb-4">
             <h3 class="page__heading mb-0">Gestión de Roles</h3>
-            @can('crear-rol')
+            @can('roles_crear')
                 <a class="btn btn-warning shadow-sm" href="{{ route('roles.create') }}" onclick="crear_rol();" style="background-color: #CEA845; border-color: #CEA845; color: #fff;">
                     <i class="bi bi-plus-lg me-1"></i> Nuevo Rol
                 </a>
@@ -31,12 +31,12 @@
                                                 <td class="fw-bold">{{ $role->name }}</td>
                                                 <td>
                                                     <div class="d-flex justify-content-center gap-2">
-                                                        @can('editar-rol')
+                                                        @can('roles_editar')
                                                             <a class="btn btn-info btn-sm text-white" href="{{ route('roles.edit', $role->id) }}" onclick="editar_rol();">
                                                                 <i class="bi bi-pencil-square me-1"></i> Editar
                                                             </a>
                                                         @endcan
-                                                        @can('borrar-rol')
+                                                        @can('roles_eliminar')
                                                             <form method="POST" action="{{ route('roles.destroy', $role->id) }}" class="d-inline mb-0">
                                                                 @csrf
                                                                 <input type="hidden" name="_method" value="DELETE">

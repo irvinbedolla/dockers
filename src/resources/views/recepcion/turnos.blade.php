@@ -5,9 +5,11 @@
     <section class="section">
         <div class="section-header d-flex justify-content-between align-items-center mb-4">
             <h3 class="page__heading mb-0">Gestión de Turnos</h3>
-            <a class="btn btn-warning shadow-sm" href="{{ route('nueva_cita') }}" onclick="crear_turnos();" style="background-color: #CEA845; border-color: #CEA845; color: #fff;">
-                <i class="bi bi-plus-lg me-1"></i> Nuevo Turno
-            </a>
+            @can('turnos_crear')
+                <a class="btn btn-warning shadow-sm" href="{{ route('nueva_cita') }}" onclick="crear_turnos();" style="background-color: #CEA845; border-color: #CEA845; color: #fff;">
+                    <i class="bi bi-plus-lg me-1"></i> Nuevo Turno
+                </a>
+            @endcan
         </div>
 
         <div class="section-body">
@@ -15,7 +17,7 @@
                 <div class="col-lg-12">
                     <div class="card shadow-sm border-0">
                         <div class="card-body p-4">
-                            @can('ver-turno')
+                            @can('turnos_ver')
                                 <div class="table-responsive">
                                     <table id="example" class="table table-striped table-hover align-middle w-100">
                                         <thead style="background-color: #354647;">
@@ -55,11 +57,13 @@
                                                         @endif
                                                     </td>
                                                     <td class="text-center">
-                                                        @if($turno->estatus === "no atendido" && $turno->exepcion === "No")
-                                                            <a class="btn btn-info btn-sm text-white" href="{{ route('cambiar', $turno->id) }}" onclick="disponibles();">
-                                                                <i class="bi bi-person-check me-1"></i> Asignar
-                                                            </a>
-                                                        @endif
+                                                        @can('turnos_asignar')
+                                                            @if($turno->estatus === "no atendido" && $turno->exepcion === "No")
+                                                                <a class="btn btn-info btn-sm text-white" href="{{ route('cambiar', $turno->id) }}" onclick="disponibles();">
+                                                                    <i class="bi bi-person-check me-1"></i> Asignar
+                                                                </a>
+                                                            @endif
+                                                        @endcan
                                                     </td>
                                                 </tr>
                                             @endforeach
