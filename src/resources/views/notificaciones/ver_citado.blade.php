@@ -243,7 +243,9 @@
                                     </div>
                                     <div class="col-xs-12 col-sm-12 col-md-12"><br></div>
                                     <div class="col-xs-12 col-sm-12 col-md-12">
-                                        <button type="submit" class="btn btn-info">Guardar</button>
+                                        @can('por_notificar_guardar_edicion')
+                                            <button type="submit" class="btn btn-info">Guardar</button>
+                                        @endcan
                                         <a class="btn btn-info" href="{{ route('notificaciones')}}" onclick=consultar_estadistica();>Regresar</a>
                                     </div>          
                                 </div>
