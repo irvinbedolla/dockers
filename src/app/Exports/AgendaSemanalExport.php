@@ -17,6 +17,10 @@ use Maatwebsite\Excel\Concerns\WithMultipleSheets;
  * El alcance (sedes y conciliadores) lo resuelve quien construye esta clase
  * a partir de App\Support\AgendaContexto. Aquí no se decide qué puede ver
  * cada rol: se recibe ya acotado.
+ *
+ * Lo único que la clase decide por su cuenta es descartar a los conciliadores
+ * con estatus distinto de 'Activo', para que el archivo tenga las mismas
+ * hojas que pastillas hay en pantalla.
  */
 class AgendaSemanalExport implements WithMultipleSheets
 {
@@ -94,6 +98,10 @@ class AgendaSemanalExport implements WithMultipleSheets
             ->whereBetween('a.fecha', [$this->desde, $this->hasta])
             ->whereIn('a.delegacion', $this->sedes)
             ->whereNotIn('a.estatus', self::ESTATUS_EXCLUIDOS)
+            // Solo conciliadores vigentes, igual que el selector de la agenda.
+            // Esto deja fuera del archivo las audiencias de quien ya fue dado
+            // de baja, aunque se hayan celebrado dentro del rango.
+            ->where('u.estatus', 'Activo')
             ->when($this->conciliadores !== null, fn ($q) => $q->whereIn('u.id', $this->conciliadores))
             ->select([
                 DB::raw('u.id as conciliador_id'),
