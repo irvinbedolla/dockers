@@ -179,10 +179,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/citas/eventos',                [App\Http\Controllers\CitaController::class, 'citas'])->name('citas.eventos');
     Route::get('/pagos/eventos',                [App\Http\Controllers\CitaController::class, 'pagos'])->name('pagos.eventos');
     Route::get('/pagos/conciliadores',          [App\Http\Controllers\CitaController::class, 'conciliadores'])->name('conciliador.eventos');
+    Route::get('/solicitudes/eventos',          [App\Http\Controllers\AudienciasController::class, 'solicitudes'])->name('solicitudes.eventos');
     Route::get('/audiencias/eventos',           [App\Http\Controllers\AudienciasController::class, 'audiencias'])->name('audiencias.eventos');
     Route::get('/ratificaciones/eventos',       [App\Http\Controllers\AudienciasController::class, 'ratificaciones'])->name('ratificaciones.eventos');
     Route::get('citas/exportar-excel',          [CitaController::class, 'exportarExcel']);
     Route::get('/obtenerBloqueosCalendario',    [AdministracionController::class, 'obtenerBloqueosCalendario'])->name('calendario.bloqueos');
+    // Dias inhabiles del rango visible, para pintarlos deshabilitados.
+    Route::get('/agenda/dias-inhabiles',        [AdministracionController::class, 'diasInhabilesAgenda'])->name('agenda.inhabiles');
 
     /*
      |-- SUB-GRUPO DE CONTROL DE ACCESO: SUPER USUARIO / ADMINISTRADORES

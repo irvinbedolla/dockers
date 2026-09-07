@@ -85,11 +85,39 @@ class AgendaContexto
         return $usuario->roles->pluck('name')->first() === 'Conciliador';
     }
 
+    /** Meses hacia atrás que cuentan como "con actividad". */
+    private const MESES_ACTIVIDAD = 6;
+
+    /**
+     * Los conciliadores que la agenda ofrece como filtro.
+     *
+     * Se limita a los que tienen actividad reciente —una solicitud o una
+     * audiencia a su nombre en los últimos meses—. Con la fila de pastillas
+     * en pantalla esto importa: la lista completa arrastra cuentas de prueba
+     * y gente que ya no opera, y cada una ocupa espacio horizontal.
+     *
+     * El filtro por id (el propio usuario) se salta la regla a propósito: un
+     * conciliador recién llegado debe verse a sí mismo aunque todavía no
+     * tenga nada asignado.
+     */
     private static function conciliadores(?string $delegacion = null, ?int $id = null)
     {
+        $desde = now()->subMonths(self::MESES_ACTIVIDAD)->toDateString();
+
         return User::whereHas('roles', fn ($q) => $q->where('name', 'Conciliador'))
             ->when($delegacion, fn ($q) => $q->where('delegacion', $delegacion))
             ->when($id, fn ($q) => $q->where('id', $id))
+            ->when(! $id, fn ($q) => $q->where(function ($sub) use ($desde) {
+                $sub->whereIn('id', fn ($s) => $s->select('conciliador_id')
+                        ->from('seer_general')
+                        ->whereNotNull('conciliador_id')
+                        ->where('fecha', '>=', $desde))
+                    ->orWhereIn('id', fn ($s) => $s->select('id_conciliador')
+                        ->from('audiencias')
+                        ->whereNotNull('id_conciliador')
+                        ->where('fecha', '>=', $desde));
+            }))
+            ->orderBy('name')
             ->get();
     }
 }

@@ -9,12 +9,16 @@
         const urlConciliadores  = "{{ route('conciliador.eventos') }}";
         const urlAudiencias     = "{{ route('audiencias.eventos') }}";
         const urlRatificaciones = "{{ route('ratificaciones.eventos') }}";
+        const urlSolicitudes    = "{{ route('solicitudes.eventos') }}";
+        const urlInhabiles      = "{{ route('agenda.inhabiles') }}";
+
+        // Catalogo del semaforo, servido desde PHP para que la leyenda y los
+        // colores de los eventos no puedan desincronizarse: los dos salen de
+        // App\Support\SemaforoAgenda.
+        const CAL_LEYENDAS = @json(\App\Support\SemaforoAgenda::leyenda());
         // Descarga de la agenda; no es una fuente de eventos, pero comparte
         // los mismos filtros de la barra.
         const urlAgendaExportar = "{{ route('agenda.exportar') }}";
-        // El conciliador entra directo a "Todos", en vista de mes.
-        const calArranqueTodos  = {{ ($userRole[0] ?? '') === 'Conciliador' ? 'true' : 'false' }};
-        
         // Por si también la usas dentro de tu configuración de FullCalendar:
         const urlBloqueos       = "{{ route('calendario.bloqueos') }}"; 
     </script>

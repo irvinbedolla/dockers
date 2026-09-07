@@ -1013,6 +1013,89 @@ class AdministracionController extends Controller{
         return back()->with('success', 'El bloqueo se actualizó correctamente.');
     }
 
+    /**
+     * Dias inhabiles del rango visible, para que el calendario los pinte como
+     * dias deshabilitados.
+     *
+     * No reutiliza obtenerBloqueosCalendario porque aquel devuelve pildoras de
+     * evento y mezcla los tres tipos de bloqueo; aqui solo interesan los que
+     * cierran la sede el dia entero. Tampoco diasInhabilesCentro, que atiende
+     * a una sola sede con ventana fija y lo consumen cuatro pantallas.
+     *
+     * Se descartan a proposito:
+     *  - descripcion 'No inhabil' (bloqueos de horario, no cierran el dia),
+     *  - los que tienen user_id (permisos de un conciliador, no de la sede).
+     *
+     * Devuelve un mapa por fecha para que el front no tenga que expandir
+     * rangos: hay bloqueos de hasta dos semanas, como el de fin de ano.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function diasInhabilesAgenda(Request $request)
+    {
+        $usuario = auth()->user();
+
+        ['sedes' => $sedesPermitidas] = \App\Support\AgendaContexto::para($usuario);
+
+        $sede = $request->input('sede');
+        $sedesVisibles = ($sede && $sede !== 'Todos' && in_array($sede, $sedesPermitidas, true))
+            ? [$sede]
+            : $sedesPermitidas;
+
+        if ($sedesVisibles === []) {
+            return response()->json(['dias' => (object) [], 'sedes' => 0]);
+        }
+
+        $inicio = $request->input('start')
+            ? Carbon::parse($request->input('start'))->startOfDay()
+            : Carbon::now()->startOfDay();
+
+        $fin = $request->input('end')
+            ? Carbon::parse($request->input('end'))->startOfDay()
+            : (clone $inicio)->addMonths(2);
+
+        $bloqueos = DiasInhabiles::query()
+            ->whereNull('user_id')
+            ->where('descripcion', 'Inhabil')
+            ->whereIn('centro', $sedesVisibles)
+            ->where('fecha_inicio', '<=', $fin->toDateString())
+            ->where('fecha_final', '>=', $inicio->toDateString())
+            ->get(['fecha_inicio', 'fecha_final', 'centro', 'tipo']);
+
+        $dias = [];
+
+        foreach ($bloqueos as $bloqueo) {
+            $desde = Carbon::parse($bloqueo->fecha_inicio)->startOfDay()->max($inicio);
+            $hasta = Carbon::parse($bloqueo->fecha_final)->startOfDay()->min($fin);
+
+            for ($dia = $desde->copy(); $dia->lte($hasta); $dia->addDay()) {
+                $clave = $dia->toDateString();
+
+                $dias[$clave] ??= ['sedes' => [], 'tipos' => []];
+
+                if (! in_array($bloqueo->centro, $dias[$clave]['sedes'], true)) {
+                    $dias[$clave]['sedes'][] = $bloqueo->centro;
+                }
+
+                if (! in_array($bloqueo->tipo, $dias[$clave]['tipos'], true)) {
+                    $dias[$clave]['tipos'][] = $bloqueo->tipo;
+                }
+            }
+        }
+
+        // "todas" distingue el feriado nacional del local: el 21 de octubre
+        // solo cierra Uruapan, y con "Todas las sedes" en pantalla ese dia no
+        // puede pintarse igual que el 16 de septiembre.
+        foreach ($dias as $clave => $dato) {
+            $dias[$clave]['todas'] = count($dato['sedes']) >= count($sedesVisibles);
+        }
+
+        return response()->json([
+            'dias'  => $dias ?: (object) [],
+            'sedes' => count($sedesVisibles),
+        ]);
+    }
+
     public function obtenerBloqueosCalendario(Request $request)
     {
         try {
