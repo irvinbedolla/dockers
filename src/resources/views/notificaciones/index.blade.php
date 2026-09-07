@@ -12,7 +12,6 @@
                 <div class="card">
                     <div class="card-body">
                         
-                        @can('ver-seer')
                             <!-- Formulario de búsqueda nativo (Opcional si usas DataTables) -->
                             <form method="GET" action="{{ route('notificaciones') }}" class="mb-3">
                                 <div class="input-group">
@@ -73,9 +72,11 @@
                                                                     @endforeach
                                                                 </select> 
                                                             </form>
-                                                            <button type="submit" form="form-asignar-{{$notificacion->id_citado}}" class="btn btn-primary btn-sm text-nowrap">
-                                                                <i class="bi bi-arrow-left-square"></i> Asignar
-                                                            </button>  
+                                                            @can('por_notificar_asignar')
+                                                                <button type="submit" form="form-asignar-{{$notificacion->id_citado}}" class="btn btn-primary btn-sm text-nowrap">
+                                                                    <i class="bi bi-arrow-left-square"></i> Asignar
+                                                                </button>  
+                                                            @endcan
                                                         </div>
                                                     @else
                                                         {{$notificacion->notificador_nombre}}
@@ -86,9 +87,11 @@
                                                 <td>
                                                     <div class="d-flex align-items-center justify-content-center flex-wrap" style="gap: 5px;"> 
                                                         @if($notificacion->estatus == "Pendiente" || $notificacion->estatus == "Sin asignar")
-                                                            <a class="btn btn-info text-white btn-sm" href="{{ route('editar_citado', $notificacion->id_citado) }}" onclick="consultar_estadistica();">
-                                                                <i class="bi bi-pencil-square me-1"></i> Editar
-                                                            </a>
+                                                            @can('por_notificar_editar')
+                                                                <a class="btn btn-info text-white btn-sm" href="{{ route('editar_citado', $notificacion->id_citado) }}" onclick="consultar_estadistica();">
+                                                                    <i class="bi bi-pencil-square me-1"></i> Editar
+                                                                </a>
+                                                            @endcan
                                                         @endif
                                                         
                                                         @if($notificacion->estatus === "Finalizado exitosamente")
@@ -149,7 +152,7 @@
                                     </tbody>
                                 </table>
                             </div>
-                        @endcan
+                   
                         
                         <!-- Paginación nativa comentada. DataTables manejará esto ahora -->
                         <!-- 
