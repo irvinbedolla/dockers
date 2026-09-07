@@ -98,15 +98,17 @@
                                                             <td class="text-center align-middle">
                                                                 <input type="hidden" name="fecha_turno" id="fecha_turno" value="">
                                                             <input type="hidden" name="hora_turno" id="hora_turno" value="">
-                                                            <button type="button" class="btn btn-info open-modal" 
-                                                                data-bs-toggle="modal" 
-                                                                data-bs-target="#ModalReagendar" 
-                                                                data-id="{{ $folio['id'] }}"
-                                                                data-sede="{{ $folio['delegacion'] }}"
-                                                                data-id-conciliador="{{ $folio['id_conciliador'] }}"
-                                                                data-nue="{{ $folio['NUE'] }}">
-                                                                Reagendar
-                                                            </button>
+                                                            @can('cambiar_fecha_audiencia')
+                                                                <button type="button" class="btn btn-info open-modal" 
+                                                                    data-bs-toggle="modal" 
+                                                                    data-bs-target="#ModalReagendar" 
+                                                                    data-id="{{ $folio['id'] }}"
+                                                                    data-sede="{{ $folio['delegacion'] }}"
+                                                                    data-id-conciliador="{{ $folio['id_conciliador'] }}"
+                                                                    data-nue="{{ $folio['NUE'] }}">
+                                                                    Reagendar
+                                                                </button>
+                                                            @endcan
                                                             <div id="resumenTurno" class="alert alert-info mt-2" style="display:none;"></div>
                                                             </td>
                                                         </tr>
