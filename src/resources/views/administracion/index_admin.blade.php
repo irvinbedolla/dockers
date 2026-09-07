@@ -42,6 +42,13 @@
             'texto'  => 'Reprogramar una audiencia agendada.',
             'solo_super' => true,
         ],
+        [
+            'ruta'   => 'cambio_fecha_cumplimiento',
+            'icono'  => 'bi-cash-coin',
+            'titulo' => 'Cambiar fecha de cumplimiento',
+            'texto'  => 'Reprogramar un cumplimiento agendado.',
+            'solo_super' => true,
+        ]
     ];
 
     $esSuperUsuario = ($userRole[0] ?? null) === 'Super Usuario';

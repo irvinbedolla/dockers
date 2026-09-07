@@ -424,14 +424,14 @@ class SeerController extends Controller
         return Storage::disk('s3')->response($rutaS3);
     }
 
-    public function index()
+    public function index(Request $request)
     {
         // 1. Carga del usuario con sus roles de una sola vez
         $user = auth()->user()->load('roles');
         $id = $user->id;
         $userRole = $user->roles->pluck('name')->first(); // Tomamos el primer rol principal
         $fecha_actual = now()->format('Y-m-d'); // Carbon es más limpio que date()
-        
+
         // Inicialización de variables
         $estadisticas = null;
         $personas = null;
@@ -447,11 +447,27 @@ class SeerController extends Controller
         // 3. Switch Case para manejo de Roles (más limpio que múltiples if/else)
         switch ($userRole) {
             case 'Notificador':
-                $estadisticas = SeerPerGeneral::join('seer_citados','seer_citados.id_solicitud','=','seer_general.id')
+                $queryEstadisticas = SeerPerGeneral::join('seer_citados','seer_citados.id_solicitud','=','seer_general.id')
                     ->join('seer_solicitante','seer_solicitante.id_solicitud','=','seer_general.id')
                     ->join('municipios', 'seer_citados.municipio_citado', '=', 'municipios.id')
                     ->where('seer_citados.id_notificador', $id)
-                    ->where('seer_citados.estatus', 'Pendiente')
+                    ->where('seer_citados.estatus', 'Pendiente');
+
+                // Búsqueda por coincidencia en expediente, solicitante, citado o dirección
+                if ($request->filled('buscar')) {
+                    $buscar = $request->input('buscar');
+                    $queryEstadisticas->where(function($q) use ($buscar) {
+                        $q->where('seer_general.NUE', 'LIKE', "%{$buscar}%")
+                            ->orWhere('seer_solicitante.nombre', 'LIKE', "%{$buscar}%")
+                            ->orWhereRaw("CONCAT_WS(' ', seer_citados.nombre, seer_citados.primer_apellido, seer_citados.segundo_apellido) LIKE ?", ["%{$buscar}%"])
+                            ->orWhere('seer_citados.colonia', 'LIKE', "%{$buscar}%")
+                            ->orWhere('seer_citados.calle', 'LIKE', "%{$buscar}%")
+                            ->orWhere('seer_citados.tipo_vialidad', 'LIKE', "%{$buscar}%")
+                            ->orWhere('municipios.nombre', 'LIKE', "%{$buscar}%");
+                    });
+                }
+
+                $estadisticas = $queryEstadisticas
                     ->select(
                         'seer_citados.id','seer_general.NUE','seer_solicitante.nombre as nombre_solicitado',
                         'seer_citados.nombre','seer_citados.primer_apellido','seer_citados.segundo_apellido',
@@ -2941,7 +2957,7 @@ class SeerController extends Controller
             return redirect()->back()->with('error', 'El usuario seleccionado no es un Notificador válido para la sede de este registro.');
         }
 
-        $citado->update(['id_notificador' => $request->id_notificador]);
+        $citado->update(['id_notificador' => $request->id_notificador, 'estatus' => "Pendiente"]);
 
         return redirect()->back()->with('success', 'Notificador asignado correctamente.');
     }
@@ -7396,7 +7412,8 @@ class SeerController extends Controller
                     'hora'             => $data["hora"],
                     'sala'             => $audienciaOld->sala ?? null,
                     'delegacion'       => $audienciaOld->delegacion ?? null,
-                    'estatus'          => 'Pendiente'
+                    'estatus'          => 'Pendiente',
+                    'poder_id'         => $audienciaOld->poder_id ?? null
                 ]);
             } else {
                 // Si no existe audiencia previa, crear una nueva simple
@@ -8727,11 +8744,16 @@ class SeerController extends Controller
                 }
             }*/
             else {
-                $audienciaId = request()->query('audiencia_id');
-                $citados = SeerCitados::where('audiencia_id', $audienciaId)
-                        ->where('tipo_notificacion', '!=', 'Multa')
-                        ->where('aparece_convenio', 1)
-                        ->get();
+                if ($request->filled('audiencia_id')) {
+                    $audienciaId = request()->query('audiencia_id');
+                    $citados = SeerCitados::where('audiencia_id', $audienciaId)
+                            ->where('tipo_notificacion', '!=', 'Multa')
+                            ->where('aparece_convenio', 1)
+                            ->get();
+                }
+                else{
+                    $citados = SeerCitados::where('id_solicitud', $id)->where('tipo_notificacion', '!=', 'Multa')->where('aparece_convenio', 1)->get();
+                }
             }
         } else if ($solicitud->tipo_solicitud == 2) {
             $audienciaId = request()->query('audiencia_id');
@@ -12735,7 +12757,7 @@ class SeerController extends Controller
         return $pdf->stream($nombreArchivo);                  
     }
 
-    public function notificaciones_consultar(){
+    public function notificaciones_consultar(Request $request){
         $user = auth()->user();
         $userRoles = $user->roles->pluck('name')->toArray();
         $esRestringido = in_array('Enlace', $userRoles) || in_array('Estadistica', $userRoles);
@@ -12754,6 +12776,20 @@ class SeerController extends Controller
             )
             ->orderBy('seer_citados.created_at', 'desc') // Especificamos la tabla para evitar ambigüedad
             ->limit(3000);
+
+        // Búsqueda por coincidencia en expediente, citado o dirección
+        if ($request->filled('buscar')) {
+            $buscar = $request->input('buscar');
+            $query->where(function($q) use ($buscar) {
+                $q->where('seer_general.NUE', 'LIKE', "%{$buscar}%")
+                    ->orWhereRaw("CONCAT_WS(' ', seer_citados.nombre, seer_citados.primer_apellido, seer_citados.segundo_apellido) LIKE ?", ["%{$buscar}%"])
+                    ->orWhere('seer_citados.colonia', 'LIKE', "%{$buscar}%")
+                    ->orWhere('seer_citados.calle', 'LIKE', "%{$buscar}%")
+                    ->orWhere('seer_citados.tipo_vialidad', 'LIKE', "%{$buscar}%")
+                    ->orWhere('municipios.nombre', 'LIKE', "%{$buscar}%")
+                    ->orWhere('estados.nombre', 'LIKE', "%{$buscar}%");
+            });
+        }
 
         // 4. Aplicar filtro condicional de delegaciones si corresponde
         if ($esRestringido) {
@@ -14448,7 +14484,24 @@ class SeerController extends Controller
                 ->get();
         }
 
-        $duracionSlotMinutos = 75;
+        // Duración de los slots cortos (11:30 y 13:45, o 8:30 y 13:15 en el grid nuevo) que no permiten empalme
+        $duracionSlotMinutos = 30;
+
+        // Duración de los slots largos que sí permiten un empalme
+        $duracionSlotLargo = 75;
+
+        /* Duración asumida de las citas YA EXISTENTES al buscar traslapes. Se mantiene en 75 min
+        (igual que en obtenerAudienciasParte2) porque así se ha agendado históricamente toda
+        audiencia en este sistema, sea formato viejo o el grid actual. */
+        $duracionCitaExistenteMinutos = 75;
+
+        /* Las audiencias EXISTENTES cuya hora coincide exactamente con un slot corto (del grid
+        "actual" o del "nuevo") se asumen de 30 min (no 75) al calcular traslapes contra los slots
+        largos vecinos, para que una audiencia agendada en el slot corto no bloquee falsamente el
+        siguiente slot largo. No aplica al grid legacy: ahí no existen slots cortos. */
+        $horasSlotCortoActual = ['11:30:00', '13:45:00'];
+
+        $horasSlotCortoNuevo = ['08:30:00', '13:15:00'];
 
         /* A partir de esta fecha rige el grid "actual" (el que hoy se conoce como "nuevo"). Antes de
         esta fecha se usa el grid legacy (mismo corte que en ObtenerAudiencia y en obtenerAudienciasParte2).
@@ -14456,9 +14509,7 @@ class SeerController extends Controller
         $fechaCorteHorarioLegacy = '2026-08-10';
 
         /* A partir de esta fecha, por sede, rige el horario "nuevo". Mientras una sede no tenga fecha
-        aquí, se queda indefinidamente en el grid "actual". obtenerAudienciasParte3 NUNCA muestra los
-        slots cortos de 30 min (esos solo existen en obtenerAudienciasParte2); aquí lo único que puede
-        cambiar entre "actual" y "nuevo" son las horas de inicio de los slots largos. */
+        aquí, se queda indefinidamente en el grid "actual". */
         $fechaCorteHorarioNuevoPorSede = [
             'Morelia' => '2026-10-04',
             'Zitácuaro' => '2026-10-04',
@@ -14469,16 +14520,41 @@ class SeerController extends Controller
         ];
         $fechaCorteHorarioNuevo = $fechaCorteHorarioNuevoPorSede[$sede] ?? null;
 
-        // Horas de inicio del grid legacy (vigente antes de $fechaCorteHorarioLegacy).
-        $horasLegacy = [[9, 0], [10, 15], [11, 30], [12, 45], [14, 0]];
+        // Grid "actual" (hoy "nuevo"), vigente entre $fechaCorteHorarioLegacy y el corte por sede.
+        // Debe coincidir con $horariosConfigActual de obtenerAudienciasParte2.
+        $horariosConfigActual = [
+            ['hora' => [9, 0],   'duracion' => $duracionSlotLargo,   'permite_empalme' => true],
+            ['hora' => [10, 15], 'duracion' => $duracionSlotLargo,   'permite_empalme' => true],
+            ['hora' => [11, 30], 'duracion' => $duracionSlotMinutos, 'permite_empalme' => false],
+            ['hora' => [12, 0],  'duracion' => $duracionSlotLargo,   'permite_empalme' => true],
+            ['hora' => [13, 45], 'duracion' => $duracionSlotMinutos, 'permite_empalme' => false],
+            ['hora' => [14, 15], 'duracion' => $duracionSlotLargo,   'permite_empalme' => true],
+            ['hora' => [15, 30], 'duracion' => $duracionSlotLargo,   'permite_empalme' => true],
+        ];
 
-        // Horas de inicio del grid "actual" (vigente entre $fechaCorteHorarioLegacy y el corte por sede).
-        $horasActual = [[9, 0], [10, 15], [12, 0], [14, 15], [15, 30]];
+        /* Grid legacy (vigente antes de $fechaCorteHorarioLegacy): 5 slots largos de 75 min, todos con
+        empalme permitido (máximo 2 audiencias por slot), sin slots cortos.
+        Debe coincidir con $horariosConfigLegacy de obtenerAudienciasParte2. */
+        $horariosConfigLegacy = [
+            ['hora' => [9, 0],   'duracion' => $duracionSlotLargo, 'permite_empalme' => true],
+            ['hora' => [10, 15], 'duracion' => $duracionSlotLargo, 'permite_empalme' => true],
+            ['hora' => [11, 30], 'duracion' => $duracionSlotLargo, 'permite_empalme' => true],
+            ['hora' => [12, 45], 'duracion' => $duracionSlotLargo, 'permite_empalme' => true],
+            ['hora' => [14, 0],  'duracion' => $duracionSlotLargo, 'permite_empalme' => true],
+        ];
 
-        /* Horas de inicio de los slots largos del grid "nuevo" (vigente por sede a partir de
-        $fechaCorteHorarioNuevo). Deben coincidir con los horarios largos de $horariosConfigNuevo en
-        obtenerAudienciasParte2 (los slots cortos de 8:30 y 13:15 se excluyen a propósito). */
-        $horasNuevo = [[9, 0], [10, 15], [11, 30], [13, 45], [15, 0]];
+        /* Grid "nuevo" (vigente por sede a partir de $fechaCorteHorarioNuevo): misma forma que el
+        grid "actual" pero con los slots cortos reubicados a 8:30 y 13:15; 11:30 y 13:45 pasan a ser
+        slots largos normales de 75 min. Debe coincidir con $horariosConfigNuevo de obtenerAudienciasParte2. */
+        $horariosConfigNuevo = [
+            ['hora' => [8, 30],  'duracion' => $duracionSlotMinutos, 'permite_empalme' => false],
+            ['hora' => [9, 0],   'duracion' => $duracionSlotLargo,   'permite_empalme' => true],
+            ['hora' => [10, 15], 'duracion' => $duracionSlotLargo,   'permite_empalme' => true],
+            ['hora' => [11, 30], 'duracion' => $duracionSlotLargo,   'permite_empalme' => true],
+            ['hora' => [13, 15], 'duracion' => $duracionSlotMinutos, 'permite_empalme' => false],
+            ['hora' => [13, 45], 'duracion' => $duracionSlotLargo,   'permite_empalme' => true],
+            ['hora' => [15, 0],  'duracion' => $duracionSlotLargo,   'permite_empalme' => true],
+        ];
 
         /* Traemos cada audiencia existente (no agrupada por coincidencia exacta) para poder
         detectar traslapes de horario, incluyendo citas agendadas con el formato de horarios anterior
@@ -14512,33 +14588,39 @@ class SeerController extends Controller
                 } else {
                     $nivelHorario = 'actual';
                 }
-                $horasBase = match ($nivelHorario) {
-                    'legacy' => $horasLegacy,
-                    'nuevo' => $horasNuevo,
-                    default => $horasActual,
+                $horariosConfig = match ($nivelHorario) {
+                    'legacy' => $horariosConfigLegacy,
+                    'nuevo' => $horariosConfigNuevo,
+                    default => $horariosConfigActual,
+                };
+                $horasSlotCortoVigente = match ($nivelHorario) {
+                    'legacy' => [],
+                    'nuevo' => $horasSlotCortoNuevo,
+                    default => $horasSlotCortoActual,
                 };
 
-                $horarios = array_map(
-                    fn ($h) => (clone $fecha)->setTime($h[0], $h[1], 0),
-                    $horasBase
-                );
-
-                foreach ($horarios as $horario) {
-                    $slot = $horario;
+                foreach ($horariosConfig as $config) {
+                    $slot = (clone $fecha)->setTime($config['hora'][0], $config['hora'][1], 0);
+                    $duracionSlot = $config['duracion'];
                     $slotStart = $slot->format('Y-m-d\TH:i:s');
-                    $slotFin = (clone $slot)->modify("+{$duracionSlotMinutos} minutes");
+                    $slotFin = (clone $slot)->modify("+{$duracionSlot} minutes");
                     $slotEnd = $slotFin->format('Y-m-d\TH:i:s');
 
                     $audienciasEnSlot = 0;
                     foreach ($audienciasPorFecha[$fechaDia] ?? [] as $horaExistente) {
                         $existenteInicio = new \DateTime($fechaDia . ' ' . $horaExistente);
-                        $existenteFin = (clone $existenteInicio)->modify("+{$duracionSlotMinutos} minutes");
+                        $duracionExistente = ($nivelHorario !== 'legacy' && in_array($horaExistente, $horasSlotCortoVigente, true))
+                            ? $duracionSlotMinutos
+                            : $duracionCitaExistenteMinutos;
+                        $existenteFin = (clone $existenteInicio)->modify("+{$duracionExistente} minutes");
                         // Traslape de intervalos semiabiertos [inicio, fin)
                         if ($existenteInicio < $slotFin && $slot < $existenteFin) {
                             $audienciasEnSlot++;
                         }
                     }
-                    $ocupado = $audienciasEnSlot >= 2;
+                    // Los slots cortos no permiten empalme: una sola audiencia ya ocupa el horario.
+                    $umbralOcupado = $config['permite_empalme'] ? 2 : 1;
+                    $ocupado = $audienciasEnSlot >= $umbralOcupado;
 
                     $esInhabil = false;
                     $esNoInhabil = false;
@@ -15050,6 +15132,17 @@ class SeerController extends Controller
                 // O buscar por coincidencia en el nombre del solicitante
                 ->orWhereHas('solicitante', function($sub) use ($buscar) {
                     $sub->where('nombre', 'LIKE', "%{$buscar}%");
+                })
+                ->orWhereIn('id_solicitud', function ($sub) use ($buscar) {
+                    $sub->select('id_solicitud')
+                        ->distinct()
+                        ->from('seer_citados')
+                        ->where(function ($w) use ($buscar) {
+                            $w->where('nombre', 'LIKE', "%{$buscar}%")
+                                ->orWhere('primer_apellido', 'LIKE', "%{$buscar}%")
+                                ->orWhere('segundo_apellido', 'LIKE', "%{$buscar}%")
+                                ->orWhereRaw("CONCAT_WS(' ', nombre, primer_apellido, segundo_apellido) LIKE ?", ["%{$buscar}%"]);
+                        });
                 });
             });
         }
@@ -15316,7 +15409,12 @@ class SeerController extends Controller
                     $sub->select('id_solicitud')
                     ->distinct()
                     ->from('seer_citados')
-                    ->where('nombre', 'LIKE', "%{$buscar}%");
+                    ->where(function ($w) use ($buscar) {
+                        $w->where('nombre', 'LIKE', "%{$buscar}%")
+                            ->orWhere('primer_apellido', 'LIKE', "%{$buscar}%")
+                            ->orWhere('segundo_apellido', 'LIKE', "%{$buscar}%")
+                            ->orWhereRaw("CONCAT_WS(' ', nombre, primer_apellido, segundo_apellido) LIKE ?", ["%{$buscar}%"]);
+                    });
                     });
             });
         }
@@ -15491,20 +15589,36 @@ class SeerController extends Controller
         //return view('notificaciones.index_busqueda',compact('notificaciones','personas','userRole','fecha_inicio','fecha_fin'));
     }
 
-    public function hitorialnotificacador(){
+    public function hitorialnotificacador(Request $request){
         $id = auth()->user()->id;
         $user = User::find($id);
         $roles = Role::pluck('name','name')->all();
         $userRole = $user->roles->pluck('name')->all();
 
-        $mis_notificaciones  = SeerPerGeneral::where('seer_citados.id_notificador', $id)
+        $query = SeerPerGeneral::where('seer_citados.id_notificador', $id)
         ->join('seer_citados','seer_citados.id_solicitud','=','seer_general.id')
         ->join('seer_solicitante','seer_solicitante.id_solicitud','=','seer_general.id')
         ->join('municipios', 'seer_citados.municipio_citado', '=', 'municipios.id')
         ->join('estados', 'seer_citados.estado_citado', '=', 'estados.id')
         ->join('users', 'users.id', '=', 'seer_citados.id_notificador')
-        ->where('seer_citados.estatus', "!=", 'Pendiente')
-        ->select('seer_citados.id as id_citado','seer_general.NUE','seer_solicitante.nombre as nombre_solicitado','seer_citados.nombre','seer_citados.primer_apellido',
+        ->where('seer_citados.estatus', "!=", 'Pendiente');
+
+        // Búsqueda por coincidencia en expediente, solicitante, citado o dirección
+        if ($request->filled('buscar')) {
+            $buscar = $request->input('buscar');
+            $query->where(function($q) use ($buscar) {
+                $q->where('seer_general.NUE', 'LIKE', "%{$buscar}%")
+                    ->orWhere('seer_solicitante.nombre', 'LIKE', "%{$buscar}%")
+                    ->orWhereRaw("CONCAT_WS(' ', seer_citados.nombre, seer_citados.primer_apellido, seer_citados.segundo_apellido) LIKE ?", ["%{$buscar}%"])
+                    ->orWhere('seer_citados.colonia', 'LIKE', "%{$buscar}%")
+                    ->orWhere('seer_citados.calle', 'LIKE', "%{$buscar}%")
+                    ->orWhere('seer_citados.tipo_vialidad', 'LIKE', "%{$buscar}%")
+                    ->orWhere('municipios.nombre', 'LIKE', "%{$buscar}%")
+                    ->orWhere('estados.nombre', 'LIKE', "%{$buscar}%");
+            });
+        }
+
+        $mis_notificaciones = $query->select('seer_citados.id as id_citado','seer_general.NUE','seer_solicitante.nombre as nombre_solicitado','seer_citados.nombre','seer_citados.primer_apellido',
         'seer_citados.segundo_apellido','municipios.nombre as municipio_citado','seer_citados.colonia','seer_citados.calle','seer_citados.tipo_vialidad','estados.nombre as estado_citado',
         'seer_citados.n_ext','seer_citados.estatus','seer_citados.tipo_notificacion','seer_citados.id_solicitud as id_solicitud','users.name as notificador_nombre')
         ->orderBy('seer_citados.created_at', 'desc')
@@ -15514,7 +15628,7 @@ class SeerController extends Controller
         return view('notificaciones.indexHitorial',compact('mis_notificaciones'));
     }
 
-    public function todas_notificaciones(){
+    public function todas_notificaciones(Request $request){
         // 1. Obtención eficiente del usuario y sus datos
         $user = auth()->user();
         $delegacionUsuario = $user->delegacion;
@@ -15530,17 +15644,30 @@ class SeerController extends Controller
         $delegacionesFiltrar = $grupos[$delegacionUsuario] ?? [$delegacionUsuario];
 
         // 3. Consulta optimizada
-        $mis_notificaciones = SeerPerGeneral::join('seer_citados', 'seer_citados.id_solicitud', '=', 'seer_general.id')
+        $query = SeerPerGeneral::join('seer_citados', 'seer_citados.id_solicitud', '=', 'seer_general.id')
         ->join('seer_solicitante', 'seer_solicitante.id_solicitud', '=', 'seer_general.id')
         ->join('municipios', 'seer_citados.municipio_citado', '=', 'municipios.id')
         ->leftJoin('users', 'seer_citados.id_notificador', '=', 'users.id')
-        
+
         // Filtros
         ->where('seer_citados.estatus', "!=", 'Sin asignar')
-        ->whereIn('seer_general.delegacion', $delegacionesFiltrar) // Corregido: ahora usa el array de grupos
-        
+        ->whereIn('seer_general.delegacion', $delegacionesFiltrar); // Corregido: ahora usa el array de grupos
+
+        // Búsqueda por coincidencia en expediente, solicitante, citado o dirección
+        if ($request->filled('buscar')) {
+            $buscar = $request->input('buscar');
+            $query->where(function($q) use ($buscar) {
+                $q->where('seer_general.NUE', 'LIKE', "%{$buscar}%")
+                    ->orWhere('seer_solicitante.nombre', 'LIKE', "%{$buscar}%")
+                    ->orWhereRaw("CONCAT_WS(' ', seer_citados.nombre, seer_citados.primer_apellido, seer_citados.segundo_apellido) LIKE ?", ["%{$buscar}%"])
+                    ->orWhere('seer_citados.colonia', 'LIKE', "%{$buscar}%")
+                    ->orWhere('seer_citados.calle', 'LIKE', "%{$buscar}%")
+                    ->orWhere('municipios.nombre', 'LIKE', "%{$buscar}%");
+            });
+        }
+
         // Selección de campos específica
-        ->select(
+        $mis_notificaciones = $query->select(
             'seer_citados.id as id_citado',
             'seer_general.NUE',
             'seer_solicitante.nombre as nombre_solicitado',
@@ -15787,19 +15914,14 @@ class SeerController extends Controller
             $cumplimientos = Pagos::where('NUE', $pago->NUE)
                 ->select('id', 'id_solicitud', 'NUE', 'fecha', 'hora', 'monto', 'descripcion', 'estatus', 'forma_pago')
                 ->get();
-        } else {
-            if ($tipo == 'Ratificacion') {
-                $cumplimientos = Pagos::join('turnos','turnos.id',"=",'pago_solicitud.id_solicitud')
-                ->where('pago_solicitud.id_solicitud',$idSolicitud)
-                ->select('pago_solicitud.id','pago_solicitud.id_solicitud','turnos.NUE','pago_solicitud.fecha','pago_solicitud.hora','pago_solicitud.monto','pago_solicitud.descripcion','pago_solicitud.estatus','pago_solicitud.forma_pago')
-                ->get();
-
-            } else {
-                $cumplimientos = Pagos::join('seer_general','seer_general.id',"=",'pago_solicitud.id_solicitud')
-                ->where('pago_solicitud.id_solicitud',$idSolicitud)
-                ->select('pago_solicitud.id','pago_solicitud.id_solicitud','seer_general.NUE','pago_solicitud.fecha','pago_solicitud.hora','pago_solicitud.monto','pago_solicitud.descripcion','pago_solicitud.estatus','pago_solicitud.forma_pago')
-                ->get();
-            }
+        }
+        else {
+            $cumplimientos = Pagos::join('seer_general','seer_general.id',"=",'pago_solicitud.id_solicitud')
+            ->where('pago_solicitud.id_solicitud',$idSolicitud)
+            ->where('pago_solicitud.tipo_pago', 'Audiencia')
+            ->select('pago_solicitud.id','pago_solicitud.id_solicitud','seer_general.NUE','pago_solicitud.fecha','pago_solicitud.hora','pago_solicitud.monto','pago_solicitud.descripcion','pago_solicitud.estatus','pago_solicitud.forma_pago')
+            ->get();
+            
         }
 
         return view('/cumplimientos/pagar_audiencia',compact('cumplimientos'));
@@ -16324,7 +16446,7 @@ class SeerController extends Controller
 
         $pagos = Pagos::find($data["id"]);
         $id_solicitud = $pagos["id_solicitud"];
-        $faltantes =  Pagos::where('id_solicitud',$id_solicitud)->where('estatus',"Pendiente")->get();
+        $faltantes =  Pagos::where('id_solicitud',$id_solicitud)->where('estatus',"Pendiente")->where('tipo_pago', 'Audiencia')->get();
 
         if(count($faltantes) == 0){
             SeerPerGeneral::find($id_solicitud)
@@ -16332,6 +16454,47 @@ class SeerController extends Controller
         }
 
         return redirect()->route('audiencias.cumplimiento'); 
+    }
+    public function pagarTotalAudiencia(Request $request)
+    {
+        $data = $request->all();
+        $id = $data["id"];
+        $numeroCumplimiento = $data["numero_cumplimiento"] ?? 1;
+
+      
+        // 1. Obtener el pago actual
+        $pagoActual = Pagos::find($id);
+
+        if (!$pagoActual) {
+            return redirect()->back()->with('error', 'Registro no encontrado.');
+        }
+
+        $idSolicitud = $pagoActual->id_solicitud;
+        $total = Pagos::where('id_solicitud', $idSolicitud)->where('estatus', 'Pendiente')->where('tipo_pago', 'Audiencia')->sum('monto');
+        // 2. Actualizar el pago actual seleccionado
+        Pagos::find($id)->update([
+            'estatus'          => "Pagado",
+            'observaciones'    => $data["observaciones"],
+            'fecha_conclucion' => \Carbon\Carbon::now()->format('Y-m-d')
+        ]);
+        $pagoActual->update(['monto' => $total]);
+
+        // 3. Actualizar los pagos posteriores de la misma solicitud
+        Pagos::where('id_solicitud', $idSolicitud)
+            ->where('estatus', 'Pendiente')->where('tipo_pago', 'Audiencia')
+            ->update([
+                'estatus'          => "Pagado",
+                'observaciones'    => "Pagado en el cumplimiento #" . $numeroCumplimiento,
+                'monto'            => 0,
+                'fecha_conclucion' => \Carbon\Carbon::now()->format('Y-m-d')
+            ]);
+
+        // 4. Actualizar el estatus en la tabla Turnos a 'Concluida'
+        SeerPerGeneral::find($idSolicitud)->update([
+            'estatus' => "Concluida"
+        ]);
+
+        return redirect()->back()->with('success', 'Pago total registrado correctamente.');
     }
 
     // Eliminar/Quitar representante legal asiganado al de iniciar la audiencia

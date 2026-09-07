@@ -37,7 +37,7 @@
             padding: 5px 12px;
             min-height: 14px;
             display: block;
-            font-weight: normal; 
+            font-weight: bold; 
             color: #333;
             font-size: 14px;
         }
@@ -139,7 +139,7 @@
             </tr>
             <tr>
                 <td class="label">OBJETO DE LA SOLICITUD:</td>
-                <td><div class="pill" style="height: 20px;">
+                <td><div class="pill" style="height: 20px; font-size: 13px;">
                 @foreach($motivos as $index => $motivo)
                         <strong>{{ $index + 1 }}.-</strong>{{ mb_strtoupper($motivo->motivo, 'UTF-8') }} 
                 @endforeach    

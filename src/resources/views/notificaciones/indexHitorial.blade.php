@@ -11,7 +11,23 @@
                 <div class="col-lg-12">
                     <div class="card">
                         <div class="card-body">
-                            
+
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <form action="{{ url()->current() }}" method="GET">
+                                        <div class="input-group">
+                                            <input type="text" name="buscar" class="form-control" placeholder="Buscar por expediente, solicitante, citado o dirección..." value="{{ request('buscar') }}">
+                                            <button class="btn btn-primary" type="submit" style="background-color: #354647; border-color: #354647;">
+                                                <i class="fas fa-search"></i> Buscar
+                                            </button>
+                                            @if(request('buscar'))
+                                                <a href="{{ url()->current() }}" class="btn btn-secondary">Limpiar Filtro</a>
+                                            @endif
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+
                             @can('ver-seer')
                                     <div class="table-responsive menu-visible">
                                         <table id="example" class="table table-striped mt-1" style="text-align:center">

@@ -48,6 +48,7 @@ Route::get('/obtenerAudienciasParte3', [SeerController::class, 'obtenerAudiencia
 Route::get('/dias-inhabiles-centro',[SeerController::class, 'diasInhabilesCentro']);
 Route::get('/obtenerTurnosDisponibles', [RecepcionController::class, 'obtenerTurnosDisponibles']);
 Route::get('/obtenerAudienciasConciliador', [AdministracionController::class, 'obtenerAudienciasConciliador']);
+Route::get('/obtenerCumplimientosAdmin', [AdministracionController::class, 'obtenerCumplimientosAdmin']);
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();

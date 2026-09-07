@@ -11,7 +11,23 @@
                 <div class="col-lg-12">
                     <div class="card">
                         <div class="card-body">
-                            
+
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <form action="{{ route('notificaciones_consultar') }}" method="GET">
+                                        <div class="input-group">
+                                            <input type="text" name="buscar" class="form-control" placeholder="Buscar por expediente, citado o dirección..." value="{{ request('buscar') }}">
+                                            <button class="btn btn-primary" type="submit" style="background-color: #354647; border-color: #354647;">
+                                                <i class="fas fa-search"></i> Buscar
+                                            </button>
+                                            @if(request('buscar'))
+                                                <a href="{{ route('notificaciones_consultar') }}" class="btn btn-secondary">Limpiar Filtro</a>
+                                            @endif
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+
                             <div class="table-responsive menu-visible">
                                 <table id="example" class="table table-striped mt-1" style="text-align:center">
                                     <thead style="background-color: #354647;">
@@ -163,6 +179,33 @@
 @section('scripts')
     <script src="{{ asset('assets/js/estadistica/estadistica.js') }}"></script>
     <script>
+        $(document).ready(function() {
+            if ($.fn.DataTable.isDataTable('#example')) {
+                $('#example').DataTable().destroy();
+            }
+            $('#example').DataTable({
+                "destroy": true,
+                "paging": true,
+                "pageLength": 10,
+                "searching": true,
+                "ordering": true,
+                "info": true,
+                "language": {
+                    "search": "Filtrar en esta pantalla:",
+                    "lengthMenu": "Mostrar _MENU_ registros",
+                    "info": "Mostrando del _START_ al _END_ de un bloque de _TOTAL_ solicitudes",
+                    "infoEmpty": "Mostrando 0 a 0 de 0 filas",
+                    "infoFiltered": "(filtrado de un total de _MAX_ registros)",
+                    "zeroRecords": "No se encontraron coincidencias en esta página.",
+                    "paginate": {
+                        "first": "Primero",
+                        "last": "Último",
+                        "next": "Siguiente",
+                        "previous": "Anterior"
+                    }
+                }
+            });
+        });
         $(document).on('click', '.open-notificador-modal', function() {
             var idCitado = $(this).data('id');
             var idNotificadorActual = $(this).data('notificador');
@@ -180,6 +223,7 @@
                 $select.append($option);
             });
         });
+        
     </script>
 @endsection
         

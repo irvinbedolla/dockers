@@ -1380,7 +1380,7 @@
 <div class="modal fade" id="ModalReagendar" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
     <form class='needs-validation novalidate'  method='POST' action="{{route('reagendar_audiencia')}}">
         @csrf
-        <input type="hidden" id="modal-id-reagendar" name="id" value="">
+        <input type="hidden" id="modal-id-reagendar" name="id" value="{{ $id }}">
         <input type="hidden" name="audiencia_id" value="{{ request()->query('audiencia_id') }}">
         <input type="hidden" id="fechaConfirmacion" value= "{{ $fechaConfirmacion }}">
         <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">
@@ -2250,15 +2250,33 @@
                             $('#horaSeleccionada').val(hora+':00');
                             $('#btnGuardarReagenda').prop('disabled', false);
 
-                            if (slotYMD < fechaMinNotificacionStr) {
-                                if (window.Swal && typeof Swal.fire === 'function') {
-                                    Swal.fire({
-                                        icon: 'warning',
-                                        title: 'Aviso de notificación',
-                                        html: 'La fecha seleccionada está <b>dentro de los ' + (diasHabilesNotificacion - 1) + ' días hábiles</b> requeridos para notificar.' +
-                                            '<br><br>Fecha mínima sugerida: <b>' + fechaMinNotificacionStr + '</b>.',
-                                    });
+                            function mostrarAvisoNotificacionSiAplica() {
+                                if (slotYMD < fechaMinNotificacionStr) {
+                                    if (window.Swal && typeof Swal.fire === 'function') {
+                                        Swal.fire({
+                                            icon: 'warning',
+                                            title: 'Aviso de notificación',
+                                            html: 'La fecha seleccionada está <b>dentro de los ' + (diasHabilesNotificacion - 1) + ' días hábiles</b> requeridos para notificar.' +
+                                                '<br><br>Fecha mínima sugerida: <b>' + fechaMinNotificacionStr + '</b>.',
+                                        });
+                                    }
                                 }
+                            }
+
+                            const slotFin = info.event.end ? new Date(info.event.end) : null;
+                            const duracionSlotMin = slotFin ? (slotFin.getTime() - slot.getTime()) / 60000 : null;
+                            const esHorarioCorto = duracionSlotMin !== null && duracionSlotMin <= 30;
+
+                            if (esHorarioCorto && window.Swal && typeof Swal.fire === 'function') {
+                                Swal.fire({
+                                    icon: 'warning',
+                                    title: '¡Aviso importante!',
+                                    html: 'El horario seleccionado tiene una duración máxima de <b>30 minutos</b>.' +
+                                        '<br><br>Se sugiere utilizar este espacio para audiencias de <b>rápido desahogo</b>.' +
+                                        '<br><br>¿Desea <b>continuar</b>?',
+                                }).then(mostrarAvisoNotificacionSiAplica);
+                            } else {
+                                mostrarAvisoNotificacionSiAplica();
                             }
                         } else {
                             Swal.fire({

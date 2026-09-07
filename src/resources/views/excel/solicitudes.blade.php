@@ -8,6 +8,7 @@
         <table>
             <thead style="background-color: #869b9c;">
                 <tr>
+                    <th width="10" style="background-color: #869b9c; color: #ffffff;">Núm.</th>
                     <th width="25" style="background-color: #869b9c; color: #ffffff;">NUE</th>
                     <th width="25" style="background-color: #869b9c; color: #ffffff;">Fecha Confirmación</th>
                     <th width="60" style="background-color: #869b9c; color: #ffffff;">Motivo Solicitud</th>
@@ -15,7 +16,8 @@
                     <th width="60" style="background-color: #869b9c; color: #ffffff;">Empleador</th>
                     <th width="60" style="background-color: #869b9c; color: #ffffff;">Trabajador</th>
                     <th width="25" style="background-color: #869b9c; color: #ffffff;">Teléfono</th>
-                    <th width="40" style="background-color: #869b9c; color: #ffffff;">Giro Comercial</th>       
+                    <th width="40" style="background-color: #869b9c; color: #ffffff;">Giro Comercial</th>
+                    <th width="40" style="background-color: #869b9c; color: #ffffff;">Auxiliar</th>       
                     <th width="40" style="background-color: #869b9c; color: #ffffff;">Tipo Solicitud</th>
                     <th width="15" style="background-color: #869b9c; color: #ffffff;">Estatus Solicitud</th>     
                 </tr>
@@ -23,9 +25,11 @@
             <tbody>
                 @php
                     $totalPrice = 0;
+                    $num = 1;
                 @endphp
                 @foreach($Solicitudes as $estadistica)
                     <tr>
+                        <td style=" text-align: center;">{{ $num }}</td>
                         <td style=" text-align: center;">{{ $estadistica->NUE }}</td>
                         <td style=" text-align: center;">{{ $estadistica->fecha_confirmacion }}</td>
                         <td style=" text-align: center;">{{ $estadistica->motivos }}</td>
@@ -34,6 +38,7 @@
                         <td style=" text-align: center;">{{ $estadistica->solicitante_nombre }}</td>
                         <td style=" text-align: center;">{{ $estadistica->telefono1 }}</td>
                         <td style=" text-align: center;">{{ $estadistica->actividad }}</td>
+                        <td style=" text-align: center;">{{ $estadistica->auxiliar }}</td>
                         <td style=" text-align: center;">
                             @if($estadistica->tipo_solicitud == '1')
                                 TRABAJADOR
@@ -43,6 +48,9 @@
                         </td>
                         <td style=" text-align: center;">{{ $estadistica->estatus }}</td>
                     </tr>
+                    @php
+                        $num = $num + 1;
+                    @endphp
                 @endforeach
             </tbody>
             

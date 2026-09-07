@@ -249,7 +249,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/administracion/cambiarFecha/buscar',  [AdministracionController::class, 'fecha_audiencia_buscar'])->name('fecha_audiencia_buscar');
         Route::post('/administracion/cambiarFecha/cambio',   [AdministracionController::class, 'cambiar_fecha'])->name('cambiar_fecha');
         Route::post('/administracion/cambiarFecha/cambioFecha',[AdministracionController::class, 'cambio_fecha'])->name('cambio_fecha');
-        
+        Route::get('/administracion/cambiarFechaCumplimiento',         [AdministracionController::class, 'cambio_cumplimiento'])->name('cambio_fecha_cumplimiento');
+        Route::post('/administracion/cambiarFechaCumplimiento/buscar', [AdministracionController::class, 'fecha_cumplimiento_buscar'])->name('fecha_cumplimiento_buscar');
+        Route::post('/administracion/cambiarFechaCumplimiento/cambio', [AdministracionController::class, 'cambiar_fecha_cumplimiento'])->name('cambiar_fecha_cumplimiento');
+
 
         //Direccion General
         Route::get('/DireccionGeneral/index',           [CitaDireccionController::class, 'index'])->name('indexDireccionGeneral');
@@ -270,8 +273,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/conciliador/update_perimsos/',    [ConciliadoresController::class, 'update'])->name('conciliadores_permisos');
         Route::get('/conciliador/firmaCitatorios',      [SeerController::class, 'firmaCitatorios_index'])->name('firma_citatorio'); //Citatorios a firmar por los conciliadores
         Route::get('/conciliador/prueba',               [TurnosController::class, 'actualizar_folio']);
-        Route::get('/ObtenerCitatorios/{id}',           [SeerController::class, 'mostrar_citatorios']);
-         Route::get('/ObtenerConstancias/{id}',         [SeerController::class, 'mostrar_noConciliacion']); //Constancias de no conciliación para visualizar en un modal
     });
 
     /*
@@ -453,6 +454,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/cumplimiento/consultar/{id}/{tipo}',   [SeerController::class, 'consulta_cumplimiento_ratificacion'])->name('consulta_cumplimiento_ratificacion');
     Route::post('/solicitud/guardarExpediente',                         [SeerController::class, 'guardar_expediente'])->name('subir_expediente'); //Subir expediente 
             Route::post('/solicitud/guardarExpedienteR',                        [TurnosController::class, 'guardar_expediente'])->name('subir_expediente_ratificacion'); //Subir expediente ratificacion
+    Route::post('/cumplimientos/pagar-total',                        [SeerController::class, 'pagarTotalAudiencia'])->name('audiencia_pagar_total');
 
 
     //Solicitudes y casos de exepcion
@@ -564,7 +566,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/VerpdfmultaInst/{id}/{id_solicitud}',              [SeerController::class, 'VerPDFMultaInstructivo'])->name('VerPDFMultaInstructivo'); // Notificación de multa por
         Route::get('/VerpdfmultaNConst/{id}/{id_solicitud}',            [SeerController::class, 'VerPDFMultaNoExitConstituye'])->name('VerPDFMultaNoExitConstituye'); // Notificación de multa NO Exitosa Se Constituye
         Route::get('/VerpdfNExitConst/{id}/{id_solicitud}',             [SeerController::class, 'VerPDFNoExitConstituye'])->name('VerPDFNoExitConstituye'); // Notificación NO Exitosa Se Constituye
-    
+        Route::get('/ObtenerCitatorios/{id}',           [SeerController::class, 'mostrar_citatorios']);
+        Route::get('/ObtenerConstancias/{id}',         [SeerController::class, 'mostrar_noConciliacion']); //Constancias de no conciliación para visualizar en un modal
+        Route::get('/citatorio/{id}',                                       [SeerController::class, 'pdfCitatorioAudiencia'])->name('pdfCitatorioAudiencia');
 
     //Plantillas
         Route::get('/plantillas/index',                             [SeerController::class, 'plantillas_index'])->name('plantillas_index');
@@ -603,6 +607,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('/ratificaciones/deduccion_eliminar_pago/{id_solicitud}',     [TurnosController::class, 'concepto_eliminar_deduccion_ratificacion'])->name('concepto_eliminar_deduccion_ratificacion');
         Route::delete('/ratificaciones/pago_eliminar_pago/{id_solicitud}',          [TurnosController::class, 'pago_eliminar_pago_ratificacion'])->name('pago_eliminar_pago_ratificacion');
         Route::post('/ratificaciones/terminar_ratificacion',            [TurnosController::class, 'terminar_ratificacion'])->name('terminar_ratificacion');
+        Route::post('/ratificacion/pagar-total',                        [TurnosController::class, 'pagarTotalRatificacion'])->name('ratificacion_pagar_total');
+        Route::get('/cumplimiento/incomparecenciaRati/{id}', [SeerController::class, 'PDFIncomparecenciaCumplimientoRati'])->name('PDFIncomparecenciaCumplimientoRati');
         
     //Oficialia de Partes
         Route::get('/oficialia/index_oficialia',                                    [SeerController::class, 'index_oficialia'])->name('index_oficialia');
