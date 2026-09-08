@@ -47,13 +47,19 @@
                                             <th class="text-white" style="color: #ffffff !important;">Trabajador</th>
                                             <th class="text-white" style="color: #ffffff !important;">Delegación</th>
                                             <th class="text-center text-white" style="color: #ffffff !important;">Estatus</th>
-                                            <th class="text-center text-white" style="color: #ffffff !important;">Detalles</th>
-                                            <th class="text-center text-white" style="color: #ffffff !important;">Concluir</th>
+                                            @can('ratificaciones_consultar')
+                                                <th class="text-center text-white" style="color: #ffffff !important;">Detalles</th>
+                                            @endcan
+                                            @can('ratificaciones_concluir')
+                                                <th class="text-center text-white" style="color: #ffffff !important;">Concluir</th>
+                                            @endcan
                                             <th class="text-center text-white" style="color: #ffffff !important;">Cumplimientos</th>
                                             <th class="text-center text-white" style="width: 14%; color: #ffffff !important;">Documentos</th>
-                                            @if($userRole == "Enlace" || $userRole == "Super Usuario" || $userRole == "Auxiliar")
-                                                <th class="text-center text-white" style="color: #ffffff !important;">Editar</th>
-                                            @endif
+                                            @can('ratificaciones_editar')
+                                                @if($userRole == "Enlace" || $userRole == "Super Usuario" || $userRole == "Auxiliar")
+                                                    <th class="text-center text-white" style="color: #ffffff !important;">Editar</th>
+                                                @endif
+                                            @endcan
                                         </tr>
                                     </thead>
                                     <tbody class="contenidobusqueda">
@@ -76,17 +82,21 @@
                                                 <td class="text-center">
                                                     <span class="badge bg-light text-dark border rounded-pill px-3 py-2 fw-semibold">{{ $solicitud->estatus }}</span>
                                                 </td>
-                                                <td class="text-center">
-                                                    <a class="btn btn-primary btn-sm" href="{{ route('consultar_ratificacion', $solicitud->id) }}">
-                                                        <i class="bi bi-search me-1"></i> Consultar
-                                                    </a>
-                                                </td>
-                                                <td class="text-center">
-                                                    @if($solicitud->estatus == "Confirmado")
-                                                        <a class="btn btn-info btn-sm text-white" href="{{ route('ratificacion_concluir', $solicitud->id) }}">Concluir</a>
-                                                    
-                                                    @endif
-                                                </td>
+                                                @can('ratificaciones_consultar')
+                                                    <td class="text-center">
+                                                        <a class="btn btn-primary btn-sm" href="{{ route('consultar_ratificacion', $solicitud->id) }}">
+                                                            <i class="bi bi-search me-1"></i> Consultar
+                                                        </a>
+                                                    </td>
+                                                @endcan
+                                                @can('ratificaciones_concluir')
+                                                    <td class="text-center">
+                                                        @if($solicitud->estatus == "Confirmado")
+                                                            <a class="btn btn-info btn-sm text-white" href="{{ route('ratificacion_concluir', $solicitud->id) }}">Concluir</a>
+                                                        
+                                                        @endif
+                                                    </td>
+                                                @endcan
                                                 <td class="text-center">
                                                     @if($solicitud->estatus == "Concluida" || $solicitud->estatus == "Concluida Pagos")
                                                         <a class="btn btn-primary btn-sm" href="{{ route('ratificacion_cumplimientos', $solicitud->id) }}">Generar cumplimiento</a>
@@ -94,9 +104,11 @@
                                                 </td>
                                                 <td class="text-center">
                                                     <div class="d-flex flex-column gap-1 align-items-center">
-                                                        <button type="button" class="btn btn-warning btn-sm text-dark fw-semibold open-expediente-modal w-100" data-bs-toggle="modal" data-bs-target="#expediente" data-id="{{ $solicitud->id }}" style="background-color: #CEA845; border-color: #CEA845; color: #000000 !important;">
-                                                            <i class="bi bi-upload me-1"></i> Subir Documento
-                                                        </button>
+                                                        @can('ratificaciones_subir_documentos')
+                                                            <button type="button" class="btn btn-warning btn-sm text-dark fw-semibold open-expediente-modal w-100" data-bs-toggle="modal" data-bs-target="#expediente" data-id="{{ $solicitud->id }}" style="background-color: #CEA845; border-color: #CEA845; color: #000000 !important;">
+                                                                <i class="bi bi-upload me-1"></i> Subir Documento
+                                                            </button>
+                                                        @endcan
 
                                                         @if(in_array($solicitud->estatus, ['Concluida', 'Concluida Pagos', 'Confirmado', 'Incumplimiento', 'Archivada']))
                                                             <div class="dropdown w-100">
@@ -138,13 +150,15 @@
                                                         @endif
                                                     </div>
                                                 </td>
-                                                @if($userRole == "Enlace" || $userRole == "Super Usuario" || $userRole == "Auxiliar")
-                                                    <td class="text-center">
-                                                        <a class="btn btn-success btn-sm" href="{{ route('vista_previa_citas', $solicitud->id) }}">
-                                                            <i class="bi bi-pencil-square me-1"></i> Editar
-                                                        </a>
-                                                    </td>
-                                                @endif
+                                                @can('ratificaciones_editar')
+                                                    @if($userRole == "Enlace" || $userRole == "Super Usuario" || $userRole == "Auxiliar")
+                                                        <td class="text-center">
+                                                            <a class="btn btn-success btn-sm" href="{{ route('vista_previa_citas', $solicitud->id) }}">
+                                                                <i class="bi bi-pencil-square me-1"></i> Editar
+                                                            </a>
+                                                        </td>
+                                                    @endif
+                                                @endcan
                                             </tr>
                                         @endforeach
                                     </tbody>
