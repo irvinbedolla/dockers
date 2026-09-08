@@ -2966,6 +2966,7 @@ class SeerController extends Controller
         $user = auth()->user();
         $rol = $user->roles->first()->name ?? '';
         if($rol === 'Super Usuario') $asesorias=SeerAsesoria::get(); 
+        elseif($rol === 'Delegado') $asesorias=SeerAsesoria::where('delegacion', $user->delegacion)->get();
         else $asesorias=SeerAsesoria::where('id_usuario', $user->id)->get(); 
         
         return view('estadisticas.crearAsesorias', compact('asesorias'));
