@@ -39,8 +39,8 @@
                                                             <i class="bi bi-file-earmark-text-fill"></i> Documentos
                                                         </button>
                                                         <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
-                                                            <li><a class="btn btn-info" style="width: 100%" href="{{route('VerPDFCasosPrevistos' , $recepcion->id) }}"  target="_blank">Atención para casos previstos</a></li>
-                                                            <li><a class="btn btn-info" style="width: 100%" href="{{route('VerPDFCanalizacion' , $recepcion->id) }}"  target="_blank">Canalización</a></li>
+                                                            @can('casos_excepcion_atencion')<li><a class="btn btn-info" style="width: 100%" href="{{route('VerPDFCasosPrevistos' , $recepcion->id) }}"  target="_blank">Atención para casos previstos</a></li>@endcan
+                                                            @can('casos_excepcion_canalizacion')<li><a class="btn btn-info" style="width: 100%" href="{{route('VerPDFCanalizacion' , $recepcion->id) }}"  target="_blank">Canalización</a></li>@endcan
                                                         </ul>
                                                     </div>
                                                         
