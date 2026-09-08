@@ -437,6 +437,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('seer/historial',                                        [SeerController::class, 'ver_historial'])->name('persona.historial');
     Route::get('/solicitudes/home',                                     [SeerController::class, 'solicitudes'])->name('solicitudes_index');
     Route::post('/seer/aserorias',                                      [SeerController::class, 'store_asesorias'])->name('seer.store_asesoria');
+    Route::post('/seer/EliminarAserorias',                               [SeerController::class, 'destroy_asesorias'])->name('seer.destroy_asesoria');
     Route::get('/seer/index',                                           [SeerController::class, 'index'])->name('seer');
     Route::get('/audienicas/cumplimietos/{id}',                         [SeerController::class, 'ver_pagos_audiencia'])->name('audiencia_cumplimientos');
     Route::get('/audiencias_Revisar/{id}/{isAudiencia?}',               [SeerController::class, 'solicitud_audiencia_revisar'])->name('solicitud_audiencia');
