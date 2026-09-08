@@ -2963,28 +2963,55 @@ class SeerController extends Controller
     }
 
     public function create_asesoria(){
-        return view('estadisticas.crearAsesorias');
+        $user = auth()->user();
+        $rol = $user->roles->first()->name ?? '';
+        if($rol === 'Super Usfuario') $asesorias=SeerAsesoria::get(); 
+        else $asesorias=SeerAsesoria::where('id_usuario', $user->id)->get(); 
+        
+        return view('estadisticas.crearAsesorias', compact('asesorias'));
     }
 
     public function store_asesorias(Request $request)
     {
         $data = $request->all();
         $user = auth()->user();
+        if($data['asesoria_id'] != null){
+            $asesoria = SeerAsesoria::find($data['asesoria_id'])
+            ->update(['nombre' => $data['nombre'], 'sexo' => $data['sexo']]);
+            return redirect()->route('create_asesoria')
+                ->with('success', '¡La asesoría ha sido editada correctamente!');
+        }
+        else{
+            // Validar datos de entrada
+            $request->validate([
+                'nombre' => 'required',
+                'sexo'   => 'required',
+            ]);
 
-        // Validar datos de entrada
+            $data['id_usuario'] = $user->id;
+            $data['fecha'] = date('Y-m-d');
+            $data['delegacion'] = $user->delegacion;
+
+            SeerAsesoria::create($data);  
+            
+            return redirect()->route('create_asesoria')
+                ->with('success', '¡La asesoría ha sido registrada correctamente!');
+        }
+        
+    }
+    public function destroy_asesorias(Request $request)
+    {
         $request->validate([
-            'nombre' => 'required',
-            'sexo'   => 'required',
+            'asesoria_id' => 'required|exists:seer_asesorias,id'
         ]);
 
-        $data['id_usuario'] = $user->id;
-        $data['fecha'] = date('Y-m-d');
-        $data['delegacion'] = $user->delegacion;
+        $asesoria = SeerAsesoria::find($request->asesoria_id);
+        if($asesoria){
+            $asesoria->delete();
+        }
 
-        SeerAsesoria::create($data);  
+        return redirect()->back()->with('success', 'Asesoría eliminada correctamente.');
         
-        return redirect()->route('create_asesoria')
-            ->with('success', '¡La asesoría ha sido registrada correctamente!');
     }
     
     public function destroy($id)
