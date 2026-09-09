@@ -15899,8 +15899,9 @@ class SeerController extends Controller
         ->whereIn('tipo_pago',['Audiencia','Conciliador'])
         ->select('pago_solicitud.id','pago_solicitud.id_solicitud','seer_general.NUE','pago_solicitud.fecha','pago_solicitud.hora','pago_solicitud.monto','pago_solicitud.descripcion','pago_solicitud.estatus','pago_solicitud.forma_pago')
         ->get();
-
-        return view('/cumplimientos/pagar_audiencia',compact('cumplimientos','tipo'));
+        $cantidad_pagos = Pagos::where('id_solicitud', $id)->whereIn('estatus', ['Pendiente', 'Incomparecencia trabajador'])->where('tipo_pago', 'Audiencia')->count();
+        $monto_total = Pagos::where('id_solicitud', $id)->where('tipo_pago', 'Audiencia')->sum('monto');
+        return view('/cumplimientos/pagar_audiencia',compact('cumplimientos','tipo', 'cantidad_pagos','monto_total'));
     }
 
     public function ver_pago_cumplimiento($id_pago){
@@ -15914,6 +15915,8 @@ class SeerController extends Controller
             $cumplimientos = Pagos::where('NUE', $pago->NUE)
                 ->select('id', 'id_solicitud', 'NUE', 'fecha', 'hora', 'monto', 'descripcion', 'estatus', 'forma_pago')
                 ->get();
+            $cantidad_pagos = Pagos::where('id_solicitud', $cumplimientos->id_solicitud)->where('tipo_pago', 'Audiencia')->count();
+            $monto_total = Pagos::where('id_solicitud', $cumplimientos->id_solicitud)->where('tipo_pago', 'Audiencia')->sum('monto');
         }
         else {
             $cumplimientos = Pagos::join('seer_general','seer_general.id',"=",'pago_solicitud.id_solicitud')
@@ -15921,10 +15924,10 @@ class SeerController extends Controller
             ->where('pago_solicitud.tipo_pago', 'Audiencia')
             ->select('pago_solicitud.id','pago_solicitud.id_solicitud','seer_general.NUE','pago_solicitud.fecha','pago_solicitud.hora','pago_solicitud.monto','pago_solicitud.descripcion','pago_solicitud.estatus','pago_solicitud.forma_pago')
             ->get();
-            
+            $cantidad_pagos = Pagos::where('id_solicitud', $idSolicitud)->whereIn('estatus', ['Pendiente', 'Incomparecencia trabajador'])->where('tipo_pago', 'Audiencia')->count();
+            $monto_total = Pagos::where('id_solicitud', $idSolicitud)->where('tipo_pago', 'Audiencia')->sum('monto');
         }
-
-        return view('/cumplimientos/pagar_audiencia',compact('cumplimientos'));
+        return view('/cumplimientos/pagar_audiencia',compact('cumplimientos', 'cantidad_pagos','monto_total'));
     }
 
     public function seer_detalles($id){
@@ -16468,11 +16471,11 @@ class SeerController extends Controller
         if (!$pagoActual) {
             return redirect()->back()->with('error', 'Registro no encontrado.');
         }
-
         $idSolicitud = $pagoActual->id_solicitud;
-        $total = Pagos::where('id_solicitud', $idSolicitud)->where('estatus', 'Pendiente')->where('tipo_pago', 'Audiencia')->sum('monto');
+        $total = Pagos::where('id_solicitud', $idSolicitud)->whereIn('estatus', ['Pendiente', 'Incomparecencia trabajador'])->where('tipo_pago', 'Audiencia')->sum('monto');
+        
         // 2. Actualizar el pago actual seleccionado
-        Pagos::find($id)->update([
+        $pagoActual->update([
             'estatus'          => "Pagado",
             'observaciones'    => $data["observaciones"],
             'fecha_conclucion' => \Carbon\Carbon::now()->format('Y-m-d')
@@ -16482,7 +16485,7 @@ class SeerController extends Controller
 
         // 3. Actualizar los pagos posteriores de la misma solicitud
         Pagos::where('id_solicitud', $idSolicitud)
-            ->where('estatus', 'Pendiente')->where('tipo_pago', 'Audiencia')
+            ->whereIn('estatus', ['Pendiente', 'Incomparecencia trabajador'])->where('tipo_pago', 'Audiencia')
             ->update([
                 'estatus'          => "Pagado",
                 'observaciones'    => "Pagado en el cumplimiento #" . $numeroCumplimiento,
