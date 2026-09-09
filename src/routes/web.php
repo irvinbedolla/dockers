@@ -161,6 +161,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/inicio',                               [InicioController::class, 'index'])->name('inicio');
     // Panel Común de entrada
     Route::get('/agenda',                               [DashboardController::class, 'index'])->name('agenda');
+    // Descarga la agenda del rango visible del calendario, una hoja por
+    // conciliador. El alcance lo acota AgendaContexto dentro del controlador.
+    Route::get('/agenda/exportar',                      [DashboardController::class, 'exportar'])->name('agenda.exportar');
     // URI en ASCII: la ruta sí viaja por la red y con eñe llega como
     // /cambio_contrase%C3%B1a/index. Eso pasa por CloudFront y por el WAF, donde
     // las secuencias percent-encoded son justo lo que miran las reglas de evasión.
@@ -176,10 +179,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/citas/eventos',                [App\Http\Controllers\CitaController::class, 'citas'])->name('citas.eventos');
     Route::get('/pagos/eventos',                [App\Http\Controllers\CitaController::class, 'pagos'])->name('pagos.eventos');
     Route::get('/pagos/conciliadores',          [App\Http\Controllers\CitaController::class, 'conciliadores'])->name('conciliador.eventos');
+    Route::get('/solicitudes/eventos',          [App\Http\Controllers\AudienciasController::class, 'solicitudes'])->name('solicitudes.eventos');
     Route::get('/audiencias/eventos',           [App\Http\Controllers\AudienciasController::class, 'audiencias'])->name('audiencias.eventos');
     Route::get('/ratificaciones/eventos',       [App\Http\Controllers\AudienciasController::class, 'ratificaciones'])->name('ratificaciones.eventos');
     Route::get('citas/exportar-excel',          [CitaController::class, 'exportarExcel']);
     Route::get('/obtenerBloqueosCalendario',    [AdministracionController::class, 'obtenerBloqueosCalendario'])->name('calendario.bloqueos');
+    // Dias inhabiles del rango visible, para pintarlos deshabilitados.
+    Route::get('/agenda/dias-inhabiles',        [AdministracionController::class, 'diasInhabilesAgenda'])->name('agenda.inhabiles');
 
     /*
      |-- SUB-GRUPO DE CONTROL DE ACCESO: SUPER USUARIO / ADMINISTRADORES
@@ -562,7 +568,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/VerpdfNExitConst/{id}/{id_solicitud}',             [SeerController::class, 'VerPDFNoExitConstituye'])->name('VerPDFNoExitConstituye'); // Notificación NO Exitosa Se Constituye
         Route::get('/ObtenerCitatorios/{id}',           [SeerController::class, 'mostrar_citatorios']);
         Route::get('/ObtenerConstancias/{id}',         [SeerController::class, 'mostrar_noConciliacion']); //Constancias de no conciliación para visualizar en un modal
-    
+        Route::get('/citatorio/{id}',                                       [SeerController::class, 'pdfCitatorioAudiencia'])->name('pdfCitatorioAudiencia');
 
     //Plantillas
         Route::get('/plantillas/index',                             [SeerController::class, 'plantillas_index'])->name('plantillas_index');

@@ -11,7 +11,9 @@
 --}}
 
 @section('page_css')
-    @include('agenda._estilos')
+    @unless(in_array('Directivo', $userRole))
+        @include('agenda._estilos')
+    @endunless
 
     <style>
         .inicio-saludo {
@@ -64,7 +66,12 @@
             </div>
         </div>
 
-        @include('agenda._calendario')
+        @if(in_array('Directivo', $userRole))
+            @include('inicio._mapa')
+            @include('inicio._panel_directivo')
+        @else
+            @include('agenda._calendario')
+        @endif
     </section>
 
     @push('body_end')
@@ -76,5 +83,10 @@
 @endsection
 
 @section('scripts')
-    @include('agenda._scripts')
+    @if(in_array('Directivo', $userRole))
+        @include('inicio._mapa_scripts')
+        @include('inicio._panel_directivo_scripts')
+    @else
+        @include('agenda._scripts')
+    @endif
 @endsection

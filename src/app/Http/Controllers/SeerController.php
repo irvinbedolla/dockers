@@ -7412,7 +7412,8 @@ class SeerController extends Controller
                     'hora'             => $data["hora"],
                     'sala'             => $audienciaOld->sala ?? null,
                     'delegacion'       => $audienciaOld->delegacion ?? null,
-                    'estatus'          => 'Pendiente'
+                    'estatus'          => 'Pendiente',
+                    'poder_id'         => $audienciaOld->poder_id ?? null
                 ]);
             } else {
                 // Si no existe audiencia previa, crear una nueva simple
@@ -16476,7 +16477,8 @@ class SeerController extends Controller
             'observaciones'    => $data["observaciones"],
             'fecha_conclucion' => \Carbon\Carbon::now()->format('Y-m-d')
         ]);
-        $pagoActual->update(['monto' => $total]);
+        if($total != 0 ) $pagoActual->update(['monto' => $total]);
+        
 
         // 3. Actualizar los pagos posteriores de la misma solicitud
         Pagos::where('id_solicitud', $idSolicitud)

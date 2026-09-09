@@ -77,7 +77,7 @@ class SolicitudesExport implements FromView
             })
             
 
-            ->join('users', 'users.id', '=', 'seer_general.user_id')
+            ->leftJoin('users', 'users.id', '=', 'seer_general.tipo_generacion')
             ->leftJoin('seer_solicitante', 'seer_solicitante.id_solicitud', '=', 'seer_general.id')
             
             ->leftJoinSub($motivosSub, 'motivos_agrupados', 'motivos_agrupados.id_solicitud', '=', 'seer_general.id')
@@ -89,7 +89,7 @@ class SolicitudesExport implements FromView
             // ->leftJoinSub($audienciasSub, 'audiencias_agrupadas', 'audiencias_agrupadas.id_solicitud', '=', 'seer_general.id')
             
             ->select(
-                'users.name as auxiliar',
+                DB::raw("CASE seer_general.tipo_generacion WHEN 0 THEN 'Solicitud en Línea' WHEN 1000 THEN 'Solicitud en Tablet' ELSE users.name END as auxiliar"),
                 'seer_general.consecutivo as folio',
                 'seer_general.fecha',
                 'seer_general.fecha_confirmacion',

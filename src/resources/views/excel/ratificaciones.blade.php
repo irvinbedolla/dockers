@@ -8,6 +8,7 @@
         <table>
             <thead style="background-color: #869b9c;">
                 <tr>
+                    <th width="10" style="background-color: #869b9c; color: #ffffff;">Núm.</th>
                     <th width="15" style="background-color: #869b9c; color: #ffffff;">Fecha</th>
                     <th width="10" style="background-color: #869b9c; color: #ffffff;">Hora</th>
                     <th width="25" style="background-color: #869b9c; color: #ffffff;">NUE</th>
@@ -17,6 +18,7 @@
                     <th width="50" style="background-color: #869b9c; color: #ffffff;">Motivo</th>
                     <th width="30" style="background-color: #869b9c; color: #ffffff;">Monto Total</th> 
                     <th width="30" style="background-color: #869b9c; color: #ffffff;">Giro Comercial</th>
+                    <th width="40" style="background-color: #869b9c; color: #ffffff;">Auxiliar</th>
                     <!--
                     <th width="30" style="background-color: #869b9c; color: #ffffff;">Parcialidades Totales</th>                   
                     <th width="20" style="background-color: #869b9c; color: #ffffff;">Parcialidades Pendientes</th>
@@ -31,9 +33,11 @@
             <tbody>
                 @php
                     $totalPrice = 0;
+                    $num = 1;
                 @endphp
                 @foreach($Ratificacion as $estadistica)
                     <tr>
+                        <td style=" text-align: center;">{{ $num }}</td>
                         <td style=" text-align: center;">{{ $estadistica->fecha }}</td>
                         <td style=" text-align: center;">{{ $estadistica->hora}}</td>
                         <td style=" text-align: center;">{{ $estadistica->NUE }}</td>
@@ -43,6 +47,7 @@
                         <td style=" text-align: center;">{{ $estadistica->motivo }}</td>
                         <td style=" text-align: center;">${{ number_format($estadistica->monto, 2) }}</td>
                         <td style=" text-align: center;">{{ $estadistica->categoria }}</td>
+                        <td style=" text-align: center;">{{ $estadistica->auxiliar }}</td>
                         <!--
                         <td style=" text-align: center;">{{ $estadistica->pagos_pendientes_count + $estadistica->pagos_pagados_count }}</td>
                         <td style=" text-align: center;">{{ $estadistica->pagos_pendientes_count }}</td>
@@ -56,6 +61,7 @@
                     @php
                         // Suma los valores para el total
                         $totalPrice += $estadistica->monto;
+                        $num = $num + 1
                     @endphp
                 @endforeach
             </tbody>

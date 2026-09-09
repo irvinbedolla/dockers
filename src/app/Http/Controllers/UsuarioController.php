@@ -20,6 +20,7 @@ class UsuarioController extends Controller
         $usuarios = User::whereHas($relacionEloquent, function ($query) {
             return $query->where('name', '!=', 'Solicitante');
         })
+        ->where('estatus', '!=', 'Inactivo')
         ->get();
         return view('usuarios.index',compact('usuarios'));
     }

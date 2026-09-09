@@ -8,6 +8,7 @@ use App\Models\Recepcion;
 use App\Models\Turnos;
 use App\Models\User;
 use App\Models\PermisosConciliador;
+use App\Support\SemaforoAgenda;
 use Spatie\Permission\Models\Role;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -144,15 +145,7 @@ class CitaController extends Controller
             $tipo = 6;
             $conciliadorName = User::where('id', $pago->id_conciliador)->value('name') ?: '';
 
-            if ($pago->estatus === 'Pendiente') {
-                $color = '#EAE300';
-            } elseif ($pago->estatus === 'Pagado') {
-                $color = '#00CE1C';
-            } elseif ($pago->estatus === 'Incomparecencia trabajador') {
-                $color = '#FF2C2C';
-            } else {
-                $color = '#CCCCCC';
-            }
+            $color = SemaforoAgenda::cumplimiento($pago->estatus);
 
             $eventos[] = [
                 'id' => $pago->id,
@@ -226,15 +219,10 @@ class CitaController extends Controller
         $id_solicitudes = $pagos->pluck('id_solicitud')->toArray();
         
 
-        $mapaColores = [
-            'Pendiente'                  => '#EAE300',
-            'Pagado'                     => '#00CE1C',
-            'Incomparecencia trabajador' => '#FF2C2C',
-        ];
 
         
-        $eventos = $pagos->map(function ($pago) use ($mapaColores) {
-            $color = $mapaColores[$pago->estatus] ?? '#CCCCCC';
+        $eventos = $pagos->map(function ($pago) {
+            $color = SemaforoAgenda::cumplimiento($pago->estatus);
             $solicitante = SeerSolicitante::where('id_solicitud', $pago->id_solicitud)->value('nombre');
             $citado = SeerCitados::where('id_solicitud', $pago->id_solicitud)->first();
             $citado_nombre = $citado
@@ -308,15 +296,10 @@ class CitaController extends Controller
 
         $pagos = $query->get();
 
-        $mapaColores = [
-            'Pendiente'                  => '#EAE300',
-            'Pagado'                     => '#00CE1C',
-            'Incomparecencia trabajador' => '#FF2C2C',
-        ];
 
         
-        $eventos = $pagos->map(function ($pago) use ($mapaColores) {
-            $color = $mapaColores[$pago->estatus] ?? '#CCCCCC';
+        $eventos = $pagos->map(function ($pago) {
+            $color = SemaforoAgenda::cumplimiento($pago->estatus);
 
             return [
                 'id' => $pago->id,

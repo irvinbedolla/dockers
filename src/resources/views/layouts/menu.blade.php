@@ -23,7 +23,7 @@
             // 'roles' => '*' significa que lo ve cualquiera que haya entrado.
             ['route' => 'inicio',                     'label' => 'Inicio',                  'icon' => 'bi bi-house-door',          'roles' => '*'],
             ['route' => 'configuracion',              'label' => 'Administración',          'icon' => 'bi bi-file-person',         'roles' => ['Super Usuario', 'Delegado']],
-            ['route' => 'agenda',                     'label' => 'Agenda',                  'icon' => 'bi bi-bank',                'roles' => ['Super Usuario', 'Administrador', 'Auxiliar', 'Conciliador', 'Notificador', 'Delegado', 'Excepcion', 'Enlace', 'Cumplimientos']],
+            ['route' => 'agenda',                     'label' => 'Agenda',                  'icon' => 'bi bi-bank',                'roles' => ['Super Usuario', 'Administrador', 'Auxiliar', 'Conciliador', 'Notificador', 'Delegado', 'Excepcion', 'Enlace', 'Cumplimientos', 'Directivo']],
             ['route' => 'create_asesoria',            'label' => 'Asesorías',               'icon' => 'bi bi-bank',                'roles' => ['Super Usuario', 'Auxiliar', 'Conciliador', 'Notificador', 'Delegado', 'Enlace', 'Cumplimientos']],
             ['route' => 'todas_audiencias',           'label' => 'Audiencias',              'icon' => 'bi bi-file-person',         'roles' => ['Super Usuario', 'Administrador', 'Auxiliar', 'Conciliador']],
             ['route' => 'todas_notificaciones',       'label' => 'Búsqueda Notificaciones', 'icon' => 'bi bi-file-person',         'roles' => ['Super Usuario', 'Administrador']],

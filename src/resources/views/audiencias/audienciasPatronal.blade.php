@@ -1380,7 +1380,7 @@
 <div class="modal fade" id="ModalReagendar" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
     <form class='needs-validation novalidate'  method='POST' action="{{route('reagendar_audiencia')}}">
         @csrf
-        <input type="hidden" id="modal-id-reagendar" name="id" value="">
+        <input type="hidden" id="modal-id-reagendar" name="id" value="{{ $id }}">
         <input type="hidden" name="audiencia_id" value="{{ request()->query('audiencia_id') }}">
         <input type="hidden" id="fechaConfirmacion" value= "{{ $fechaConfirmacion }}">
         <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">

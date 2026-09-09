@@ -68,6 +68,14 @@ class LoginRequest extends FormRequest
             ]);
         }
 
+        if (Auth::user()->estatus === 'Inactivo') {
+            Auth::logout();
+
+            throw ValidationException::withMessages([
+                'email' => 'Tu cuenta se encuentra inactiva. Contacta al administrador.',
+            ]);
+        }
+
         RateLimiter::clear($this->throttleKey());
     }
 
