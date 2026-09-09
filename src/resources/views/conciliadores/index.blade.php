@@ -16,16 +16,18 @@
                         <div class="card-body">
                                 <div class="table-responsive">
                                     @can('conciliadores_permisos')
-                                        <table id="example" class="table-striped" style="width:100%">
+                                        <table id="example" class="table table-striped table-hover align-middle">
                                             <thead style="background-color: #354647;">
-                                                <th style="display: none;">ID</th>
-                                                <th class="text-center text-white" style="color: #ffffff !important;">Nombre</th>
-                                                <th class="text-center text-white" style="color: #ffffff !important;">Acciones</th>
+                                                <tr>
+                                                    <th>ID</th>
+                                                    <th class="text-center text-white" style="color: #ffffff !important;">Nombre</th>
+                                                    <th class="text-center text-white" style="color: #ffffff !important;">Acciones</th>
+                                                </tr>
                                             </thead>
                                             <tbody class="contenidobusqueda">
                                                 @foreach($conciliadores as $usuario)
                                                     <tr>
-                                                        <td style="display: none;">{{$usuario->id}}</td>
+                                                        <td>{{$usuario->id}}</td>
                                                         <td>{{$usuario->name}}</td>
                                                         <td class="text-center text-white">
                                                             @php
@@ -301,5 +303,46 @@
             }
         });
     </script>
+    <script>
+        $(document).ready(function() {
+            if (!$.fn.DataTable.isDataTable('#example')) {
+                $('#example').DataTable({
+                    // Sin colapso de columnas: el desplazamiento lo da el
+                    // .table-responsive de Bootstrap, igual que en los demas listados.
+                    "responsive": false,
+                    // Sin anchos calculados: con una columna oculta DataTables
+                    // inflaba la tabla y aparecia un scroll horizontal de mas.
+                    "autoWidth": false,
+                    "columnDefs": [
+                        { "targets": 0, "visible": false, "searchable": true }
+                    ],
+                    "destroy": true,
+                    "paging": true,
+                    "pageLength": 10,
+                    "searching": true,
+                    "ordering": true,
+                    // Sin orden inicial: la primera columna es el ID oculto y
+                    // ordenar por el no le dice nada a nadie.
+                    "order": [],
+                    "info": true,
+                    "language": {
+                        "search": "Filtrar en esta pantalla:",
+                        "lengthMenu": "Mostrar _MENU_ registros",
+                        "info": "Mostrando del _START_ al _END_ de un bloque de _TOTAL_ conciliadores",
+                        "infoEmpty": "Mostrando 0 a 0 de 0 conciliadores",
+                        "infoFiltered": "(filtrado de un total de _MAX_ registros)",
+                        "zeroRecords": "No se encontraron coincidencias.",
+                        "paginate": {
+                            "first": "Primero",
+                            "last": "Ultimo",
+                            "next": "Siguiente",
+                            "previous": "Anterior"
+                        }
+                    }
+                });
+            }
+        });
+    </script>
+
     <script src="../public/js/usuarios/usuarios.js"></script>
 @endsection

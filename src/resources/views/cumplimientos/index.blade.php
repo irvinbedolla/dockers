@@ -21,14 +21,16 @@
                                 </div>
                             </form>
                                 <div class="table-responsive">
-                                    <table id="example" class="table-striped" style="width:100%">
+                                    <table id="example" class="table table-striped table-hover align-middle">
                                         <thead style="background-color: #354647;">
-                                            <th style="color: #fff;">Fecha</th>
-                                            <th style="color: #fff;">Hora</th>
-                                            <th style="color: #fff;">Número de Expediente</th>
-                                            <th style="color: #fff;">Tipo</th>
-                                            <th style="color: #fff;">Estatus</th>
-                                            <th style="color: #fff;">Detalles</th>
+                                            <tr>
+                                                <th style="color: #fff;">Fecha</th>
+                                                <th style="color: #fff;">Hora</th>
+                                                <th style="color: #fff;">Número de Expediente</th>
+                                                <th style="color: #fff;">Tipo</th>
+                                                <th style="color: #fff;">Estatus</th>
+                                                <th class="text-center" style="color: #fff;">Detalles</th>
+                                            </tr>
                                         </thead>
                                         <tbody class="contenidobusqueda">
                                             @foreach($cumplimientos as $audiencia)
@@ -83,6 +85,9 @@
                 // clona el <thead> y necesita la hoja de estilos de DataTables, que
                 // este proyecto no carga.
                 "responsive": false,
+                // Sin anchos calculados: DataTables inflaba la tabla y sacaba
+                // una barra horizontal que no hacia falta.
+                "autoWidth": false,
                 "destroy": true,
                 "paging": true,
                 "pageLength": 10,
@@ -92,10 +97,16 @@
                 "language": {
                     "search": "Filtrar en esta pantalla:",
                     "lengthMenu": "Mostrar _MENU_ registros",
-                    "info": "Mostrando del _START_ al _END_ de un bloque de _TOTAL_ solicitudes",
-                    "infoEmpty": "Mostrando 0 a 0 de 0 filas",
+                    "info": "Mostrando del _START_ al _END_ de un bloque de _TOTAL_ cumplimientos",
+                    "infoEmpty": "Mostrando 0 a 0 de 0 cumplimientos",
                     "infoFiltered": "(filtrado de un total de _MAX_ registros)",
-                    "zeroRecords": "No se encontraron coincidencias en esta página."
+                    "zeroRecords": "No se encontraron coincidencias en esta página.",
+                    "paginate": {
+                        "first": "Primero",
+                        "last": "Ultimo",
+                        "next": "Siguiente",
+                        "previous": "Anterior"
+                    }
                 }
             });
         });
