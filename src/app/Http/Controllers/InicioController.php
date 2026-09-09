@@ -106,9 +106,11 @@ class InicioController extends Controller
         $sedes = self::SEDES;
 
         // "Atendida": ya salió del flujo de trámite inicial (no está en
-        // ninguno de estos estatus de solicitud todavía sin resolver).
+        // ninguno de estos estatus de solicitud todavía sin resolver) y no
+        // está marcada como incidencia.
         $solicitudesAtendidas = DB::table('seer_general')
-            ->whereNotIn('estatus', ['Pendiente', 'Aceptado', 'Confirmado', 'Rechazado', 'Prevencion'])
+            //->whereNotIn('estatus', ['Pendiente', 'Aceptado', 'Confirmado', 'Rechazado', 'Prevencion'])
+            ->where(fn ($sub) => $sub->whereNull('incidencia')->orWhere('incidencia', 0))
             ->select('delegacion', DB::raw('COUNT(*) as total'))
             ->groupBy('delegacion')
             ->pluck('total', 'delegacion');
@@ -148,10 +150,16 @@ class InicioController extends Controller
             ->groupBy('seer_general.delegacion')
             ->pluck('total', 'delegacion');
 
+        $montosTurnos = DB::table('turnos')
+            ->select('delegacion', DB::raw('SUM(monto) as total'))
+            ->groupBy('delegacion')
+            ->pluck('total', 'delegacion');
+
         $solicitudesAtendidas  = $this->totalesPorSede($solicitudesAtendidas, $sedes);
         $audienciasCelebradas  = $this->totalesPorSede($audienciasCelebradas, $sedes);
         $audienciasConciliadas = $this->totalesPorSede($audienciasConciliadas, $sedes);
         $montosConvenios       = $this->totalesPorSede($montosConvenios, $sedes);
+        $montosTurnos          = $this->totalesPorSede($montosTurnos, $sedes);
 
         $resumen = [];
         foreach ($sedes as $sede) {
@@ -162,7 +170,7 @@ class InicioController extends Controller
                 'solicitudes_atendidas' => (int) $solicitudesAtendidas[$sede],
                 'audiencias_celebradas' => $celebradas,
                 'tasa_conciliacion'     => $celebradas > 0 ? round($conciliadas / $celebradas * 100, 1) : 0,
-                'montos_convenios'      => (float) $montosConvenios[$sede],
+                'montos_convenios'      => (float) $montosConvenios[$sede] + (float) $montosTurnos[$sede],
             ];
         }
 
