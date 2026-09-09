@@ -15547,13 +15547,15 @@ class SeerController extends Controller
             //'updated_at'               => $fecha_actualizar,
         ]);
 
-        if($data["estatus"] == "Sin asignar"){
+        $estatus = $data["estatus"] ?? $folio->estatus;
+
+        if($estatus == "Sin asignar"){
             $data_update = SeerCitados::find($data["id"])
-            ->update(['estatus' => $data["estatus"], 'id_notificador' => 0]);
+            ->update(['estatus' => $estatus, 'id_notificador' => 0]);
         }
         else{
             $data_update = SeerCitados::find($data["id"])
-            ->update(['estatus' => $data["estatus"]]);
+            ->update(['estatus' => $estatus]);
         }
         /*
         $fecha_inicio = $data["fecha_inicio"];
