@@ -52,9 +52,9 @@
                                                             <button type="button" class="btn btn-info btn-sm text-white open-modal" data-bs-toggle="modal" data-bs-target="#exampleModal" data-id="{{ $pago->id }}" data-tipo="normal">
                                                                 <i class="bi bi-check-circle me-1"></i> Generar Cumplimiento Parcial
                                                             </button>
-                                                            <!--button type="button" class="btn btn-success btn-sm text-white fw-semibold open-warning" data-bs-toggle="modal" data-bs-target="#warningModal" data-id="{{ $pago->id }}" data-numero="{{ $index + 1 }}" data-tipo="total">
+                                                            <button type="button" class="btn btn-success btn-sm text-white fw-semibold open-warning" data-bs-toggle="modal" data-bs-target="#warningModal" data-id="{{ $pago->id }}" data-numero="{{ $index + 1 }}" data-tipo="total">
                                                                 <i class="bi bi-cash-stack me-1"></i> Generar Cumplimiento Total
-                                                            </button--->
+                                                            </button>
                                                         @endif
                                                         @if($pago->estatus == "Pendiente")
                                                             

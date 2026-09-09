@@ -7401,7 +7401,8 @@ class SeerController extends Controller
                     'hora'             => $data["hora"],
                     'sala'             => $audienciaOld->sala ?? null,
                     'delegacion'       => $audienciaOld->delegacion ?? null,
-                    'estatus'          => 'Pendiente'
+                    'estatus'          => 'Pendiente',
+                    'poder_id'         => $audienciaOld->poder_id ?? null
                 ]);
             } else {
                 // Si no existe audiencia previa, crear una nueva simple
