@@ -16880,6 +16880,7 @@ class SeerController extends Controller
                 'remember_token'     => $solicitante->curp,
                 'profile_photo_path' => $solicitante->curp,
                 'password'           => Hash::make($passwordPlana),
+                'estatus'            => 'Inactivo',
             ]);
             
             $usuario->assignRole('Solicitante');
