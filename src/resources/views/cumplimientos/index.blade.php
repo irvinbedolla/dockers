@@ -40,11 +40,14 @@
                                                     <td>{{$audiencia->NUE_FINAL}}</td>
                                                     <td>{{$audiencia->tipo_pago}}</td>
                                                     <td>{{$audiencia->estatus}}</td>
-                                                    <td>@if($audiencia->tipo_pago === 'Audiencia')
-                                                            <a class="btn btn-primary btn-sm" href="{{ route('pago_cumplimiento', $audiencia->id) }}"><i class="bi bi-receipt"></i> Cumplimiento</a> 
-                                                        @else
-                                                            <a class="btn btn-primary btn-sm" href="{{ route('ratificacion_cumplimientos', $audiencia->id_solicitud) }}"><i class="bi bi-receipt"></i> Cumplimiento</a> 
-                                                        @endif
+                                                    <td>
+                                                        @can('cumplimientos_consultar')
+                                                            @if($audiencia->tipo_pago === 'Audiencia')
+                                                                <a class="btn btn-primary btn-sm" href="{{ route('pago_cumplimiento', $audiencia->id) }}"><i class="bi bi-receipt"></i> Cumplimiento</a> 
+                                                            @else
+                                                                <a class="btn btn-primary btn-sm" href="{{ route('ratificacion_cumplimientos', $audiencia->id_solicitud) }}"><i class="bi bi-receipt"></i> Cumplimiento</a> 
+                                                            @endif
+                                                        @endcan
                                                     </td>
                                                 </tr>
                                             @endforeach
