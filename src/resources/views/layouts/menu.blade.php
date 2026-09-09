@@ -22,11 +22,11 @@
         $menu = [
             // 'roles' => '*' significa que lo ve cualquiera que haya entrado.
             ['route' => 'inicio',                     'label' => 'Inicio',                  'icon' => 'bi bi-house-door',          'roles' => '*'],
-            ['route' => 'configuracion',              'label' => 'Administración',          'icon' => 'bi bi-file-person',         'roles' => ['Super Usuario', 'Delegado']],
-            ['route' => 'agenda',                     'label' => 'Agenda',                  'icon' => 'bi bi-bank',                'roles' => ['Super Usuario', 'Administrador', 'Auxiliar', 'Conciliador', 'Notificador', 'Delegado', 'Excepcion', 'Enlace', 'Cumplimientos', 'Directivo']],
-            ['route' => 'create_asesoria',            'label' => 'Asesorías',               'icon' => 'bi bi-bank',                'roles' => ['Super Usuario', 'Auxiliar', 'Conciliador', 'Notificador', 'Delegado', 'Enlace', 'Cumplimientos']],
-            ['route' => 'todas_audiencias',           'label' => 'Audiencias',              'icon' => 'bi bi-file-person',         'roles' => ['Super Usuario', 'Administrador', 'Auxiliar', 'Conciliador']],
-            ['route' => 'todas_notificaciones',       'label' => 'Búsqueda Notificaciones', 'icon' => 'bi bi-file-person',         'roles' => ['Super Usuario', 'Administrador']],
+            ['route' => 'configuracion',              'label' => 'Administración',          'icon' => 'bi bi-lock-fill',           'roles' => ['Super Usuario', 'Delegado']],
+            ['route' => 'agenda',                     'label' => 'Agenda',                  'icon' => 'bi bi-calendar-week',       'roles' => ['Super Usuario', 'Administrador', 'Auxiliar', 'Conciliador', 'Notificador', 'Delegado', 'Excepcion', 'Enlace', 'Cumplimientos', 'Directivo']],
+            ['route' => 'create_asesoria',            'label' => 'Asesorías',               'icon' => 'bi bi-person-check-fill',   'roles' => ['Super Usuario', 'Auxiliar', 'Conciliador', 'Notificador', 'Delegado', 'Enlace', 'Cumplimientos']],
+            ['route' => 'todas_audiencias',           'label' => 'Audiencias',              'icon' => 'bi bi-people-fill',         'roles' => ['Super Usuario', 'Administrador', 'Auxiliar', 'Conciliador']],
+            ['route' => 'todas_notificaciones',       'label' => 'Búsqueda Notificaciones', 'icon' => 'bi bi-search',              'roles' => ['Super Usuario', 'Administrador']],
             ['route' => 'capacitaciones',             'label' => 'Capacitaciones',          'icon' => 'bi bi-backpack4-fill',      'roles' => ['Capacitacion Admin']],
             ['route' => 'subir_doc_masivo',           'label' => 'Carga Masiva',            'icon' => 'bi bi-bank',                'roles' => []],
             ['route' => 'excepcion',                  'label' => 'Casos de Excepción',      'icon' => 'bi-person-vcard',           'roles' => ['Super Usuario', 'Excepcion']],
