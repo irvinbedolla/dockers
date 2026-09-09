@@ -18,13 +18,13 @@
                                     <table id="example" class="table table-striped mt-2">
                                         <thead style="background-color: #354647;">
                                         <tr>
-                                            <th class="text-center text-white" style="color: #ffffff !important;">N°</th>
-                                            <th class="text-center text-white" style="color: #ffffff !important;">Fecha</th>
-                                            <th class="text-center text-white" style="color: #ffffff !important;">Hora</th>
-                                            <th class="text-center text-white" style="color: #ffffff !important;">Monto</th>
-                                            <th class="text-center text-white" style="width: 15%; color: #ffffff !important;">Estatus</th>
-                                            <th class="text-center text-white" style="width: 42%; color: #ffffff !important;">Acciones</th>
-                                            <th class="text-center text-white" style="width: 7%; color: #ffffff !important;">Documentos</th>
+                                            <th class="text-center text-white" style="color: #ffffff ">N°</th>
+                                            <th class="text-center text-white" style="color: #ffffff ">Fecha</th>
+                                            <th class="text-center text-white" style="color: #ffffff ">Hora</th>
+                                            <th class="text-center text-white" style="color: #ffffff ">Monto</th>
+                                            <th class="text-center text-white" style="width: 15%; color: #ffffff ">Estatus</th>
+                                            <th class="text-center text-white" style="width: 42%; color: #ffffff ">Acciones</th>
+                                            <th class="text-center text-white" style="width: 14%; color: #ffffff ">Documentos</th>
                                         </tr>
                                     </thead>
                                         <tbody>
@@ -36,13 +36,17 @@
                                                     <td class="text-center fw-bold">${{ number_format($pago->monto, 2) }}</td>
                                                     <td class="text-center">
                                                         @if($pago->estatus == 'Pagado')
-                                                        <span class="badge bg-success rounded-pill px-3 py-2">Pagado</span>
+                                                            @if($pago->monto != 0)
+                                                                <span class="badge bg-success rounded-pill px-3 py-2">Cumplimiento</span>
+                                                            @else 
+                                                                <span class="badge rounded-pill px-3 py-2" style="background-color: #95b89d; color: white;"> Pago Anticipado</span>
+                                                            @endif
                                                         @elseif($pago->estatus == 'Pendiente')
                                                             <span class="badge bg-warning text-dark rounded-pill px-3 py-2">Pendiente</span>
-                                                        @elseif($pago->estatus == 'No pagado' || $pago->estatus == 'Incomparecencia trabajador')
-                                                            <span class="badge bg-danger rounded-pill px-3 py-2">{{ $pago->estatus }}</span>
+                                                        @elseif($pago->estatus == 'No pagado' )
+                                                            <span class="badge bg-danger rounded-pill px-3 py-2">No Cumplimiento</span>
                                                         @else
-                                                            <span class="badge bg-secondary rounded-pill px-3 py-2">{{ $pago->estatus }}</span>
+                                                            <span class="badge bg-danger rounded-pill px-3 py-2">{{ $pago->estatus }}</span>
                                                         @endif
                                                         
                                                     </td>
@@ -52,9 +56,11 @@
                                                             <button type="button" class="btn btn-info btn-sm text-white open-modal" data-bs-toggle="modal" data-bs-target="#exampleModal" data-id="{{ $pago->id }}" data-tipo="normal">
                                                                 <i class="bi bi-check-circle me-1"></i> Generar Cumplimiento Parcial
                                                             </button>
-                                                            <button type="button" class="btn btn-success btn-sm text-white fw-semibold open-warning" data-bs-toggle="modal" data-bs-target="#warningModal" data-id="{{ $pago->id }}" data-numero="{{ $index + 1 }}" data-tipo="total">
-                                                                <i class="bi bi-cash-stack me-1"></i> Generar Cumplimiento Total
-                                                            </button>
+                                                            @if($cantidad_pagos > 1)
+                                                                <button type="button" class="btn btn-success btn-sm text-white fw-semibold open-warning" data-bs-toggle="modal" data-bs-target="#warningModal" data-id="{{ $pago->id }}" data-numero="{{ $index + 1 }}" data-tipo="total">
+                                                                    <i class="bi bi-cash-stack me-1"></i> Generar Cumplimiento Total
+                                                                </button>
+                                                            @endif
                                                         @endif
                                                         @if($pago->estatus == "Pendiente")
                                                             
@@ -84,29 +90,39 @@
                                                             @if($pago->monto != 0)
                                                                 @if($totalRegistros == 1)
                                                                     <a class="btn btn-success btn-sm text-white" href="{{ route('PDFcumplimientoParcial', $pago->id) }}" target="_blank">
-                                                                        <i class="bi bi-file-earmark-pdf me-1"></i> PDF
+                                                                        <i class="bi bi-file-earmark-pdf me-1"></i> Parcialidad {{ $index + 1 }}
                                                                     </a>    
                                                                 @else
                                                                     <a class="btn btn-success btn-sm text-white" href="{{ route('PDFcumplimientoParcial', $pago->id) }}" target="_blank">
-                                                                        <i class="bi bi-file-earmark-pdf me-1"></i> PDF
+                                                                        <i class="bi bi-file-earmark-pdf me-1"></i> Parcialidad {{ $index + 1 }}
                                                                     </a>
                                                                 @endif
                                                             @endif
                                                         @elseif($pago->estatus == "Pagado con pena convencional")
                                                             <a class="btn btn-success btn-sm text-white" href="{{ route('PDFcumplimientoParcial', $pago->id) }}" target="_blank">
-                                                                <i class="bi bi-file-earmark-pdf me-1"></i> PDF
+                                                                <i class="bi bi-file-earmark-pdf me-1"></i> Parcialidad {{ $index + 1 }}
                                                             </a>
                                                         {{--@if($pago->estatus == "Pagado")
                                                             <a class="btn btn-success" href="{{ route('PDFcumplimientoParcial', $pago->id) }}" target="_blank">Ver PDF</a>--}}
                                                         @elseif($pago->estatus == "No pagado")
-                                                            <a class="btn btn-info btn-sm text-white" href="{{ route('PDFincumplimientoAudiencia', $pago->id) }}" target="_blank"><i class="bi bi-file-earmark-pdf me-1"></i> PDF</a>
+                                                            <a class="btn btn-info btn-sm text-white" href="{{ route('PDFincumplimientoAudiencia', $pago->id) }}" target="_blank"><i class="bi bi-file-earmark-pdf me-1"></i> Parcialidad {{ $index + 1 }}</a>
                                                         @elseif($pago->estatus == "Incomparecencia trabajador")
-                                                            <a class="btn btn-info btn-sm text-white" href="{{ route('PDFIncomparecenciaCumplimiento', $pago->id) }}" target="_blank"><i class="bi bi-file-earmark-pdf me-1"></i> PDF</a>
+                                                            <a class="btn btn-info btn-sm text-white" href="{{ route('PDFIncomparecenciaCumplimiento', $pago->id) }}" target="_blank"><i class="bi bi-file-earmark-pdf me-1"></i> Parcialidad {{ $index + 1 }}</a>
                                                         @endif
                                                     </td>
                                                 </tr>
                                             @endforeach
+                                            
                                         </tbody>
+                                        <tr>
+                                                <td class="text-center fw-bold">Monto Total</td>
+                                                <td></td>
+                                                <td></td>
+                                                <td class="text-center fw-bold">${{ number_format($monto_total, 2) }}</td>
+                                                <td></td>
+                                                <td></td>
+                                                <td></td>
+                                            </tr>
                                     </table>
                                 </div>
 

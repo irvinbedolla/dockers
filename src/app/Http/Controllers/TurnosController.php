@@ -922,18 +922,19 @@ class TurnosController extends Controller
         }
 
         $idSolicitud = $pagoActual->id_solicitud;
-        $total = Pagos::where('id_solicitud', $idSolicitud)->where('estatus', 'Pendiente')->where('tipo_pago', 'Ratificacion')->sum('monto');
+        $total = Pagos::where('id_solicitud', $idSolicitud)->whereIn('estatus', ['Pendiente', 'Incomparecencia trabajador'])->where('tipo_pago', 'Ratificacion')->sum('monto');
+        
         // 2. Actualizar el pago actual seleccionado
         Pagos::find($id)->update([
             'estatus'          => "Pagado",
             'observaciones'    => $data["observaciones"],
             'fecha_conclucion' => \Carbon\Carbon::now()->format('Y-m-d')
         ]);
-        if($total != 0 ) $pagoActual->update(['monto' => $total]);
+        if($total !=0) $pagoActual->update(['monto' => $total]);
 
         // 3. Actualizar los pagos posteriores de la misma solicitud
         Pagos::where('id_solicitud', $idSolicitud)
-            ->where('estatus', 'Pendiente')->where('tipo_pago', 'Ratificacion')
+            ->whereIn('estatus', ['Pendiente', 'Incomparecencia trabajador'])->where('tipo_pago', 'Ratificacion')
             ->update([
                 'estatus'          => "Pagado",
                 'observaciones'    => "Pagado en el cumplimiento #" . $numeroCumplimiento,
@@ -2573,8 +2574,8 @@ class TurnosController extends Controller
         $total = $solicitudes->count();
         $estatus = Turnos::where('id', $id)->pluck('estatus')->first();
         $monto_total = Pagos::where('id_solicitud', $id)->where('tipo_pago', 'Ratificacion')->sum('monto');
-
-        return view('/cumplimientos/pagar_ratificacion',compact('solicitudes','total', 'id', 'estatus', 'monto_total'));
+        $cantidad_pagos = Pagos::where('id_solicitud', $id)->whereIn('estatus', ['Pendiente', 'Incomparecencia trabajador'])->where('tipo_pago', 'Ratificacion')->count();
+        return view('/cumplimientos/pagar_ratificacion',compact('solicitudes','total', 'id', 'estatus', 'monto_total','cantidad_pagos'));
     }
 
     public function vista_previa_ratificacion($id) {
