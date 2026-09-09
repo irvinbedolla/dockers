@@ -1733,6 +1733,7 @@
         }
 
         $('#tablaAudienciasServerSide').DataTable({
+            "responsive": true,
             "processing": true,
             "serverSide": true,
             "pageLength": 10,

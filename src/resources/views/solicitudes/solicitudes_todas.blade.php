@@ -37,7 +37,7 @@
 
                             @can('solicitudes_ver')
                                 <!-- Tabla Principal de Resultados -->
-                                <div class="table-responsive menu-visible">
+                                <div class="table-responsive">
                                     <table id="example" class="table table-striped table-hover align-middle w-100">
                                         <thead style="background-color: #354647;">
                                             <tr>
@@ -97,7 +97,7 @@
 
                                                             @if(in_array($solicitud->estatus, ['Archivada', 'Incompetencia', 'Comparecencia', 'Reagendada', 'No conciliacion', 'Incumplimiento', 'Conciliacion', 'Concluida', 'Reinstalacion', 'Confirmado', 'Desistimiento', 'Prevencion']))
                                                                 <div class="dropdown w-100">
-                                                                    @can('solcitudes_ver_documentos')
+                                                                    @can('solicitudes_ver_documentos')
                                                                         <button class="btn btn-secondary btn-sm text-dark fw-semibold dropdown-toggle w-100" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="background-color: #e2e6ea; border-color: #d3d9df; color: #000000 !important;">
                                                                             Documentos
                                                                         </button>
@@ -343,6 +343,11 @@
             }
 
             $('#example').DataTable({
+                // Sin colapso de columnas: se prefiere desplazamiento horizontal, que
+                // lo da el .table-responsive de Bootstrap. No se usa scrollX porque
+                // clona el <thead> y necesita la hoja de estilos de DataTables, que
+                // este proyecto no carga.
+                "responsive": false,
                 "destroy": true,
                 "paging": true,
                 "pageLength": 10,
@@ -359,6 +364,18 @@
                     "zeroRecords": "No se encontraron coincidencias en esta página."
                 }
             });
+
+            // Los desplegables de la tabla quedan dentro del contenedor que hace
+            // scroll y este los recortaria. Con la estrategia 'fixed' de Popper el
+            // menu se posiciona contra el viewport y se escapa del recorte.
+            document.querySelectorAll('#example [data-bs-toggle="dropdown"]').forEach(function (boton) {
+                bootstrap.Dropdown.getOrCreateInstance(boton, {
+                    popperConfig: function (config) {
+                        return Object.assign({}, config, { strategy: 'fixed' });
+                    }
+                });
+            });
+
 
             // Modal Citatorios vía AJAX (Bootstrap 5.3 API)
             $(document).on('click', '.btn-mostrar-registros', function() {

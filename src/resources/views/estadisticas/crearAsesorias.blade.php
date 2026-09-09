@@ -43,7 +43,7 @@
                             
                             <div class="table-responsive">
                                 @can('asesoria_consultar')
-                                    <table id="example" class="table-striped" style="width:100%">
+                                    <table id="example" class="table table-striped" style="width:100%">
                                         <thead style="background-color: #354647;">
                                             <th class="text-center text-white" style="color: #ffffff !important;">Fecha</th>
                                             <th class="text-center text-white" style="color: #ffffff !important;">Delegación</th>
@@ -176,6 +176,11 @@
                 $('#example').DataTable().destroy();
             }
             $('#example').DataTable({
+                // Sin colapso de columnas: son 5 y se consultan de un vistazo.
+                // El desplazamiento lo da el .table-responsive de Bootstrap; no se
+                // usa scrollX porque clona el <thead> y necesita la hoja de estilos
+                // de DataTables, que este proyecto no carga.
+                "responsive": false,
                 "destroy": true,
                 "paging": true,
                 "pageLength": 10,

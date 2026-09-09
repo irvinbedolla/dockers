@@ -13,7 +13,11 @@
                     <div class="card">
                         <div class="card-body">
                             
-                            <div class="table-responsive menu-visible">
+                            {{-- Sin .menu-visible: esa clase pone overflow:visible y anula
+                                 el scroll, asi que la tabla se desbordaba. Se puede
+                                 quitar porque el desplegable de la columna de acciones
+                                 se posiciona con Popper en estrategia 'fixed'. --}}
+                            <div class="table-responsive">
                                 <table id="example" class="table table-striped mt-2">
                                     <thead style="background-color: #354647;">
                                         <th style="color: #fff;">ID</th>
@@ -78,5 +82,20 @@
     <script src="../public/js/turnos/turnos.js"></script>
 
     <script src="{{ asset('assets/js/poderes/general.js') }}"></script>
+
+    <script>
+        // El desplegable de la tabla queda dentro del contenedor que ahora hace
+        // scroll y este lo recortaria. Con la estrategia 'fixed' de Popper el menu
+        // se posiciona contra el viewport y se escapa del recorte.
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('#example [data-bs-toggle="dropdown"]').forEach(function (boton) {
+                bootstrap.Dropdown.getOrCreateInstance(boton, {
+                    popperConfig: function (config) {
+                        return Object.assign({}, config, { strategy: 'fixed' });
+                    }
+                });
+            });
+        });
+    </script>
 
 @endsection

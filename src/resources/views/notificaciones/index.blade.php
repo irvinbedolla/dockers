@@ -29,7 +29,11 @@
                                 </div>
                             </form>
 
-                            <div class="table-responsive menu-visible">
+                            {{-- Sin .menu-visible: esa clase pone overflow:visible y anula
+                                 el scroll. Se puede quitar porque los desplegables de
+                                 la columna de acciones se posicionan con Popper en
+                                 estrategia 'fixed' (mas abajo). --}}
+                            <div class="table-responsive">
                                 <table id="example" class="table table-striped mt-1 w-100" style="text-align:center;">
                                     <thead style="background-color: #354647;">
                                         <tr>
@@ -183,6 +187,11 @@
                 $('#example').DataTable().destroy();
             }
             $('#example').DataTable({
+                // Sin colapso de columnas: son 8 y se consultan de un vistazo.
+                // El desplazamiento lo da el .table-responsive de Bootstrap; no se
+                // usa scrollX porque clona el <thead> y necesita la hoja de estilos
+                // de DataTables, que este proyecto no carga.
+                "responsive": false,
                 "destroy": true,
                 "paging": true,
                 "pageLength": 10,
@@ -203,6 +212,18 @@
                         "previous": "Anterior"
                     }
                 }
+            });
+
+            // Los desplegables de la columna de acciones viven dentro del
+            // contenedor que ahora hace scroll y este los recortaria. Con la
+            // estrategia 'fixed' de Popper el menu se posiciona contra el viewport
+            // y se escapa del recorte.
+            document.querySelectorAll('#example [data-bs-toggle="dropdown"]').forEach(function (boton) {
+                bootstrap.Dropdown.getOrCreateInstance(boton, {
+                    popperConfig: function (config) {
+                        return Object.assign({}, config, { strategy: 'fixed' });
+                    }
+                });
             });
         });
     </script>

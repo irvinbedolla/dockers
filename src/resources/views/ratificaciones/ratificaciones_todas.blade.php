@@ -34,7 +34,11 @@
                             </div>
 
                             <!-- Tabla de Ratificaciones -->
-                            <div class="table-responsive menu-visible">
+                            {{-- Sin .menu-visible: esa clase pone overflow:visible y anula
+                                 el scroll. Se puede quitar porque el desplegable de
+                                 Documentos ya se posiciona con Popper en estrategia
+                                 'fixed' (mas abajo), asi que el recorte no lo afecta. --}}
+                            <div class="table-responsive">
                                 <table id="example" class="table table-striped table-hover align-middle w-100"> 
                                     <thead style="background-color: #354647;">
                                         <tr>
@@ -280,6 +284,14 @@
             }
 
             $('#example').DataTable({
+                // Aqui NO se colapsan columnas: son 14 y todas se consultan de un
+                // vistazo, asi que se prefiere desplazamiento horizontal.
+                //
+                // El scroll lo da el .table-responsive de Bootstrap, no scrollX.
+                // scrollX clona el <thead> en un contenedor aparte y necesita la
+                // hoja de estilos de DataTables para ocultar el original; ese CSS
+                // no se carga en este proyecto, asi que el encabezado salia doble.
+                "responsive": false,
                 "destroy": true,
                 "paging": true,
                 "pageLength": 10,
@@ -295,6 +307,19 @@
                     "infoFiltered": "(filtrado de un total de _MAX_ registros)",
                     "zeroRecords": "No se encontraron coincidencias."
                 }
+            });
+
+            // El desplegable de Documentos vive dentro del contenedor que ahora
+            // hace scroll, y ese contenedor lo recortaria. Con la estrategia
+            // 'fixed' de Popper el menu se posiciona contra el viewport y se
+            // escapa del recorte, que es la unica forma de tener scroll y
+            // desplegable a la vez.
+            document.querySelectorAll('#example [data-bs-toggle="dropdown"]').forEach(function (boton) {
+                bootstrap.Dropdown.getOrCreateInstance(boton, {
+                    popperConfig: function (config) {
+                        return Object.assign({}, config, { strategy: 'fixed' });
+                    }
+                });
             });
 
             // Asignación de ID para subida de expediente

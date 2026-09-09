@@ -28,7 +28,7 @@
                                 </div>
                             </div>
 
-                            <div class="table-responsive menu-visible">
+                            <div class="table-responsive">
                                 <table id="example" class="table table-striped mt-1" style="text-align:center">
                                     <thead style="background-color: #354647;">
                                         <th style="color: #fff;">Expediente</th>
@@ -184,6 +184,11 @@
                 $('#example').DataTable().destroy();
             }
             $('#example').DataTable({
+                // Sin colapso de columnas: se prefiere desplazamiento horizontal, que
+                // lo da el .table-responsive de Bootstrap. No se usa scrollX porque
+                // clona el <thead> y necesita la hoja de estilos de DataTables, que
+                // este proyecto no carga.
+                "responsive": false,
                 "destroy": true,
                 "paging": true,
                 "pageLength": 10,
@@ -205,6 +210,18 @@
                     }
                 }
             });
+
+            // Los desplegables de la tabla quedan dentro del contenedor que hace
+            // scroll y este los recortaria. Con la estrategia 'fixed' de Popper el
+            // menu se posiciona contra el viewport y se escapa del recorte.
+            document.querySelectorAll('#example [data-bs-toggle="dropdown"]').forEach(function (boton) {
+                bootstrap.Dropdown.getOrCreateInstance(boton, {
+                    popperConfig: function (config) {
+                        return Object.assign({}, config, { strategy: 'fixed' });
+                    }
+                });
+            });
+
         });
         $(document).on('click', '.open-notificador-modal', function() {
             var idCitado = $(this).data('id');
