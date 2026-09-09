@@ -24,13 +24,13 @@
                                 <table id="example" class="table table-striped table-hover align-middle w-100">
                                     <thead style="background-color: #354647;">
                                         <tr>
-                                            <th class="text-center text-white" style="color: #ffffff !important;">N°</th>
-                                            <th class="text-center text-white" style="color: #ffffff !important;">Fecha</th>
-                                            <th class="text-center text-white" style="color: #ffffff !important;">Hora</th>
-                                            <th class="text-center text-white" style="color: #ffffff !important;">Monto</th>
-                                            <th class="text-center text-white" style="width: 15%; color: #ffffff !important;">Estatus</th>
-                                            <th class="text-center text-white" style="width: 42%; color: #ffffff !important;">Acciones</th>
-                                            <th class="text-center text-white" style="width: 14%; color: #ffffff !important;">Documentos</th>
+                                            <th class="text-center text-white" style="color: #ffffff;">N°</th>
+                                            <th class="text-center text-white" style="color: #ffffff ;">Fecha</th>
+                                            <th class="text-center text-white" style="color: #ffffff ;">Hora</th>
+                                            <th class="text-center text-white" style="color: #ffffff;">Monto</th>
+                                            <th class="text-center text-white" style="width: 15%; color: #ffffff;">Estatus</th>
+                                            <th class="text-center text-white" style="width: 42%; color: #ffffff ;">Acciones</th>
+                                            <th class="text-center text-white" style="width: 14%; color: #ffffff ">Documentos</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -43,16 +43,17 @@
                                                 <td class="text-center">
                                                     @if($pago->estatus == 'Pagado')
                                                         @if($pago->monto != 0)
-                                                            <span class="badge bg-success rounded-pill px-3 py-2">Pagado</span>
+                                                            <span class="badge bg-success rounded-pill px-3 py-2">Cumplimiento</span>
                                                         @else 
                                                             <span class="badge rounded-pill px-3 py-2" style="background-color: #95b89d; color: white;"> Pago Anticipado</span>
                                                         @endif
                                                     @elseif($pago->estatus == 'Pendiente')
                                                         <span class="badge bg-warning text-dark rounded-pill px-3 py-2">Pendiente</span>
-                                                    @elseif($pago->estatus == 'No pagado' || $pago->estatus == 'Incomparecencia trabajador')
-                                                        <span class="badge bg-danger rounded-pill px-3 py-2">{{ $pago->estatus }}</span>
+                                                    @elseif($pago->estatus == 'No pagado')
+                                                        <span class="badge bg-danger rounded-pill px-3 py-2">No Cumplimiento</span>
+                                    
                                                     @else
-                                                        <span class="badge bg-secondary rounded-pill px-3 py-2">{{ $pago->estatus }}</span>
+                                                        <span class="badge bg-danger rounded-pill px-3 py-2">{{ $pago->estatus }}</span>
                                                     @endif
                                                 </td>
                                                 <td class="text-center">
