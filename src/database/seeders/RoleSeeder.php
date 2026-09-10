@@ -264,6 +264,9 @@ class RoleSeeder extends Seeder
         ]);
 
         $estadistica->syncPermissions([
+            'notificaciones_ver_documento',
+            'notificaciones_ver_notificacion',
+
             'reportes_audiencias',
             'reportes_cumplimientos',
             'reportes_ratificaciones',
@@ -281,6 +284,9 @@ class RoleSeeder extends Seeder
             'reportes_seguro_social',
             'reportes_municipios',
             'reportes_actividad',
+
+            'solicitudes_ver',
+            'solicitudes_ver_documentos',
 
 
         ]);
@@ -345,6 +351,8 @@ class RoleSeeder extends Seeder
         ]);
 
         $enlace->syncPermissions([
+            'asesoria_consultar',
+
             'audiencias_guardar_edicion',
             
             'notificaciones_ver_documento',
@@ -356,6 +364,9 @@ class RoleSeeder extends Seeder
             'por_notificar_asignar',
             'por_notificar_editar',
             'por_notificar_guardar_edicion',
+
+            'ratificaciones_editar',
+            'ratificaciones_consultar',
 
             'reportes_audiencias',
             'reportes_cumplimientos',
@@ -376,7 +387,9 @@ class RoleSeeder extends Seeder
             'reportes_actividad',
 
             'solicitudes_ver',
-            'solicitudes_ver_documentos'
+            'solicitudes_ver_documentos',
+            'solicitudes_revisar',
+            'solicitudes_editar',
 
         ]);
 
