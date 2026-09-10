@@ -906,7 +906,7 @@ class TurnosController extends Controller
             ->update(['estatus' => "Concluida"]);
         }
 
-        return redirect()->route('todas_ratificaciones');
+        return redirect()->route('audiencias.cumplimiento');
     }
     public function pagarTotalRatificacion(Request $request)
     {
@@ -947,7 +947,7 @@ class TurnosController extends Controller
             'estatus' => "Concluida"
         ]);
 
-        return redirect()->back()->with('success', 'Pago total registrado correctamente.');
+        return redirect()->route('audiencias.cumplimiento');
     }
 
     public function obtenerHorario($fecha_revisar,$sede){

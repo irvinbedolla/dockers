@@ -103,7 +103,7 @@
                                                 @endcan
                                                 <td class="text-center">
                                                     @if($solicitud->estatus == "Concluida" || $solicitud->estatus == "Concluida Pagos")
-                                                        <a class="btn btn-primary btn-sm" href="{{ route('ratificacion_cumplimientos', $solicitud->id) }}">Generar cumplimiento</a>
+                                                        @can('cumplimientos_consultar')<a class="btn btn-primary btn-sm" href="{{ route('ratificacion_cumplimientos', $solicitud->id) }}">Generar cumplimiento</a> @endcan
                                                     @endif
                                                 </td>
                                                 <td class="text-center">
