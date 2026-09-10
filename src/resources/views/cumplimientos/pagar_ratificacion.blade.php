@@ -39,7 +39,7 @@
                                                 <td class="text-center fw-bold">{{ $index + 1 }}</td>
                                                 <td class="text-center">{{ date_format($pago->fecha, "d-m-Y") }}</td>
                                                 <td class="text-center">{{ date_format($pago->hora, "H:i:s") }}</td>
-                                                <td class="text-center fw-bold">${{ number_format($pago->monto, 2) }}</td>
+                                                <td class="text-center fw-bold"> @if(!(mb_substr($pago->observaciones, 0, 26, 'UTF-8') === 'Pagado en el cumplimiento '))${{ number_format($pago->monto, 2) }}@else${{ number_format(0, 2) }}@endif </td>
                                                 <td class="text-center">
                                                     @if($pago->estatus == 'Pagado')
                                                         @if(!(mb_substr($pago->observaciones, 0, 26, 'UTF-8') === 'Pagado en el cumplimiento '))
