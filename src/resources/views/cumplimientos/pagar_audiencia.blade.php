@@ -24,7 +24,7 @@
                                             <th class="text-center text-white" style="color: #ffffff ">Monto</th>
                                             <th class="text-center text-white" style="width: 15%; color: #ffffff ">Estatus</th>
                                             <th class="text-center text-white" style="width: 42%; color: #ffffff ">Acciones</th>
-                                            <th class="text-center text-white" style="width: 14%; color: #ffffff ">Documentos</th>
+                                            <th class="text-center text-white" style="width: 17%; color: #ffffff ">Documentos</th>
                                         </tr>
                                     </thead>
                                         <tbody>
@@ -33,7 +33,7 @@
                                                     <td class="text-center fw-bold">{{ $index + 1 }}</td>
                                                     <td class="text-center">{{ date_format($pago->fecha, "d-m-Y") }}</td>
                                                     <td class="text-center">{{ date_format($pago->hora, "H:i:s") }}</td>
-                                                    <td class="text-center fw-bold">${{ number_format($pago->monto, 2) }}</td>
+                                                    <td class="text-center fw-bold">@if(!(mb_substr($pago->observaciones, 0, 26, 'UTF-8') === 'Pagado en el cumplimiento '))${{ number_format($pago->monto, 2) }}@else${{ number_format(0, 2) }}@endif</td>
                                                     <td class="text-center">
                                                         @if($pago->estatus == 'Pagado')
                                                             @if(!(mb_substr($pago->observaciones, 0, 26, 'UTF-8') === 'Pagado en el cumplimiento '))
@@ -57,9 +57,9 @@
                                                                 <i class="bi bi-check-circle me-1"></i> Generar Cumplimiento Parcial
                                                             </button>
                                                             @if($cantidad_pagos > 1)
-                                                                <!--button type="button" class="btn btn-success btn-sm text-white fw-semibold open-warning" data-bs-toggle="modal" data-bs-target="#warningModal" data-id="{{ $pago->id }}" data-numero="{{ $index + 1 }}" data-tipo="total">
+                                                                <button type="button" class="btn btn-success btn-sm text-white fw-semibold open-warning" data-bs-toggle="modal" data-bs-target="#warningModal" data-id="{{ $pago->id }}" data-numero="{{ $index + 1 }}" data-tipo="total">
                                                                     <i class="bi bi-cash-stack me-1"></i> Generar Cumplimiento Total
-                                                                </button-->
+                                                                </button>
                                                             @endif
                                                         @endif
                                                         @if($pago->estatus == "Pendiente")
@@ -87,7 +87,7 @@
                                                         @endphp
 
                                                         @if($pago->estatus == "Pagado")
-                                                            @if(!((mb_substr($pago->observaciones, 0, 26, 'UTF-8') === 'Pagado en el cumplimiento ')))
+                                                            @if(!(mb_substr($pago->observaciones, 0, 26, 'UTF-8') === 'Pagado en el cumplimiento '))
                                                                 @if($totalRegistros == 1)
                                                                     <a class="btn btn-success btn-sm text-white" href="{{ route('PDFcumplimientoParcial', $pago->id) }}" target="_blank">
                                                                         <i class="bi bi-file-earmark-pdf me-1"></i> Parcialidad {{ $index + 1 }}
@@ -114,14 +114,16 @@
                                             @endforeach
                                             
                                         </tbody>
-                                        <tr>
+                                            <tr>
                                                 <td class="text-center fw-bold">Monto Total</td>
-                                                <td></td>
-                                                <td></td>
+                                                <td></td><td></td>
                                                 <td class="text-center fw-bold">${{ number_format($monto_total, 2) }}</td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
+                                                <td></td><td></td>
+                                                <td class="text-center">
+                                                @if($solicitud->estatus === 'Concluida' && !$cumplimientos->contains('estatus', 'Pendiente'))
+                                                    <a class="btn btn-primary btn-sm" href="{{ route('PDFcumplimientoTotal', $solicitud->id) }}"  target="_blank"><i class="bi bi-file-earmark-text"></i> Constancia de Cumplimiento Total</a>
+                                                @endif
+                                                </td>
                                             </tr>
                                     </table>
                                 </div>
