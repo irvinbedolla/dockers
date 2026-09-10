@@ -693,7 +693,7 @@
             <div class="tarjeta-sede__grid">
                 <div class="tarjeta-sede__stat">
                     <div class="tarjeta-sede__valor" id="sede-solicitudes">0</div>
-                    <div class="tarjeta-sede__label">Solicitudes atendidas</div>
+                    <div class="tarjeta-sede__label">Solicitudes Totales</div>
                 </div>
                 <div class="tarjeta-sede__stat">
                     <div class="tarjeta-sede__valor" id="sede-audiencias">0</div>

@@ -66,9 +66,9 @@
 
                                                             <!-- Pagar Total (Abre el mismo Modal) -->
                                                             @if($cantidad_pagos > 1)
-                                                                <button type="button" class="btn btn-success btn-sm text-white fw-semibold open-warning" data-bs-toggle="modal" data-bs-target="#warningModal" data-id="{{ $pago->id }}" data-numero="{{ $index + 1 }}" data-tipo="total">
+                                                                <!--button type="button" class="btn btn-success btn-sm text-white fw-semibold open-warning" data-bs-toggle="modal" data-bs-target="#warningModal" data-id="{{ $pago->id }}" data-numero="{{ $index + 1 }}" data-tipo="total">
                                                                     <i class="bi bi-cash-stack me-1"></i> Generar Cumplimiento Total
-                                                                </button>
+                                                                </button-->
                                                             @endif
 
                                                             <!-- Incumplimiento -->
