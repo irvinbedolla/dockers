@@ -42,7 +42,7 @@
                                                 <td class="text-center fw-bold">${{ number_format($pago->monto, 2) }}</td>
                                                 <td class="text-center">
                                                     @if($pago->estatus == 'Pagado')
-                                                        @if($pago->monto != 0)
+                                                        @if(!(mb_substr($pago->observaciones, 0, 26, 'UTF-8') === 'Pagado en el cumplimiento '))
                                                             <span class="badge bg-success rounded-pill px-3 py-2">Cumplimiento</span>
                                                         @else 
                                                             <span class="badge rounded-pill px-3 py-2" style="background-color: #95b89d; color: white;"> Pago Anticipado</span>
@@ -91,7 +91,7 @@
                                                 </td>
                                                 <td class="text-center">
                                                     @if($pago->estatus == "Pagado")
-                                                        @if($pago->monto != 0)
+                                                        @if(!(mb_substr($pago->observaciones, 0, 26, 'UTF-8') === 'Pagado en el cumplimiento '))
                                                             @if($total == 1)
                                                                 <a class="btn btn-success btn-sm px-3 shadow-sm" href="{{ route('PDFcumplimientoR', $pago->id_solicitud) }}" target="_blank">
                                                                     <i class="bi bi-file-earmark-pdf me-1"></i> Parcialidad {{ $index + 1 }}
