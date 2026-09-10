@@ -1761,22 +1761,21 @@
                                                     <a type="button" class="btn btn-primary" style="background-color:#CEA845; border-color:#CEA845;" href="{{ route('cancelar_edicion', ['redirect_to' => 'todas_audiencias']) }}"> Regresar </a>
                                                         @auth
                                                             @hasanyrole('Enlace|Super Usuario|Conciliador')                                                               
-                                                                @if(in_array($audienciaCurrent->estatus, ["No conciliacion", "Conciliacion", "Reinstalacion"]) && $isAudiencia == 'Si')
-                                                                    @hasanyrole('Enlace|Conciliador|Super Usuario')
+                                                                @if(in_array($audienciaCurrent->estatus, ["No conciliacion", "Conciliacion", "Reinstalacion"]) && $isAudiencia == 'Si')                                                                    
                                                                         @if(auth()->user()->hasAnyRole(['Super Usuario']) || Carbon\Carbon::today()->equalTo(\Carbon\Carbon::parse($general->fecha_terminacion)))
                                                                             <a class="btn btn-danger"
                                                                                 href="{{ route('edicion_audienciaConcluida', ['id' => $general->id, 'audiencia_id' => $audiencia->id]) }}" target="_blank">
                                                                                 Editar finalización de audiencia
                                                                             </a>
                                                                         @endif
-                                                                    @endhasanyrole
                                                                 @endif
                                                             @endhasanyrole
                                                         @endauth
                                                     @else
+                                                
+                                                    <a type="button" class="btn btn-primary" style="background-color:#CEA845; border-color:#CEA845;" href="{{ route('cancelar_edicion', ['redirect_to' => 'todas_solicitudes']) }}"> Regresar </a>
+                                                    @endif
                                                 @endcan
-                                                <a type="button" class="btn btn-primary" style="background-color:#CEA845; border-color:#CEA845;" href="{{ route('cancelar_edicion', ['redirect_to' => 'todas_solicitudes']) }}"> Regresar </a>
-                                                @endif
 
                                             </div>
                                         </div>

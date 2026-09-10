@@ -75,7 +75,9 @@ class SolicitudesExport implements FromView
             ->when($this->sede !== "Todos", function ($q) use ($delegacionesFiltro) {
                 return $q->whereIn('seer_general.delegacion', $delegacionesFiltro);
             })
-            
+            ->when($user->hasRole('Auxiliar') || $user->hasRole('Orientador'), function ($q) use ($user) {
+                return $q->where('seer_general.tipo_generacion', $user->id);
+            })
 
             ->leftJoin('users', 'users.id', '=', 'seer_general.tipo_generacion')
             ->leftJoin('seer_solicitante', 'seer_solicitante.id_solicitud', '=', 'seer_general.id')

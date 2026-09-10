@@ -289,9 +289,11 @@
                                         </div>
                                     </div>
                                     <div class="col-xs-12 col-sm-12 col-md-12"><br></div>
-                                    <div class="col-xs-12 col-sm-12 col-md-12">
-                                        <button type="submit" class="btn btn-info">Guardar</button>
-                                    </div>          
+                                    @can('notificaciones_editar')
+                                        <div class="col-xs-12 col-sm-12 col-md-12">
+                                            <button type="submit" class="btn btn-info">Guardar</button>
+                                        </div>
+                                    @endcan          
                                 </div>
                             </form>
                                 <a href="{{ route('notificaciones_consultar') }}"  class="btn btn-primary">Regresar</a>

@@ -738,7 +738,7 @@ class SeerController extends Controller
         $usuariosnotificadores = collect();
         $estadisticas = collect();
 
-        if (in_array($userRole, ["Super Usuario", "Administrador", "Estadistica"])) {
+        if (in_array($userRole, ["Super Usuario", "Administrador", "Estadistica", "Directivo"])) {
             $todosUsuarios = User::with('roles')->get();
             
             $usuariosconciliadores = $todosUsuarios->filter(fn($u) => $u->hasRole('Conciliador'));
@@ -747,7 +747,7 @@ class SeerController extends Controller
             
             $estadisticas = Sedes::all();
 
-        } elseif (in_array($userRole, ["Enlace", "Delegado"])) {
+        } elseif (in_array($userRole, ["Enlace", "Delegado", "Notificador"])) {
             // 1. Buscamos la sede principal y sus oficinas de apoyo
             $sedePrincipal = Sedes::where('nombre', $delegacionUser)->first();
             
@@ -769,6 +769,8 @@ class SeerController extends Controller
                 $usuariosauxiliares = $usuariosBase->filter(fn($u) => $u->hasRole('Auxiliar'));
                 $usuariosnotificadores = $usuariosBase->filter(fn($u) => $u->hasRole('Notificador'));
             }
+        } else if (in_array($userRole, ["Auxiliar", "Orientador"])) {
+            $estadisticas = Sedes::where('nombre', $delegacionUser)->get();
         }
 
         $estados = Estados::all();
@@ -1266,8 +1268,9 @@ class SeerController extends Controller
             //return view('PDF.Estadisticas.graficaCumplimientos', compact('ratificacionesData', 'audienciasData'));
     }
     private function reporteRatificaciones($fecha_inicial, $fecha_final, $sedesPermitidas){
-        
-        
+
+        $userActual = auth()->user();
+
         // 1. Construir la consulta base
         $query = Turnos::whereBetween('turnos.fecha', [$fecha_inicial, $fecha_final])
             ->join('users', 'users.id', 'turnos.id_conciliador')
@@ -1276,13 +1279,16 @@ class SeerController extends Controller
             ->when($sedesPermitidas, function ($q) use ($sedesPermitidas) {
                 return $q->whereIn('turnos.delegacion', $sedesPermitidas);
             })
+            ->when($userActual->hasRole('Auxiliar'), function ($q) use ($userActual) {
+                return $q->where('turnos.user_id', $userActual->id);
+            })
             ->select(
-                'turnos.*', 
-                'users.name as conciliador_name', 
+                'turnos.*',
+                'users.name as conciliador_name',
                 'user_usuario.name as auxiliar_name'
             )
             ->orderBy('user_usuario.name');
-        
+
         // 2. Ejecutar la consulta
         $Ratificacion = $query->get();
 
@@ -1292,6 +1298,9 @@ class SeerController extends Controller
         ->where('pago_solicitud.tipo_pago', 'Ratificacion')
         ->when($sedesPermitidas, function ($q) use ($sedesPermitidas) {
                 return $q->whereIn('pago_solicitud.delegacion', $sedesPermitidas);
+            })
+        ->when($userActual->hasRole('Auxiliar'), function ($q) use ($userActual) {
+                return $q->where('turnos.user_id', $userActual->id);
             })
         ->selectRaw("
             SUM(CASE WHEN pago_solicitud.estatus = 'Pagado' THEN pago_solicitud.monto ELSE 0 END) as pagado_monto
@@ -9831,7 +9840,8 @@ class SeerController extends Controller
                 DB::raw("COUNT(pago_solicitud.id) as total_pagos"),
                 DB::raw("SUM(pago_solicitud.monto) as monto_total"),
                 DB::raw("SUM(CASE WHEN pago_solicitud.estatus = 'Pagado' THEN 1 ELSE 0 END) as pagos_realizados"),
-                DB::raw("SUM(CASE WHEN pago_solicitud.estatus = 'Pendiente' THEN 1 ELSE 0 END) as pagos_pendientes")
+                DB::raw("SUM(CASE WHEN pago_solicitud.estatus = 'Pendiente' THEN 1 ELSE 0 END) as pagos_pendientes"),
+                DB::raw("CASE WHEN SUM(CASE WHEN pago_solicitud.estatus = 'Pendiente' THEN 1 ELSE 0 END) > 0 THEN 'Pendiente' ELSE 'Pagado' END as estatus")
             )
             ->groupBy(
                 DB::raw($caseNueFinal),
@@ -10160,16 +10170,47 @@ class SeerController extends Controller
         ];
     }
 
+    /**
+     * Nombres de sede que un Delegado puede operar (su sede + sus oficinas
+     * de apoyo). Devuelve null para el resto de roles, que no se filtran.
+     */
+    private function nombresSedesPermitidas($user): ?array
+    {
+        if (!$user->hasRole('Delegado')) {
+            return null;
+        }
+
+        $sedePrincipal = Sedes::where('nombre', $user->delegacion)->first();
+        if (!$sedePrincipal) {
+            return [$user->delegacion];
+        }
+
+        return Sedes::where('nombre', $user->delegacion)
+            ->orWhere('oficina_apoyo', $sedePrincipal->id)
+            ->pluck('nombre')
+            ->all();
+    }
+
     public function retroceso_audiencia_index()
     {
         $delegaciones = $this->prefijosDelegacionAudiencia();
+
+        if ($nombresPermitidos = $this->nombresSedesPermitidas(auth()->user())) {
+            $delegaciones = array_filter($delegaciones, fn($nombre) => in_array($nombre, $nombresPermitidos, true));
+        }
 
         return view('ratificaciones.retroceso_audiencia', compact('delegaciones'));
     }
 
     public function buscar_retroceso_audiencia(Request $request)
     {
-        $prefijos = array_keys($this->prefijosDelegacionAudiencia());
+        $prefijosDisponibles = $this->prefijosDelegacionAudiencia();
+
+        if ($nombresPermitidos = $this->nombresSedesPermitidas(auth()->user())) {
+            $prefijosDisponibles = array_filter($prefijosDisponibles, fn($nombre) => in_array($nombre, $nombresPermitidos, true));
+        }
+
+        $prefijos = array_keys($prefijosDisponibles);
 
         $request->validate([
             'delegacion'  => 'required|string|in:' . implode(',', $prefijos),
@@ -12763,6 +12804,7 @@ class SeerController extends Controller
                 'estados.nombre as estado_citado_nombre',
                 'notificadores.name as notificador_nombre'
             )
+            ->where('seer_general.estatus', '!=', 'Pendiente')
             ->orderBy('seer_citados.created_at', 'desc') // Especificamos la tabla para evitar ambigüedad
             ->limit(3000);
 
@@ -12843,7 +12885,9 @@ class SeerController extends Controller
         ->where('seer_general.delegacion', $user["delegacion"])
         //->where('seer_citados.id_notificador', '!=', 0)
         ->where('seer_citados.notificacion',"!=", "Trabajador")
+        ->where('seer_general.estatus', '!=', 'Pendiente')
         ->whereBetween('seer_general.fecha', [$data["fecha_inicio"], $data["fecha_final"]])
+        ->orderBy('seer_citados.created_at', 'desc')
         ->get();
 
         $notificadoresPorSede = User::whereHas('roles', function ($query) {

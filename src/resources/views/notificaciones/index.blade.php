@@ -42,7 +42,9 @@
                                             <th style="color: #fff;">Dirección</th>
                                             <th style="color: #fff;">Estatus</th>
                                             <th style="color: #fff;">Tipo</th>
-                                            <th class="text-center" style="color: #fff;">Asignar</th>
+                                            @can('por_notificar_asignar')
+                                                <th class="text-center" style="color: #fff;">Asignar</th>
+                                            @endcan
                                             <th style="color: #fff;">Acciones</th>
                                         </tr>
                                     </thead>
@@ -63,29 +65,29 @@
                                                 <td>{{$notificacion->tipo_notificacion}}</td>
                                                 
                                                 <!-- Columna Asignar unificada -->
-                                                <td>
-                                                    @if($notificacion->estatus == "Pendiente" || $notificacion->estatus == "Sin asignar")
-                                                        <div class="d-flex align-items-center justify-content-center" style="gap: 10px;">
-                                                            <form id="form-asignar-{{$notificacion->id_citado}}" method="POST" action="{{ route('seer.store_enlace', $notificacion->id_citado) }}" class="needs-validation m-0 w-100 novalidate">
-                                                                @csrf
-                                                                <input type="hidden" name="id" value="{{$notificacion->id_solicitud}}">
-                                                                <select class="form-control" name="notificador" required>
-                                                                    <option value="">Seleccione</option>
-                                                                    @foreach($personas as $persona)
-                                                                        <option value="{{$persona->id}}">{{$persona->name}}</option>
-                                                                    @endforeach
-                                                                </select> 
-                                                            </form>
-                                                            @can('por_notificar_asignar')
+                                                @can('por_notificar_asignar')
+                                                    <td>
+                                                        @if($notificacion->estatus == "Pendiente" || $notificacion->estatus == "Sin asignar")
+                                                            <div class="d-flex align-items-center justify-content-center" style="gap: 10px;">
+                                                                <form id="form-asignar-{{$notificacion->id_citado}}" method="POST" action="{{ route('seer.store_enlace', $notificacion->id_citado) }}" class="needs-validation m-0 w-100 novalidate">
+                                                                    @csrf
+                                                                    <input type="hidden" name="id" value="{{$notificacion->id_solicitud}}">
+                                                                    <select class="form-control" name="notificador" required>
+                                                                        <option value="">Seleccione</option>
+                                                                        @foreach($personas as $persona)
+                                                                            <option value="{{$persona->id}}">{{$persona->name}}</option>
+                                                                        @endforeach
+                                                                    </select> 
+                                                                </form>
                                                                 <button type="submit" form="form-asignar-{{$notificacion->id_citado}}" class="btn btn-primary btn-sm text-nowrap">
                                                                     <i class="bi bi-arrow-left-square"></i> Asignar
                                                                 </button>  
-                                                            @endcan
-                                                        </div>
-                                                    @else
-                                                        {{$notificacion->notificador_nombre}}
-                                                    @endif
-                                                </td>
+                                                            </div>
+                                                        @else
+                                                            {{$notificacion->notificador_nombre}}
+                                                        @endif
+                                                    </td>
+                                                @endcan
                                                 
                                                 <!-- Columna Acciones -->
                                                 <td>

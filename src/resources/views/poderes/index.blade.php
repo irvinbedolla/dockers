@@ -48,9 +48,13 @@
                                             <th style="color: #fff;">RFC</th>
                                             <th style="color: #fff;">Representante Legal</th>
                                             <th style="color: #fff;">Estatus</th>
-                                            <th style="color: #fff;">Expediente Digital</th>
+                                            @can('poderes_ver_expediente')
+                                                <th style="color: #fff;">Expediente Digital</th>
+                                            @endcan
                                             <th style="color: #fff;">Acciones</th>
-                                            <th style="color: #fff;">Eliminar</th>
+                                            @can('poderes_borrar')                   
+                                                <th style="color: #fff;">Eliminar</th>
+                                            @endcan
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -64,10 +68,11 @@
                                                 <td>{{ $poder->rfc_patronal ?? 'N/A' }}</td>
                                                 <td>{{ $poder->nombre_representante_combinado }}</td>
                                                 <td>{!! $poder->estatus_badge !!}</td>
-                                                <td>@can('poderes_ver_expediente')
-                                                        {!! $poder->documentos_modal_btn !!}
-                                                    @endcan
-                                                </td>
+                                                @can('poderes_ver_expediente')
+                                                    <td>
+                                                        {!! $poder->documentos_modal_btn !!}                                                  
+                                                    </td>
+                                                @endcan
                                                 <td>
                                                     <div class="d-flex gap-1 align-items-center">
                                                         <div class="d-flex flex-column gap-1">
@@ -85,17 +90,17 @@
                                                         @endif
                                                     </div>
                                                 </td>
-                                                <td>
-                                                    @if($esSuperUsuario)
-                                                        @can('poderes_borrar')
+                                                @can('poderes_borrar')
+                                                    <td>
+                                                        @if($esSuperUsuario)                                                           
                                                             <form method="POST" action="{{ route('poderes.destroy', $poder->idAbogado) }}" class="form-eliminar-poder">
                                                                 @csrf
                                                                 <input type="hidden" name="_method" value="DELETE">
                                                                 <button class="btn btn-sm btn-danger" type="submit">Borrar</button>
-                                                            </form>
-                                                        @endcan
-                                                    @endif
-                                                </td>
+                                                            </form>                                                            
+                                                        @endif
+                                                    </td>
+                                                @endcan
                                             </tr>
                                         @endforeach
                                     </tbody>

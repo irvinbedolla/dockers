@@ -56,8 +56,12 @@
                                                 <th style="color: #fff;">Solicitante</th>
                                                 <th style="color: #fff;">Conciliador</th>
                                                 <th style="color: #fff;">Estatus</th>
-                                                <th style="color: #fff;">Detalles</th>
-                                                <th style="color: #fff;">Acciones</th>
+                                                @can('audiencias_revisar')
+                                                    <th style="color: #fff;">Detalles</th>
+                                                @endcan
+                                                @can('audiencias_iniciar')
+                                                    <th style="color: #fff;">Acciones</th>
+                                                @endcan
                                                 <th style="color: #fff;">Cumplimientos</th>
                                                 <th class="text-center text-white" style="width: 15%; color: #ffffff !important;">Documentos</th>
                                             </thead>
@@ -69,16 +73,18 @@
                                                     <td>{{$audiencia->nombre}}</td>
                                                     <td>{{$audiencia->conciliador_nombre}}</td>
                                                     <td>{{$audiencia->estatus_modelo}}</td>
-                                                    <td>
-                                                        @can('audiencias_revisar')
-                                                            <a class="btn btn-info btn-sm" href="{{ route('solicitud_audiencia', $audiencia->id_solicitud) }}?isAudiencia=Si&audiencia_id={{ $audiencia->id }}" onclick=editar_usuario();><i class="bi bi-eye-fill"></i> Revisar</a>
-                                                        @endcan
-                                                    </td>
-                                                    <td>
-                                                        @if($audiencia->estatus_modelo == "Pendiente")
-                                                            <a class="btn btn-success btn-sm" href="{{ route('inicioAudiencia', $audiencia->id_solicitud) }}?audiencia_id={{ $audiencia->id }}"><i class="bi bi-play-fill"></i> Iniciar</a><br>
-                                                        @endif
-                                                    </td>
+                                                    @can('audiencias_revisar')
+                                                        <td>                                                       
+                                                            <a class="btn btn-info btn-sm" href="{{ route('solicitud_audiencia', $audiencia->id_solicitud) }}?isAudiencia=Si&audiencia_id={{ $audiencia->id }}" onclick=editar_usuario();><i class="bi bi-eye-fill"></i> Revisar</a>                                                        
+                                                        </td>
+                                                    @endcan
+                                                    @can('audiencias_iniciar')
+                                                        <td>
+                                                            @if($audiencia->estatus_modelo == "Pendiente")
+                                                                <a class="btn btn-success btn-sm" href="{{ route('inicioAudiencia', $audiencia->id_solicitud) }}?audiencia_id={{ $audiencia->id }}"><i class="bi bi-play-fill"></i> Iniciar</a><br>
+                                                            @endif
+                                                        </td>
+                                                    @endcan
                                                     <td>
                                                         @if($audiencia->estatus_modelo == "Conciliacion" || $audiencia->estatus_modelo == "Reinstalacion" || $audiencia->estatus_modelo == "Concluida Pagos")
                                                             <a class="btn btn-primary" href="{{ route('audiencia_cumplimientos', $audiencia->id_solicitud) }}"><i class="bi bi-receipt"></i> Cumplimiento</a>

@@ -22,6 +22,12 @@
             // users.name viene en mayúsculas y con espacios de sobra.
             $nombreBarra  = \Illuminate\Support\Str::title(preg_replace('/\s+/', ' ', trim($usuarioBarra->name)));
             $rolBarra     = $usuarioBarra->getRoleNames()->first();
+            // Nombres de rol que se muestran distinto al usuario final.
+            $rolesMostrados = [
+                'Enlace'      => 'Enlace Administrativo',
+                'Estadistica' => 'Enlace Técnico',
+            ];
+            $rolBarra = $rolesMostrados[$rolBarra] ?? $rolBarra;
         @endphp
 
         <li class="dropdown nav-item">

@@ -30,6 +30,7 @@ class RolePermissionSeeder extends Seeder
             'asesoria_borrar',
             'audiencias_consultar',
             'audiencias_revisar',
+            'audiencias_iniciar',
             'audiencias_borrar_motivo',
             'audiencias_agregar_motivo',
             'audiencias_borrar_citados',
@@ -51,6 +52,7 @@ class RolePermissionSeeder extends Seeder
             'notificaciones_ver_notificacion',
             'notificaciones_subir_documento',
             'notificaciones_cambiar_notificador',
+            'notificaciones_editar',
 
             'casos_excepcion_atencion',
             'casos_excepcion_canalizacion',

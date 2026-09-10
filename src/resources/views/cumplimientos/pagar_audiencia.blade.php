@@ -82,9 +82,11 @@
                                                             @endcan
                                                         @endif
                                                         @if($pago->estatus == "No pagado")
+                                                            @can('cumplimientos_generar_cumplimiento')
                                                             <button type="button" class="btn btn-warning btn-sm text-white open-modal-pena" data-bs-toggle="modal" data-bs-target="#penaModal" data-id="{{ $pago->id }}">
                                                                 <i class="bi bi-cash-stack me-1"></i> Pagar con pena convencional
                                                             </button>
+                                                            @endcan
                                                         @endif
                                                     </td>
                                                     <td class="text-center">

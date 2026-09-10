@@ -129,10 +129,14 @@
                                                 <div class="form-group">
                                                     <label for="name">Notificador</label>
                                                     <select class="form-control" name="notificador">
-                                                        <option value="Todos">Todos</option>
-                                                        @foreach($usuariosnotificadores as $not)
-                                                            <option value="{{$not['id']}}">{{$not['name']}}</option>
-                                                        @endforeach
+                                                        @if($userRole === 'Notificador')
+                                                            <option value="{{ $user->id }}" selected>{{ $user->name }}</option>
+                                                        @else
+                                                            <option value="Todos">Todos</option>
+                                                            @foreach($usuariosnotificadores as $not)
+                                                                <option value="{{$not['id']}}">{{$not['name']}}</option>
+                                                            @endforeach
+                                                        @endif
                                                     </select>
                                                 </div>
                                             </div>

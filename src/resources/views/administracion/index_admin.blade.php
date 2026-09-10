@@ -12,46 +12,46 @@
             'icono'  => 'bi-people',
             'titulo' => 'Usuarios',
             'texto'  => 'Altas, bajas y roles del personal.',
-            'solo_super' => false,
+            'roles'  => ['Super Usuario'],
         ],
         [
             'ruta'   => 'configuracion_sedes',
             'icono'  => 'bi-calendar-x',
             'titulo' => 'Días inhábiles',
             'texto'  => 'Bloqueos y horarios por sede.',
-            'solo_super' => true,
+            'roles'  => ['Super Usuario'],
         ],
         [
             'ruta'   => 'index_retroceso',
             'icono'  => 'bi-arrow-counterclockwise',
             'titulo' => 'Retrocesos',
             'texto'  => 'Regresar un expediente de etapa.',
-            'solo_super' => true,
+            'roles'  => ['Super Usuario', 'Delegado'],
         ],
         [
             'ruta'   => 'configuracion_borrar_cumpli',
             'icono'  => 'bi-trash3',
             'titulo' => 'Borrar cumplimientos',
             'texto'  => 'Eliminar cumplimientos capturados.',
-            'solo_super' => true,
+            'roles'  => ['Super Usuario', 'Delegado'],
         ],
         [
             'ruta'   => 'cambio_fecha_audiencia',
             'icono'  => 'bi-calendar-event',
             'titulo' => 'Cambiar fecha de audiencia',
             'texto'  => 'Reprogramar una audiencia agendada.',
-            'solo_super' => true,
+            'roles'  => ['Super Usuario', 'Delegado'],
         ],
         [
             'ruta'   => 'cambio_fecha_cumplimiento',
             'icono'  => 'bi-cash-coin',
             'titulo' => 'Cambiar fecha de cumplimiento',
             'texto'  => 'Reprogramar un cumplimiento agendado.',
-            'solo_super' => true,
+            'roles'  => ['Super Usuario', 'Delegado'],
         ]
     ];
 
-    $esSuperUsuario = ($userRole[0] ?? null) === 'Super Usuario';
+    $userRoleActual = $userRole[0] ?? null;
 @endphp
 
 @section('page_css')
@@ -164,7 +164,7 @@
 
                             <div class="adm-grid">
                                 @foreach ($accesos as $acceso)
-                                    @continue($acceso['solo_super'] && !$esSuperUsuario)
+                                    @continue(!in_array($userRoleActual, $acceso['roles'], true))
                                     <a href="{{ route($acceso['ruta']) }}" class="adm-item">
                                         <span class="adm-icono" aria-hidden="true"><i class="bi {{ $acceso['icono'] }}"></i></span>
                                         <span>

@@ -30,7 +30,7 @@ class RoleSeeder extends Seeder
         $enlace      = Role::firstOrCreate(['name' => 'Enlace', 'guard_name' => 'web']); 
         $cumplimientos      = Role::firstOrCreate(['name' => 'Cumplimientos', 'guard_name' => 'web']);
         $directivo      = Role::firstOrCreate(['name' => 'Directivo', 'guard_name' => 'web']);
-        $orientadores      = Role::firstOrCreate(['name' => 'Orientadores', 'guard_name' => 'web']);
+        $orientadores      = Role::firstOrCreate(['name' => 'Orientador', 'guard_name' => 'web']);
 
         $administrador    = Role::firstOrCreate(['name' => 'Administrador', 'guard_name' => 'web']);
         $capacitacion_admin    = Role::firstOrCreate(['name' => 'Capacitacion Admin', 'guard_name' => 'web']);
@@ -47,6 +47,16 @@ class RoleSeeder extends Seeder
         $superAdmin->syncPermissions(Permission::all());
 
         $directivo->syncPermissions([
+            'audiencias_consultar',
+            'audiencia_ver_documento_digital',
+            'audiencias_ver_citatorios',
+            'audiencias_revisar',
+
+            'asesoria_consultar',
+
+            'poderes_ver_expediente',
+            'poderes_ver_historial',
+
             'reportes_audiencias',
             'reportes_cumplimientos',
             'reportes_ratificaciones',
@@ -66,14 +76,16 @@ class RoleSeeder extends Seeder
             'reportes_actividad',
 
             'solicitudes_revisar',
+            'solicitudes_ver',
+            'solicitudes_ver_documentos',
 
             'ratificaciones_consultar',
             
             'cumplimientos_consultar',
-            
-            'audiencias_consultar',
+            'cumplimientos_ver_pdf',
 
             'notificaciones_ver_notificacion',
+            'notificaciones_ver_documento',
 
 
         ]);
@@ -86,6 +98,14 @@ class RoleSeeder extends Seeder
 
             'audiencias_consultar',
             'audiencias_revisar',
+            'audiencia_ver_documento_digital',
+            'audiencias_ver_citatorios',
+
+            'cumplimientos_consultar',
+            'cumplimientos_generar_cumplimiento',
+            'cumplimientos_generar_incumplimiento',
+            'cumplimientos_generar_incomparecencia',
+            'cumplimientos_generar_cumplimiento_total',
 
             'notificaciones_ver_notificacion',
 
@@ -95,7 +115,9 @@ class RoleSeeder extends Seeder
             'poderes_crear',
             'poderes_editar',
             'poderes_agregar_representante',
+            'poderes_ver_expediente',
             
+            'ratificaciones_subir_documentos',
             'ratificaciones_crear',
             'ratificaciones_consultar',
             'ratificaciones_concluir',
@@ -103,13 +125,19 @@ class RoleSeeder extends Seeder
             'solicitudes_pendientes_validar',
             'solicitudes_validar',
             'solicitudes_ver',
+            'solicitudes_ver_documentos',
             'solicitudes_crear',
             'solicitudes_revisar',
             'solicitudes_editar',
+            'solicitudes_subir_documentos',
             
         ]);
 
         $orientadores->syncPermissions([
+            'audiencias_consultar',
+            'audiencia_ver_documento_digital',
+            'audiencias_ver_citatorios',
+
             'asesoria_crear',
             'asesoria_consultar',
 
@@ -118,13 +146,16 @@ class RoleSeeder extends Seeder
             'poderes_crear',
             'poderes_editar',
             'poderes_agregar_representante',
+            'poderes_ver_expediente',
 
             'solicitudes_pendientes_validar',
             'solicitudes_validar',
             'solicitudes_ver',
+            'solicitudes_ver_documentos',
             'solicitudes_crear',
             'solicitudes_revisar',
             'solicitudes_editar',
+            'solicitudes_subir_documentos',
 
         ]);
         
@@ -142,6 +173,7 @@ class RoleSeeder extends Seeder
             'audiencia_archivar',
             'audiencia_incompetencia',
             'audiencia_desistimiento',
+            'audiencias_iniciar',
             'audiencia_no_conciliacion',
             'audiencia_editar_solicitante',
             'audiencia_registrar_comparecencia',
@@ -156,6 +188,8 @@ class RoleSeeder extends Seeder
             'reportes_audiencias',
             'reportes_conciliador',
 
+            'ratificaciones_subir_documentos',
+
             'poderes_crear',
             'poderes_editar',
             'poderes_agregar_representante',
@@ -166,6 +200,8 @@ class RoleSeeder extends Seeder
             'solicitudes_crear',
             'solicitudes_revisar',
             'solicitudes_editar',
+            'solicitudes_subir_documentos',
+            'solicitudes_ver_documentos',
             
 
         ]);
@@ -178,7 +214,10 @@ class RoleSeeder extends Seeder
             'notificaciones_ver_notificacion',
             'notificaciones_subir_documento',
             'notificaciones_cambiar_notificador',
-            
+
+            'solicitudes_ver',
+            'solicitudes_ver_documentos',
+
             'reportes_notificaciones',
             'por_notificar_asignar',
             'por_notificar_editar',
@@ -191,6 +230,9 @@ class RoleSeeder extends Seeder
             'asesoria_consultar',
 
             'audiencias_consultar',
+            'audiencia_ver_documento_digital',
+            'audiencias_ver_citatorios',
+            'audiencias_guardar_edicion',
 
             'notificaciones_ver_notificacion',
             
@@ -209,6 +251,8 @@ class RoleSeeder extends Seeder
             'ratificaciones_consultar',
 
             'solicitudes_revisar',
+            'solicitudes_ver',
+            'solicitudes_ver_documentos',
             
             'cumplimientos_consultar',
 
@@ -250,6 +294,9 @@ class RoleSeeder extends Seeder
             'oficialia_oficio',
             'oficialia_historial',
 
+            'solicitudes_ver',
+            'solicitudes_ver_documentos',
+
             'turnos_ver',
             'turnos_crear',
             'turnos_asignar',
@@ -260,6 +307,8 @@ class RoleSeeder extends Seeder
             'asesoria_consultar',
 
             'audiencias_consultar',
+            'audiencia_ver_documento_digital',
+            'audiencias_ver_citatorios',
             'audiencias_revisar',
 
             'notificaciones_ver_notificacion',
@@ -278,6 +327,7 @@ class RoleSeeder extends Seeder
             'solicitudes_pendientes_validar',
             'solicitudes_validar',
             'solicitudes_ver',
+            'solicitudes_ver_documentos',
             'solicitudes_crear',
             'solicitudes_revisar',
             'solicitudes_editar',
@@ -295,10 +345,13 @@ class RoleSeeder extends Seeder
         ]);
 
         $enlace->syncPermissions([
+            'audiencias_guardar_edicion',
+            
             'notificaciones_ver_documento',
             'notificaciones_ver_notificacion',
             'notificaciones_subir_documento',
             'notificaciones_cambiar_notificador',
+            'notificaciones_editar',
             'poderes_agregar_representante',
             'por_notificar_asignar',
             'por_notificar_editar',
@@ -322,6 +375,9 @@ class RoleSeeder extends Seeder
             'reportes_municipios',
             'reportes_actividad',
 
+            'solicitudes_ver',
+            'solicitudes_ver_documentos'
+
         ]);
 
         $cumplimientos->syncPermissions([
@@ -341,6 +397,8 @@ class RoleSeeder extends Seeder
             'cumplimientos_generar_cumplimiento_total',
             'cumplimientos_ver_pdf',
 
+            'solicitudes_ver',
+            'solicitudes_ver_documentos'
         ]);
         //
     }

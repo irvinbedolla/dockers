@@ -187,6 +187,41 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Dias inhabiles del rango visible, para pintarlos deshabilitados.
     Route::get('/agenda/dias-inhabiles',        [AdministracionController::class, 'diasInhabilesAgenda'])->name('agenda.inhabiles');
 
+
+    /*
+     |-- SUB-GRUPO DE CONTROL DE ACCESO: SUPER USUARIO / ADMINISTRADORES / DELEGADOS
+     |-- (Gestión de Roles, Usuarios y Configuraciones Globales de SiConcilio)
+     |*/
+
+    Route::middleware(['role:Super Usuario|Administrador|Delegado'])->group(function () {
+        // Configuración Avanzada de Sedes y Retrocesos de Estatus
+        Route::get('administracion/configuracion',          [AdministracionController::class, 'configuracion'])->name('configuracion');
+        Route::get('administracion/sedes',                  [AdministracionController::class, 'configuracion_sedes'])->name('configuracion_sedes');
+        Route::get('administracion/usuarios',               [AdministracionController::class, 'configuracion_usuarios'])->name('configuracion_usuarios');
+        Route::get('administracion/retrocesos',             [AdministracionController::class, 'genera_retroceso'])->name('genera_retroceso');       
+        Route::post('/generar-retroceso',                   [AdministracionController::class, 'consultar_retroceso'])->name('generar_retroceso'); 
+        Route::get('administracion/RC/{id}',                [AdministracionController::class, 'hacer_retroceso_cumplimiento'])->name('accion_retrocesoC');    
+        Route::get('administracion/RR/{id}',                [AdministracionController::class, 'hacer_retroceso_ratificacion'])->name('accion_retrocesoR'); 
+        Route::post('/bloquear_sede',                       [AdministracionController::class, 'bloqueoSede'])->name('bloqueoSede');  //Bloquear días inhabiles para toda la sede
+        Route::post('/bloquear_conciliador',                [AdministracionController::class, 'bloqueoConciliador'])->name('bloqueoConciliador'); //bloquear por días u horas a conciliadores
+        Route::get('administracion/sedes/{sede}/calendario', [AdministracionController::class, 'calendarioSede'])->name('sede.calendario'); //calendario de bloqueos de una sede
+        Route::delete('/bloqueo/{id}',                      [AdministracionController::class, 'eliminarBloqueo'])->name('eliminarBloqueo'); //eliminar fechas bloqueadas(inhabiles)
+        Route::put('/bloqueo/{id}',                         [AdministracionController::class, 'actualizarBloqueo'])->name('actualizarBloqueo'); //editar un bloqueo existente
+        Route::get('/administracion/edit/{id}',             [AdministracionController::class, 'edit'])->name('administrador_usuarios_edit');
+        Route::patch('/administracion/update/{post}',       [AdministracionController::class, 'update'])->name('usuarios_update');
+        Route::delete('/administracion/destroy/{id}',       [AdministracionController::class, 'destroy'])->name('usuarios_destroy');
+        Route::get('/administracion/borrarCumplimientos',   [AdministracionController::class, 'consular_cumplimientos'])->name('configuracion_borrar_cumpli');
+        Route::post('/administracion/borrarCumplimiento',   [AdministracionController::class, 'borrar_cumplimeinto'])->name('borrar_cumplimeinto');
+        Route::delete('/administracion/borrar/{id}',        [AdministracionController::class, 'destroy_cumplimientoA'])->name('borrar_cumplimeintoA');
+        Route::get('/administracion/cambiarFecha',          [AdministracionController::class, 'cambio_audiencia'])->name('cambio_fecha_audiencia');
+        Route::post('/administracion/cambiarFecha/buscar',  [AdministracionController::class, 'fecha_audiencia_buscar'])->name('fecha_audiencia_buscar');
+        Route::post('/administracion/cambiarFecha/cambio',   [AdministracionController::class, 'cambiar_fecha'])->name('cambiar_fecha');
+        Route::post('/administracion/cambiarFecha/cambioFecha',[AdministracionController::class, 'cambio_fecha'])->name('cambio_fecha');
+        Route::get('/administracion/cambiarFechaCumplimiento',         [AdministracionController::class, 'cambio_cumplimiento'])->name('cambio_fecha_cumplimiento');
+        Route::post('/administracion/cambiarFechaCumplimiento/buscar', [AdministracionController::class, 'fecha_cumplimiento_buscar'])->name('fecha_cumplimiento_buscar');
+        Route::post('/administracion/cambiarFechaCumplimiento/cambio', [AdministracionController::class, 'cambiar_fecha_cumplimiento'])->name('cambiar_fecha_cumplimiento');
+    });
+
     /*
      |-- SUB-GRUPO DE CONTROL DE ACCESO: SUPER USUARIO / ADMINISTRADORES
      |-- (Gestión de Roles, Usuarios y Configuraciones Globales de SiConcilio)
@@ -221,38 +256,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('pagos/import',                     [HomeController::class, 'importPago'])->name('pagos.import');
         Route::post('concepto/import',                  [HomeController::class, 'importConcepto'])->name('concecto.import');
         Route::post('turnos/import',                    [HomeController::class, 'importTurnos'])->name('turnos.import');
-
-        //Reportes conciliciador, auxiliares y notificaciones
-        Route::get('/indexConciliadores/Reportes',          [SeerController::class, 'indexCAN'])->name('reportes_conciliador');
-        Route::post('indexConciliadores/generar',           [SeerController::class, 'generaReporteUsuario'])->name('generaReporteUsuario');
-
-        // Configuración Avanzada de Sedes y Retrocesos de Estatus
-        Route::get('administracion/configuracion',          [AdministracionController::class, 'configuracion'])->name('configuracion');
-        Route::get('administracion/sedes',                  [AdministracionController::class, 'configuracion_sedes'])->name('configuracion_sedes');
-        Route::get('administracion/usuarios',               [AdministracionController::class, 'configuracion_usuarios'])->name('configuracion_usuarios');
-        Route::get('administracion/retrocesos',             [AdministracionController::class, 'genera_retroceso'])->name('genera_retroceso');       
-        Route::post('/generar-retroceso',                   [AdministracionController::class, 'consultar_retroceso'])->name('generar_retroceso'); 
-        Route::get('administracion/RC/{id}',                [AdministracionController::class, 'hacer_retroceso_cumplimiento'])->name('accion_retrocesoC');    
-        Route::get('administracion/RR/{id}',                [AdministracionController::class, 'hacer_retroceso_ratificacion'])->name('accion_retrocesoR'); 
-        Route::post('/bloquear_sede',                       [AdministracionController::class, 'bloqueoSede'])->name('bloqueoSede');  //Bloquear días inhabiles para toda la sede
-        Route::post('/bloquear_conciliador',                [AdministracionController::class, 'bloqueoConciliador'])->name('bloqueoConciliador'); //bloquear por días u horas a conciliadores
-        Route::get('administracion/sedes/{sede}/calendario', [AdministracionController::class, 'calendarioSede'])->name('sede.calendario'); //calendario de bloqueos de una sede
-        Route::delete('/bloqueo/{id}',                      [AdministracionController::class, 'eliminarBloqueo'])->name('eliminarBloqueo'); //eliminar fechas bloqueadas(inhabiles)
-        Route::put('/bloqueo/{id}',                         [AdministracionController::class, 'actualizarBloqueo'])->name('actualizarBloqueo'); //editar un bloqueo existente
-        Route::get('/administracion/edit/{id}',             [AdministracionController::class, 'edit'])->name('administrador_usuarios_edit');
-        Route::patch('/administracion/update/{post}',       [AdministracionController::class, 'update'])->name('usuarios_update');
-        Route::delete('/administracion/destroy/{id}',       [AdministracionController::class, 'destroy'])->name('usuarios_destroy');
-        Route::get('/administracion/borrarCumplimientos',   [AdministracionController::class, 'consular_cumplimientos'])->name('configuracion_borrar_cumpli');
-        Route::post('/administracion/borrarCumplimiento',   [AdministracionController::class, 'borrar_cumplimeinto'])->name('borrar_cumplimeinto');
-        Route::delete('/administracion/borrar/{id}',        [AdministracionController::class, 'destroy_cumplimientoA'])->name('borrar_cumplimeintoA');
-        Route::get('/administracion/cambiarFecha',          [AdministracionController::class, 'cambio_audiencia'])->name('cambio_fecha_audiencia');
-        Route::post('/administracion/cambiarFecha/buscar',  [AdministracionController::class, 'fecha_audiencia_buscar'])->name('fecha_audiencia_buscar');
-        Route::post('/administracion/cambiarFecha/cambio',   [AdministracionController::class, 'cambiar_fecha'])->name('cambiar_fecha');
-        Route::post('/administracion/cambiarFecha/cambioFecha',[AdministracionController::class, 'cambio_fecha'])->name('cambio_fecha');
-        Route::get('/administracion/cambiarFechaCumplimiento',         [AdministracionController::class, 'cambio_cumplimiento'])->name('cambio_fecha_cumplimiento');
-        Route::post('/administracion/cambiarFechaCumplimiento/buscar', [AdministracionController::class, 'fecha_cumplimiento_buscar'])->name('fecha_cumplimiento_buscar');
-        Route::post('/administracion/cambiarFechaCumplimiento/cambio', [AdministracionController::class, 'cambiar_fecha_cumplimiento'])->name('cambiar_fecha_cumplimiento');
-
 
         //Direccion General
         Route::get('/DireccionGeneral/index',           [CitaDireccionController::class, 'index'])->name('indexDireccionGeneral');
@@ -295,6 +298,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/seer/convenios',                   [SeerController::class, 'index_convenios'])->name('index_convenios');
         Route::get('/seer/colectivas',                  [SeerController::class, 'index_colectivas'])->name('index_colectivas');
         Route::get('/audiencias_Revisar/{id}/{isAudiencia?}',               [SeerController::class, 'solicitud_audiencia_revisar'])->name('solicitud_audiencia');
+
+        //Reportes conciliciador, auxiliares y notificaciones
+        Route::get('/indexConciliadores/Reportes',          [SeerController::class, 'indexCAN'])->name('reportes_conciliador');
+        Route::post('indexConciliadores/generar',           [SeerController::class, 'generaReporteUsuario'])->name('generaReporteUsuario');
 
         //Audiencias
             Route::get('/audiencias/index',                                     [SeerController::class, 'audiencia_index'])->name('audiencia_index');
@@ -383,7 +390,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
      |-- SUB-GRUPO DE CONTROL DE ACCESO: NOTIFICADORES / ENLACES JURÍDICOS
      |-- (Estatus de entrega de citatorios, instructivos y levantamiento de razones de notificación)
      |*/
-    Route::middleware(['role:Super Usuario|Notificador|Enlace|Estadistica'])->group(function () {
+    Route::middleware(['role:Super Usuario|Notificador|Enlace|Estadistica|Directivo'])->group(function () {
         Route::get('/notificaciones/index',                 [SeerController::class, 'notificaciones'])->name('notificaciones');
         Route::get('/notificaciones/busqueda',              [SeerController::class, 'notificaciones_consultar'])->name('notificaciones_consultar');
         Route::post('/notificaciones/resultado',            [SeerController::class, 'notificaciones_busqueda'])->name('notificaciones_busqueda');
@@ -401,7 +408,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('notificaciones/actualizar',            [SeerController::class, 'editar_citados'])->name('actualizar_enlace'); 
         Route::post('/seer/store_enlace/{id}',              [SeerController::class, 'store_enlace'])->name('seer.store_enlace');
         Route::post('/notificaciones/asignar_notificador',  [SeerController::class, 'asignar_notificador_busqueda'])->name('asignar_notificador_busqueda')->middleware('role:Enlace|Super Usuario');
-        Route::post('/seer/mostrar',                        [SeerController::class, 'mostrar_reporte'])->name('seer.mostar');
         Route::post('/notificacion/editar',                 [SeerController::class, 'mostrar_citado'])->name('editar_citado_historial');
         Route::post('notificaciones/actualizarH',           [SeerController::class, 'editar_citados_historial'])->name('actualizar_enlace_hitorial');  
     });
@@ -455,6 +461,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/solicitud/guardarExpediente',                         [SeerController::class, 'guardar_expediente'])->name('subir_expediente'); //Subir expediente 
     Route::post('/solicitud/guardarExpedienteR',                        [TurnosController::class, 'guardar_expediente'])->name('subir_expediente_ratificacion'); //Subir expediente ratificacion
     Route::post('/cumplimientos/pagar-total',                        [SeerController::class, 'pagarTotalAudiencia'])->name('audiencia_pagar_total');
+    Route::post('/seer/mostrar',                        [SeerController::class, 'mostrar_reporte'])->name('seer.mostar');
 
 
     //Solicitudes y casos de exepcion

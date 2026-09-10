@@ -262,14 +262,45 @@ class AdministracionController extends Controller{
             'SAH' => 'Sahuayo',
         ];
     }
+    /**
+     * Nombres de sede que un Delegado puede operar (su sede + sus oficinas
+     * de apoyo). Devuelve null para el resto de roles, que no se filtran.
+     */
+    private function nombresSedesPermitidas($user): ?array
+    {
+        if (!$user->hasRole('Delegado')) {
+            return null;
+        }
+
+        $sedePrincipal = Sedes::where('nombre', $user->delegacion)->first();
+        if (!$sedePrincipal) {
+            return [$user->delegacion];
+        }
+
+        return Sedes::where('nombre', $user->delegacion)
+            ->orWhere('oficina_apoyo', $sedePrincipal->id)
+            ->pluck('nombre')
+            ->all();
+    }
+
     public function cambio_audiencia(){
         $delegaciones = $this->prefijosDelegacion();
+
+        if ($nombresPermitidos = $this->nombresSedesPermitidas(auth()->user())) {
+            $delegaciones = array_filter($delegaciones, fn($nombre) => in_array($nombre, $nombresPermitidos, true));
+        }
 
         return view('administracion.index_audiencia', compact('delegaciones'));
     }
     public function fecha_audiencia_buscar(Request $request)
     {
-        $prefijos = array_keys($this->prefijosDelegacion());
+        $prefijosDisponibles = $this->prefijosDelegacion();
+
+        if ($nombresPermitidos = $this->nombresSedesPermitidas(auth()->user())) {
+            $prefijosDisponibles = array_filter($prefijosDisponibles, fn($nombre) => in_array($nombre, $nombresPermitidos, true));
+        }
+
+        $prefijos = array_keys($prefijosDisponibles);
 
         $request->validate([
             'delegacion'  => 'required|string|in:' . implode(',', $prefijos),
@@ -349,6 +380,11 @@ class AdministracionController extends Controller{
         $delegacionesSol = $this->prefijosDelegacion();
         $delegacionesRat = $this->prefijosDelegacionRatificacion();
 
+        if ($nombresPermitidos = $this->nombresSedesPermitidas(auth()->user())) {
+            $delegacionesSol = array_filter($delegacionesSol, fn($nombre) => in_array($nombre, $nombresPermitidos, true));
+            $delegacionesRat = array_filter($delegacionesRat, fn($nombre) => in_array($nombre, $nombresPermitidos, true));
+        }
+
         return view('administracion.index_cumplimiento', compact('delegacionesSol', 'delegacionesRat'));
     }
 
@@ -356,6 +392,11 @@ class AdministracionController extends Controller{
     {
         $delegacionesSol = $this->prefijosDelegacion();
         $delegacionesRat = $this->prefijosDelegacionRatificacion();
+
+        if ($nombresPermitidos = $this->nombresSedesPermitidas(auth()->user())) {
+            $delegacionesSol = array_filter($delegacionesSol, fn($nombre) => in_array($nombre, $nombresPermitidos, true));
+            $delegacionesRat = array_filter($delegacionesRat, fn($nombre) => in_array($nombre, $nombresPermitidos, true));
+        }
 
         $request->validate([
             'tipo'        => 'required|string|in:SOL,RAT',
