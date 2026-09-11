@@ -23,6 +23,7 @@ use App\Models\Deducciones;
 use App\Models\DocumentosSolicitud;
 use App\Models\HistorialAbogado;
 use App\Models\Recepcion;
+use App\Models\Sedes;
 use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -906,7 +907,7 @@ class TurnosController extends Controller
             ->update(['estatus' => "Concluida"]);
         }
 
-        return redirect()->route('todas_ratificaciones');
+        return redirect()->route('audiencias.cumplimiento');
     }
     public function pagarTotalRatificacion(Request $request)
     {
@@ -943,7 +944,7 @@ class TurnosController extends Controller
             'estatus' => "Concluida"
         ]);
 
-        return redirect()->back()->with('success', 'Pago total registrado correctamente.');
+        return redirect()->route('audiencias.cumplimiento');
     }
 
     public function obtenerHorario($fecha_revisar,$sede){
@@ -2086,16 +2087,47 @@ class TurnosController extends Controller
         return view('ratificaciones.index_retroceso');
     }
 
+    /**
+     * Nombres de sede que un Delegado puede operar (su sede + sus oficinas
+     * de apoyo). Devuelve null para el resto de roles, que no se filtran.
+     */
+    private function nombresSedesPermitidas($user): ?array
+    {
+        if (!$user->hasRole('Delegado')) {
+            return null;
+        }
+
+        $sedePrincipal = Sedes::where('nombre', $user->delegacion)->first();
+        if (!$sedePrincipal) {
+            return [$user->delegacion];
+        }
+
+        return Sedes::where('nombre', $user->delegacion)
+            ->orWhere('oficina_apoyo', $sedePrincipal->id)
+            ->pluck('nombre')
+            ->all();
+    }
+
     public function retroceso_ratificacion_index()
     {
         $delegaciones = $this->prefijosDelegacion();
+
+        if ($nombresPermitidos = $this->nombresSedesPermitidas(auth()->user())) {
+            $delegaciones = array_filter($delegaciones, fn($nombre) => in_array($nombre, $nombresPermitidos, true));
+        }
 
         return view('ratificaciones.retroceso', compact('delegaciones'));
     }
 
     public function buscar_retroceso_ratificacion(Request $request)
     {
-        $prefijos = array_keys($this->prefijosDelegacion());
+        $prefijosDisponibles = $this->prefijosDelegacion();
+
+        if ($nombresPermitidos = $this->nombresSedesPermitidas(auth()->user())) {
+            $prefijosDisponibles = array_filter($prefijosDisponibles, fn($nombre) => in_array($nombre, $nombresPermitidos, true));
+        }
+
+        $prefijos = array_keys($prefijosDisponibles);
 
         $request->validate([
             'delegacion'  => 'required|string|in:' . implode(',', $prefijos),

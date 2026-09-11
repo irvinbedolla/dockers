@@ -93,20 +93,22 @@
                                                             <span class="badge" style="background-color: #ffc107; color: black;">{{ $cumplimiento['estatus'] }}</span>
                                                         </td>
                                                         <td class="text-center align-middle">
-                                                            @if ($cumplimiento['estatus'] === 'Pagado')
-                                                                <button type="button" class="btn btn-info" disabled title="No se puede reagendar un cumplimiento ya pagado.">
-                                                                    Reagendar
-                                                                </button>
-                                                            @else
-                                                                <button type="button" class="btn btn-info open-modal-pago"
-                                                                    data-bs-toggle="modal"
-                                                                    data-bs-target="#ModalReagendarPago"
-                                                                    data-id="{{ $cumplimiento['id'] }}"
-                                                                    data-sede="{{ $cumplimiento['delegacion'] }}"
-                                                                    data-nue="{{ $cumplimiento['NUE'] }}">
-                                                                    Reagendar
-                                                                </button>
-                                                            @endif
+                                                            @can('cambiar_fecha_cumplimiento')
+                                                                @if ($cumplimiento['estatus'] === 'Pagado')
+                                                                    <button type="button" class="btn btn-info" disabled title="No se puede reagendar un cumplimiento ya pagado.">
+                                                                        Reagendar
+                                                                    </button>
+                                                                @else
+                                                                    <button type="button" class="btn btn-info open-modal-pago"
+                                                                        data-bs-toggle="modal"
+                                                                        data-bs-target="#ModalReagendarPago"
+                                                                        data-id="{{ $cumplimiento['id'] }}"
+                                                                        data-sede="{{ $cumplimiento['delegacion'] }}"
+                                                                        data-nue="{{ $cumplimiento['NUE'] }}">
+                                                                        Reagendar
+                                                                    </button>
+                                                                @endif
+                                                            @endcan
                                                         </td>
                                                     </tr>
                                                 @empty

@@ -85,7 +85,9 @@
                                                                     <form method="POST" action="{{ route('borrar_cumplimeintoA', $folio['id']) }} ">
                                                                         @csrf
                                                                         <input type="hidden" name="_method" value="DELETE">
-                                                                        <button class="btn btn-danger" onclick=editar_usuario(); type="submit">Borrar cumplimeinto</button>
+                                                                        @can('cumplimientos_borrar_cumplimiento')
+                                                                            <button class="btn btn-danger" onclick=editar_usuario(); type="submit">Borrar cumplimeinto</button>
+                                                                        @endcan
                                                                     </form>
                                                                 </td>
                                                             </tr>
@@ -115,7 +117,9 @@
                                                                     <form method="POST" action="{{ route('borrar_cumplimeintoA', $folio['id']) }} ">
                                                                         @csrf
                                                                         <input type="hidden" name="_method" value="DELETE">
-                                                                        <button class="btn btn-danger" onclick=editar_usuario(); type="submit">Borrar cumplimeinto</button>
+                                                                        @can('cumplimientos_borrar_cumplimiento')
+                                                                            <button class="btn btn-danger" onclick=editar_usuario(); type="submit">Borrar cumplimeinto</button>
+                                                                        @endcan
                                                                     </form>
                                                                 </td>
                                                             </tr>

@@ -28,7 +28,7 @@
                                 </div>
                             </div>
 
-                            <div class="table-responsive menu-visible">
+                            <div class="table-responsive">
                                 <table id="example" class="table table-striped mt-1" style="text-align:center">
                                     <thead style="background-color: #354647;">
                                         <th style="color: #fff;">Expediente</th>
@@ -46,7 +46,7 @@
                                     <tbody>
                                         @foreach($notificaciones as $notificacion)
                                             <tr>
-                                                <td>{{$notificacion->NUE}}</td>
+                                                <td>{{$notificacion->NUE ?? 'Sin NUE'}}</td>
                                                 <td>{{$notificacion->nombre}} {{$notificacion->primer_apellido}} {{$notificacion->segundo_apellido}}</td>
                                                 <td>COLONIA {{$notificacion->colonia}}, {{$notificacion->tipo_vialidad}} {{$notificacion->calle}} #{{$notificacion->n_ext}} 
                                                     @if(!empty($notificacion->n_int))
@@ -89,38 +89,56 @@
                                                 <td>
                                                     <div class="col-xs-12 col-sm-12 col-md-12"> 
                                                         @if($notificacion->estatus === "Finalizado exitosamente")
-                                                            <button class="btn btn-primary dropdown-toggle" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">Documentos</button>
-                                                            <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
-                                                                <li><a class="btn btn-info" style="width: 100%" href="{{ route('PDFRazonNoticacion', [$notificacion->id, $notificacion->id_solicitud]) }}"  target="_blank">Notificación</a></li>
-                                                                <li><a class="btn btn-info" style="width: 100%" href="{{ route('PDFmultaNotificacion', [$notificacion->id, $notificacion->id_solicitud]) }}" target="_blank">Multa</a></li>
-                                                            </ul>
+                                                            @can('notificaciones_ver_documento')
+                                                                <button class="btn btn-primary dropdown-toggle" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
+                                                                    Documentos
+                                                                </button>
+                                                                <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
+                                                                    @can('notificaciones_ver_notificacion')
+                                                                        <li><a class="btn btn-info" style="width: 100%" href="{{ route('PDFRazonNoticacion', [$notificacion->id, $notificacion->id_solicitud]) }}"  target="_blank">Notificación</a></li>
+                                                                    @endcan
+                                                                    <li><a class="btn btn-info" style="width: 100%" href="{{ route('PDFmultaNotificacion', [$notificacion->id, $notificacion->id_solicitud]) }}" target="_blank">Multa</a></li>
+                                                                </ul>
+                                                            @endcan
                                                         @endif     
                                                         @if($notificacion->estatus === "No notificada" || $notificacion->estatus === "Notificada en Audiencia")
-                                                            <button class="btn btn-primary dropdown-toggle" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
-                                                                Documentos
-                                                        </button>
-                                                            <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
-                                                                <li><a class="btn btn-info" style="width: 100%" href="{{ route('PDFInstructivo', [$notificacion->id, $notificacion->id_solicitud]) }}" target="_blank">Notificación</a></li>
-                                                                <li><a class="btn btn-info" style="width: 100%" href="{{ route('VerPDFMultaInstructivo', [$notificacion->id, $notificacion->id_solicitud]) }}" target="_blank">Multa</a></li>
-                                                            </ul>
+                                                            @can('notificaciones_ver_documento')
+                                                                <button class="btn btn-primary dropdown-toggle" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
+                                                                    Documentos
+                                                                </button>
+                                                                <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
+                                                                    @can('notificaciones_ver_notificacion')
+                                                                        <li><a class="btn btn-info" style="width: 100%" href="{{ route('PDFInstructivo', [$notificacion->id, $notificacion->id_solicitud]) }}" target="_blank">Notificación</a></li>
+                                                                    @endcan
+                                                                    <li><a class="btn btn-info" style="width: 100%" href="{{ route('VerPDFMultaInstructivo', [$notificacion->id, $notificacion->id_solicitud]) }}" target="_blank">Multa</a></li>
+                                                                </ul>
+                                                            @endcan
                                                         @endif      
                                                         @if($notificacion->estatus === "No exitosa se constituye")
-                                                            <button class="btn btn-primary dropdown-toggle" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
-                                                                Documentos
-                                                            </button> 
-                                                            <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
-                                                                <li class="mb-2"><a class="btn btn-info" style="width: 100%" href="{{ route('VerPDFNoExitConstituye', [$notificacion->id, $notificacion->id_solicitud]) }}" target="_blank">Notificación</a></li>
-                                                                <li><a class="btn btn-info" style="width: 100%" href="{{ route('VerPDFMultaNoExitConstituye', [$notificacion->id, $notificacion->id_solicitud]) }}" target="_blank">Multa</a></li>
-                                                            </ul>
+                                                            @can('notificaciones_ver_documento')
+                                                                <button class="btn btn-primary dropdown-toggle" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
+                                                                    Documentos
+                                                                </button> 
+                                                                <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
+                                                                    @can('notificaciones_ver_notificacion')
+                                                                        <li class="mb-2"><a class="btn btn-info" style="width: 100%" href="{{ route('VerPDFNoExitConstituye', [$notificacion->id, $notificacion->id_solicitud]) }}" target="_blank">Notificación</a></li>
+                                                                    @endcan
+                                                                    <li><a class="btn btn-info" style="width: 100%" href="{{ route('VerPDFMultaNoExitConstituye', [$notificacion->id, $notificacion->id_solicitud]) }}" target="_blank">Multa</a></li>
+                                                                </ul>
+                                                            @endcan
                                                         @endif                                      
                                                         @if($notificacion->estatus === "No exitosa no se constituye")
-                                                            <button class="btn btn-primary dropdown-toggle" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
-                                                                Documentos
-                                                            </button> 
-                                                            <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
-                                                                <li class="mb-2"><a class="btn btn-info" style="width: 100%" href="{{ route('PDFnotificadoNoexitosaNS', [$notificacion->id, $notificacion->id_solicitud]) }}" target="_blank">Notificación</a></li>
-                                                                <li><a class="btn btn-info" style="width: 100%" href="{{ route('VerPDFMultaNoExitConstituye', [$notificacion->id, $notificacion->id_solicitud]) }}" target="_blank">Multa</a></li>
-                                                            </ul>
+                                                            @can('notificaciones_ver_documento')
+                                                                <button class="btn btn-primary dropdown-toggle" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
+                                                                    Documentos
+                                                                </button> 
+                                                                <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
+                                                                    @can('notificaciones_ver_notificacion')
+                                                                        <li class="mb-2"><a class="btn btn-info" style="width: 100%" href="{{ route('PDFnotificadoNoexitosaNS', [$notificacion->id, $notificacion->id_solicitud]) }}" target="_blank">Notificación</a></li>
+                                                                    @endcan
+                                                                    <li><a class="btn btn-info" style="width: 100%" href="{{ route('VerPDFMultaNoExitConstituye', [$notificacion->id, $notificacion->id_solicitud]) }}" target="_blank">Multa</a></li>
+                                                                </ul>
+                                                            @endcan
                                                         @endif 
                                                     </div> 
                                                 </td>
@@ -184,11 +202,17 @@
                 $('#example').DataTable().destroy();
             }
             $('#example').DataTable({
+                // Sin colapso de columnas: se prefiere desplazamiento horizontal, que
+                // lo da el .table-responsive de Bootstrap. No se usa scrollX porque
+                // clona el <thead> y necesita la hoja de estilos de DataTables, que
+                // este proyecto no carga.
+                "responsive": false,
                 "destroy": true,
                 "paging": true,
                 "pageLength": 10,
                 "searching": true,
                 "ordering": true,
+                "order": [],
                 "info": true,
                 "language": {
                     "search": "Filtrar en esta pantalla:",
@@ -205,6 +229,18 @@
                     }
                 }
             });
+
+            // Los desplegables de la tabla quedan dentro del contenedor que hace
+            // scroll y este los recortaria. Con la estrategia 'fixed' de Popper el
+            // menu se posiciona contra el viewport y se escapa del recorte.
+            document.querySelectorAll('#example [data-bs-toggle="dropdown"]').forEach(function (boton) {
+                bootstrap.Dropdown.getOrCreateInstance(boton, {
+                    popperConfig: function (config) {
+                        return Object.assign({}, config, { strategy: 'fixed' });
+                    }
+                });
+            });
+
         });
         $(document).on('click', '.open-notificador-modal', function() {
             var idCitado = $(this).data('id');

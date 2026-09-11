@@ -282,6 +282,9 @@
                                                 <option value="No exitosa se constituye"      @php if($folio->estatus === "No exitosa se constituye") echo "selected"  @endphp>No exitosa se constituye</option>
                                                 <option value="No exitosa no se constituye"      @php if($folio->estatus === "No exitosa no se constituye") echo "selected"  @endphp>No exitosa no se constituye</option>
                                                 <option value="Finalizado exitosamente"      @php if($folio->estatus === "Finalizado exitosamente") echo "selected"  @endphp>Finalizado exitosamente</option>
+                                                <option value="Recibe pero no firma"      @php if($folio->estatus === "Recibe pero no firma") echo "selected"  @endphp>Recibe pero no firma</option>
+                                                <option value="Exitosa por Instructivo"      @php if($folio->estatus === "Exitosa por Instructivo") echo "selected"  @endphp>Exitosa por Instructivo</option>
+                                                <option value="Notificada en Audiencia"      @php if($folio->estatus === "Notificada en Audiencia") echo "selected"  @endphp>Notificada en Audiencia</option>
                                             </select>
                                             <div class="invalid-feedback">
                                                 El estatus es obligatorio.
@@ -289,9 +292,11 @@
                                         </div>
                                     </div>
                                     <div class="col-xs-12 col-sm-12 col-md-12"><br></div>
-                                    <div class="col-xs-12 col-sm-12 col-md-12">
-                                        <button type="submit" class="btn btn-info">Guardar</button>
-                                    </div>          
+                                    @can('notificaciones_editar')
+                                        <div class="col-xs-12 col-sm-12 col-md-12">
+                                            <button type="submit" class="btn btn-info">Guardar</button>
+                                        </div>
+                                    @endcan          
                                 </div>
                             </form>
                                 <a href="{{ route('notificaciones_consultar') }}"  class="btn btn-primary">Regresar</a>

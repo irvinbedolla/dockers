@@ -82,18 +82,22 @@
                                                 </p>
 
                                                 <div class="d-grid gap-2 mt-auto">
-                                                    @if ($idSede)
-                                                        <a href="{{ route('sede.calendario', $idSede) }}"
-                                                           class="btn text-white" style="background-color:#496163;">
-                                                            <i class="bi bi-calendar3"></i> Ver calendario
-                                                        </a>
-                                                    @endif
-                                                    <button type="button" class="btn btn-outline-secondary btn-abrir-bloqueo"
-                                                            data-bs-toggle="modal"
-                                                            data-bs-target="#modalBloqueoUnificado"
-                                                            data-sede="{{ $nombreSede }}">
-                                                        <i class="bi bi-calendar-plus"></i> Nuevo bloqueo
-                                                    </button>
+                                                    @can('bloqueo_sede_ver')
+                                                        @if ($idSede)
+                                                            <a href="{{ route('sede.calendario', $idSede) }}"
+                                                            class="btn text-white" style="background-color:#496163;">
+                                                                <i class="bi bi-calendar3"></i> Ver calendario
+                                                            </a>
+                                                        @endif
+                                                    @endcan
+                                                    @can('bloqueo_sede_crear')
+                                                        <button type="button" class="btn btn-outline-secondary btn-abrir-bloqueo"
+                                                                data-bs-toggle="modal"
+                                                                data-bs-target="#modalBloqueoUnificado"
+                                                                data-sede="{{ $nombreSede }}">
+                                                            <i class="bi bi-calendar-plus"></i> Nuevo bloqueo
+                                                        </button>
+                                                    @endcan
                                                 </div>
                                             </div>
                                         </div>

@@ -12,7 +12,7 @@
                 <div class="col-lg-12">
                     <div class="card">
                         <div class="card-body">
-                            @can('crear-turnos')
+                            @can('turnos_revisar')
                                 <div class="row g-3 align-items-end">
                                     
 
@@ -44,7 +44,9 @@
                                 </div>
 
                                 <div class="d-flex flex-wrap gap-2 mb-3">
-                                    <a class="btn btn-info" href="{{ route('nueva_cita') }}" onclick="crear_turnos();">Nuevo</a>
+                                    @can('turnos_crear')
+                                        <a class="btn btn-info" href="{{ route('nueva_cita') }}" onclick="crear_turnos();">Nuevo</a>
+                                    @endcan
                                     <a class="btn btn-info" href="{{ route('turnos.listado') }}" onclick="crear_turnos();">Turnos de Hoy</a>
                                 </div>
                             @endcan

@@ -55,8 +55,11 @@ class NotificacionesExport implements WithMultipleSheets
             ->when($this->auxiliar !== "Todos", function ($q) { 
                 return $q->where('seer_general.user_id', $this->auxiliar); 
             })
-            ->when($this->notificador !== "Todos", function ($q) { 
-                return $q->where('seer_citados.id_notificador', $this->notificador); 
+            ->when($this->notificador !== "Todos", function ($q) {
+                return $q->where('seer_citados.id_notificador', $this->notificador);
+            })
+            ->when($user->hasRole('Notificador'), function ($q) use ($user) {
+                return $q->where('seer_citados.id_notificador', $user->id);
             })
             ->select(
                 'seer_general.NUE',
@@ -70,8 +73,8 @@ class NotificacionesExport implements WithMultipleSheets
                 'seer_citados.colonia',
                 'seer_citados.estatus',
                 'seer_citados.notificacion',
-                'seer_solicitante.nombre as nombre_solicitante', 
-                'notificador.name as nombre_notificador', 
+                'seer_solicitante.nombre as nombre_solicitante',
+                'notificador.name as nombre_notificador',
                 'auxiliar.name as auxiliar',
                 'municipios.nombre as municipio',
                 
@@ -94,8 +97,11 @@ class NotificacionesExport implements WithMultipleSheets
             ->when($this->sede !== "Todos", function ($q) use ($delegacionesFiltro) {
                 return $q->whereIn('seer_general.delegacion', $delegacionesFiltro);
             })
-            ->when($this->auxiliar !== "Todos", function ($q) { 
-                return $q->where('seer_general.user_id', $this->auxiliar); 
+            ->when($this->auxiliar !== "Todos", function ($q) {
+                return $q->where('seer_general.user_id', $this->auxiliar);
+            })
+            ->when($user->hasRole('Notificador'), function ($q) use ($user) {
+                return $q->where('seer_citados.id_notificador', $user->id);
             })
             ->select(
                 'seer_general.NUE',
@@ -109,7 +115,7 @@ class NotificacionesExport implements WithMultipleSheets
                 'seer_citados.colonia',
                 'seer_citados.estatus',
                 'seer_citados.notificacion',
-                'seer_solicitante.nombre as nombre_solicitante', 
+                'seer_solicitante.nombre as nombre_solicitante',
                 'auxiliar.name as auxiliar',
                 'municipios.nombre as municipio',
                 
@@ -126,6 +132,9 @@ class NotificacionesExport implements WithMultipleSheets
         $notificacionesTrabajador = DB::table('seer_citados')
             ->where('notificacion', 'Trabajador')
             ->whereBetween('created_at', [$this->fecha_inicial, $this->fecha_final])
+            ->when($user->hasRole('Notificador'), function ($q) use ($user) {
+                return $q->where('id_notificador', $user->id);
+            })
             ->count();
 
         // Esta parte se queda en Colecciones de PHP porque REUTILIZA los datos que ya obtuvimos,
