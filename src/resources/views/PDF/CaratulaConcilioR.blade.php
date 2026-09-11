@@ -133,7 +133,7 @@
             <tr>
                 <td class="label">CITADO (S):</td>
                 <td><div class="pill" style="min-height: 30px; padding-top: 10px; padding-bottom: 10px;">
-                    {{ $ratificacion->empresa }}
+                    {{ $ratificacion->empresa }} @if($ratificacion->primero_empresa){{ $ratificacion->primero_empresa }}@endif @if($ratificacion->segundo_empresa){{ $ratificacion->segundo_empresa }}@endif
                 </div></td>
             </tr>
             <tr>
