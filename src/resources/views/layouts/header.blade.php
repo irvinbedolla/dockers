@@ -26,6 +26,7 @@
             $rolesMostrados = [
                 'Enlace'      => 'Enlace Administrativo',
                 'Estadistica' => 'Enlace Técnico',
+                'Turnos' => 'Recepcion',
             ];
             $rolBarra = $rolesMostrados[$rolBarra] ?? $rolBarra;
         @endphp
