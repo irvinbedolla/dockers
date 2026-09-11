@@ -399,7 +399,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/seer/updateNotificador',              [SeerController::class, 'update_notificador'])->name('seer.cambioEstatus');
         Route::get('/notificador/mihistorial',              [SeerController::class, 'hitorialnotificacador'])->name('Historial_Notificacador');
         Route::get('/notificador/historial',                [SeerController::class, 'todas_notificaciones'])->name('todas_notificaciones');
-
+        Route::get('/notificaciones/home',                 [SeerController::class, 'index_notificaciones'])->name('index_notificaciones');
         //Enlace
         Route::get('/notificaciones/consultar/{id}',        [SeerController::class, 'mostrar_citados']);
         Route::post('/notificaciones/editar',               [SeerController::class, 'editar_citados'])->name('editar_citado_enlace');   

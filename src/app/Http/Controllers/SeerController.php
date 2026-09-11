@@ -5881,6 +5881,11 @@ class SeerController extends Controller
 
         return back()->with('success', 'Citado borrado correctamente. Guarde los cambios para confirmar.');
     }
+    public function index_notificaciones(){
+        $user = auth()->user();
+        $userRole = $user->roles->pluck('name')->first();
+        return view('notificaciones.index_notificaciones', compact('userRole'));
+    }
 
     public function notificaciones(){
         $user = auth()->user();
