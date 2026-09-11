@@ -117,6 +117,7 @@
                                                             @elseif($pago->estatus == "Incomparecencia trabajador")
                                                                 <a class="btn btn-info btn-sm text-white" href="{{ route('PDFIncomparecenciaCumplimiento', $pago->id) }}" target="_blank"><i class="bi bi-file-earmark-pdf me-1"></i> Parcialidad {{ $index + 1 }}</a>
                                                             @endif
+                                                        @endif
                                                         @endcan
                                                     </td>
                                                 </tr>

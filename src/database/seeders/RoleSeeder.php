@@ -306,6 +306,7 @@ class RoleSeeder extends Seeder
             'turnos_ver',
             'turnos_crear',
             'turnos_asignar',
+            'turnos_revisar',
 
         ]);
         $excepcion->syncPermissions([
