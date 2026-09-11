@@ -164,7 +164,7 @@
                             <tbody>
                                 @foreach($pagos as $pago)
                                     <tr>
-                                        @if($pago->monto != 0)
+                                        @if(!(mb_substr($pago->observaciones, 0, 26, 'UTF-8') === 'Pagado en el cumplimiento '))
                                             <td style="display: none;">{{$pago->id_solicitud}}</td>
                                             <td>{{ \Carbon\Carbon::parse($pago->fecha)->translatedFormat('d/m/y') }}</td> 
                                             <td>{{ \Carbon\Carbon::parse(str_replace(' HORAS', '', $pago->hora))->format('H:i') }} HORAS</td>

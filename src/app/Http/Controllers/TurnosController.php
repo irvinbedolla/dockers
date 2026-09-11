@@ -923,15 +923,12 @@ class TurnosController extends Controller
         }
 
         $idSolicitud = $pagoActual->id_solicitud;
-        $total = Pagos::where('id_solicitud', $idSolicitud)->whereIn('estatus', ['Pendiente', 'Incomparecencia trabajador'])->where('tipo_pago', 'Ratificacion')->sum('monto');
-        
         // 2. Actualizar el pago actual seleccionado
         Pagos::find($id)->update([
             'estatus'          => "Pagado",
             'observaciones'    => $data["observaciones"],
             'fecha_conclucion' => \Carbon\Carbon::now()->format('Y-m-d')
         ]);
-        if($total !=0) $pagoActual->update(['monto' => $total]);
 
         // 3. Actualizar los pagos posteriores de la misma solicitud
         Pagos::where('id_solicitud', $idSolicitud)
@@ -939,7 +936,6 @@ class TurnosController extends Controller
             ->update([
                 'estatus'          => "Pagado",
                 'observaciones'    => "Pagado en el cumplimiento #" . $numeroCumplimiento,
-                'monto'            => 0,
                 'fecha_conclucion' => \Carbon\Carbon::now()->format('Y-m-d')
             ]);
 
@@ -1378,6 +1374,8 @@ class TurnosController extends Controller
                 ->select('users.id', 'users.name', 'users.delegacion')
                 ->first();
         }
+        $pagos = $this->calcularMontoCumplimiento($pagos);
+
     $html = view('PDF/ConstanciaCumplimiento', compact('id', 'solicitud','conciliador','pagos','delegado','inicialesConcluye','etiquetaIniciales'))->render();
 
         $pdf = \PDF::loadHTML($html)
@@ -1511,6 +1509,7 @@ class TurnosController extends Controller
     //PDF Constancia de Pago Parcial
     public function VerPDFPagos($id){
         $pagos = Pagos::find($id);
+        $parcialidades = Pagos::where('id_solicitud', $pagos->id_solicitud)->where('tipo_pago', 'Ratificacion')->get();
         $solicitud = Turnos::find($pagos["id_solicitud"]);
         $inicialesConcluye = $this->inicialesDeSolicitud($solicitud);
         $etiquetaIniciales = $this->etiquetaIniciales($solicitud->delegacion ?? null, $inicialesConcluye);
@@ -1537,6 +1536,37 @@ class TurnosController extends Controller
                 ->select('users.id', 'users.name', 'users.delegacion')
                 ->first();
         }
+
+        $pagoCumplimiento = $parcialidades->first(function ($parcialidad) {
+            return str_contains($parcialidad->observaciones ?? '', 'Pagado en el cumplimiento');
+        });
+        
+        $indiceCumplimiento = null;
+
+        if ($pagoCumplimiento) {
+            preg_match('/#(\d+)/', $pagoCumplimiento->observaciones, $coincidencia);
+
+            $indiceCumplimiento = isset($coincidencia[1])
+                ? (int) $coincidencia[1]
+                : null;
+            
+                if($pagos->id === $parcialidades[$indiceCumplimiento -1]->id){
+                    $monto_solicitud = $pagos->monto;
+
+                    $monto_solicitud += $parcialidades
+                        ->filter(function ($solicitud) {
+                            return str_contains(
+                                $solicitud->observaciones ?? '',
+                                'Pagado en el cumplimiento'
+                            );
+                        })
+                        ->sum('monto');
+                    $pagos->monto = $monto_solicitud;
+                }
+            
+        }
+
+
     $html = view('PDF/pagosParciales', compact('id','solicitud','conciliador','pagos','pagosDif','delegado','inicialesConcluye','etiquetaIniciales'))->render();
 
         $pdf = \PDF::loadHTML($html)
@@ -2601,12 +2631,15 @@ class TurnosController extends Controller
         $solicitudes = Pagos::join('turnos','turnos.id',"=",'pago_solicitud.id_solicitud')
         ->where('pago_solicitud.id_solicitud',$id)
         ->where('pago_solicitud.tipo_pago','Ratificacion')
-        ->select('pago_solicitud.id','pago_solicitud.id_solicitud','turnos.NUE','pago_solicitud.fecha','pago_solicitud.hora','pago_solicitud.monto','pago_solicitud.descripcion','pago_solicitud.estatus','pago_solicitud.forma_pago')
+        ->select('pago_solicitud.id','pago_solicitud.id_solicitud','turnos.NUE','pago_solicitud.fecha','pago_solicitud.hora','pago_solicitud.monto','pago_solicitud.descripcion','pago_solicitud.observaciones','pago_solicitud.estatus','pago_solicitud.forma_pago')
         ->get(); 
+        $solicitudes = $this->calcularMontoCumplimiento($solicitudes);
+
         $total = $solicitudes->count();
         $estatus = Turnos::where('id', $id)->pluck('estatus')->first();
         $monto_total = Pagos::where('id_solicitud', $id)->where('tipo_pago', 'Ratificacion')->sum('monto');
         $cantidad_pagos = Pagos::where('id_solicitud', $id)->whereIn('estatus', ['Pendiente', 'Incomparecencia trabajador'])->where('tipo_pago', 'Ratificacion')->count();
+
         return view('/cumplimientos/pagar_ratificacion',compact('solicitudes','total', 'id', 'estatus', 'monto_total','cantidad_pagos'));
     }
 
@@ -3360,6 +3393,38 @@ class TurnosController extends Controller
         Turnos::create($data_insertar);
        
         return back()->with('success', 'Solicitud Capturada Correctamente.'  ); 
+    }
+    function calcularMontoCumplimiento($pagos) {
+        $pagoCumplimiento = $pagos->first(function ($pago) {
+            return str_contains($pago->observaciones ?? '', 'Pagado en el cumplimiento');
+        });
+
+        if (!$pagoCumplimiento) {
+            return $pagos;
+        }
+
+        preg_match('/#(\d+)/', $pagoCumplimiento->observaciones, $coincidencia);
+
+        $indiceCumplimiento = isset($coincidencia[1])
+            ? (int) $coincidencia[1]
+            : null;
+
+        if ($indiceCumplimiento && isset($pagos[$indiceCumplimiento - 1])) {
+            $monto_solicitud = $pagos[$indiceCumplimiento - 1]->monto;
+
+            $monto_solicitud += $pagos
+                ->filter(function ($solicitud) {
+                    return str_contains(
+                        $solicitud->observaciones ?? '',
+                        'Pagado en el cumplimiento'
+                    );
+                })
+                ->sum('monto');
+
+            $pagos[$indiceCumplimiento - 1]->monto = $monto_solicitud;
+        }
+
+        return $pagos;
     }
     
 

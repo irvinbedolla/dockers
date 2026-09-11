@@ -24,7 +24,7 @@
                                             <th class="text-center text-white" style="color: #ffffff ">Monto</th>
                                             <th class="text-center text-white" style="width: 15%; color: #ffffff ">Estatus</th>
                                             <th class="text-center text-white" style="width: 42%; color: #ffffff ">Acciones</th>
-                                            <th class="text-center text-white" style="width: 14%; color: #ffffff ">Documentos</th>
+                                            <th class="text-center text-white" style="width: 17%; color: #ffffff ">Documentos</th>
                                         </tr>
                                     </thead>
                                         <tbody>
@@ -33,10 +33,10 @@
                                                     <td class="text-center fw-bold">{{ $index + 1 }}</td>
                                                     <td class="text-center">{{ date_format($pago->fecha, "d-m-Y") }}</td>
                                                     <td class="text-center">{{ date_format($pago->hora, "H:i:s") }}</td>
-                                                    <td class="text-center fw-bold">${{ number_format($pago->monto, 2) }}</td>
+                                                    <td class="text-center fw-bold">@if(!(mb_substr($pago->observaciones, 0, 26, 'UTF-8') === 'Pagado en el cumplimiento '))${{ number_format($pago->monto, 2) }}@else${{ number_format(0, 2) }}@endif</td>
                                                     <td class="text-center">
                                                         @if($pago->estatus == 'Pagado')
-                                                            @if($pago->monto != 0)
+                                                            @if(!(mb_substr($pago->observaciones, 0, 26, 'UTF-8') === 'Pagado en el cumplimiento '))
                                                                 <span class="badge bg-success rounded-pill px-3 py-2">Cumplimiento</span>
                                                             @else 
                                                                 <span class="badge rounded-pill px-3 py-2" style="background-color: #95b89d; color: white;"> Pago Anticipado</span>
@@ -95,17 +95,16 @@
                                                                 $totalRegistros = $cumplimientos->count();
                                                             @endphp
 
-                                                            @if($pago->estatus == "Pagado")
-                                                                @if($pago->monto != 0)
-                                                                    @if($totalRegistros == 1)
-                                                                        <a class="btn btn-success btn-sm text-white" href="{{ route('PDFcumplimientoParcial', $pago->id) }}" target="_blank">
-                                                                            <i class="bi bi-file-earmark-pdf me-1"></i> Parcialidad {{ $index + 1 }}
-                                                                        </a>    
-                                                                    @else
-                                                                        <a class="btn btn-success btn-sm text-white" href="{{ route('PDFcumplimientoParcial', $pago->id) }}" target="_blank">
-                                                                            <i class="bi bi-file-earmark-pdf me-1"></i> Parcialidad {{ $index + 1 }}
-                                                                        </a>
-                                                                    @endif
+                                                        @if($pago->estatus == "Pagado")
+                                                            @if(!(mb_substr($pago->observaciones, 0, 26, 'UTF-8') === 'Pagado en el cumplimiento '))
+                                                                @if($totalRegistros == 1)
+                                                                    <a class="btn btn-success btn-sm text-white" href="{{ route('PDFcumplimientoParcial', $pago->id) }}" target="_blank">
+                                                                        <i class="bi bi-file-earmark-pdf me-1"></i> Parcialidad {{ $index + 1 }}
+                                                                    </a>    
+                                                                @else
+                                                                    <a class="btn btn-success btn-sm text-white" href="{{ route('PDFcumplimientoParcial', $pago->id) }}" target="_blank">
+                                                                        <i class="bi bi-file-earmark-pdf me-1"></i> Parcialidad {{ $index + 1 }}
+                                                                    </a>
                                                                 @endif
                                                             @elseif($pago->estatus == "Pagado con pena convencional")
                                                                 <a class="btn btn-success btn-sm text-white" href="{{ route('PDFcumplimientoParcial', $pago->id) }}" target="_blank">
@@ -124,14 +123,16 @@
                                             @endforeach
                                             
                                         </tbody>
-                                        <tr>
+                                            <tr>
                                                 <td class="text-center fw-bold">Monto Total</td>
-                                                <td></td>
-                                                <td></td>
+                                                <td></td><td></td>
                                                 <td class="text-center fw-bold">${{ number_format($monto_total, 2) }}</td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
+                                                <td></td><td></td>
+                                                <td class="text-center">
+                                                @if($solicitud->estatus === 'Concluida' && !$cumplimientos->contains('estatus', 'Pendiente'))
+                                                    <a class="btn btn-primary btn-sm" href="{{ route('PDFcumplimientoTotal', $solicitud->id) }}"  target="_blank"><i class="bi bi-file-earmark-text"></i> Constancia de Cumplimiento Total</a>
+                                                @endif
+                                                </td>
                                             </tr>
                                     </table>
                                 </div>

@@ -282,6 +282,9 @@
                                                 <option value="No exitosa se constituye"      @php if($folio->estatus === "No exitosa se constituye") echo "selected"  @endphp>No exitosa se constituye</option>
                                                 <option value="No exitosa no se constituye"      @php if($folio->estatus === "No exitosa no se constituye") echo "selected"  @endphp>No exitosa no se constituye</option>
                                                 <option value="Finalizado exitosamente"      @php if($folio->estatus === "Finalizado exitosamente") echo "selected"  @endphp>Finalizado exitosamente</option>
+                                                <option value="Recibe pero no firma"      @php if($folio->estatus === "Recibe pero no firma") echo "selected"  @endphp>Recibe pero no firma</option>
+                                                <option value="Exitosa por Instructivo"      @php if($folio->estatus === "Exitosa por Instructivo") echo "selected"  @endphp>Exitosa por Instructivo</option>
+                                                <option value="Notificada en Audiencia"      @php if($folio->estatus === "Notificada en Audiencia") echo "selected"  @endphp>Notificada en Audiencia</option>
                                             </select>
                                             <div class="invalid-feedback">
                                                 El estatus es obligatorio.
