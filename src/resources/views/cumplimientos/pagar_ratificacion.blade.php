@@ -201,10 +201,10 @@ Dicha cantidad corresponde al cumplimiento (total o parcial, según corresponda)
                         <button type="button" class="btn btn-outline-primary btn-sm" id="otro" data-valor="">
                         Otro Metodo</button>
 
-                        <<button type="button" class="btn btn-outline-primary btn-sm" id="pena" data-valor="Por lo que ve a la pena de convencional establecida en el convenio, a consecuencia de efectuar el pago fuera del plazo señalado en el convenio, la parte trabajadora manifiesta BAJO PROTESTA DE DECIR VERDAD, que se da por pagada de la misma en este acto, por así convenir a sus intereses y bajo  su más estricta responsabilidad, toda vez que fue explicada por esta autoridad los alcances y consecuencias, lo anterior para todos los efectos legales que hubiere lugar. Doy fe.">
+                        <button type="button" class="btn btn-outline-primary btn-sm" id="pena" data-valor="Por lo que ve a la pena de convencional establecida en el convenio, a consecuencia de efectuar el pago fuera del plazo señalado en el convenio, la parte trabajadora manifiesta BAJO PROTESTA DE DECIR VERDAD, que se da por pagada de la misma en este acto, por así convenir a sus intereses y bajo  su más estricta responsabilidad, toda vez que fue explicada por esta autoridad los alcances y consecuencias, lo anterior para todos los efectos legales que hubiere lugar. Doy fe.">
                         Pena Convencional</button>
                         <button type="button" class="btn btn-outline-primary btn-sm" id="reinstalacion" data-valor="Asimismo, se anexa Constancia de Presentación de Movimientos Afiliatorios de la empresa, con número de folio *******************, con la cual se acredita que la trabajadora fue dada de alta en el Instituto Mexicano del Seguro Social. ">
-                        Pago con reinstalación</button>
+                        Pago con reinstalación</button> >
       
                 </div-->
                     <div class="modal-body p-2">
