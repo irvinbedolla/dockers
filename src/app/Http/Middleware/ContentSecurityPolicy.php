@@ -20,7 +20,10 @@ class ContentSecurityPolicy
                "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://code.jquery.com https://cdn.datatables.net; " .
                // style-src: Soporte para estilos locales y CDNs declarados
                "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com http://fonts.googleapis.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; " .
-               "img-src 'self' data: https: http:; " .
+               // blob: lo necesita la vista previa de la foto de perfil: el
+               // navegador lee el archivo con URL.createObjectURL antes de
+               // enviarlo, y sin este esquema la imagen se bloquea.
+               "img-src 'self' data: blob: https: http:; " .
                "font-src 'self' data: https://fonts.gstatic.com http://fonts.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; " .
                // connect-src: CORRECCIÓN para permitir llamadas AJAX locales del sistema y mapas de origen de CDNs
                "connect-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; " .

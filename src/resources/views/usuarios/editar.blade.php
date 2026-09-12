@@ -15,17 +15,17 @@
                             
                             <!--Se realiza la validación de campos para ver si dejó alguno vacío-->
                             @if ($errors->any())
-                                <div class="alert alert-dark alert-dismissible fade show" role="alert">
+                                {{-- alert-dark sobre el fondo claro de la tarjeta pasaba
+                                     desapercibida, y el boton de cerrar era de Bootstrap 4
+                                     (class="close", data-dismiss), muerto en Bootstrap 5. --}}
+                                <div class="alert alert-danger alert-dismissible fade show" role="alert">
                                     <strong>¡Revise los campos!</strong>
-                                    <ul>
+                                    <ul class="mb-0">
                                         @foreach ($errors->all() as $error)
                                             <li>{{ $error }}</li>
-                                            <!--<span class="badge badge-danger">{{ $error }}</span>-->
                                         @endforeach
                                     </ul>
-                                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                                        <span aria-hidden="true">&times;</span>
-                                    </button>
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
                                 </div>
 
                             @endif
@@ -120,35 +120,7 @@
                                         El tipo es obligatorio.
                                     </div>
 
-                                    <div class="col-xs-12 col-sm-12 col-md-12">
-                                        <hr>
-                                        <div class="form-group">
-                                            <label for="foto_perfil">Foto de perfil</label>
-                                            <div class="d-flex align-items-center gap-3 flex-wrap">
-                                                <img src="{{ $user->avatar_url }}"
-                                                     alt="{{ $user->tieneFotoDePerfil() ? 'Foto de '.$user->name : 'Sin foto de perfil' }}"
-                                                     width="72" height="72"
-                                                     style="border-radius: 50%; object-fit: cover; border: 2px solid #dee2e6;">
-                                                <div class="flex-grow-1" style="min-width: 260px;">
-                                                    <input type="file" name="foto_perfil" id="foto_perfil"
-                                                           class="form-control"
-                                                           accept="image/jpeg,image/png,image/webp">
-                                                    <small class="text-muted">
-                                                        JPG, PNG o WebP, minimo 200x200. Se recorta en cuadro y se reduce sola.
-                                                    </small>
-                                                    @if ($user->tieneFotoDePerfil())
-                                                        <div class="form-check mt-2">
-                                                            <input class="form-check-input" type="checkbox"
-                                                                   name="quitar_foto" value="1" id="quitar_foto">
-                                                            <label class="form-check-label" for="quitar_foto">
-                                                                Quitar la foto actual
-                                                            </label>
-                                                        </div>
-                                                    @endif
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
+                                    @include('usuarios._campo_foto')
 
                                     <div class="col-xs-12 col-sm-12 col-md-12">
                                         <button type="submit" class="btn btn-primary" style="background-color: #496163">Guardar</button>
