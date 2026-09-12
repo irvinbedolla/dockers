@@ -31,7 +31,7 @@
                             @endif
 
                             <!--Se realiza el envío de datos con formulario de Laravel Collective-->
-                            <form class='needs-validation novalidate' method='POST' action="{{route('usuarios_update', $user->id)}}" id="form_usuarios">
+                            <form class='needs-validation novalidate' method='POST' action="{{route('usuarios_update', $user->id)}}" id="form_usuarios" enctype="multipart/form-data">
                                 <input type="hidden" name="_method" value="PATCH">
                                 @csrf
                                 <div class="row">
@@ -73,6 +73,36 @@
                                     </div>
                                     <div class="invalid-feedback">
                                         La contraseña es obligatoria.
+                                    </div>
+
+                                    <div class="col-xs-12 col-sm-12 col-md-12">
+                                        <hr>
+                                        <div class="form-group">
+                                            <label for="foto_perfil">Foto de perfil</label>
+                                            <div class="d-flex align-items-center gap-3 flex-wrap">
+                                                <img src="{{ $user->avatar_url }}"
+                                                     alt="Foto de {{ $user->name }}"
+                                                     width="72" height="72"
+                                                     style="border-radius: 50%; object-fit: cover; border: 2px solid #dee2e6;">
+                                                <div class="flex-grow-1" style="min-width: 260px;">
+                                                    <input type="file" name="foto_perfil" id="foto_perfil"
+                                                           class="form-control"
+                                                           accept="image/jpeg,image/png,image/webp">
+                                                    <small class="text-muted">
+                                                        JPG, PNG o WebP, minimo 200x200. Se recorta en cuadro y se reduce sola.
+                                                    </small>
+                                                    @if ($user->tieneFotoDePerfil())
+                                                        <div class="form-check mt-2">
+                                                            <input class="form-check-input" type="checkbox"
+                                                                   name="quitar_foto" value="1" id="quitar_foto">
+                                                            <label class="form-check-label" for="quitar_foto">
+                                                                Quitar la foto actual
+                                                            </label>
+                                                        </div>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
 
                                     <div class="col-xs-12 col-sm-12 col-md-12">

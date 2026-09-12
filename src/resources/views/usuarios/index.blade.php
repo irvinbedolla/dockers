@@ -22,6 +22,7 @@
                                     <thead style="background-color: #354647; color: #fff;">
                                         <tr>
                                             <th class="text-center text-white" style="width: 5%; color: #ffffff !important;">Folio</th>
+                                            <th class="text-center text-white" style="width: 6%; color: #ffffff !important;">Foto</th>
                                             <th class="text-white" style="color: #ffffff !important;">Nombre</th>
                                             <th class="text-white" style="color: #ffffff !important;">E-mail</th>
                                             <th class="text-white" style="color: #ffffff !important;">Rol</th>
@@ -33,6 +34,15 @@
                                         @foreach($usuarios as $usuario)
                                             <tr>
                                                 <td class="text-center fw-bold">{{ $usuario->id }}</td>
+                                                <td class="text-center"
+                                                    data-search="{{ $usuario->tieneFotoDePerfil() ? 'Con foto' : 'Sin foto' }}"
+                                                    data-order="{{ $usuario->tieneFotoDePerfil() ? '1' : '0' }}">
+                                                    <img src="{{ $usuario->avatar_url }}"
+                                                         alt="{{ $usuario->tieneFotoDePerfil() ? 'Foto de '.$usuario->name : 'Sin foto de perfil' }}"
+                                                         title="{{ $usuario->tieneFotoDePerfil() ? 'Con foto' : 'Sin foto' }}"
+                                                         width="36" height="36" loading="lazy"
+                                                         style="border-radius: 50%; object-fit: cover; border: 1px solid #dee2e6; {{ $usuario->tieneFotoDePerfil() ? '' : 'opacity: .45;' }}">
+                                                </td>
                                                 <td>{{ $usuario->name }}</td>
                                                 <td>{{ $usuario->email }}</td>
                                                 <td>
@@ -93,6 +103,12 @@
                     // clona el <thead> y necesita la hoja de estilos de DataTables,
                     // que este proyecto no carga.
                     "responsive": false,
+                    // La columna de la foto ordena y busca por los data-order y
+                    // data-search de la celda ("Con foto" / "Sin foto"): la
+                    // etiqueta <img> como texto no dice nada.
+                    "columnDefs": [
+                        { "targets": 1, "type": "num" }
+                    ],
                     "destroy": true,
                     "paging": true,
                     "pageLength": 10,
