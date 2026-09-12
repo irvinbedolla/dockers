@@ -6,10 +6,10 @@ use Illuminate\Http\Request;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\FotoPerfil;
 use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Arr;
 
 
 class UsuarioController extends Controller
@@ -85,18 +85,27 @@ class UsuarioController extends Controller
             'password' => 'same:confirm-password',
             'roles' => 'required',
             'delegacion' => 'required',
-            'type' => 'required' 
+            'type' => 'required',
+            'foto_perfil' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:8192|dimensions:min_width=200,min_height=200',
         ]);
 
-        //Hacemos un condicional sobre los inputs que tenemos
-        $input = $request->all();
-        if (!empty($input['password'])) {
-            $input['password'] = Hash::make($input['password']);
-        }else {
-            $input = Arr::except($input, array('password'));
+        $user = User::findOrFail($id);
+
+        // Solo los campos que esta pantalla muestra. Con $request->all() el
+        // archivo subido entraba como UploadedFile a una columna de texto.
+        $input = $request->only(['name', 'email', 'delegacion', 'type']);
+
+        if ($request->filled('password')) {
+            $input['password'] = Hash::make($request->input('password'));
         }
-        
-        $user = User::find($id);
+
+        if ($request->hasFile('foto_perfil')) {
+            $input['foto_perfil'] = FotoPerfil::guardar($request->file('foto_perfil'), $user->foto_perfil);
+        } elseif ($request->boolean('quitar_foto')) {
+            FotoPerfil::borrar($user->foto_perfil);
+            $input['foto_perfil'] = null;
+        }
+
         $user->update($input);
         DB::table('model_has_roles')->where('model_id', $id)->delete();
 

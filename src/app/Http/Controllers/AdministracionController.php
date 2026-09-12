@@ -22,6 +22,7 @@ use App\Http\Controllers\Controller;
 //use App\Http\Controllers\PDFController;
 use Spatie\Permission\Models\Role; 
 use App\Models\User;
+use App\Support\FotoPerfil;
 use App\Models\Turnos;
 use App\Models\TurnoDisponible;
 use App\Models\DiasInhabiles;
@@ -1016,20 +1017,31 @@ class AdministracionController extends Controller{
     public function update(Request $request, $id)
     {
         $this->validate($request, [
-            'name' => 'required',
-            'email' => 'required|email|unique:users,email,'.$id,
-            'password' => 'same:confirm-password',
+            'name'        => 'required',
+            'email'       => 'required|email|unique:users,email,'.$id,
+            'password'    => 'same:confirm-password',
+            'foto_perfil' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:8192|dimensions:min_width=200,min_height=200',
         ]);
 
-        $input = $request->all();
-        if (!empty($input['password'])) {
-            $input['password'] = Hash::make($input['password']);
-        }else {
-            $input = Arr::except($input, array('password'));
+        $user = User::findOrFail($id);
+
+        // Solo los campos de esta pantalla. $request->all() dejaba pasar
+        // delegacion, type y profile_photo_path (la CURP) a un formulario
+        // que ni siquiera los muestra.
+        $datos = $request->only(['name', 'email']);
+
+        if ($request->filled('password')) {
+            $datos['password'] = Hash::make($request->input('password'));
         }
-        
-        $user = User::find($id);
-        $user->update($input);
+
+        if ($request->hasFile('foto_perfil')) {
+            $datos['foto_perfil'] = FotoPerfil::guardar($request->file('foto_perfil'), $user->foto_perfil);
+        } elseif ($request->boolean('quitar_foto')) {
+            FotoPerfil::borrar($user->foto_perfil);
+            $datos['foto_perfil'] = null;
+        }
+
+        $user->update($datos);
 
         return redirect()->route('configuracion_usuarios');
     }
