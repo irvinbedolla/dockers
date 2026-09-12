@@ -72,8 +72,14 @@ class SembrarFotosPerfil extends Command
                 continue;
             }
 
-            // Sin --forzar no pisa una foto que alguien ya subio por la pantalla.
-            if ($usuario->foto_perfil && ! $this->option('forzar')) {
+            // Sin --forzar no pisa una foto que alguien ya subio por la pantalla,
+            // pero solo la respeta si el archivo sigue en el disco: si un
+            // despliegue se llevo storage/, la columna apunta a algo que ya no
+            // existe y hay que volver a escribirlo o el avatar queda roto.
+            $vigente = $usuario->foto_perfil
+                && Storage::disk('public')->exists($usuario->foto_perfil);
+
+            if ($vigente && ! $this->option('forzar')) {
                 $saltadas++;
                 continue;
             }
