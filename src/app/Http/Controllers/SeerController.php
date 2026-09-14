@@ -8704,8 +8704,13 @@ class SeerController extends Controller
 
         if ($solicitud->tipo_solicitud == 2) {
             $audienciaPoder = Audiencias::where('id', $audienciaId)->first();
+            if (!$audienciaPoder) {
+                $audienciaPoder = Audiencias::where('id_solicitud', $solicitud->id)->latest('id')->first();
+            }
             $solicitantePoder = SeerSolicitante::where('id_solicitud', $solicitud["id"])->first();
-            $descripcionIdentificacionPoder = $this->descripcionIdentificacion($audienciaPoder->poder->tipo_identificacion);
+            $descripcionIdentificacionPoder = ($audienciaPoder && $audienciaPoder->poder)
+                ? $this->descripcionIdentificacion($audienciaPoder->poder->tipo_identificacion)
+                : null;
         }
 
         // $dias_descanso = $solicitud->dias !== null ? 7 - $solicitud->dias : null;
