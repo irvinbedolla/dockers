@@ -354,12 +354,12 @@
                                         </div>
                                     </div>
                                     <div class="col-xs-12 col-sm-12 col-md-12">
-                                        @if($userRole[0] == "Auxiliar")
-                                            <a class="btn btn-primary" href="{{ route('Ratificacion') }}">Regresar</a>
+                                        @if($userRole[0] == "Auxiliar" || $userRole[0] == "Super Usuario")
+                                            <a class="btn btn-primary" href="{{ route('todas_ratificaciones') }}">Regresar</a>
                                         @elseif($userRole[0] == "Solicitante")
-                                            <a class="btn btn-primary" href="{{ route('ratificacion') }}">Regresar</a>
+                                            <a class="btn btn-primary" href="{{ route('todas_ratificaciones') }}">Regresar</a>
                                         @elseif($userRole[0] == "Administrador Solicitante")
-                                        <a class="btn btn-primary" href="{{ route('Ratificacion') }}">Regresar</a>
+                                        <a class="btn btn-primary" href="{{ route('todas_ratificaciones') }}">Regresar</a>
                                         @endif
                                         
                                         @if($userRole[0] == "Auxiliar")
