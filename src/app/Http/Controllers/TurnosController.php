@@ -3068,13 +3068,29 @@ class TurnosController extends Controller
         $id_usuario     = auth()->user()->id;
         $user           = User::find($id_usuario);           
         $solicitud      = Turnos::find($id);
-
+        $sede           = $user->delegacion;
         $representantes = Poder::find($solicitud["idAbogado"]);
         $abogados       = Poder::all();
         $estados        = Estados::all();
         $municipios     = Municipios::where('estado',16)->get();
+        $delegaciones   = null;
+        $relacionEloquent = 'roles';
 
-        return view('/ratificaciones/edicionVistaCitas',compact('idSolicitud','representantes','solicitud','abogados','estados','municipios'));
+        if($sede == "Morelia" || $sede =='Zitácuaro'){
+            $delegaciones = ['Morelia', 'Zitácuaro'];
+        }else if($sede == "Uruapan" || $sede == "Lázaro Cárdenas"){
+            $delegaciones = ['Uruapan', 'Lázaro Cárdenas'];
+        }else if($sede == "Zamora" || $sede =='Sahuayo'){
+            $delegaciones = ['Zamora', 'Sahuayo'];
+        }
+
+        $conciliadores = User::whereHas($relacionEloquent, function ($query) {
+            return $query->where('name', '=', 'Conciliador');
+        })
+        ->whereIn('delegacion', $delegaciones)
+        ->get();
+
+        return view('/ratificaciones/edicionVistaCitas',compact('idSolicitud','representantes','solicitud','abogados','estados','municipios','conciliadores'));
     }
 
     public function guardarEdicion_citas(Request $request){
@@ -3177,6 +3193,7 @@ class TurnosController extends Controller
             'num_int'             => $data["N_Int"],
             'codigo_postal'       => $data["cp"],
             'id_historial'        => $ultimoRegistro->id ?? NULL,
+            'id_conciliador'      => $data["conciliador_id"],
         ];
 
         if ($request->hasFile('documentoidentificacion')) {

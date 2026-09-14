@@ -141,6 +141,24 @@
                                                     </div>
                                                 </div>
                                             </div>
+                                            @if($solicitud['estatus'] == "Concluida" || $solicitud['estatus' == "Concluida Pagos"])
+                                                <div class="col-xs-12 col-sm-12 col-md-3">
+                                                    <div class="form-group">
+                                                        <label for="password">Conciliador</label>
+                                                        <select class="form-control" name="conciliador_id" required>
+                                                            <option value="">Seleccione</option>
+                                                            @foreach($conciliadores as $con)
+                                                                <option value="{{ $con['id'] }}" @selected($solicitud->id_conciliador == $con['id'])>
+                                                                    {{ $con['name'] }}
+                                                                </option>
+                                                            @endforeach
+                                                        </select>
+                                                        <div class="invalid-feedback">
+                                                            El conciliador es obligatorio.
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            @endif
                                             <div class="col-xs-12 col-sm-12 col-md-9">
                                                 <div id="abogado_info" class="mt-2"></div>
                                             </div>
@@ -436,7 +454,7 @@
                                             <div class="col-xs-12 col-sm-12 col-md-2">
                                                 <div class="form-group">
                                                     <label for="name">Salario <span style="color:red;">(*)</span></label><br>
-                                                    <input type="number" maxlength="7" min="0" name="salario" class="form-control soloMontos" oninput="this.value = this.value.toUpperCase(); if(this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);" value="<?=$solicitud["salario"];?>" required>
+                                                    <input type="number" step="0.01" maxlength="7" min="0" name="salario" class="form-control soloMontos" oninput="if(this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);" value="<?=$solicitud['salario'];?>" required>
                                                     <div class="invalid-feedback">
                                                         Este campo salario es obligatorio.
                                                     </div>
@@ -529,7 +547,7 @@
                                             <div class="col-xs-12 col-sm-12 col-md-3">
                                                 <div class="form-group">
                                                     <label for="name">Monto total del convenio a pagar <span style="color:red;">(*)</span></label>
-                                                    <input type="number" maxlength="8" min="0" name="monto" class="form-control soloMontos" oninput="this.value = this.value.toUpperCase(); if(this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);" value="<?=$solicitud["monto"];?>" required>
+                                                    <input type="number" step="0.01" maxlength="8" min="0" name="monto" class="form-control soloMontos" oninput="if(this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);" value="<?=$solicitud['monto'];?>" required>
                                                     <div class="invalid-feedback">
                                                         El campo monto es obligatorio.
                                                     </div>
