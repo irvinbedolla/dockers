@@ -13,6 +13,8 @@ use App\Http\Controllers\SeerController;
 use App\Models\Audiencias;
 use App\Models\SeerCitados;
 use Illuminate\Support\Facades\Auth;
+use App\Support\SemaforoAgenda;
+use Illuminate\Support\Facades\DB;
 
 class AudienciasController extends Controller
 {
@@ -83,19 +85,7 @@ class AudienciasController extends Controller
 
                 $tipo = 5;
 
-                if ($audiencia->estatus === 'Archivada') {
-                    $color = '#DA0909';
-                } elseif ($audiencia->estatus === 'Pendiente') {
-                    $color = '#d4ad00';
-                } elseif ($audiencia->estatus === 'Conciliacion') {
-                    $color = '#00CE1C';
-                } elseif ($audiencia->estatus === 'No conciliacion') {
-                    $color = '#3D71FF';
-                } elseif ($audiencia->estatus === 'Reagendada' || $audiencia->estatus === 'No conciliacion reagendada'){
-                    $color = '#ff8330';
-                } else {
-                    $color = '#CCCCCC';
-                }
+                $color = SemaforoAgenda::audiencia($audiencia->estatus);
 
                 if ($audiencia->citado) {
                     $citadoNombre = trim($audiencia->citado->nombre . " " . $audiencia->citado->primer_apellido . " " . $audiencia->citado->segundo_apellido);
@@ -142,18 +132,7 @@ class AudienciasController extends Controller
 
                 $tipo = 5;
 
-                if ($audiencia->estatus === 'Incompetencia') {
-                    $color = '#DA0909';
-                } elseif ($audiencia->estatus === 'Archivada') {
-                    $color = '#EAE300';
-                } elseif ($audiencia->estatus === 'Conciliación') {
-                    $color = '#00CE1C';
-                } elseif ($audiencia->estatus === 'No Conciliación') {
-                    $color = '#00CE1C';
-                }
-                 else {
-                    $color = '#CCCCCC';
-                }
+                $color = SemaforoAgenda::audiencia($audiencia->estatus);
 
                 $eventos[] = [
                     'id' => $audiencia->id,
@@ -208,18 +187,7 @@ class AudienciasController extends Controller
 
                 $tipo = 5;
 
-                if ($audiencia->estatus === 'Incompetencia') {
-                    $color = '#DA0909';
-                } elseif ($audiencia->estatus === 'Archivada') {
-                    $color = '#EAE300';
-                } elseif ($audiencia->estatus === 'Conciliación') {
-                    $color = '#00CE1C';
-                } elseif ($audiencia->estatus === 'No Conciliación') {
-                    $color = '#00CE1C';
-                }
-                 else {
-                    $color = '#CCCCCC';
-                }
+                $color = SemaforoAgenda::audiencia($audiencia->estatus);
 
                 $eventos[] = [
                     'id' => $audiencia->id,
@@ -257,18 +225,7 @@ class AudienciasController extends Controller
 
                 $tipo = 5;
 
-                if ($audiencia->estatus === 'Incompetencia') {
-                    $color = '#DA0909';
-                } elseif ($audiencia->estatus === 'Archivada') {
-                    $color = '#EAE300';
-                } elseif ($audiencia->estatus === 'Conciliación') {
-                    $color = '#00CE1C';
-                } elseif ($audiencia->estatus === 'No Conciliación') {
-                    $color = '#00CE1C';
-                }
-                 else {
-                    $color = '#CCCCCC';
-                }
+                $color = SemaforoAgenda::audiencia($audiencia->estatus);
 
                 $eventos[] = [
                     'id' => $audiencia->id,
@@ -295,6 +252,106 @@ class AudienciasController extends Controller
             return response()->json($eventos);
         }
     */    
+    }
+
+    /**
+     * Fuente de eventos de la pastilla "Solicitudes".
+     *
+     * Dibuja seer_general en su fecha de solicitud. No lleva hora —la tabla
+     * no la guarda—, así que son eventos de día completo; el semáforo sale
+     * del estatus de la solicitud, no del de sus audiencias.
+     *
+     * El alcance por rol y sede es el mismo que en audiencias(): la sede
+     * acota a todos, y al Conciliador se le fija su propio id.
+     */
+    public function solicitudes(Request $request)
+    {
+        $sedeFiltro   = $request->input('sede');
+        $fecha_inicio = Carbon::parse($request->input('start'))->format('Y-m-d');
+        $fecha_final  = Carbon::parse($request->input('end'))->format('Y-m-d');
+        $conciliador  = $request->input('conciliador');
+
+        $user     = auth()->user();
+        $userID   = $user->id;
+        $userRole = $user->roles->pluck('name')->all();
+
+        $mapaSedes = [
+            'Morelia' => ['Morelia', 'Zitácuaro'],
+            'Uruapan' => ['Uruapan', 'Lázaro Cárdenas'],
+            'Zamora'  => ['Zamora', 'Sahuayo'],
+        ];
+        $sedesAconsultar = $mapaSedes[$user->delegacion] ?? [$user->delegacion];
+
+        $primerCitado = "(SELECT SUBSTRING_INDEX(GROUP_CONCAT("
+            . "TRIM(CONCAT_WS(' ', c.nombre, c.primer_apellido, c.segundo_apellido)) "
+            . "ORDER BY c.id ASC SEPARATOR '|'), '|', 1) "
+            . "FROM seer_citados c WHERE c.id_solicitud = seer_general.id) as citado";
+
+        // El solicitante va por subconsulta y no por join: hay solicitudes
+        // colectivas con mas de un solicitante, y con el join esa solicitud se
+        // dibujaba dos veces en el calendario. La agenda es una fila por
+        // solicitud, asi que se toma el primero.
+        $primerSolicitante = "(SELECT s.nombre FROM seer_solicitante s "
+            . "WHERE s.id_solicitud = seer_general.id ORDER BY s.id ASC LIMIT 1) as solicitante";
+
+        $query = DB::table('seer_general')
+            ->leftJoin('users', 'users.id', '=', 'seer_general.conciliador_id')
+            ->whereBetween('seer_general.fecha', [$fecha_inicio, $fecha_final])
+            ->whereNotNull('seer_general.fecha')
+            ->select([
+                'seer_general.id',
+                'seer_general.NUE',
+                'seer_general.fecha',
+                'seer_general.estatus',
+                'seer_general.delegacion',
+                'users.name as conciliador',
+                DB::raw($primerSolicitante),
+                DB::raw($primerCitado),
+            ]);
+
+        if (($userRole[0] ?? '') !== 'Super Usuario') {
+            $sedeFiltro !== 'Todos' && $sedeFiltro !== null
+                ? $query->where('seer_general.delegacion', $sedeFiltro)
+                : $query->whereIn('seer_general.delegacion', $sedesAconsultar);
+        } elseif ($sedeFiltro !== 'Todos' && $sedeFiltro !== null) {
+            $query->where('seer_general.delegacion', $sedeFiltro);
+        }
+
+        if (!empty($conciliador)) {
+            $query->where('seer_general.conciliador_id', $conciliador);
+        }
+
+        if (in_array($userRole[0] ?? '', ['Delegado', 'Enlace'], true)) {
+            $query->whereIn('seer_general.delegacion', $sedesAconsultar);
+        } elseif (($userRole[0] ?? '') === 'Conciliador') {
+            $query->where('seer_general.conciliador_id', $userID);
+        }
+
+        $eventos = [];
+
+        foreach ($query->get() as $solicitud) {
+            $eventos[] = [
+                'id'    => $solicitud->id,
+                'title' => $solicitud->NUE,
+                'start' => $solicitud->fecha,
+                'allDay' => true,
+                'extendedProps' => [
+                    'solicitante'  => $solicitud->solicitante ?: 'S/N',
+                    'citado'       => $solicitud->citado ?: 'S/N',
+                    'conciliador'  => $solicitud->conciliador ?: 'No asignado',
+                    'nue'          => $solicitud->NUE,
+                    'id_solicitud' => $solicitud->id,
+                    'hora'         => 'Todo el día',
+                    'fecha'        => Carbon::parse($solicitud->fecha)->format('d/m/Y'),
+                    'estatus'      => $solicitud->estatus,
+                    'delegacion'   => $solicitud->delegacion,
+                    'color'        => SemaforoAgenda::solicitud($solicitud->estatus),
+                    'tipo'         => 7,
+                ],
+            ];
+        }
+
+        return response()->json($eventos);
     }
 
     public function ratificaciones(Request $request) {
@@ -354,19 +411,7 @@ class AudienciasController extends Controller
 
                 $tipo = 3;
 
-                if ($rati->estatus === 'Incumplimiento') {
-                    $color = '#DA0909';
-                } elseif ($rati->estatus === 'Archivada') {
-                    $color = '#d4ad00';
-                } elseif ($rati->estatus === 'Concluida') {
-                    $color = '#00CE1C';
-                } elseif ($rati->estatus === 'Concluida Pagos') {
-                    $color = '#00CE1C';
-                } elseif ($rati->estatus === 'Confirmado') {
-                    $color = '#0EB6F0';
-                } else {
-                    $color = '#CCCCCC';
-                }
+                $color = SemaforoAgenda::ratificacion($rati->estatus);
 
                 $trabajador = $rati->trabajador." ".$rati->primero_trabajador." ".$rati->segundo_trabajador;
                 $eventos[] = [

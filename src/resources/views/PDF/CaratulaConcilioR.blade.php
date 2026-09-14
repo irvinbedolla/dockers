@@ -5,6 +5,7 @@
     <style>
         @page { 
             margin: 0px; 
+            size: A4 portrait;
         }
         body { 
             margin: 0px; 
@@ -37,9 +38,9 @@
             padding: 5px 12px;
             min-height: 14px;
             display: block;
-            font-weight: normal; 
+            font-weight: bold; 
             color: #333;
-            font-size: 14px;
+            font-size: 15px;
         }
 
         
@@ -132,7 +133,7 @@
             <tr>
                 <td class="label">CITADO (S):</td>
                 <td><div class="pill" style="min-height: 30px; padding-top: 10px; padding-bottom: 10px;">
-                    {{ $ratificacion->empresa }}
+                    {{ $ratificacion->empresa }} @if($ratificacion->primero_empresa){{ $ratificacion->primero_empresa }}@endif @if($ratificacion->segundo_empresa){{ $ratificacion->segundo_empresa }}@endif
                 </div></td>
             </tr>
             <tr>

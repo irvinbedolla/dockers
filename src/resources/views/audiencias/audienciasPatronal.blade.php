@@ -58,21 +58,28 @@
                                 $mostrarEmitirMultasTop = ($totalCentroTop >= 1 && $totalCentroSinComparecenciaTop === $totalCentroTop);
                             @endphp
 
-                            <button type="button" class="btn btn-danger open-modal" data-bs-toggle="modal" data-bs-target="#ModalArchivar" data-id="{{ $id }}">
-                                Archivar
-                            </button>
-                            <button type="button" class="btn btn-danger open-modal" data-bs-toggle="modal" data-bs-target="#ModalIncopentencia" data-id="{{ $id }}">
-                                Incompetencia
-                            </button>
-                            <button type="button" class="btn btn-danger open-modal" data-bs-toggle="modal" data-bs-target="#ModalDesistimiento" data-id="{{ $id }}">
-                                Desistimiento
-                            </button>
-
-                            @if($mostrarEmitirMultasTop)
-                                <button type="button" class="btn btn-danger open-modal" data-bs-toggle="modal" data-bs-target="#ModalEmitirMultas" data-id="{{ $id }}">
-                                    Emitir Constancias de No Conciliación
+                            @can('audiencia_archivar')
+                                <button type="button" class="btn btn-danger open-modal" data-bs-toggle="modal" data-bs-target="#ModalArchivar" data-id="{{ $id }}">
+                                    Archivar
                                 </button>
-                            @endif
+                            @endcan
+                            @can('audiencia_incompetencia')
+                                <button type="button" class="btn btn-danger open-modal" data-bs-toggle="modal" data-bs-target="#ModalIncopentencia" data-id="{{ $id }}">
+                                    Incompetencia
+                                </button>
+                            @endcan
+                            @can('audiencia_desistimiento')
+                                <button type="button" class="btn btn-danger open-modal" data-bs-toggle="modal" data-bs-target="#ModalDesistimiento" data-id="{{ $id }}">
+                                    Desistimiento
+                                </button>
+                            @endcan
+                            @can('audiencia_no_conciliacion')
+                                @if($mostrarEmitirMultasTop)
+                                    <button type="button" class="btn btn-danger open-modal" data-bs-toggle="modal" data-bs-target="#ModalEmitirMultas" data-id="{{ $id }}">
+                                        Emitir Constancias de No Conciliación
+                                    </button>
+                                @endif
+                            @endcan
                             <div class="table-responsive">
                                 <table class="table table-striped mt-1">
                                     <thead style="background-color: #354647;">
@@ -95,9 +102,8 @@
                                             <td>@if($audiencia->poder->reprecentante == 'Si') {{ $audiencia->poder->nombre_representante }} {{ $audiencia->poder->primer_apellido_representante ?? ''}} {{ $audiencia->poder->segundo_apellido_representante ?? ''}} @else Sin representante legal @endif</td>
                                             <td></td>
                                             <td></td>
-                                            <td>
-                                                
-
+                                            <td>                                                
+                                            @can('audiencia_editar_solicitante')
                                                 <div class="d-flex flex-column gap-1">
                                                     <a type="button" class="btn btn-warning w-100 open-modal mt-1" data-bs-toggle="modal" data-bs-target="#exampleModal1" data-id="{{ $id }}">
                                                         Editar
@@ -107,6 +113,7 @@
                                                         Seleccionar representante
                                                     </button>
                                                 </div>
+                                            @endcan
                                             </td>
                                             <td>
                                                 <button class="btn-invisible">Oculto</button>
@@ -128,29 +135,31 @@
                                                 </td>
                                                 <td>{{ $citado->estatus }}</td>
                                                 <td>
-                                                    @if($citado->comparecencia == null || $citado->comparecencia == 'No')
-                                                        <button type="button" class="btn btn-primary w-100 mt-1 mb-1 text-nowrap btn-abrir-modal-comparecencia" 
-                                                            data-bs-toggle="modal" 
-                                                            data-bs-target="#ModalRegistrarComparecencia"
-                                                            data-id="{{ $citado->id }}"
-                                                            data-solicitud="{{ $solicitud->id }}"
-                                                            data-audiencia="{{ request()->query('audiencia_id') }}"
-                                                            data-tipo="{{ $citado->tipo_identificacion_comparecencia }}"
-                                                            data-num="{{ $citado->num_identificacion_comparecencia }}"
-                                                            data-doc="{{ $citado->identificacion_comparecencia }}"
-                                                            data-doc-url="{{ $citado->identificacion_comparecencia ? signedDocRoute('documentos.ver', ['tipo' => 'solicitud', 'id' => $solicitud->id, 'archivo' => $citado->identificacion_comparecencia]) : '' }}">
-                                                            Registrar Comparecencia
-                                                        </button>
-                                                    @else
-                                                        <form action="{{ route('representante.quitar') }}" method="POST" class="mt-1">
-                                                            @csrf
-                                                            <input type="hidden" name="id" value="{{ $citado->id }}">
-                                                            <input type="hidden" name="solicitud" value="{{$solicitud->id}}">
-                                                            <button type="submit" class="btn btn-danger btn-sm w-100">
-                                                                Quitar Comparecencia
+                                                    @can('audiencia_registrar_comparecencia')
+                                                        @if($citado->comparecencia == null || $citado->comparecencia == 'No')
+                                                            <button type="button" class="btn btn-primary w-100 mt-1 mb-1 text-nowrap btn-abrir-modal-comparecencia" 
+                                                                data-bs-toggle="modal" 
+                                                                data-bs-target="#ModalRegistrarComparecencia"
+                                                                data-id="{{ $citado->id }}"
+                                                                data-solicitud="{{ $solicitud->id }}"
+                                                                data-audiencia="{{ request()->query('audiencia_id') }}"
+                                                                data-tipo="{{ $citado->tipo_identificacion_comparecencia }}"
+                                                                data-num="{{ $citado->num_identificacion_comparecencia }}"
+                                                                data-doc="{{ $citado->identificacion_comparecencia }}"
+                                                                data-doc-url="{{ $citado->identificacion_comparecencia ? signedDocRoute('documentos.ver', ['tipo' => 'solicitud', 'id' => $solicitud->id, 'archivo' => $citado->identificacion_comparecencia]) : '' }}">
+                                                                Registrar Comparecencia
                                                             </button>
-                                                        </form>
-                                                    @endif
+                                                        @else
+                                                            <form action="{{ route('representante.quitar') }}" method="POST" class="mt-1">
+                                                                @csrf
+                                                                <input type="hidden" name="id" value="{{ $citado->id }}">
+                                                                <input type="hidden" name="solicitud" value="{{$solicitud->id}}">
+                                                                <button type="submit" class="btn btn-danger btn-sm w-100">
+                                                                    Quitar Comparecencia
+                                                                </button>
+                                                            </form>
+                                                        @endif
+                                                    @endcan
                                                 </td>
                                                 <td></td>
                                             </tr>
@@ -1380,7 +1389,7 @@
 <div class="modal fade" id="ModalReagendar" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
     <form class='needs-validation novalidate'  method='POST' action="{{route('reagendar_audiencia')}}">
         @csrf
-        <input type="hidden" id="modal-id-reagendar" name="id" value="">
+        <input type="hidden" id="modal-id-reagendar" name="id" value="{{ $id }}">
         <input type="hidden" name="audiencia_id" value="{{ request()->query('audiencia_id') }}">
         <input type="hidden" id="fechaConfirmacion" value= "{{ $fechaConfirmacion }}">
         <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">

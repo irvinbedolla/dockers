@@ -1422,16 +1422,18 @@ select[name="municipio_citado"] option {
                                                         ? (is_countable($citados) ? count($citados) : (method_exists($citados, 'count') ? $citados->count() : 0))
                                                         : 0;
                                                 @endphp
-                                                @if($general['estatus'] == 'Prevencion' || $general['estatus'] == 'Pendiente')
-                                                    @if($citadosCount > 0)
-                                                        <button id="btnConfirmarSolicitud" type="submit" class="btn btn-primary" style="background-color:#CEA845; border-color:#CEA845;" name="toquen" value="1">Confirmar</button>
-                                                        <div id="msgRefImg1" class="text-muted mt-2" style="display:none;">Debe subir la <strong>Referencia Imagen 1</strong> de todos los citados para poder confirmar.</div>
-                                                    @else
-                                                        <button type="button" class="btn btn-secondary" disabled title="Agregue al menos un citado para poder guardar."  name="toquen" value="1">Confirmar</button>
-                                                        <div class="text-muted mt-2">Debe agregar al menos un citado para poder guardar.</div>
+                                                @can('solicitudes_validar')
+                                                    @if($general['estatus'] == 'Prevencion' || $general['estatus'] == 'Pendiente')
+                                                        @if($citadosCount > 0)
+                                                            <button id="btnConfirmarSolicitud" type="submit" class="btn btn-primary" style="background-color:#CEA845; border-color:#CEA845;" name="toquen" value="1">Confirmar</button>
+                                                            <div id="msgRefImg1" class="text-muted mt-2" style="display:none;">Debe subir la <strong>Referencia Imagen 1</strong> de todos los citados para poder confirmar.</div>
+                                                        @else
+                                                            <button type="button" class="btn btn-secondary" disabled title="Agregue al menos un citado para poder guardar."  name="toquen" value="1">Confirmar</button>
+                                                            <div class="text-muted mt-2">Debe agregar al menos un citado para poder guardar.</div>
+                                                        @endif
+                                                        <button type="button" class="btn btn-danger open-modal" data-bs-toggle="modal" data-bs-target="#exampleModal" data-id="{{ $general->id }}"> Prevención </button>
                                                     @endif
-                                                    <button type="button" class="btn btn-danger open-modal" data-bs-toggle="modal" data-bs-target="#exampleModal" data-id="{{ $general->id }}"> Prevención </button>
-                                                @endif
+                                                @endcan
                                                 @if($general['estatus'] != 'Prevencion' && $general['estatus'] != 'Pendiente')
                                                     <button type="submit" class="btn btn-primary" name="toquen" value="2">Guardar</button>
                                                 @endif

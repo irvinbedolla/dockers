@@ -22,6 +22,7 @@ use App\Http\Controllers\Controller;
 //use App\Http\Controllers\PDFController;
 use Spatie\Permission\Models\Role; 
 use App\Models\User;
+use App\Support\FotoPerfil;
 use App\Models\Turnos;
 use App\Models\TurnoDisponible;
 use App\Models\DiasInhabiles;
@@ -262,14 +263,45 @@ class AdministracionController extends Controller{
             'SAH' => 'Sahuayo',
         ];
     }
+    /**
+     * Nombres de sede que un Delegado puede operar (su sede + sus oficinas
+     * de apoyo). Devuelve null para el resto de roles, que no se filtran.
+     */
+    private function nombresSedesPermitidas($user): ?array
+    {
+        if (!$user->hasRole('Delegado')) {
+            return null;
+        }
+
+        $sedePrincipal = Sedes::where('nombre', $user->delegacion)->first();
+        if (!$sedePrincipal) {
+            return [$user->delegacion];
+        }
+
+        return Sedes::where('nombre', $user->delegacion)
+            ->orWhere('oficina_apoyo', $sedePrincipal->id)
+            ->pluck('nombre')
+            ->all();
+    }
+
     public function cambio_audiencia(){
         $delegaciones = $this->prefijosDelegacion();
+
+        if ($nombresPermitidos = $this->nombresSedesPermitidas(auth()->user())) {
+            $delegaciones = array_filter($delegaciones, fn($nombre) => in_array($nombre, $nombresPermitidos, true));
+        }
 
         return view('administracion.index_audiencia', compact('delegaciones'));
     }
     public function fecha_audiencia_buscar(Request $request)
     {
-        $prefijos = array_keys($this->prefijosDelegacion());
+        $prefijosDisponibles = $this->prefijosDelegacion();
+
+        if ($nombresPermitidos = $this->nombresSedesPermitidas(auth()->user())) {
+            $prefijosDisponibles = array_filter($prefijosDisponibles, fn($nombre) => in_array($nombre, $nombresPermitidos, true));
+        }
+
+        $prefijos = array_keys($prefijosDisponibles);
 
         $request->validate([
             'delegacion'  => 'required|string|in:' . implode(',', $prefijos),
@@ -349,6 +381,11 @@ class AdministracionController extends Controller{
         $delegacionesSol = $this->prefijosDelegacion();
         $delegacionesRat = $this->prefijosDelegacionRatificacion();
 
+        if ($nombresPermitidos = $this->nombresSedesPermitidas(auth()->user())) {
+            $delegacionesSol = array_filter($delegacionesSol, fn($nombre) => in_array($nombre, $nombresPermitidos, true));
+            $delegacionesRat = array_filter($delegacionesRat, fn($nombre) => in_array($nombre, $nombresPermitidos, true));
+        }
+
         return view('administracion.index_cumplimiento', compact('delegacionesSol', 'delegacionesRat'));
     }
 
@@ -356,6 +393,11 @@ class AdministracionController extends Controller{
     {
         $delegacionesSol = $this->prefijosDelegacion();
         $delegacionesRat = $this->prefijosDelegacionRatificacion();
+
+        if ($nombresPermitidos = $this->nombresSedesPermitidas(auth()->user())) {
+            $delegacionesSol = array_filter($delegacionesSol, fn($nombre) => in_array($nombre, $nombresPermitidos, true));
+            $delegacionesRat = array_filter($delegacionesRat, fn($nombre) => in_array($nombre, $nombresPermitidos, true));
+        }
 
         $request->validate([
             'tipo'        => 'required|string|in:SOL,RAT',
@@ -975,20 +1017,43 @@ class AdministracionController extends Controller{
     public function update(Request $request, $id)
     {
         $this->validate($request, [
-            'name' => 'required',
-            'email' => 'required|email|unique:users,email,'.$id,
-            'password' => 'same:confirm-password',
+            'name'        => 'required',
+            'email'       => 'required|email|unique:users,email,'.$id,
+            'password'    => 'same:confirm-password',
+            'foto_perfil' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:8192|dimensions:min_width=200,min_height=200',
+        ], [
+            'foto_perfil.image'      => 'El archivo debe ser una imagen.',
+            'foto_perfil.mimes'      => 'La foto debe ser JPG, PNG o WebP.',
+            'foto_perfil.max'        => 'La foto no debe pesar más de 8 MB.',
+            'foto_perfil.dimensions' => 'La foto debe medir al menos 200x200 píxeles.',
+            'foto_perfil.uploaded'   => 'La foto no se pudo subir: excede el límite del servidor.',
         ]);
 
-        $input = $request->all();
-        if (!empty($input['password'])) {
-            $input['password'] = Hash::make($input['password']);
-        }else {
-            $input = Arr::except($input, array('password'));
+        $user = User::findOrFail($id);
+
+        // Solo los campos de esta pantalla. $request->all() dejaba pasar
+        // delegacion, type y profile_photo_path (la CURP) a un formulario
+        // que ni siquiera los muestra.
+        $datos = $request->only(['name', 'email']);
+
+        if ($request->filled('password')) {
+            $datos['password'] = Hash::make($request->input('password'));
         }
-        
-        $user = User::find($id);
-        $user->update($input);
+
+        if ($request->hasFile('foto_perfil')) {
+            try {
+                $datos['foto_perfil'] = FotoPerfil::guardar($request->file('foto_perfil'), $user->foto_perfil);
+            } catch (\RuntimeException $e) {
+                // Mejor devolverlo al formulario con el motivo que guardar en la
+                // base la ruta de un archivo que no se escribio.
+                return back()->withInput()->withErrors(['foto_perfil' => $e->getMessage()]);
+            }
+        } elseif ($request->boolean('quitar_foto')) {
+            FotoPerfil::borrar($user->foto_perfil);
+            $datos['foto_perfil'] = null;
+        }
+
+        $user->update($datos);
 
         return redirect()->route('configuracion_usuarios');
     }
@@ -1248,6 +1313,89 @@ class AdministracionController extends Controller{
         ]);
 
         return back()->with('success', 'El bloqueo se actualizó correctamente.');
+    }
+
+    /**
+     * Dias inhabiles del rango visible, para que el calendario los pinte como
+     * dias deshabilitados.
+     *
+     * No reutiliza obtenerBloqueosCalendario porque aquel devuelve pildoras de
+     * evento y mezcla los tres tipos de bloqueo; aqui solo interesan los que
+     * cierran la sede el dia entero. Tampoco diasInhabilesCentro, que atiende
+     * a una sola sede con ventana fija y lo consumen cuatro pantallas.
+     *
+     * Se descartan a proposito:
+     *  - descripcion 'No inhabil' (bloqueos de horario, no cierran el dia),
+     *  - los que tienen user_id (permisos de un conciliador, no de la sede).
+     *
+     * Devuelve un mapa por fecha para que el front no tenga que expandir
+     * rangos: hay bloqueos de hasta dos semanas, como el de fin de ano.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function diasInhabilesAgenda(Request $request)
+    {
+        $usuario = auth()->user();
+
+        ['sedes' => $sedesPermitidas] = \App\Support\AgendaContexto::para($usuario);
+
+        $sede = $request->input('sede');
+        $sedesVisibles = ($sede && $sede !== 'Todos' && in_array($sede, $sedesPermitidas, true))
+            ? [$sede]
+            : $sedesPermitidas;
+
+        if ($sedesVisibles === []) {
+            return response()->json(['dias' => (object) [], 'sedes' => 0]);
+        }
+
+        $inicio = $request->input('start')
+            ? Carbon::parse($request->input('start'))->startOfDay()
+            : Carbon::now()->startOfDay();
+
+        $fin = $request->input('end')
+            ? Carbon::parse($request->input('end'))->startOfDay()
+            : (clone $inicio)->addMonths(2);
+
+        $bloqueos = DiasInhabiles::query()
+            ->whereNull('user_id')
+            ->where('descripcion', 'Inhabil')
+            ->whereIn('centro', $sedesVisibles)
+            ->where('fecha_inicio', '<=', $fin->toDateString())
+            ->where('fecha_final', '>=', $inicio->toDateString())
+            ->get(['fecha_inicio', 'fecha_final', 'centro', 'tipo']);
+
+        $dias = [];
+
+        foreach ($bloqueos as $bloqueo) {
+            $desde = Carbon::parse($bloqueo->fecha_inicio)->startOfDay()->max($inicio);
+            $hasta = Carbon::parse($bloqueo->fecha_final)->startOfDay()->min($fin);
+
+            for ($dia = $desde->copy(); $dia->lte($hasta); $dia->addDay()) {
+                $clave = $dia->toDateString();
+
+                $dias[$clave] ??= ['sedes' => [], 'tipos' => []];
+
+                if (! in_array($bloqueo->centro, $dias[$clave]['sedes'], true)) {
+                    $dias[$clave]['sedes'][] = $bloqueo->centro;
+                }
+
+                if (! in_array($bloqueo->tipo, $dias[$clave]['tipos'], true)) {
+                    $dias[$clave]['tipos'][] = $bloqueo->tipo;
+                }
+            }
+        }
+
+        // "todas" distingue el feriado nacional del local: el 21 de octubre
+        // solo cierra Uruapan, y con "Todas las sedes" en pantalla ese dia no
+        // puede pintarse igual que el 16 de septiembre.
+        foreach ($dias as $clave => $dato) {
+            $dias[$clave]['todas'] = count($dato['sedes']) >= count($sedesVisibles);
+        }
+
+        return response()->json([
+            'dias'  => $dias ?: (object) [],
+            'sedes' => count($sedesVisibles),
+        ]);
     }
 
     public function obtenerBloqueosCalendario(Request $request)

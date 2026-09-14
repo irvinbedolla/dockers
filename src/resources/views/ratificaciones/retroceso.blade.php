@@ -110,9 +110,11 @@
                                                                           data-pagos="{{ $folio['pagos'] }}"
                                                                           data-pagados="{{ $folio['pagados'] }}">
                                                                         @csrf
-                                                                        <button type="submit" class="btn btn-sm btn-danger text-white shadow-sm">
-                                                                            <i class="bi bi-arrow-counterclockwise"></i> Retroceso
-                                                                        </button>
+                                                                        @can('retroceso_ratificacion_crear')
+                                                                            <button type="submit" class="btn btn-sm btn-danger text-white shadow-sm">
+                                                                                <i class="bi bi-arrow-counterclockwise"></i> Retroceso
+                                                                            </button>
+                                                                        @endcan
                                                                     </form>
                                                                 @else
                                                                     <button class="btn btn-sm btn-secondary shadow-sm" disabled

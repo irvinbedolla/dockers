@@ -14,7 +14,8 @@
                         <div class="card-body">
                             <!--a class="btn btn-info" href="{{ route('pdf_tercer_encuentro') }}" target="_blank">PDF</a-->
                            
-                                    <table id="example" class="table-striped" style="width:100%">
+                                    <div class="table-responsive">
+                                    <table id="example" class="table table-striped" style="width:100%">
                                         <thead style="background-color: #354647;">
                                             <th style="color: #fff; width: 3%">Folio</th>
                                             <th style="color: #fff; width: 20%">Nombre</th>
@@ -48,6 +49,7 @@
                                             @endforeach
                                         </tbody>
                                     </table>
+                                    </div>
                         </div>
                     </div>
                 </div>

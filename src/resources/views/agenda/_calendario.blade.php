@@ -36,25 +36,6 @@
                                                         </div>
 
                                                         <div class="cal-actions">
-                                                            <select id="filtro-sede" class="cal-select" aria-label="Filtrar por sede">
-                                                                <option value="Todos">Todas las sedes</option>
-                                                                @foreach($sedes as $sede)
-                                                                    <option value="{{ $sede }}">{{ $sede }}</option>
-                                                                @endforeach
-                                                            </select>
-
-                                                            @if ($esConciliador)
-                                                                {{-- Oculto, no eliminado: calendar.js lee su valor para filtrar. --}}
-                                                                <input type="hidden" id="filter-conciliador" value="{{ $idUsuario }}">
-                                                            @else
-                                                                <select id="filter-conciliador" class="cal-select" aria-label="Filtrar por conciliador">
-                                                                    <option value="">Todos los conciliadores</option>
-                                                                    @foreach($conciliadores as $conciliador)
-                                                                        <option value="{{ $conciliador['id'] }}" data-delegacion-id="{{ $conciliador['delegacion'] }}">{{ $conciliador['name'] }}</option>
-                                                                    @endforeach
-                                                                </select>
-                                                            @endif
-
                                                             <div class="cal-nav">
                                                                 <button type="button" id="calPrev" aria-label="Anterior"><i class="bi bi-arrow-left"></i></button>
                                                                 <button type="button" id="calHoy">Hoy</button>
@@ -66,32 +47,76 @@
                                                                 <option value="dayGridWeek">Vista semana</option>
                                                                 <option value="listWeek">Vista lista</option>
                                                             </select>
+
+                                                            {{-- Baja lo mismo que está en pantalla: el rango del calendario
+                                                                 con los filtros de sede y conciliador ya aplicados. --}}
+                                                            {{-- Sábado y domingo arrancan encogidos: casi nunca hay
+                                                                 audiencias y se comían dos séptimas partes del ancho.
+                                                                 No se ocultan, se minimizan: si se apagan de verdad,
+                                                                 FullCalendar deja de pedir esos días al servidor. --}}
+                                                            <button type="button" id="calFinde" class="cal-select" aria-pressed="false"
+                                                                    title="Mostrar u ocultar las columnas de sábado y domingo">
+                                                                <i class="bi bi-arrows-angle-expand"></i> Fin de semana
+                                                            </button>
+
+                                                            <button type="button" id="calExportar" class="cal-select" title="Descargar en Excel la agenda del rango visible">
+                                                                <i class="bi bi-file-earmark-excel"></i> Exportar
+                                                            </button>
                                                         </div>
                                                     </div>
 
-                                                    {{-- Los cinco botones morados pasaron a ser pestañas: caben en una
-                                                         línea, se envuelven solas en móvil y ya no hacen falta el
-                                                         desplegable aparte ni la versión de escritorio duplicada. --}}
-                                                    <div class="cal-tabs">
+                                                    {{-- Conciliadores como pastillas, en lugar del desplegable. La sede
+                                                         va al frente y decide cuáles se ven: al elegir una, las de las
+                                                         demás delegaciones se ocultan. Sólo salen los conciliadores con
+                                                         actividad reciente (ver AgendaContexto). --}}
+                                                    <div class="cal-personas">
+                                                        <select id="filtro-sede" class="cal-select" aria-label="Filtrar por sede">
+                                                            <option value="Todos">Todas las sedes</option>
+                                                            @foreach($sedes as $sede)
+                                                                <option value="{{ $sede }}">{{ $sede }}</option>
+                                                            @endforeach
+                                                        </select>
+
                                                         @if ($esConciliador)
-                                                            {{-- Vista de mes con todas sus agendas juntas. Es la entrada
-                                                                 natural para quien solo consulta lo suyo. --}}
-                                                            <button type="button" class="cal-tab btn-calendar active" data-tipo="btn-todos">Todos</button>
+                                                            {{-- Un conciliador no elige: el valor va fijo y oculto,
+                                                                 calendar.js lo lee igual que antes. --}}
+                                                            <input type="hidden" id="filter-conciliador" value="{{ $idUsuario }}">
+                                                        @else
+                                                            <button type="button" class="cal-persona active" data-conciliador="">Todos</button>
+                                                            @foreach($conciliadores as $conciliador)
+                                                                <button type="button" class="cal-persona"
+                                                                        data-conciliador="{{ $conciliador['id'] }}"
+                                                                        data-delegacion="{{ $conciliador['delegacion'] }}"
+                                                                        title="{{ $conciliador['name'] }}">{{ $conciliador['name'] }}</button>
+                                                            @endforeach
                                                         @endif
-                                                        <button type="button" class="cal-tab btn-calendar {{ $esConciliador ? '' : 'active' }}" data-tipo="btn-pagos">Cumplimientos</button>
-                                                        <button type="button" class="cal-tab btn-calendar" data-tipo="btn-audiencias">Audiencias</button>
-                                                        <button type="button" class="cal-tab btn-calendar" data-tipo="btn-conciliador">Cumplimientos en Audiencia</button>
-                                                        <button type="button" class="cal-tab btn-calendar" data-tipo="btn-citas">Cumplimientos de Ratificación</button>
-                                                        <button type="button" class="cal-tab btn-calendar" data-tipo="btn-ratificaciones">Ratificaciones</button>
                                                     </div>
 
-                                                    <div class="cal-leyenda" id="calLeyenda" style="display:none;">
-                                                        <span><i class="leyenda" style="background:#6A0F49;"></i> Cumplimientos</span>
-                                                        <span><i class="leyenda" style="background:#496163;"></i> Audiencias</span>
-                                                        <span><i class="leyenda" style="background:#2F6B6B;"></i> Cumplimientos en audiencia</span>
-                                                        <span><i class="leyenda" style="background:#7A5C8E;"></i> Cumplimientos de ratificación</span>
-                                                        <span><i class="leyenda" style="background:#B5824A;"></i> Ratificaciones</span>
+                                                    {{-- Orden fijo para todos los roles. "Cumplimientos" y
+                                                         "Ratificaciones" son filtro y contenedor a la vez: al
+                                                         elegirlas pintan sus hijas juntas y despliegan la fila de
+                                                         abajo para acotar a una sola. --}}
+                                                    <div class="cal-tabs">
+                                                        <button type="button" class="cal-tab btn-calendar active" data-tipo="btn-todos">Todos</button>
+                                                        <button type="button" class="cal-tab btn-calendar" data-tipo="btn-solicitudes">Solicitudes</button>
+                                                        <button type="button" class="cal-tab btn-calendar" data-tipo="btn-audiencias">Audiencias</button>
+                                                        <button type="button" class="cal-tab btn-calendar" data-tipo="btn-cumplimientos" data-hijas="sub-cumplimientos">Cumplimientos</button>
+                                                        <button type="button" class="cal-tab btn-calendar" data-tipo="btn-ratificaciones" data-hijas="sub-ratificaciones">Ratificaciones</button>
                                                     </div>
+
+                                                    {{-- Sub-pastillas. Se muestran solo cuando su padre esta activo. --}}
+                                                    <div class="cal-subtabs" id="sub-cumplimientos" hidden>
+                                                        <button type="button" class="cal-tab cal-tab-hija btn-calendar" data-tipo="btn-cumpl-audiencias">Audiencias</button>
+                                                        <button type="button" class="cal-tab cal-tab-hija btn-calendar" data-tipo="btn-cumpl-generales">Generales</button>
+                                                    </div>
+
+                                                    <div class="cal-subtabs" id="sub-ratificaciones" hidden>
+                                                        <button type="button" class="cal-tab cal-tab-hija btn-calendar" data-tipo="btn-rati-cumplimientos">Cumplimientos</button>
+                                                    </div>
+
+                                                    {{-- La pinta calendar.js con el semaforo del tipo activo; el
+                                                         catalogo viene de App\Support\SemaforoAgenda. --}}
+                                                    <div class="cal-leyenda" id="calLeyenda" style="display:none;"></div>
 
                                                     <div id="calZona" class="cal-zona" aria-busy="true">
                                                         <div id="calSkeleton" class="cal-skeleton">

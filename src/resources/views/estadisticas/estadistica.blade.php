@@ -41,25 +41,25 @@
                                                 <label multiple for="name">Tipo de reporte</label>
                                                 <select id="reporte" class="form-control" name="tipo_reporte" required>
                                                     <option value="">Seleccione</option>
-                                                    <option value="Audiencias">Audiencias</option>
-                                                    <option value="Cumplimientos">Cumplimientos</option>
-                                                    <option value="Ratificaciones">Ratificaciones</option>
-                                                    <option value="Notificaciones">Notificaciones</option>
-                                                    <option value="Solicitudes">Solicitudes</option>
-                                                    <option value="Convenios">Convenios</option>
-                                                    <option value="CumplimientosGrafica">Graficas</option>
-                                                    <option value="Productividad">Productividad</option>
-                                                    <option value="EstadisticaMexico">INEGI</option> 
-                                                    <option value="Motivos">Motivos</option>
+                                                    @can('reportes_audiencias')<option value="Audiencias">Audiencias</option>@endcan
+                                                    @can('reportes_cumplimientos')<option value="Cumplimientos">Cumplimientos</option>@endcan
+                                                    @can('reportes_ratificaciones')<option value="Ratificaciones">Ratificaciones</option>@endcan
+                                                    @can('reportes_notificaciones')<option value="Notificaciones">Notificaciones</option>@endcan
+                                                    @can('reportes_solicitudes')<option value="Solicitudes">Solicitudes</option>@endcan
+                                                    @can('reportes_convenios')<option value="Convenios">Convenios</option>@endcan
+                                                    @can('reportes_graficas')<option value="CumplimientosGrafica">Graficas</option>@endcan
+                                                    @can('reportes_productividad')<option value="Productividad">Productividad</option>@endcan
+                                                    @can('reportes_inegi')<option value="EstadisticaMexico">INEGI</option> @endcan
+                                                    @can('reportes_motivos')<option value="Motivos">Motivos</option>@endcan
                                                     <!--<option value="Concentrado">General</option>-->
-                                                    <option value="GeneralSede">General por Sede</option>
-                                                    <option value="AudienciaConciliador">Audiencias por Conciliador</option>
-                                                    <option value="CumplimientosProgramados">Cumplimientos Programados</option>
-                                                    @if($userRole == "Super Usuario" || $userRole == "Estadisticas" || $userRole == "Administrador" )
-                                                        <option value="SeguroSocial">Seguro Social</option>
-                                                        <option value="ReporteMunicipio">Reporte por Municipios</option>
-                                                        <option value="ReporteActividad">Reporte por Actividad</option>
-                                                    @endif
+                                                    @can('reportes_general_sede')<option value="GeneralSede">General por Sede</option>@endcan
+                                                    @can('reportes_conciliador')<option value="AudienciaConciliador">Audiencias por Conciliador</option>@endcan
+                                                    @can('reportes_cumplimientos_programados')<option value="CumplimientosProgramados">Cumplimientos Programados</option>@endcan
+                    
+                                                    @can('reportes_seguro_social')<option value="SeguroSocial">Seguro Social</option>@endcan
+                                                    @can('reportes_municipios')<option value="ReporteMunicipio">Reporte por Municipios</option>@endcan
+                                                    @can('reportes_actividad')<option value="ReporteActividad">Reporte por Actividad</option>@endcan
+                                                    
                                                 </select>
                                                 <div class="invalid-feedback">
                                                     Debes seleccionar un tipo de reporte.
@@ -129,10 +129,14 @@
                                                 <div class="form-group">
                                                     <label for="name">Notificador</label>
                                                     <select class="form-control" name="notificador">
-                                                        <option value="Todos">Todos</option>
-                                                        @foreach($usuariosnotificadores as $not)
-                                                            <option value="{{$not['id']}}">{{$not['name']}}</option>
-                                                        @endforeach
+                                                        @if($userRole === 'Notificador')
+                                                            <option value="{{ $user->id }}" selected>{{ $user->name }}</option>
+                                                        @else
+                                                            <option value="Todos">Todos</option>
+                                                            @foreach($usuariosnotificadores as $not)
+                                                                <option value="{{$not['id']}}">{{$not['name']}}</option>
+                                                            @endforeach
+                                                        @endif
                                                     </select>
                                                 </div>
                                             </div>

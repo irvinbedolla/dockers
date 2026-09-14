@@ -19,12 +19,13 @@ class ConciliadoresController extends Controller
         $user = User::find($id);
         $roles = Role::pluck('name','name')->all();
         $userRole = $user->roles->pluck('name')->all();
-        
+        $permisos = PermisosConciliador::get();
         if($userRole[0] == "Super Usuario"){
             $conciliadores = User::whereHas('roles', function ($query) {
                 return $query->where('name', '=', 'Conciliador');
             })
             ->get();
+
         }else{
             $conciliadores = User::whereHas('roles', function ($query) {
                 return $query->where('name', '=', 'Conciliador');
@@ -33,7 +34,7 @@ class ConciliadoresController extends Controller
             ->get();
         }
 
-        return view('conciliadores.index',compact('conciliadores'));
+        return view('conciliadores.index',compact('conciliadores', 'permisos'));
     }
 
     public function update(Request $request)

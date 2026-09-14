@@ -58,6 +58,9 @@ class RatificacionesFromViewExport implements FromView
                 // Usamos whereIn aprovechando el arreglo que creamos arriba
                 return $query->whereIn('turnos.delegacion', $delegacionesFiltro);
             })
+            ->when($user->hasRole('Auxiliar'), function ($query) use ($user) {
+                return $query->where('turnos.user_id', $user->id);
+            })
             ->join('users', 'users.id', '=', 'turnos.id_conciliador')
             ->join('users as user_usuario', 'user_usuario.id', '=', 'turnos.user_id')
             
@@ -80,14 +83,18 @@ class RatificacionesFromViewExport implements FromView
             ->get();
 
         $totalesGlobales = DB::table('pago_solicitud')
-            ->whereBetween('fecha', [$this->fecha_inicial, $this->fecha_final])
-            ->where('tipo_pago', "Ratificacion")
+            ->whereBetween('pago_solicitud.fecha', [$this->fecha_inicial, $this->fecha_final])
+            ->where('pago_solicitud.tipo_pago', "Ratificacion")
             ->when($this->sede !== "Todos", function ($q) use ($delegacionesFiltro) {
-                return $q->whereIn('delegacion', $delegacionesFiltro);
+                return $q->whereIn('pago_solicitud.delegacion', $delegacionesFiltro);
+            })
+            ->when($user->hasRole('Auxiliar'), function ($q) use ($user) {
+                return $q->join('turnos', 'turnos.id', '=', 'pago_solicitud.id_solicitud')
+                    ->where('turnos.user_id', $user->id);
             })
             ->selectRaw("
-                SUM(CASE WHEN estatus = 'Pendiente' THEN monto ELSE 0 END) as global_monto_pendientes,
-                SUM(CASE WHEN estatus = 'Pagado' THEN monto ELSE 0 END) as global_monto_pagados
+                SUM(CASE WHEN pago_solicitud.estatus = 'Pendiente' THEN pago_solicitud.monto ELSE 0 END) as global_monto_pendientes,
+                SUM(CASE WHEN pago_solicitud.estatus = 'Pagado' THEN pago_solicitud.monto ELSE 0 END) as global_monto_pagados
             ")
             ->first();
 

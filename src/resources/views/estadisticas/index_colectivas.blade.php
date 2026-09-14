@@ -15,8 +15,14 @@
                                 <a class="btn btn-warning" href="{{ route('colectivas_agregar') }}"    onclick=nuevo_estadistica();>Agregar</a>
                                 <a class="btn btn-info" href="{{ route('seer') }}"                    onclick=nuevo_estadistica();>Regresar</a>
                                 @if($userRole[0] == "Conciliador")
+                                        {{-- El contenedor estaba dentro de la tabla, envolviendo al
+                                             thead y al tbody. Eso es HTML invalido: al construir el DOM
+                                             el navegador saca de la tabla todo lo que no puede vivir ahi
+                                             ("foster parenting"), asi que el contenedor terminaba vacio
+                                             y fuera, sin contener nada. Va por fuera, que es donde
+                                             surte efecto. --}}
+                                        <div class="table-responsive">
                                         <table id="tabla_seer_auxiliar" class="table table-striped mt-1">
-                                            <div class="table-responsive">
                                                 <thead style="background-color: #354647;">
                                                     <th style="display: none;">ID</th>
                                                     <th style="color: #fff;">Número unico de identificación</th>
@@ -39,14 +45,14 @@
                                                         </tr>
                                                     @endforeach
                                                 </tbody>
-                                            </div>
                                         </table>
+                                        </div>
                                     @endif
                                 <!-- Centramos la paginación a la derecha-->
                                 <div class="pagination justify-content-end">
-                                    </div>                        
-                                </div>
+                                    </div>
                             @endcan
+                        </div>
                     </div>
                 </div>
             </div>

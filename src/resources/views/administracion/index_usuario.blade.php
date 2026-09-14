@@ -85,6 +85,12 @@
         $(document).ready(function() {
             if (!$.fn.DataTable.isDataTable('#example')) {
                 $('#example').DataTable({
+                    // Sin colapso de columnas: son 7 y se consultan de un vistazo.
+                    // El desplazamiento lo da el .table-responsive de Bootstrap que
+                    // ya envuelve la tabla; no se usa scrollX porque clona el
+                    // <thead> y necesita la hoja de estilos de DataTables, que
+                    // este proyecto no carga.
+                    "responsive": false,
                     "destroy": true,
                     "paging": true,
                     "pageLength": 10,

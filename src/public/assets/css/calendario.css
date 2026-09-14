@@ -123,6 +123,185 @@
 .cal-btn-primary:hover { background-color: #3E5254; color: #fff; }
 
 /* Pestañas de tipo de agenda (home) */
+/* -----------------------------------------------------------------------------
+   Fila de conciliadores: sustituye al desplegable. La sede va al frente y
+   filtra cuales se muestran (ver calFiltrarPersonasPorSede en calendar.js).
+   -------------------------------------------------------------------------- */
+.cal-personas {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 11px 18px;
+    border-bottom: 1px solid #eceef1;
+}
+
+.cal-personas .cal-select { flex: 0 0 auto; margin-right: 6px; }
+
+.cal-persona {
+    border: 1px solid #CBD5D5;
+    background: #fff;
+    border-radius: 999px;
+    padding: 5px 12px;
+    font-size: 12px;
+    color: #496163;
+    line-height: 1.3;
+    /* Los nombres completos son largos y son muchos: se recortan para que la
+       fila no empuje el calendario hacia abajo. El nombre entero va en title. */
+    max-width: 190px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cal-persona:hover { background: #EDF1F1; }
+
+.cal-persona.active {
+    background: #496163;
+    border-color: #496163;
+    color: #fff;
+    font-weight: 600;
+}
+
+/* Sub-pastillas: mismo lenguaje que las padre, un escalon mas discretas y
+   sangradas para que se lea la jerarquia. */
+.cal-subtabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 18px 10px 34px;
+    border-bottom: 1px solid #eceef1;
+    background: #fafbfc;
+}
+
+.cal-tab-hija {
+    font-size: 12px;
+    padding: 4px 12px;
+    border-style: dashed;
+}
+
+.cal-tab-hija.active { border-style: solid; }
+
+/* El display:flex de arriba le gana al display:none que trae el atributo
+   hidden, asi que la fila oculta se seguia viendo. Va explicito. */
+.cal-subtabs[hidden] { display: none !important; }
+
+/* -----------------------------------------------------------------------------
+   Dias inhabiles
+   Vienen de administracion/sedes (dias_inhabiles, descripcion 'Inhabil' y sin
+   user_id). Se marcan como dia deshabilitado y no como evento: es una
+   propiedad del dia, no una cita. Gris plano en vez de trama: la trama
+   competia con las tarjetas y a tamano real casi no se distinguia.
+   -------------------------------------------------------------------------- */
+.cal-fc .fc-daygrid-day.dia-inhabil .fc-daygrid-day-frame {
+    background-color: #e9ebee;
+}
+
+.cal-fc .fc-daygrid-day.dia-inhabil .fc-daygrid-day-number {
+    color: #98a2b3;
+}
+
+/* Etiqueta explicita: el gris solo dice "distinto", no dice "inhabil". El
+   texto lo pone calPintarInhabiles en data-inhabil. */
+.cal-fc .fc-daygrid-day.dia-inhabil .fc-daygrid-day-frame[data-inhabil]::before {
+    content: attr(data-inhabil);
+    display: block;
+    margin: 4px 4px 0;
+    padding: 1px 6px;
+    border-radius: 5px;
+    background: #d7dbe0;
+    color: #5b6675;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+/* El feriado local no puede verse igual que el nacional: si en pantalla hay
+   varias sedes y el dia solo cierra en una, el gris va mas claro y la
+   etiqueta lo dice. El title lista las sedes. */
+.cal-fc .fc-daygrid-day.dia-inhabil-parcial .fc-daygrid-day-frame {
+    background-color: #f3f4f6;
+}
+
+.cal-fc .fc-daygrid-day.dia-inhabil-parcial .fc-daygrid-day-frame[data-inhabil]::before {
+    background: #e6e8ec;
+    color: #7b8593;
+}
+
+/* Los eventos que caigan en un dia inhabil siguen visibles pero atenuados:
+   son datos reales y esconderlos seria peor que mostrarlos apagados. */
+.cal-fc .fc-daygrid-day.dia-inhabil .fc-daygrid-event-harness { opacity: 0.5; }
+
+/* En la vista de lista basta con teñir la cabecera del dia. */
+.cal-fc .fc-list-day.dia-inhabil .fc-list-day-cushion { background: #e9ebee; }
+
+/* -----------------------------------------------------------------------------
+   Fin de semana minimizado
+   Las columnas de sabado y domingo se encogen en vez de apagarse: con
+   weekends:false FullCalendar recortaria el rango que pide al servidor a
+   lunes-viernes y con el se irian los eventos de esos dias y el rango del
+   boton Exportar. Aqui solo dejan de ocupar ancho.
+   -------------------------------------------------------------------------- */
+.cal-fc.finde-min .fc-col-header-cell.fc-day-sat,
+.cal-fc.finde-min .fc-col-header-cell.fc-day-sun,
+.cal-fc.finde-min .fc-daygrid-day.fc-day-sat,
+.cal-fc.finde-min .fc-daygrid-day.fc-day-sun {
+    width: 44px !important;
+    max-width: 44px !important;
+    background: #fafbfc;
+}
+
+.cal-fc.finde-min .fc-col-header-cell.fc-day-sat .fc-col-header-cell-cushion,
+.cal-fc.finde-min .fc-col-header-cell.fc-day-sun .fc-col-header-cell-cushion {
+    padding-left: 0;
+    padding-right: 0;
+    text-align: center;
+    color: #98a2b3;
+}
+
+/* Las tarjetas no caben en 44px; se ocultan y en su lugar queda el contador. */
+.cal-fc.finde-min .fc-daygrid-day.fc-day-sat .fc-daygrid-day-events,
+.cal-fc.finde-min .fc-daygrid-day.fc-day-sun .fc-daygrid-day-events {
+    display: none;
+}
+
+.cal-fc.finde-min .fc-daygrid-day.fc-day-sat .fc-daygrid-day-frame,
+.cal-fc.finde-min .fc-daygrid-day.fc-day-sun .fc-daygrid-day-frame {
+    position: relative;
+}
+
+/* La columna encogida se abre con un clic; el cursor lo anuncia. */
+.cal-fc.finde-min .fc-day-sat,
+.cal-fc.finde-min .fc-day-sun { cursor: pointer; }
+
+/* Un dia encogido con audiencias no puede verse vacio: se marca con el numero
+   de eventos que quedan detras (lo pone calMarcarFinde). */
+.cal-fc.finde-min .fc-day-sat .fc-daygrid-day-frame[data-eventos]::after,
+.cal-fc.finde-min .fc-day-sun .fc-daygrid-day-frame[data-eventos]::after {
+    content: attr(data-eventos);
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    min-width: 20px;
+    padding: 1px 5px;
+    border-radius: 999px;
+    background: #496163;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+    text-align: center;
+}
+
+/* El boton queda marcado cuando el fin de semana esta abierto. */
+#calFinde.activo {
+    background: #496163;
+    border-color: #496163;
+    color: #fff;
+}
+
 .cal-tabs {
     display: flex;
     flex-wrap: wrap;
@@ -176,6 +355,60 @@
 .cal-fc .fc { --fc-border-color: #eceef1; }
 .cal-fc .fc-scrollgrid { border-width: 0; }
 
+/* =============================================================================
+   Expansión vertical fluida SÓLO para la vista semanal (dayGridWeek)
+   Elimina cualquier scroll vertical interno y permite que las casillas crezcan
+   libremente hacia abajo mostrando TODOS los eventos existentes.
+   ========================================================================== */
+.cal-fc[data-vista="dayGridWeek"] .fc,
+.cal-fc[data-vista="dayGridWeek"] .fc-view,
+.cal-fc[data-vista="dayGridWeek"] .fc-view-harness,
+.cal-fc[data-vista="dayGridWeek"] .fc-scrollgrid,
+.cal-fc[data-vista="dayGridWeek"] .fc-scrollgrid-section,
+.cal-fc[data-vista="dayGridWeek"] .fc-scrollgrid-section > td,
+.cal-fc[data-vista="dayGridWeek"] .fc-scrollgrid-section table,
+.cal-fc[data-vista="dayGridWeek"] .fc-daygrid-body,
+.cal-fc[data-vista="dayGridWeek"] .fc-daygrid-body table,
+.cal-fc[data-vista="dayGridWeek"] .fc-daygrid-day,
+.cal-fc.vista-dayGridWeek .fc,
+.cal-fc.vista-dayGridWeek .fc-view,
+.cal-fc.vista-dayGridWeek .fc-view-harness,
+.cal-fc.vista-dayGridWeek .fc-scrollgrid,
+.cal-fc.vista-dayGridWeek .fc-scrollgrid-section,
+.cal-fc.vista-dayGridWeek .fc-scrollgrid-section > td,
+.cal-fc.vista-dayGridWeek .fc-scrollgrid-section table,
+.cal-fc.vista-dayGridWeek .fc-daygrid-body,
+.cal-fc.vista-dayGridWeek .fc-daygrid-body table,
+.cal-fc.vista-dayGridWeek .fc-daygrid-day,
+.cal-fc .fc-dayGridWeek-view,
+.cal-fc .fc-dayGridWeek-view table,
+.cal-fc .fc-dayGridWeek-view .fc-scrollgrid-section,
+.cal-fc .fc-dayGridWeek-view .fc-scrollgrid-section > td,
+.cal-fc .fc-dayGridWeek-view .fc-daygrid-body,
+.cal-fc .fc-dayGridWeek-view .fc-daygrid-body table,
+.cal-fc .fc-dayGridWeek-view .fc-daygrid-day {
+    height: auto !important;
+    max-height: none !important;
+}
+
+.cal-fc[data-vista="dayGridWeek"] .fc-scroller,
+.cal-fc[data-vista="dayGridWeek"] .fc-scroller-liquid,
+.cal-fc[data-vista="dayGridWeek"] .fc-scroller-harness,
+.cal-fc[data-vista="dayGridWeek"] .fc-scroller-harness-liquid,
+.cal-fc.vista-dayGridWeek .fc-scroller,
+.cal-fc.vista-dayGridWeek .fc-scroller-liquid,
+.cal-fc.vista-dayGridWeek .fc-scroller-harness,
+.cal-fc.vista-dayGridWeek .fc-scroller-harness-liquid,
+.cal-fc .fc-dayGridWeek-view .fc-scroller,
+.cal-fc .fc-dayGridWeek-view .fc-scroller-liquid,
+.cal-fc .fc-dayGridWeek-view .fc-scroller-harness,
+.cal-fc .fc-dayGridWeek-view .fc-scroller-harness-liquid {
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+    position: relative !important;
+}
+
 .cal-fc .fc-theme-standard td,
 .cal-fc .fc-theme-standard th { border-color: #eceef1; }
 
@@ -189,7 +422,79 @@
     text-decoration: none;
 }
 
-.cal-fc .fc-daygrid-day-frame { min-height: 118px; padding: 6px; }
+/* Base de la celda para vista mensual (mantiene proporciones originales intactas) */
+.cal-fc .fc-daygrid-day-frame {
+    min-height: 118px;
+    padding: 6px;
+}
+
+/* Modificadores exclusivos de la vista semanal para que crezca sola */
+.cal-fc[data-vista="dayGridWeek"] .fc-daygrid-day-frame,
+.cal-fc.vista-dayGridWeek .fc-daygrid-day-frame,
+.cal-fc .fc-dayGridWeek-view .fc-daygrid-day-frame {
+    min-height: 120px !important;
+    height: auto !important;
+    position: relative !important;
+    box-sizing: border-box !important;
+    overflow: visible !important;
+}
+
+.cal-fc[data-vista="dayGridWeek"] .fc-daygrid-day-events,
+.cal-fc.vista-dayGridWeek .fc-daygrid-day-events,
+.cal-fc .fc-dayGridWeek-view .fc-daygrid-day-events {
+    position: relative !important;
+    height: auto !important;
+    min-height: auto !important;
+    margin-top: 4px !important;
+    margin-bottom: 0 !important;
+    overflow: visible !important;
+}
+
+/* El :not() es indispensable. FullCalendar oculta los eventos que recorta
+   marcandolos con .fc-daygrid-event-harness-abs y un visibility:hidden en
+   linea; sin excluirlos, el visibility/display/position de aqui los revive y
+   la casilla vuelve a mostrarlos todos, por mas que dayMaxEvents diga 5. */
+.cal-fc[data-vista="dayGridWeek"] .fc-daygrid-event-harness:not(.fc-daygrid-event-harness-abs),
+.cal-fc.vista-dayGridWeek .fc-daygrid-event-harness:not(.fc-daygrid-event-harness-abs),
+.cal-fc .fc-dayGridWeek-view .fc-daygrid-event-harness:not(.fc-daygrid-event-harness-abs) {
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    margin-bottom: 6px !important;
+    display: block !important;
+    visibility: visible !important;
+}
+
+/* Oculta el número de día, redundante en la vista semanal porque ya va en la
+   cabecera de la columna. Antes tambien ocultaba .fc-daygrid-day-bottom, que
+   es justo donde vive el enlace "+N mas...": el recorte se aplicaba pero el
+   enlace para abrirlo quedaba invisible. */
+.cal-fc[data-vista="dayGridWeek"] .fc-daygrid-day-top,
+.cal-fc.vista-dayGridWeek .fc-daygrid-day-top,
+.cal-fc .fc-dayGridWeek-view .fc-daygrid-day-top {
+    display: none !important;
+}
+
+/* Estilo para los encabezados de columna en vista semanal */
+.cal-fc[data-vista="dayGridWeek"] .fc-col-header-cell-cushion,
+.cal-fc.vista-dayGridWeek .fc-col-header-cell-cushion,
+.cal-fc .fc-dayGridWeek-view .fc-col-header-cell-cushion {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #475467;
+}
+
+/* Día de hoy destacado en la cabecera de la vista semanal */
+.cal-fc[data-vista="dayGridWeek"] .fc-col-header-cell.fc-day-today .fc-col-header-cell-cushion,
+.cal-fc.vista-dayGridWeek .fc-col-header-cell.fc-day-today .fc-col-header-cell-cushion,
+.cal-fc .fc-dayGridWeek-view .fc-col-header-cell.fc-day-today .fc-col-header-cell-cushion {
+    background: #111827;
+    color: #fff !important;
+    border-radius: 6px;
+    padding: 3px 8px;
+}
 
 /* FullCalendar alinea el número a la derecha; aquí va a la izquierda */
 .cal-fc .fc-daygrid-day-top { flex-direction: row; }
@@ -541,6 +846,19 @@
     .cal-tabs {
         padding: 8px 10px;
         gap: 4px;
+    }
+    .cal-personas {
+        padding: 8px 10px;
+        gap: 4px;
+    }
+    .cal-subtabs {
+        padding: 6px 10px 8px 20px;
+        gap: 4px;
+    }
+    .cal-persona {
+        font-size: 11px;
+        padding: 4px 10px;
+        max-width: 130px;
     }
     .cal-tab {
         font-size: 11px;

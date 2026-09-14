@@ -23,6 +23,7 @@ use App\Models\Deducciones;
 use App\Models\DocumentosSolicitud;
 use App\Models\HistorialAbogado;
 use App\Models\Recepcion;
+use App\Models\Sedes;
 use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -899,14 +900,51 @@ class TurnosController extends Controller
 
         $pagos = Pagos::find($data["id"]);
         $id_solicitud = $pagos["id_solicitud"];
-        $faltantes =  Pagos::where('id_solicitud',$id_solicitud)->where('estatus',"Pendiente")->get();
+        $faltantes =  Pagos::where('id_solicitud',$id_solicitud)->where('estatus',"Pendiente")->where('tipo_pago', 'Ratificacion')->get();
 
         if(count($faltantes) == 0){
             Turnos::find($id_solicitud)
             ->update(['estatus' => "Concluida"]);
         }
 
-        return redirect()->route('todas_ratificaciones');
+        return redirect()->route('audiencias.cumplimiento');
+    }
+    public function pagarTotalRatificacion(Request $request)
+    {
+        $data = $request->all();
+        $id = $data["id"];
+        $numeroCumplimiento = $data["numero_cumplimiento"] ?? 1;
+
+        // 1. Obtener el pago actual
+        $pagoActual = Pagos::find($id);
+
+        if (!$pagoActual) {
+            return redirect()->back()->with('error', 'Registro no encontrado.');
+        }
+
+        $idSolicitud = $pagoActual->id_solicitud;
+        // 2. Actualizar el pago actual seleccionado
+        Pagos::find($id)->update([
+            'estatus'          => "Pagado",
+            'observaciones'    => $data["observaciones"],
+            'fecha_conclucion' => \Carbon\Carbon::now()->format('Y-m-d')
+        ]);
+
+        // 3. Actualizar los pagos posteriores de la misma solicitud
+        Pagos::where('id_solicitud', $idSolicitud)
+            ->whereIn('estatus', ['Pendiente', 'Incomparecencia trabajador'])->where('tipo_pago', 'Ratificacion')
+            ->update([
+                'estatus'          => "Pagado",
+                'observaciones'    => "Pagado en el cumplimiento #" . $numeroCumplimiento,
+                'fecha_conclucion' => \Carbon\Carbon::now()->format('Y-m-d')
+            ]);
+
+        // 4. Actualizar el estatus en la tabla Turnos a 'Concluida'
+        Turnos::find($idSolicitud)->update([
+            'estatus' => "Concluida"
+        ]);
+
+        return redirect()->route('audiencias.cumplimiento');
     }
 
     public function obtenerHorario($fecha_revisar,$sede){
@@ -1336,6 +1374,8 @@ class TurnosController extends Controller
                 ->select('users.id', 'users.name', 'users.delegacion')
                 ->first();
         }
+        $pagos = $this->calcularMontoCumplimiento($pagos);
+
     $html = view('PDF/ConstanciaCumplimiento', compact('id', 'solicitud','conciliador','pagos','delegado','inicialesConcluye','etiquetaIniciales'))->render();
 
         $pdf = \PDF::loadHTML($html)
@@ -1469,6 +1509,7 @@ class TurnosController extends Controller
     //PDF Constancia de Pago Parcial
     public function VerPDFPagos($id){
         $pagos = Pagos::find($id);
+        $parcialidades = Pagos::where('id_solicitud', $pagos->id_solicitud)->where('tipo_pago', 'Ratificacion')->get();
         $solicitud = Turnos::find($pagos["id_solicitud"]);
         $inicialesConcluye = $this->inicialesDeSolicitud($solicitud);
         $etiquetaIniciales = $this->etiquetaIniciales($solicitud->delegacion ?? null, $inicialesConcluye);
@@ -1495,6 +1536,37 @@ class TurnosController extends Controller
                 ->select('users.id', 'users.name', 'users.delegacion')
                 ->first();
         }
+
+        $pagoCumplimiento = $parcialidades->first(function ($parcialidad) {
+            return str_contains($parcialidad->observaciones ?? '', 'Pagado en el cumplimiento');
+        });
+        
+        $indiceCumplimiento = null;
+
+        if ($pagoCumplimiento) {
+            preg_match('/#(\d+)/', $pagoCumplimiento->observaciones, $coincidencia);
+
+            $indiceCumplimiento = isset($coincidencia[1])
+                ? (int) $coincidencia[1]
+                : null;
+            
+                if($pagos->id === $parcialidades[$indiceCumplimiento -1]->id){
+                    $monto_solicitud = $pagos->monto;
+
+                    $monto_solicitud += $parcialidades
+                        ->filter(function ($solicitud) {
+                            return str_contains(
+                                $solicitud->observaciones ?? '',
+                                'Pagado en el cumplimiento'
+                            );
+                        })
+                        ->sum('monto');
+                    $pagos->monto = $monto_solicitud;
+                }
+            
+        }
+
+
     $html = view('PDF/pagosParciales', compact('id','solicitud','conciliador','pagos','pagosDif','delegado','inicialesConcluye','etiquetaIniciales'))->render();
 
         $pdf = \PDF::loadHTML($html)
@@ -2015,16 +2087,47 @@ class TurnosController extends Controller
         return view('ratificaciones.index_retroceso');
     }
 
+    /**
+     * Nombres de sede que un Delegado puede operar (su sede + sus oficinas
+     * de apoyo). Devuelve null para el resto de roles, que no se filtran.
+     */
+    private function nombresSedesPermitidas($user): ?array
+    {
+        if (!$user->hasRole('Delegado')) {
+            return null;
+        }
+
+        $sedePrincipal = Sedes::where('nombre', $user->delegacion)->first();
+        if (!$sedePrincipal) {
+            return [$user->delegacion];
+        }
+
+        return Sedes::where('nombre', $user->delegacion)
+            ->orWhere('oficina_apoyo', $sedePrincipal->id)
+            ->pluck('nombre')
+            ->all();
+    }
+
     public function retroceso_ratificacion_index()
     {
         $delegaciones = $this->prefijosDelegacion();
+
+        if ($nombresPermitidos = $this->nombresSedesPermitidas(auth()->user())) {
+            $delegaciones = array_filter($delegaciones, fn($nombre) => in_array($nombre, $nombresPermitidos, true));
+        }
 
         return view('ratificaciones.retroceso', compact('delegaciones'));
     }
 
     public function buscar_retroceso_ratificacion(Request $request)
     {
-        $prefijos = array_keys($this->prefijosDelegacion());
+        $prefijosDisponibles = $this->prefijosDelegacion();
+
+        if ($nombresPermitidos = $this->nombresSedesPermitidas(auth()->user())) {
+            $prefijosDisponibles = array_filter($prefijosDisponibles, fn($nombre) => in_array($nombre, $nombresPermitidos, true));
+        }
+
+        $prefijos = array_keys($prefijosDisponibles);
 
         $request->validate([
             'delegacion'  => 'required|string|in:' . implode(',', $prefijos),
@@ -2528,11 +2631,16 @@ class TurnosController extends Controller
         $solicitudes = Pagos::join('turnos','turnos.id',"=",'pago_solicitud.id_solicitud')
         ->where('pago_solicitud.id_solicitud',$id)
         ->where('pago_solicitud.tipo_pago','Ratificacion')
-        ->select('pago_solicitud.id','pago_solicitud.id_solicitud','turnos.NUE','pago_solicitud.fecha','pago_solicitud.hora','pago_solicitud.monto','pago_solicitud.descripcion','pago_solicitud.estatus','pago_solicitud.forma_pago')
+        ->select('pago_solicitud.id','pago_solicitud.id_solicitud','turnos.NUE','pago_solicitud.fecha','pago_solicitud.hora','pago_solicitud.monto','pago_solicitud.descripcion','pago_solicitud.observaciones','pago_solicitud.estatus','pago_solicitud.forma_pago')
         ->get(); 
-        $total = $solicitudes->count();
+        $solicitudes = $this->calcularMontoCumplimiento($solicitudes);
 
-        return view('/cumplimientos/pagar_ratificacion',compact('solicitudes','total'));
+        $total = $solicitudes->count();
+        $estatus = Turnos::where('id', $id)->pluck('estatus')->first();
+        $monto_total = Pagos::where('id_solicitud', $id)->where('tipo_pago', 'Ratificacion')->sum('monto');
+        $cantidad_pagos = Pagos::where('id_solicitud', $id)->whereIn('estatus', ['Pendiente', 'Incomparecencia trabajador'])->where('tipo_pago', 'Ratificacion')->count();
+
+        return view('/cumplimientos/pagar_ratificacion',compact('solicitudes','total', 'id', 'estatus', 'monto_total','cantidad_pagos'));
     }
 
     public function vista_previa_ratificacion($id) {
@@ -3286,6 +3394,38 @@ class TurnosController extends Controller
        
         return back()->with('success', 'Solicitud Capturada Correctamente.'  ); 
     }
+    function calcularMontoCumplimiento($pagos) {
+        $pagoCumplimiento = $pagos->first(function ($pago) {
+            return str_contains($pago->observaciones ?? '', 'Pagado en el cumplimiento');
+        });
 
+        if (!$pagoCumplimiento) {
+            return $pagos;
+        }
+
+        preg_match('/#(\d+)/', $pagoCumplimiento->observaciones, $coincidencia);
+
+        $indiceCumplimiento = isset($coincidencia[1])
+            ? (int) $coincidencia[1]
+            : null;
+
+        if ($indiceCumplimiento && isset($pagos[$indiceCumplimiento - 1])) {
+            $monto_solicitud = $pagos[$indiceCumplimiento - 1]->monto;
+
+            $monto_solicitud += $pagos
+                ->filter(function ($solicitud) {
+                    return str_contains(
+                        $solicitud->observaciones ?? '',
+                        'Pagado en el cumplimiento'
+                    );
+                })
+                ->sum('monto');
+
+            $pagos[$indiceCumplimiento - 1]->monto = $monto_solicitud;
+        }
+
+        return $pagos;
+    }
+    
 
 }

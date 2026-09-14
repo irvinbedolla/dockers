@@ -28,115 +28,133 @@
                                 </div>
                             </div>
 
-                            @can('ver-seer')
-                                    <div class="table-responsive menu-visible">
-                                        <table id="example" class="table table-striped mt-1" style="text-align:center">
-                                            <thead style="background-color: #354647;">
-                                                <th style="color: #fff;">Expediente</th>
-                                                <th style="color: #fff;">Solicitante</th>
-                                                <th style="color: #fff;">Citado</th>
-                                                <th style="color: #fff;">Dirección</th>
-                                                <th style="color: #fff;">Estatus</th>
-                                                <th style="color: #fff;">Tipo</th>
-                                                <th style="color: #fff;">Notificador</th>
-                                                <th style="color: #fff;">Acciones</th>
-                                                <th style="color: #fff;">Documentos</th>
-                                            </thead>
-                                            <tbody>
-                                                @foreach($mis_notificaciones as $notificacion)
-                                                    <tr>
-                                                        <td>{{$notificacion->NUE}}</td>
-                                                        <td>{{$notificacion->nombre_solicitado}}</td>
-                                                        <td>{{$notificacion->nombre}} {{$notificacion->primer_apellido}} {{$notificacion->segundo_apellido}}</td>
-                                                        <td>COLONIA {{$notificacion->colonia}}, {{$notificacion->tipo_vialidad}} {{$notificacion->calle}} #{{$notificacion->n_ext}} 
-                                                            @if(!empty($notificacion->n_int))
-                                                                INT. {{ $notificacion->n_int }}
-                                                            @endif{{mb_strtoupper($notificacion->municipio_citado, 'UTF-8')}}, {{mb_strtoupper($notificacion->estado_citado, 'UTF-8')}}</td>
-                                                        <td>{{$notificacion->estatus}}</td>
-                                                        <td>{{$notificacion->tipo_notificacion}}</td>
-                                                        <td>{{$notificacion->notificador_nombre}}</td>
-                                                        <td>
-                                                            @if($notificacion->estatus == "Pendiente" || $notificacion->estatus == "Sin asignar")
-                                                                <a class="btn btn-info btn-sm text-white" href="{{ route('editar_citado', $notificacion->id_citado) }}" onclick="consultar_estadistica();"><i class="bi bi-pencil-square me-1"></i> Editar</a>
-                                                            @else
-                                                                Concluida
-                                                            @endif
-                                                        </td>
-                                                        <td>
-                                                            @if($notificacion->estatus === "Finalizado exitosamente")
-                                                                    <button class="btn btn-primary dropdown-toggle btn-sm" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
-                                                                        <i class="bi bi-file-earmark-text-fill"></i> Documentos
-                                                                    </button>
-                                                                    <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
-                                                                        <li><a class="dropdown-item" href="{{ signedDocRoute('VerDocumentosAudiencia', $notificacion->id_solicitud) }}"  target="_blank">Identificaciones</a></li>
-                                                                        @if($notificacion->tipo_notificacion === "Citatorio")
-                                                                            <li><a class="dropdown-item" style="width: 100%" href="{{ route('PDFRazonNoticacion', [$notificacion->id_citado, $notificacion->id_solicitud]) }}"  target="_blank">Notificación</a></li>
-                                                                        @endif
-                                                                        @if($notificacion->tipo_notificacion === "Multa")
-                                                                            <li><a class="dropdown-item" style="width: 100%" href="{{ route('PDFmultaNotificacion', [$notificacion->id_citado, $notificacion->id_solicitud]) }}" target="_blank">Multa</a></li>
-                                                                        @endif
-                                                                        <button type="button" class="btn btn-warning open-expediente-modal" data-bs-toggle="modal" data-bs-target="#expediente" data-id="{{ $notificacion->id_solicitud }}">Subir Documento</button><br>
-                                                                    </ul>
-                                                            @endif    
-                                                            @if($notificacion->estatus === "No notificada" || $notificacion->estatus === "Exitosa por Instructivo")
-                                                                    <button class="btn btn-primary dropdown-toggle btn-sm" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
-                                                                        <i class="bi bi-file-earmark-text-fill"></i> Documentos
-                                                                    </button>
-                                                                    <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
-                                                                        <li><a class="dropdown-item" href="{{ signedDocRoute('VerDocumentosAudiencia', $notificacion->id_solicitud) }}"  target="_blank">Identificaciones</a></li>
-                                                                        @if($notificacion->tipo_notificacion === "Citatorio")
-                                                                            <li><a class="btn btn-info" style="width: 100%" href="{{ route('PDFInstructivo', [$notificacion->id_citado, $notificacion->id_solicitud]) }}" target="_blank">Notificación</a></li>
-                                                                        @endif
-                                                                        @if($notificacion->tipo_notificacion === "Multa")
-                                                                            <li><a class="btn btn-info" style="width: 100%" href="{{ route('VerPDFMultaInstructivo', [$notificacion->id_citado, $notificacion->id_solicitud]) }}" target="_blank">Multa</a></li>
-                                                                        @endif
-                                                                        <button type="button" class="btn btn-warning open-expediente-modal" data-bs-toggle="modal" data-bs-target="#expediente" data-id="{{ $notificacion->id_solicitud }}">Subir Documento</button><br>
-                                                                    </ul>
-                                                            @endif      
-                                                            @if($notificacion->estatus === "No exitosa se constituye")
-                                                                    <button class="btn btn-primary dropdown-toggle btn-sm" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
-                                                                        <i class="bi bi-file-earmark-text-fill"></i> Documentos
-                                                                    </button>
-                                                                    <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
-                                                                        <li><a class="dropdown-item" href="{{ signedDocRoute('VerDocumentosAudiencia', $notificacion->id_solicitud) }}"  target="_blank">Identificaciones</a></li>
-                                                                        @if($notificacion->tipo_notificacion === "Citatorio")
-                                                                            {{--@if($notificacion->problema_diligencia === "CERRADO")
-                                                                                <li><a class="btn btn-info" style="width: 100%" href="{{ route('PDFNoExitosa', [$notificacion->id_citado, $notificacion->id_solicitud]) }}" target="_blank">Notificación</a></li>
-                                                                            @else--}}
-                                                                                <li><a class="btn btn-info" style="width: 100%" href="{{ route('VerPDFNoExitConstituye', [$notificacion->id_citado, $notificacion->id_solicitud]) }}" target="_blank">Notificación</a></li>
-                                                                            {{--@endif--}}
-                                                                        @endif
-                                                                        @if($notificacion->tipo_notificacion === "Multa")
-                                                                            <li><a class="btn btn-info" style="width: 100%" href="{{ route('VerPDFMultaNoExitConstituye', [$notificacion->id_citado, $notificacion->id_solicitud]) }}" target="_blank">Multa</a></li>
-                                                                        @endif
-                                                                        <button type="button" class="btn btn-warning open-expediente-modal" data-bs-toggle="modal" data-bs-target="#expediente" data-id="{{ $notificacion->id_solicitud }}">Subir Documento</button><br>
-                                                                    </ul>
-                                                            @endif                                      
-                                                            @if($notificacion->estatus === "No exitosa no se constituye")
+                        
+                            <div class="table-responsive">
+                                <table id="example" class="table table-striped mt-1" style="text-align:center">
+                                    <thead style="background-color: #354647;">
+                                        <th style="color: #fff;">Expediente</th>
+                                        <th style="color: #fff;">Solicitante</th>
+                                        <th style="color: #fff;">Citado</th>
+                                        <th style="color: #fff;">Dirección</th>
+                                        <th style="color: #fff;">Estatus</th>
+                                        <th style="color: #fff;">Tipo</th>
+                                        <th style="color: #fff;">Notificador</th>
+                                        <th style="color: #fff;">Acciones</th>
+                                        <th style="color: #fff;">Documentos</th>
+                                    </thead>
+                                    <tbody>
+                                        @foreach($mis_notificaciones as $notificacion)
+                                            <tr>
+                                                <td>{{$notificacion->NUE}}</td>
+                                                <td>{{$notificacion->nombre_solicitado}}</td>
+                                                <td>{{$notificacion->nombre}} {{$notificacion->primer_apellido}} {{$notificacion->segundo_apellido}}</td>
+                                                <td>COLONIA {{$notificacion->colonia}}, {{$notificacion->tipo_vialidad}} {{$notificacion->calle}} #{{$notificacion->n_ext}} 
+                                                    @if(!empty($notificacion->n_int))
+                                                        INT. {{ $notificacion->n_int }}
+                                                    @endif{{mb_strtoupper($notificacion->municipio_citado, 'UTF-8')}}, {{mb_strtoupper($notificacion->estado_citado, 'UTF-8')}}</td>
+                                                <td>{{$notificacion->estatus}}</td>
+                                                <td>{{$notificacion->tipo_notificacion}}</td>
+                                                <td>{{$notificacion->notificador_nombre}}</td>
+                                                <td>
+                                                    @if($notificacion->estatus == "Pendiente" || $notificacion->estatus == "Sin asignar")
+                                                        @can('notificaciones_ver_notificacion')
+                                                            <a class="btn btn-info btn-sm text-white" href="{{ route('editar_citado', $notificacion->id_citado) }}" onclick="consultar_estadistica();"><i class="bi bi-pencil-square me-1"></i> Editar</a>
+                                                        @endcan
+                                                    @else
+                                                        Concluida
+                                                    @endif
+                                                </td>
+                                                <td>
+                                                    @if($notificacion->estatus === "Finalizado exitosamente")
+                                                            @can('notificaciones_ver_documento')
                                                                 <button class="btn btn-primary dropdown-toggle btn-sm" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
-                                                                        <i class="bi bi-file-earmark-text-fill"></i> Documentos
-                                                                    </button>
-                                                                    <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
-                                                                        <li><a class="dropdown-item" href="{{ signedDocRoute('VerDocumentosAudiencia', $notificacion->id_solicitud) }}"  target="_blank">Identificaciones</a></li>
-                                                                        @if($notificacion->tipo_notificacion === "Citatorio")
-                                                                            <li><a class="dropdown-item" style="width: 100%" href="{{ route('PDFnotificadoNoexitosaNS', [$notificacion->id_citado, $notificacion->id_solicitud]) }}"  target="_blank">Notificación</a></li>
-                                                                        @endif
-                                                                        {{--@if($notificacion->tipo_notificacion === "Multa")
-                                                                            <li><a class="dropdown-item" style="width: 100%" href="{{ route('PDFmultaNotificacion', [$notificacion->id_citado, $notificacion->id_solicitud]) }}" target="_blank">Multa</a></li>
-                                                                        @endif--}}
-                                                                        <button type="button" class="btn btn-warning open-expediente-modal" data-bs-toggle="modal" data-bs-target="#expediente" data-id="{{ $notificacion->id_solicitud }}">Subir Documento</button><br>
-                                                                    </ul>
-                                                            @endif
-                                                            @if($notificacion->estatus === "Sin asignar")
-                                                                Pendiente
-                                                            @endif
-                                                        </td>
-                                                    </tr>
-                                                @endforeach
-                                            </tbody>
-                                        </table>
-                                    </div>
-                            @endcan
+                                                                    <i class="bi bi-file-earmark-text-fill"></i> Documentos
+                                                                </button>
+                                                            @endcan
+                                                            <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
+                                                                <li><a class="dropdown-item" href="{{ signedDocRoute('VerDocumentosAudiencia', $notificacion->id_solicitud) }}"  target="_blank">Identificaciones</a></li>
+                                                                @if($notificacion->tipo_notificacion === "Citatorio")
+                                                                    <li><a class="dropdown-item" style="width: 100%" href="{{ route('PDFRazonNoticacion', [$notificacion->id_citado, $notificacion->id_solicitud]) }}"  target="_blank">Notificación</a></li>
+                                                                @endif
+                                                                @if($notificacion->tipo_notificacion === "Multa")
+                                                                    <li><a class="dropdown-item" style="width: 100%" href="{{ route('PDFmultaNotificacion', [$notificacion->id_citado, $notificacion->id_solicitud]) }}" target="_blank">Multa</a></li>
+                                                                @endif
+                                                                @can('notificaciones_subir_documento')
+                                                                    <button type="button" class="btn btn-warning open-expediente-modal" data-bs-toggle="modal" data-bs-target="#expediente" data-id="{{ $notificacion->id_solicitud }}">Subir Documento</button><br>
+                                                                @endcan
+                                                            </ul>
+                                                    @endif    
+                                                    @if($notificacion->estatus === "No notificada" || $notificacion->estatus === "Exitosa por Instructivo")
+                                                            @can('notificaciones_ver_documento')
+                                                                <button class="btn btn-primary dropdown-toggle btn-sm" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
+                                                                    <i class="bi bi-file-earmark-text-fill"></i> Documentos
+                                                                </button>
+                                                            @endcan
+                                                            <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
+                                                                <li><a class="dropdown-item" href="{{ signedDocRoute('VerDocumentosAudiencia', $notificacion->id_solicitud) }}"  target="_blank">Identificaciones</a></li>
+                                                                @if($notificacion->tipo_notificacion === "Citatorio")
+                                                                    <li><a class="btn btn-info" style="width: 100%" href="{{ route('PDFInstructivo', [$notificacion->id_citado, $notificacion->id_solicitud]) }}" target="_blank">Notificación</a></li>
+                                                                @endif
+                                                                @if($notificacion->tipo_notificacion === "Multa")
+                                                                    <li><a class="btn btn-info" style="width: 100%" href="{{ route('VerPDFMultaInstructivo', [$notificacion->id_citado, $notificacion->id_solicitud]) }}" target="_blank">Multa</a></li>
+                                                                @endif
+                                                                @can('notificaciones_subir_documento')
+                                                                    <button type="button" class="btn btn-warning open-expediente-modal" data-bs-toggle="modal" data-bs-target="#expediente" data-id="{{ $notificacion->id_solicitud }}">Subir Documento</button><br>
+                                                                @endcan
+                                                            </ul>
+                                                    @endif      
+                                                    @if($notificacion->estatus === "No exitosa se constituye")
+                                                            @can('notificaciones_ver_documento')
+                                                                <button class="btn btn-primary dropdown-toggle btn-sm" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
+                                                                    <i class="bi bi-file-earmark-text-fill"></i> Documentos
+                                                                </button>
+                                                            @endcan
+                                                            <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
+                                                                <li><a class="dropdown-item" href="{{ signedDocRoute('VerDocumentosAudiencia', $notificacion->id_solicitud) }}"  target="_blank">Identificaciones</a></li>
+                                                                @if($notificacion->tipo_notificacion === "Citatorio")
+                                                                    {{--@if($notificacion->problema_diligencia === "CERRADO")
+                                                                        <li><a class="btn btn-info" style="width: 100%" href="{{ route('PDFNoExitosa', [$notificacion->id_citado, $notificacion->id_solicitud]) }}" target="_blank">Notificación</a></li>
+                                                                    @else--}}
+                                                                        <li><a class="btn btn-info" style="width: 100%" href="{{ route('VerPDFNoExitConstituye', [$notificacion->id_citado, $notificacion->id_solicitud]) }}" target="_blank">Notificación</a></li>
+                                                                    {{--@endif--}}
+                                                                @endif
+                                                                @if($notificacion->tipo_notificacion === "Multa")
+                                                                    <li><a class="btn btn-info" style="width: 100%" href="{{ route('VerPDFMultaNoExitConstituye', [$notificacion->id_citado, $notificacion->id_solicitud]) }}" target="_blank">Multa</a></li>
+                                                                @endif
+                                                                @can('notificaciones_subir_documento')
+                                                                    <button type="button" class="btn btn-warning open-expediente-modal" data-bs-toggle="modal" data-bs-target="#expediente" data-id="{{ $notificacion->id_solicitud }}">Subir Documento</button><br>
+                                                                @endcan
+                                                            </ul>
+                                                    @endif                                      
+                                                    @if($notificacion->estatus === "No exitosa no se constituye")
+                                                            @can('notificaciones_ver_documento')
+                                                                <button class="btn btn-primary dropdown-toggle btn-sm" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
+                                                                    <i class="bi bi-file-earmark-text-fill"></i> Documentos
+                                                                </button>
+                                                            @endcan
+                                                            <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
+                                                                <li><a class="dropdown-item" href="{{ signedDocRoute('VerDocumentosAudiencia', $notificacion->id_solicitud) }}"  target="_blank">Identificaciones</a></li>
+                                                                @if($notificacion->tipo_notificacion === "Citatorio")
+                                                                    <li><a class="dropdown-item" style="width: 100%" href="{{ route('PDFnotificadoNoexitosaNS', [$notificacion->id_citado, $notificacion->id_solicitud]) }}"  target="_blank">Notificación</a></li>
+                                                                @endif
+                                                                {{--@if($notificacion->tipo_notificacion === "Multa")
+                                                                    <li><a class="dropdown-item" style="width: 100%" href="{{ route('PDFmultaNotificacion', [$notificacion->id_citado, $notificacion->id_solicitud]) }}" target="_blank">Multa</a></li>
+                                                                @endif--}}
+                                                                @can('notificaciones_subir_documento')
+                                                                    <button type="button" class="btn btn-warning open-expediente-modal" data-bs-toggle="modal" data-bs-target="#expediente" data-id="{{ $notificacion->id_solicitud }}">Subir Documento</button><br>
+                                                                @endcan
+                                                            </ul>
+                                                    @endif
+                                                    @if($notificacion->estatus === "Sin asignar")
+                                                        Pendiente
+                                                    @endif
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                            
                             <!-- Centramos la paginación a la derecha-->
                             <div class="pagination justify-content-end">
                             </div>                        
@@ -219,6 +237,11 @@
                 $('#example').DataTable().destroy();
             }
             $('#example').DataTable({
+                // Sin colapso de columnas: se prefiere desplazamiento horizontal, que
+                // lo da el .table-responsive de Bootstrap. No se usa scrollX porque
+                // clona el <thead> y necesita la hoja de estilos de DataTables, que
+                // este proyecto no carga.
+                "responsive": false,
                 "destroy": true,
                 "paging": true,
                 "pageLength": 10,
@@ -234,6 +257,18 @@
                     "zeroRecords": "No se encontraron coincidencias en esta página."
                 }
             });
+
+            // Los desplegables de la tabla quedan dentro del contenedor que hace
+            // scroll y este los recortaria. Con la estrategia 'fixed' de Popper el
+            // menu se posiciona contra el viewport y se escapa del recorte.
+            document.querySelectorAll('#example [data-bs-toggle="dropdown"]').forEach(function (boton) {
+                bootstrap.Dropdown.getOrCreateInstance(boton, {
+                    popperConfig: function (config) {
+                        return Object.assign({}, config, { strategy: 'fixed' });
+                    }
+                });
+            });
+
         });
         </script>
 @endsection

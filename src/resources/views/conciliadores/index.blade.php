@@ -3,8 +3,11 @@
 
 @section('content')
     <section class="section">
-        <div class="section-header">
-            <h3 class="page__heading">Usuarios</h3>
+        
+
+        <div class="section-header d-flex justify-content-between align-items-center mb-4">
+            <h3 class="page__heading mb-0">Conciliadores</h3>
+            
         </div>
         <div class="section-body">
             <div class="row">
@@ -12,24 +15,33 @@
                     <div class="card">
                         <div class="card-body">
                                 <div class="table-responsive">
-                                    <table id="example" class="table-striped" style="width:100%">
-                                        <thead style="background-color: #354647;">
-                                            <th style="display: none;">ID</th>
-                                            <th style="color: #fff;">Nombre</th>
-                                            <th style="color: #fff;">Acciones</th>
-                                        </thead>
-                                        <tbody class="contenidobusqueda">
-                                            @foreach($conciliadores as $usuario)
+                                    @can('conciliadores_permisos')
+                                        <table id="example" class="table table-striped table-hover align-middle">
+                                            <thead style="background-color: #354647;">
                                                 <tr>
-                                                    <td style="display: none;">{{$usuario->id}}</td>
-                                                    <td>{{$usuario->name}}</td>
-                                                    <td>
-                                                        <button type="button" class="btn btn-info open-modal btn-sm" data-id="{{ $usuario->id }}" data-bs-toggle="modal" data-bs-target="#modalAgregarCitados"><i class="bi bi-card-list"></i> Permisos</button>                                                        
-                                                    </td>
+                                                    <th>ID</th>
+                                                    <th class="text-center text-white" style="color: #ffffff !important;">Nombre</th>
+                                                    <th class="text-center text-white" style="color: #ffffff !important;">Acciones</th>
                                                 </tr>
-                                            @endforeach
-                                        </tbody>
-                                    </table>
+                                            </thead>
+                                            <tbody class="contenidobusqueda">
+                                                @foreach($conciliadores as $usuario)
+                                                    <tr>
+                                                        <td>{{$usuario->id}}</td>
+                                                        <td>{{$usuario->name}}</td>
+                                                        <td class="text-center text-white">
+                                                            @php
+                                                                $permisoUsuario = $permisos->firstWhere('id_conciliador', $usuario->id);
+                                                            @endphp
+                                                            @can('conciliadores_permisos_consultar')<button type="button" class="btn btn-success open-modal btn-sm" data-id="{{ $usuario->id }}" data-permiso="{{ $permisoUsuario ? json_encode($permisoUsuario) : '{}' }}" data-bs-toggle="modal" data-bs-target="#modalRevisarPermisos"><i class="bi bi-eye-fill"></i> Revisar Permisos</button>@endcan                                                            
+                                                            @can('conciliadores_permisos_editar')<button type="button" class="btn btn-info open-modal btn-sm" data-id="{{ $usuario->id }}" data-permiso="{{ $permisoUsuario ? json_encode($permisoUsuario) : '{}' }}" data-bs-toggle="modal" data-bs-target="#modalAgregarCitados"><i class="bi bi-pencil"></i> Editar Permisos</button>@endcan                                                                                                
+                                                            @can('conciliadores_permisos_crear')<button type="button" class="btn btn-primary open-modal btn-sm"  data-id="{{ $usuario->id }}" style="background-color: #CEA845; border-color: #CEA845; color: #fff;" data-bs-toggle="modal" data-bs-target="#modalAgregarCitados"><i class="bi bi-plus-lg"></i> Crear Permisos</button>@endcan
+                                                        </td>
+                                                    </tr>
+                                                @endforeach
+                                            </tbody>
+                                        </table>
+                                    @endcan
                                 </div>
                             <!-- Centramos la paginación a la derecha-->
                             <div class="pagination justify-content-end">
@@ -156,19 +168,181 @@
         </form>
     </div>
 
+
+    <!-- Modal para REVISAR Permisos (Solo lectura) -->
+<div class="modal fade" id="modalRevisarPermisos" tabindex="-1" aria-labelledby="revisarModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header" style="background-color: #354647; color: white;">
+                <h5 class="modal-title" id="revisarModalLabel">Detalle de Permisos y Horario</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-4">
+                    <h5 class="text-primary">Tipo de Atención: <span id="view-tipo" class="badge bg-secondary">Sin asignar</span></h5>
+                </div>
+                
+                <h5 class="mb-3">Horario Asignado</h5>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-striped text-center">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Día</th>
+                                <th>¿Asignado?</th>
+                                <th>Hora Inicio</th>
+                                <th>Hora Final</th>
+                            </tr>
+                        </thead>
+                        <tbody id="view-horarios-body">
+                            <!-- El contenido se inyectará con JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
 @section('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            const modalEl = document.getElementById('modalAgregarCitados');
-            if (!modalEl) return;
+            
+            //Script del modal editar
+            const modalEditar = document.getElementById('modalAgregarCitados');
+            if (modalEditar) {
+                modalEditar.addEventListener('show.bs.modal', function (event) {
+                    const button = event.relatedTarget;
+                    const id = button?.getAttribute('data-id') || '';
+                    const permisoData = button?.getAttribute('data-permiso'); 
+                    
+                    const inputId = document.getElementById('modal-id');
+                    if (inputId) inputId.value = id;
 
-            modalEl.addEventListener('show.bs.modal', function (event) {
-                const button = event.relatedTarget;
-                const id = button?.getAttribute('data-id') || '';
-                const input = document.getElementById('modal-id');
-                if (input) input.value = id;
-            });
+                    const form = modalEditar.querySelector('form');
+                    if(form) form.reset();
+
+                    if (permisoData && permisoData !== '{}') {
+                        const permiso = JSON.parse(permisoData);
+
+                        if (permiso.tipo) {
+                            const tipoRadio = form.querySelector(`input[name="tipo"][value="${permiso.tipo}"]`);
+                            if (tipoRadio) tipoRadio.checked = true;
+                        }
+
+                        const dias = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes'];
+                        dias.forEach(dia => {
+                            const diaCapitalizado = dia.charAt(0).toUpperCase() + dia.slice(1);
+                            const checkbox = form.querySelector(`input[name="${diaCapitalizado}"]`);
+                            if (checkbox) checkbox.checked = (permiso[dia] === 'Si');
+
+                            const inputInicio = form.querySelector(`input[name="horario_${dia}_inicio"]`);
+                            const inputFinal = form.querySelector(`input[name="horario_${dia}_final"]`);
+                            if (inputInicio) inputInicio.value = permiso[`${dia}_inicio`] || '';
+                            if (inputFinal) inputFinal.value = permiso[`${dia}_final`] || '';
+                        });
+                    }
+                });
+            }
+
+            //Script par modal revisar
+            const modalRevisar = document.getElementById('modalRevisarPermisos');
+            if (modalRevisar) {
+                modalRevisar.addEventListener('show.bs.modal', function (event) {
+                    const button = event.relatedTarget;
+                    const permisoData = button?.getAttribute('data-permiso');
+                    
+                    const viewTipo = document.getElementById('view-tipo');
+                    const tbody = document.getElementById('view-horarios-body');
+                    
+                    // Limpiar la tabla antes de cargar
+                    tbody.innerHTML = '';
+                    viewTipo.textContent = 'Sin asignar';
+                    viewTipo.className = 'badge bg-secondary';
+
+                    if (permisoData && permisoData !== '{}') {
+                        const permiso = JSON.parse(permisoData);
+                        
+                        // Mostrar el tipo
+                        if (permiso.tipo) {
+                            viewTipo.textContent = permiso.tipo;
+                            viewTipo.className = 'badge bg-success'; // Color verde si hay dato
+                        }
+
+                        // Días de la semana para iterar
+                        const dias = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes'];
+                        
+                        dias.forEach(dia => {
+                            const diaCapitalizado = dia.charAt(0).toUpperCase() + dia.slice(1);
+                            const asignado = permiso[dia] === 'Si';
+                            
+                            
+                            const inicio = permiso[`${dia}_inicio`] ? permiso[`${dia}_inicio`] : '--:--';
+                            const final = permiso[`${dia}_final`] ? permiso[`${dia}_final`] : '--:--';
+                            
+                            // Crear la fila 
+                            const tr = document.createElement('tr');
+                            tr.innerHTML = `
+                                <td class="fw-bold">${diaCapitalizado}</td>
+                                <td>
+                                    ${asignado 
+                                        ? '<span class="badge bg-primary">Sí</span>' 
+                                        : '<span class="badge bg-danger">No</span>'}
+                                </td>
+                                <td>${asignado ? inicio : '--:--'}</td>
+                                <td>${asignado ? final : '--:--'}</td>
+                            `;
+                            tbody.appendChild(tr);
+                        });
+                    } else {
+                        // Si no hay permisos en la BD para este usuario
+                        tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted">El usuario aún no tiene permisos u horarios registrados.</td></tr>`;
+                    }
+                });
+            }
         });
     </script>
+    <script>
+        $(document).ready(function() {
+            if (!$.fn.DataTable.isDataTable('#example')) {
+                $('#example').DataTable({
+                    // Sin colapso de columnas: el desplazamiento lo da el
+                    // .table-responsive de Bootstrap, igual que en los demas listados.
+                    "responsive": false,
+                    // Sin anchos calculados: con una columna oculta DataTables
+                    // inflaba la tabla y aparecia un scroll horizontal de mas.
+                    "autoWidth": false,
+                    "columnDefs": [
+                        { "targets": 0, "visible": false, "searchable": true }
+                    ],
+                    "destroy": true,
+                    "paging": true,
+                    "pageLength": 10,
+                    "searching": true,
+                    "ordering": true,
+                    // Sin orden inicial: la primera columna es el ID oculto y
+                    // ordenar por el no le dice nada a nadie.
+                    "order": [],
+                    "info": true,
+                    "language": {
+                        "search": "Filtrar en esta pantalla:",
+                        "lengthMenu": "Mostrar _MENU_ registros",
+                        "info": "Mostrando del _START_ al _END_ de un bloque de _TOTAL_ conciliadores",
+                        "infoEmpty": "Mostrando 0 a 0 de 0 conciliadores",
+                        "infoFiltered": "(filtrado de un total de _MAX_ registros)",
+                        "zeroRecords": "No se encontraron coincidencias.",
+                        "paginate": {
+                            "first": "Primero",
+                            "last": "Ultimo",
+                            "next": "Siguiente",
+                            "previous": "Anterior"
+                        }
+                    }
+                });
+            }
+        });
+    </script>
+
     <script src="../public/js/usuarios/usuarios.js"></script>
 @endsection

@@ -123,7 +123,7 @@
             <br><br><br>
             
             <p style="text-align: center;"><b>CENTRO DE CONCILIACIÓN LABORAL DEL ESTADO DE MICHOACÁN DE OCAMPO</b></p><br>
-            
+            <div style="min-height: 4cm;">
             <p>
                 <b>FECHA DE EMISIÓN DEL CITATORIO: </b>{{ \Carbon\Carbon::parse($fechaEmision)->translatedFormat('d \d\e F \d\e\l Y') }}<br>
                 <b>ASUNTO:</b> CITATORIO DE AUDIENCIA DE CONCILIACIÓN<br>
@@ -135,7 +135,7 @@
                 @endif 
                 COLONIA {{ $citado->colonia}}, {{ mb_strtoupper($municipioNombre, 'UTF-8')}}, {{ mb_strtoupper($estadoNombre, 'UTF-8')}} C.P. {{ $citado->cp }}.
             </p>   
-                        
+            </div>   
             <p><b>P R E S E N T E</b></p>
             
             <p>En cumplimiento y observancia a la fracción XX, del artículo 123 Constitucional, apartado A; así como los de los
@@ -175,7 +175,8 @@
                     <li>En caso de acudir en representación de una persona física: Identificación oficial vigente, original o copia certificada del poder notarial, o carta poder firmada por el otorgante ante dos testigos, adjuntando copia de las identificaciones de quienes intervienen.</li>
                     <li>En caso de acudir en representación de una persona moral: Identificación oficial vigente, original o copia certificada del instrumento notarial, o carta poder firmada y otorgada ante dos testigos, anexando el original o copia certificada del instrumento notarial que acredite que la persona que otorga el poder está legalmente autorizada para ello.</li>
                 </ul>
-                <p><br>En cualquiera de los casos, será necesario presentar la documentación física y en formato pdf no mayor a 5 megabytes.</p>
+                <div style="page-break-before: always;"></div>
+                <p >En cualquiera de los casos, será necesario presentar la documentación física y en formato pdf no mayor a 5 megabytes.</p>
 
                 <!--div style="page-break-after: always;"></div-->
                 

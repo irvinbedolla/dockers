@@ -12,7 +12,6 @@
                 <div class="card">
                     <div class="card-body">
                         
-                        @can('ver-seer')
                             <!-- Formulario de búsqueda nativo (Opcional si usas DataTables) -->
                             <form method="GET" action="{{ route('notificaciones') }}" class="mb-3">
                                 <div class="input-group">
@@ -30,7 +29,11 @@
                                 </div>
                             </form>
 
-                            <div class="table-responsive menu-visible">
+                            {{-- Sin .menu-visible: esa clase pone overflow:visible y anula
+                                 el scroll. Se puede quitar porque los desplegables de
+                                 la columna de acciones se posicionan con Popper en
+                                 estrategia 'fixed' (mas abajo). --}}
+                            <div class="table-responsive">
                                 <table id="example" class="table table-striped mt-1 w-100" style="text-align:center;">
                                     <thead style="background-color: #354647;">
                                         <tr>
@@ -39,7 +42,9 @@
                                             <th style="color: #fff;">Dirección</th>
                                             <th style="color: #fff;">Estatus</th>
                                             <th style="color: #fff;">Tipo</th>
-                                            <th class="text-center" style="color: #fff;">Asignar</th>
+                                            @can('por_notificar_asignar')
+                                                <th class="text-center" style="color: #fff;">Asignar</th>
+                                            @endcan
                                             <th style="color: #fff;">Acciones</th>
                                         </tr>
                                     </thead>
@@ -60,35 +65,39 @@
                                                 <td>{{$notificacion->tipo_notificacion}}</td>
                                                 
                                                 <!-- Columna Asignar unificada -->
-                                                <td>
-                                                    @if($notificacion->estatus == "Pendiente" || $notificacion->estatus == "Sin asignar")
-                                                        <div class="d-flex align-items-center justify-content-center" style="gap: 10px;">
-                                                            <form id="form-asignar-{{$notificacion->id_citado}}" method="POST" action="{{ route('seer.store_enlace', $notificacion->id_citado) }}" class="needs-validation m-0 w-100 novalidate">
-                                                                @csrf
-                                                                <input type="hidden" name="id" value="{{$notificacion->id_solicitud}}">
-                                                                <select class="form-control" name="notificador" required>
-                                                                    <option value="">Seleccione</option>
-                                                                    @foreach($personas as $persona)
-                                                                        <option value="{{$persona->id}}">{{$persona->name}}</option>
-                                                                    @endforeach
-                                                                </select> 
-                                                            </form>
-                                                            <button type="submit" form="form-asignar-{{$notificacion->id_citado}}" class="btn btn-primary btn-sm text-nowrap">
-                                                                <i class="bi bi-arrow-left-square"></i> Asignar
-                                                            </button>  
-                                                        </div>
-                                                    @else
-                                                        {{$notificacion->notificador_nombre}}
-                                                    @endif
-                                                </td>
+                                                @can('por_notificar_asignar')
+                                                    <td>
+                                                        @if($notificacion->estatus == "Pendiente" || $notificacion->estatus == "Sin asignar")
+                                                            <div class="d-flex align-items-center justify-content-center" style="gap: 10px;">
+                                                                <form id="form-asignar-{{$notificacion->id_citado}}" method="POST" action="{{ route('seer.store_enlace', $notificacion->id_citado) }}" class="needs-validation m-0 w-100 novalidate">
+                                                                    @csrf
+                                                                    <input type="hidden" name="id" value="{{$notificacion->id_solicitud}}">
+                                                                    <select class="form-control" name="notificador" required>
+                                                                        <option value="">Seleccione</option>
+                                                                        @foreach($personas as $persona)
+                                                                            <option value="{{$persona->id}}">{{$persona->name}}</option>
+                                                                        @endforeach
+                                                                    </select> 
+                                                                </form>
+                                                                <button type="submit" form="form-asignar-{{$notificacion->id_citado}}" class="btn btn-primary btn-sm text-nowrap">
+                                                                    <i class="bi bi-arrow-left-square"></i> Asignar
+                                                                </button>  
+                                                            </div>
+                                                        @else
+                                                            {{$notificacion->notificador_nombre}}
+                                                        @endif
+                                                    </td>
+                                                @endcan
                                                 
                                                 <!-- Columna Acciones -->
                                                 <td>
                                                     <div class="d-flex align-items-center justify-content-center flex-wrap" style="gap: 5px;"> 
                                                         @if($notificacion->estatus == "Pendiente" || $notificacion->estatus == "Sin asignar")
-                                                            <a class="btn btn-info text-white btn-sm" href="{{ route('editar_citado', $notificacion->id_citado) }}" onclick="consultar_estadistica();">
-                                                                <i class="bi bi-pencil-square me-1"></i> Editar
-                                                            </a>
+                                                            @can('por_notificar_editar')
+                                                                <a class="btn btn-info text-white btn-sm" href="{{ route('editar_citado', $notificacion->id_citado) }}" onclick="consultar_estadistica();">
+                                                                    <i class="bi bi-pencil-square me-1"></i> Editar
+                                                                </a>
+                                                            @endcan
                                                         @endif
                                                         
                                                         @if($notificacion->estatus === "Finalizado exitosamente")
@@ -149,7 +158,7 @@
                                     </tbody>
                                 </table>
                             </div>
-                        @endcan
+                   
                         
                         <!-- Paginación nativa comentada. DataTables manejará esto ahora -->
                         <!-- 
@@ -180,6 +189,11 @@
                 $('#example').DataTable().destroy();
             }
             $('#example').DataTable({
+                // Sin colapso de columnas: son 8 y se consultan de un vistazo.
+                // El desplazamiento lo da el .table-responsive de Bootstrap; no se
+                // usa scrollX porque clona el <thead> y necesita la hoja de estilos
+                // de DataTables, que este proyecto no carga.
+                "responsive": false,
                 "destroy": true,
                 "paging": true,
                 "pageLength": 10,
@@ -200,6 +214,18 @@
                         "previous": "Anterior"
                     }
                 }
+            });
+
+            // Los desplegables de la columna de acciones viven dentro del
+            // contenedor que ahora hace scroll y este los recortaria. Con la
+            // estrategia 'fixed' de Popper el menu se posiciona contra el viewport
+            // y se escapa del recorte.
+            document.querySelectorAll('#example [data-bs-toggle="dropdown"]').forEach(function (boton) {
+                bootstrap.Dropdown.getOrCreateInstance(boton, {
+                    popperConfig: function (config) {
+                        return Object.assign({}, config, { strategy: 'fixed' });
+                    }
+                });
             });
         });
     </script>

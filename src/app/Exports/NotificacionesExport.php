@@ -55,8 +55,11 @@ class NotificacionesExport implements WithMultipleSheets
             ->when($this->auxiliar !== "Todos", function ($q) { 
                 return $q->where('seer_general.user_id', $this->auxiliar); 
             })
-            ->when($this->notificador !== "Todos", function ($q) { 
-                return $q->where('seer_citados.id_notificador', $this->notificador); 
+            ->when($this->notificador !== "Todos", function ($q) {
+                return $q->where('seer_citados.id_notificador', $this->notificador);
+            })
+            ->when($user->hasRole('Notificador'), function ($q) use ($user) {
+                return $q->where('seer_citados.id_notificador', $user->id);
             })
             ->select(
                 'seer_general.NUE',
@@ -70,8 +73,49 @@ class NotificacionesExport implements WithMultipleSheets
                 'seer_citados.colonia',
                 'seer_citados.estatus',
                 'seer_citados.notificacion',
-                'seer_solicitante.nombre as nombre_solicitante', 
-                'notificador.name as nombre_notificador', 
+                'seer_solicitante.nombre as nombre_solicitante',
+                'notificador.name as nombre_notificador',
+                'auxiliar.name as auxiliar',
+                'municipios.nombre as municipio',
+                
+                // REEMPLAZO DEL ->map() DE PHP:
+                // Le decimos a SQL que nos devuelva la fecha en NULL si el estatus es inválido.
+                // Esto es instantáneo y nos ahorra el bucle foreach/map en PHP.
+                DB::raw("CASE WHEN seer_citados.estatus IN ('Sin asignar', 'Pendiente') THEN NULL ELSE seer_citados.fecha END as fecha")
+            )
+            ->get();
+
+        
+        $notificacionesDomicilioTrabajador = DB::table('seer_general')
+            ->join('seer_citados', 'seer_general.id', '=', 'seer_citados.id_solicitud')
+            ->leftjoin('seer_solicitante', 'seer_general.id', '=', 'seer_solicitante.id_solicitud')
+            ->leftjoin('users as auxiliar', 'auxiliar.id', '=', 'seer_general.user_id')
+            ->leftjoin('municipios', 'municipios.id', '=', 'seer_citados.municipio_citado')
+            ->where('seer_citados.notificacion', 'Trabajador')
+            ->whereBetween('seer_general.fecha', [$this->fecha_inicial, $this->fecha_final])
+            
+            ->when($this->sede !== "Todos", function ($q) use ($delegacionesFiltro) {
+                return $q->whereIn('seer_general.delegacion', $delegacionesFiltro);
+            })
+            ->when($this->auxiliar !== "Todos", function ($q) {
+                return $q->where('seer_general.user_id', $this->auxiliar);
+            })
+            ->when($user->hasRole('Notificador'), function ($q) use ($user) {
+                return $q->where('seer_citados.id_notificador', $user->id);
+            })
+            ->select(
+                'seer_general.NUE',
+                'seer_general.actividad',
+                'seer_general.delegacion',
+                'seer_citados.nombre',
+                'seer_citados.primer_apellido',
+                'seer_citados.segundo_apellido',
+                'seer_citados.calle',
+                'seer_citados.n_ext',
+                'seer_citados.colonia',
+                'seer_citados.estatus',
+                'seer_citados.notificacion',
+                'seer_solicitante.nombre as nombre_solicitante',
                 'auxiliar.name as auxiliar',
                 'municipios.nombre as municipio',
                 
@@ -88,6 +132,9 @@ class NotificacionesExport implements WithMultipleSheets
         $notificacionesTrabajador = DB::table('seer_citados')
             ->where('notificacion', 'Trabajador')
             ->whereBetween('created_at', [$this->fecha_inicial, $this->fecha_final])
+            ->when($user->hasRole('Notificador'), function ($q) use ($user) {
+                return $q->where('id_notificador', $user->id);
+            })
             ->count();
 
         // Esta parte se queda en Colecciones de PHP porque REUTILIZA los datos que ya obtuvimos,
@@ -119,6 +166,7 @@ class NotificacionesExport implements WithMultipleSheets
         return [
             new NotificacionesTotalesSheet($totalesPorNotificador, $notificacionesTrabajador),
             new NotificacionesDetalleSheet($notificacionesDomicilio),
+            new NotificacionesTrabajadoresSheet($notificacionesDomicilioTrabajador),
         ];
     }
 }

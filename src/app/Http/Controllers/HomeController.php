@@ -233,6 +233,7 @@ class HomeController extends Controller
         ->get();
 
         $listado_auxiliares = $usuariosauxiliares->pluck('id')->toArray();
+        
         if($tipo == "Ratificación"){
             $auxiliares = array_intersect($listado_auxiliares,$lista_ratificaciones);
         }
@@ -241,7 +242,12 @@ class HomeController extends Controller
         }
         
         //validar si hay disponibles
-        $random = array_rand($auxiliares);
+        if(!empty($auxiliares)){
+            $random = array_rand($auxiliares);
+        }
+        else{
+            return redirect()->route('citas')->with('error', 'No se ha encontrado auxiliar disponible.'); 
+        }
         $nombre_usuario = User::find($auxiliares[$random]);
         if($data["excepcion"] == "Si"){
             $modulo = "Caso de excepcion";
@@ -285,10 +291,16 @@ class HomeController extends Controller
             'telefono'      => $data["telefono"],
             'observaciones' => $data["conflicto"]
         );
-        $recepcion=Recepcion::create($data_insertar);
-        $fecha=$recepcion->fecha->format('Y-m-d');
-        $hora=$recepcion->hora->format('H:i');
-        return redirect()->route('citas_exito')->with(['success' => true,'folio' => $recepcion->id,'fecha' => $fecha,'hora' => $hora,'delegacion' => $recepcion->delegacion, 'modulo' => $recepcion->lugar_auxiliar]);
+        try{
+            $recepcion=Recepcion::create($data_insertar);
+            $fecha=$recepcion->fecha->format('Y-m-d');
+            $hora=$recepcion->hora->format('H:i');
+            return redirect()->route('citas_exito')->with(['success' => true,'folio' => $recepcion->id,'fecha' => $fecha,'hora' => $hora,'delegacion' => $recepcion->delegacion, 'modulo' => $recepcion->lugar_auxiliar]);
+        }
+        catch (\Exception $e) {
+            return redirect()->route('citas')->with('error', 'No se ha podrido completar tu cita.'); 
+        }
+        
     }
     public function citas_exito(){
         if (!session()->has('success')) {

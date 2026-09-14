@@ -67,11 +67,48 @@ class AgendaContexto
         ];
     }
 
+    /**
+     * ¿Este usuario sólo puede ver y descargar su propia agenda?
+     *
+     * Es la misma regla que AudienciasController@audiencias aplica sobre el
+     * calendario: al Conciliador se le fija `audiencias.id_conciliador` a su
+     * propio id, y a todos los demás roles se les acota por sede, no por
+     * persona. Vive aquí para que la pantalla y la descarga no se separen.
+     *
+     * Deliberadamente NO restringe por id a Delegado ni Enlace: sus sedes ya
+     * acotan lo que ven, y filtrar además por la lista de conciliadores de su
+     * delegación escondería las audiencias celebradas en su sede por alguien
+     * adscrito a otra.
+     */
+    public static function soloSuAgenda(User $usuario): bool
+    {
+        return $usuario->roles->pluck('name')->first() === 'Conciliador';
+    }
+
+    /**
+     * Los conciliadores que la agenda ofrece como filtro.
+     *
+     * El criterio es users.estatus: la baja la declara Administración, no la
+     * deduce la agenda. Antes esto se aproximaba con "tuvo actividad en los
+     * últimos seis meses", que es un mal sustituto —escondía a quien está de
+     * incapacidad o de vacaciones largas, y no distinguía a la cuenta de
+     * prueba del titular que lleva un trimestre sin casos—. Con la columna
+     * explícita esa heurística sobra y se quitó.
+     *
+     * Ojo: no elimina duplicados ni cuentas de prueba por sí solo. Los que
+     * sobren hay que marcarlos Inactivo en users; mientras no se haga, la
+     * fila los sigue mostrando.
+     *
+     * El filtro por id (el propio usuario) se salta la regla a propósito: uno
+     * siempre debe verse a sí mismo en su selector.
+     */
     private static function conciliadores(?string $delegacion = null, ?int $id = null)
     {
         return User::whereHas('roles', fn ($q) => $q->where('name', 'Conciliador'))
             ->when($delegacion, fn ($q) => $q->where('delegacion', $delegacion))
             ->when($id, fn ($q) => $q->where('id', $id))
+            ->when(! $id, fn ($q) => $q->where('estatus', 'Activo'))
+            ->orderBy('name')
             ->get();
     }
 }

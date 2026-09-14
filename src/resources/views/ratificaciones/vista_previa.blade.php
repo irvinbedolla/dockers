@@ -381,6 +381,7 @@
 
             // Inicialización del procesamiento del lado del servidor
             $('#tablaAbogadosServerSide').DataTable({
+                "responsive": true,
                 "processing": true,
                 "serverSide": true,
                 "pageLength": 10, // Mostrar solo 10 registros por página

@@ -79,8 +79,8 @@
                                     
                                     <div class="col-xs-12 col-sm-12 col-md-4">
                                         <div class="form-group">
-                                            <label for="name">CURP <span style="color:red;">(*)</span></label>
-                                            <input type="text" name="curp" maxlength="18" id="curp_input" class="form-control" value="<?=$folio["curp"];?>"  oninput="validarInput(this)" required> 
+                                            <label for="name">CURP</label>
+                                            <input type="text" name="curp" maxlength="18" id="curp_input" class="form-control" value="<?=$folio["curp"];?>"  oninput="validarInput(this)"> 
                                             <pre id="resultado"></pre>
                                             <div class="invalid-feedback">
                                                 El campo CURP es obligatorio.
@@ -292,9 +292,11 @@
                                         </div>
                                     </div>
                                     <div class="col-xs-12 col-sm-12 col-md-12"><br></div>
-                                    <div class="col-xs-12 col-sm-12 col-md-12">
-                                        <button type="submit" class="btn btn-info">Guardar</button>
-                                    </div>          
+                                    @can('notificaciones_editar')
+                                        <div class="col-xs-12 col-sm-12 col-md-12">
+                                            <button type="submit" class="btn btn-info">Guardar</button>
+                                        </div>
+                                    @endcan          
                                 </div>
                             </form>
                                 <a href="{{ route('notificaciones_consultar') }}"  class="btn btn-primary">Regresar</a>
