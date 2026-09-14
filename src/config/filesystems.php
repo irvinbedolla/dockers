@@ -97,7 +97,15 @@ return [
     */
 
     'links' => [
-        //public_path('storage')                  => storage_path('app/public'),
+        // El enlace estandar hace falta: users.foto_perfil guarda rutas como
+        // 'usuarios/xxx.webp' y el avatar las sirve desde /storage/. Estaba
+        // comentado, asi que esa URL no existia en ningun ambiente.
+        //
+        // 'publico' apunta al mismo destino y se queda porque otras pantallas
+        // ya dependen de ese nombre. Ojo: en el repositorio hay un directorio
+        // real public/publico con un .gitignore dentro, y mientras exista
+        // storage:link no puede crear ese enlace (dice "link already exists").
+        public_path('storage')                  => storage_path('app/public'),
         public_path('publico')                  => storage_path('app/public'),
         public_path('documentos')               => storage_path('app/documentos_abogados'),
         public_path('documentosPersonal')       => storage_path('app/documentos_personal'),

@@ -22,7 +22,7 @@
                             @endif
 
                             <div class="d-flex justify-content-between align-items-center mb-3">
-                                @can('crear-abogado')
+                                @can('poderes_crear')
                                     <a class="btn btn-warning" href="{{ route('poder-crear') }}" target="_blank">Nuevo</a>
                                 @endcan
 
@@ -39,63 +39,73 @@
                                 </form>
                             </div>
                             
-                            @can('ver-abogado')
-                                <div class="table-responsive">
-                                    <table id="tablaPoderesEstatica" class="table table-striped mt-2" style="width:100%">
-                                        <thead style="background-color: #354647;">
-                                            <tr>
-                                                <th style="color: #fff;">Folio</th>
-                                                <th style="color: #fff;">Nombre / Razón Social</th>
-                                                <th style="color: #fff;">RFC</th>
-                                                <th style="color: #fff;">Representante Legal</th>
-                                                <th style="color: #fff;">Estatus</th>
+                            <div class="table-responsive">
+                                <table id="tablaPoderesEstatica" class="table table-striped mt-2" style="width:100%">
+                                    <thead style="background-color: #354647;">
+                                        <tr>
+                                            <th style="color: #fff;">Folio</th>
+                                            <th style="color: #fff;">Nombre / Razón Social</th>
+                                            <th style="color: #fff;">RFC</th>
+                                            <th style="color: #fff;">Representante Legal</th>
+                                            <th style="color: #fff;">Estatus</th>
+                                            @can('poderes_ver_expediente')
                                                 <th style="color: #fff;">Expediente Digital</th>
-                                                <th style="color: #fff;">Acciones</th>
+                                            @endcan
+                                            <th style="color: #fff;">Acciones</th>
+                                            @can('poderes_borrar')                   
                                                 <th style="color: #fff;">Eliminar</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @foreach($poderesIniciales as $poder)
-                                                @php
-                                                    $esSuperUsuario = (isset($userRole[0]) && $userRole[0] === "Super Usuario");
-                                                @endphp
-                                                <tr>
-                                                    <td>{{ $poder->idAbogado }}</td>
-                                                    <td>{{ $poder->nombre_patronal_combinado }}</td>
-                                                    <td>{{ $poder->rfc_patronal ?? 'N/A' }}</td>
-                                                    <td>{{ $poder->nombre_representante_combinado }}</td>
-                                                    <td>{!! $poder->estatus_badge !!}</td>
-                                                    <td>{!! $poder->documentos_modal_btn !!}</td>
+                                            @endcan
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach($poderesIniciales as $poder)
+                                            @php
+                                                $esSuperUsuario = (isset($userRole[0]) && $userRole[0] === "Super Usuario");
+                                            @endphp
+                                            <tr>
+                                                <td>{{ $poder->idAbogado }}</td>
+                                                <td>{{ $poder->nombre_patronal_combinado }}</td>
+                                                <td>{{ $poder->rfc_patronal ?? 'N/A' }}</td>
+                                                <td>{{ $poder->nombre_representante_combinado }}</td>
+                                                <td>{!! $poder->estatus_badge !!}</td>
+                                                @can('poderes_ver_expediente')
                                                     <td>
-                                                        <div class="d-flex gap-1 align-items-center">
-                                                            <div class="d-flex flex-column gap-1">
+                                                        {!! $poder->documentos_modal_btn !!}                                                  
+                                                    </td>
+                                                @endcan
+                                                <td>
+                                                    <div class="d-flex gap-1 align-items-center">
+                                                        <div class="d-flex flex-column gap-1">
+                                                            @can('poderes_editar')
                                                                 <a class="btn btn-sm btn-warning" href="{{ route('poderes.edit', $poder->idAbogado) }}" onclick="editar_poder();"><i class="bi bi-pencil"></i> Editar</a>
+                                                            @endcan
+                                                            @can('poderes_ver_historial')
                                                                 @if($esSuperUsuario)
                                                                     <a class="btn btn-sm btn-secondary" href="{{ route('poderes.history', $poder->idAbogado) }}"><i class="bi bi-clock-history"></i> Historial</a>
                                                                 @endif
-                                                            </div>
-                                                            @if (auth()->user()->can('editar-abogado'))
-                                                                <a href="#" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#exampleModal1" data-id="{{ $poder->idAbogado }}" data-tipo="{{ $poder->tipo }}"><i class="bi bi-person-plus"></i> Agregar</a>
-                                                            @endif
-                                                        </div>
-                                                    </td>
-                                                    <td>
-                                                        @if($esSuperUsuario)
-                                                            @can('borrar-abogado')
-                                                                <form method="POST" action="{{ route('poderes.destroy', $poder->idAbogado) }}" class="form-eliminar-poder">
-                                                                    @csrf
-                                                                    <input type="hidden" name="_method" value="DELETE">
-                                                                    <button class="btn btn-sm btn-danger" type="submit">Borrar</button>
-                                                                </form>
                                                             @endcan
+                                                        </div>
+                                                        @if(auth()->user()->can('poderes_agregar_representante'))
+                                                            <a href="#" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#exampleModal1" data-id="{{ $poder->idAbogado }}" data-tipo="{{ $poder->tipo }}"><i class="bi bi-person-plus"></i> Agregar</a>
+                                                        @endif
+                                                    </div>
+                                                </td>
+                                                @can('poderes_borrar')
+                                                    <td>
+                                                        @if($esSuperUsuario)                                                           
+                                                            <form method="POST" action="{{ route('poderes.destroy', $poder->idAbogado) }}" class="form-eliminar-poder">
+                                                                @csrf
+                                                                <input type="hidden" name="_method" value="DELETE">
+                                                                <button class="btn btn-sm btn-danger" type="submit">Borrar</button>
+                                                            </form>                                                            
                                                         @endif
                                                     </td>
-                                                </tr>
-                                            @endforeach
-                                        </tbody>
-                                    </table>
-                                </div>
-                            @endcan
+                                                @endcan
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -457,6 +467,7 @@
             }
 
             $('#tablaPoderesServerSide').DataTable({
+                "responsive": true,
                 "processing": true,
                 "serverSide": true,
                 "pageLength": 10,

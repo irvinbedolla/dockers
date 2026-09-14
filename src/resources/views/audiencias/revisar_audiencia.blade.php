@@ -201,7 +201,9 @@
                                                                     <option value="{{$motivo['id']}}">{{$motivo['motivo']}}</option>
                                                                 </td>  
                                                                 <td>
-                                                                   <a href="{{ route('eliminar_motivo', ['id' => $id, 'id_motivo' => $motivo->id] ) }}" class="eliminar btn btn-danger btn-sm">Eliminar</a>
+                                                                    @can('audiencias_borrar_motivo')
+                                                                        <a href="{{ route('eliminar_motivo', ['id' => $id, 'id_motivo' => $motivo->id] ) }}" class="eliminar btn btn-danger btn-sm">Eliminar</a>
+                                                                    @endcan
                                                                 </td>   
                                                             </tr>
                                                         @endforeach
@@ -212,15 +214,17 @@
                                             <div class="col-xs-6 col-sm-6 col-md-6">
                                                 <div class="form-group">
                                                     <label for="name">Agregar Otro Motivo a la Solicitud</label>
-                                                    <select  class="form-control" id="motivo_solicitud">
-                                                        <option value="">Seleccione</option>
-                                                        @foreach($mostrarMotivos as $motivo)
-                                                            <option value="{{$motivo['id']}}">{{$motivo['motivo']}}</option>
-                                                        @endforeach
-                                                    </select>
-                                                    <div class="invalid-feedback">
-                                                        El objeto de solicitud es obligatoria.
-                                                    </div>
+                                                    @can('audiencias_agregar_motivo')
+                                                        <select  class="form-control" id="motivo_solicitud">
+                                                            <option value="">Seleccione</option>
+                                                            @foreach($mostrarMotivos as $motivo)
+                                                                <option value="{{$motivo['id']}}">{{$motivo['motivo']}}</option>
+                                                            @endforeach
+                                                        </select>
+                                                        <div class="invalid-feedback">
+                                                            El objeto de solicitud es obligatoria.
+                                                        </div>
+                                                    @endcan
                                                 </div>
                                             </div>
 
@@ -878,12 +882,14 @@
                                         <div id="tabla_documentos" class="row">
                                             
                                             @if((($general->estatus !== "Conciliacion") || ($general->estatus !== "No conciliacion") || ($general->estatus !== "Archivada")) && $general->tipo_solicitud == 1)
-                                                <div class="col-xs-12 col-sm-12 col-md-12"><br>
-                                                    <a type="button" class="btn btn-warning open-modal mb-3" data-bs-toggle="modal" 
-                                                    data-bs-target="#exampleModal1" data-id="{{ $id }}">Agregar Citado</a>
-                                                    <a type="button" class="btn btn-warning open-modal mb-3" data-bs-toggle="modal" 
-                                                    data-bs-target="#exampleModal2" data-id="{{ $id }}">Borrar Citado</a>
-                                                </div>
+                                                @can('audiencias_borrar_citados')
+                                                    <div class="col-xs-12 col-sm-12 col-md-12"><br>
+                                                        <a type="button" class="btn btn-warning open-modal mb-3" data-bs-toggle="modal" 
+                                                        data-bs-target="#exampleModal1" data-id="{{ $id }}">Agregar Citado</a>
+                                                        <a type="button" class="btn btn-warning open-modal mb-3" data-bs-toggle="modal" 
+                                                        data-bs-target="#exampleModal2" data-id="{{ $id }}">Borrar Citado</a>
+                                                    </div>
+                                                @endcan
                                             @endif<br>
 
                                             @foreach($citados as $citado)
@@ -1711,64 +1717,65 @@
                                                         ? (is_countable($citados) ? count($citados) : (method_exists($citados, 'count') ? $citados->count() : 0))
                                                         : 0;
                                                 @endphp
-                                                @if(($general->estatus !== "Conciliacion") || ($general->estatus !== "No conciliacion") || ($general->estatus !== "Archivada"))
-                                                    @if($citadosCount > 0)
+                                                @can('audiencias_guardar_edicion')
+                                                    @if(($general->estatus !== "Conciliacion") || ($general->estatus !== "No conciliacion") || ($general->estatus !== "Archivada"))
+                                                        @if($citadosCount > 0)
 
-                                                        @if($isAudiencia == 'No' && $general->estatus == 'Pendiente')
-                                                            <button type="submit" class="btn btn-primary" name="toquen" value="1">Guardar Edición</button>
-                                                        @elseif($fecha_actual->isSameDay($general->fecha_confirmacion) && auth()->user()->hasRole('Auxiliar'))
-                                                            @hasanyrole('Auxiliar')
+                                                            @if($isAudiencia == 'No' && $general->estatus == 'Pendiente')
                                                                 <button type="submit" class="btn btn-primary" name="toquen" value="1">Guardar Edición</button>
-                                                            @endhasanyrole
-                                                        @elseif($isAudiencia == 'Si' && auth()->user()->hasRole('Conciliador'))
-                                                            <button type="submit" class="btn btn-primary" name="toquen" value="1">Guardar Edición</button>
-                                                        @else
-                                                            @auth
-                                                                @hasanyrole('Enlace|Super Usuario')
+                                                            @elseif($fecha_actual->isSameDay($general->fecha_confirmacion) && auth()->user()->hasRole('Auxiliar'))
+                                                                @hasanyrole('Auxiliar')
                                                                     <button type="submit" class="btn btn-primary" name="toquen" value="1">Guardar Edición</button>
-                                                                    {{--@if(in_array($general->estatus, ["No conciliacion", "Conciliacion", "Reinstalacion"])
-                                                                        && $isAudiencia != 'Si')
-                                                                        @hasanyrole('Enlace|Conciliador|Super Usuario')
-                                                                            @if(auth()->user()->hasAnyRole(['Super Usuario']) || Carbon\Carbon::today()->equalTo(\Carbon\Carbon::parse($general->fecha_confirmacion)))
-                                                                                <a class="btn btn-danger"
-                                                                                    href="{{ route('edicion_solConcluida', ['id' => $general->id, 'audiencia_id' => $audiencia->id]) }}" target="_blank">
-                                                                                    Editar finalización de audiencia
-                                                                                </a>
-                                                                            @endif
-                                                                        @endhasanyrole
-                                                                    @endif--}}
                                                                 @endhasanyrole
-                                                            @endauth
-                                                        @endif
-
-                                                        @if( $isAudiencia == 'Si' && $ultimaEstatus == 'Pendiente' && auth()->user()->hasRole('Conciliador'))
-                                                            <button type="submit" class="btn btn-success" name="toquen" value="iniciar_audiencia"> Guardar e Iniciar Audiencia </button>
-                                                            {{--<a class="btn btn-success" href="{{ route('inicioAudiencia', $audiencia->id_solicitud, 'Confirmado') }}" value="1">Guardar e Iniciar Audiencia</button>--}}
-                                                        @endif
-                                                    @else
-                                                        <button type="button" class="btn btn-secondary" disabled title="Agregue al menos un citado para poder guardar."  name="toquen" value="1">Guardar Edición</button>
-                                                        <div class="text-muted mt-2">Debe agregar al menos un citado para poder guardar.</div>
-                                                    @endif
-                                                @endif
-                                                @if( $isAudiencia == 'Si')
-                                                <a type="button" class="btn btn-primary" style="background-color:#CEA845; border-color:#CEA845;" href="{{ route('cancelar_edicion', ['redirect_to' => 'todas_audiencias']) }}"> Regresar </a>
-                                                    @auth
-                                                        @hasanyrole('Enlace|Super Usuario|Conciliador')                                                               
-                                                            @if(in_array($audienciaCurrent->estatus, ["No conciliacion", "Conciliacion", "Reinstalacion"]) && $isAudiencia == 'Si')
-                                                                @hasanyrole('Enlace|Conciliador|Super Usuario')
-                                                                    @if(auth()->user()->hasAnyRole(['Super Usuario']) || Carbon\Carbon::today()->equalTo(\Carbon\Carbon::parse($general->fecha_terminacion)))
-                                                                        <a class="btn btn-danger"
-                                                                            href="{{ route('edicion_audienciaConcluida', ['id' => $general->id, 'audiencia_id' => $audiencia->id]) }}" target="_blank">
-                                                                            Editar finalización de audiencia
-                                                                        </a>
-                                                                    @endif
-                                                                @endhasanyrole
+                                                            @elseif($isAudiencia == 'Si' && auth()->user()->hasRole('Conciliador'))
+                                                                <button type="submit" class="btn btn-primary" name="toquen" value="1">Guardar Edición</button>
+                                                            @else
+                                                                @auth
+                                                                    @hasanyrole('Enlace|Super Usuario')
+                                                                        <button type="submit" class="btn btn-primary" name="toquen" value="1">Guardar Edición</button>
+                                                                        {{--@if(in_array($general->estatus, ["No conciliacion", "Conciliacion", "Reinstalacion"])
+                                                                            && $isAudiencia != 'Si')
+                                                                            @hasanyrole('Enlace|Conciliador|Super Usuario')
+                                                                                @if(auth()->user()->hasAnyRole(['Super Usuario']) || Carbon\Carbon::today()->equalTo(\Carbon\Carbon::parse($general->fecha_confirmacion)))
+                                                                                    <a class="btn btn-danger"
+                                                                                        href="{{ route('edicion_solConcluida', ['id' => $general->id, 'audiencia_id' => $audiencia->id]) }}" target="_blank">
+                                                                                        Editar finalización de audiencia
+                                                                                    </a>
+                                                                                @endif
+                                                                            @endhasanyrole
+                                                                        @endif--}}
+                                                                    @endhasanyrole
+                                                                @endauth
                                                             @endif
-                                                        @endhasanyrole
-                                                    @endauth
-                                                @else
-                                                <a type="button" class="btn btn-primary" style="background-color:#CEA845; border-color:#CEA845;" href="{{ route('cancelar_edicion', ['redirect_to' => 'todas_solicitudes']) }}"> Regresar </a>
-                                                @endif
+
+                                                            @if( $isAudiencia == 'Si' && $ultimaEstatus == 'Pendiente' && auth()->user()->hasRole('Conciliador'))
+                                                                <button type="submit" class="btn btn-success" name="toquen" value="iniciar_audiencia"> Guardar e Iniciar Audiencia </button>
+                                                                {{--<a class="btn btn-success" href="{{ route('inicioAudiencia', $audiencia->id_solicitud, 'Confirmado') }}" value="1">Guardar e Iniciar Audiencia</button>--}}
+                                                            @endif
+                                                        @else
+                                                            <button type="button" class="btn btn-secondary" disabled title="Agregue al menos un citado para poder guardar."  name="toquen" value="1">Guardar Edición</button>
+                                                            <div class="text-muted mt-2">Debe agregar al menos un citado para poder guardar.</div>
+                                                        @endif
+                                                    @endif
+                                                    @if( $isAudiencia == 'Si')
+                                                    <a type="button" class="btn btn-primary" style="background-color:#CEA845; border-color:#CEA845;" href="{{ route('cancelar_edicion', ['redirect_to' => 'todas_audiencias']) }}"> Regresar </a>
+                                                        @auth
+                                                            @hasanyrole('Enlace|Super Usuario|Conciliador')                                                               
+                                                                @if(in_array($audienciaCurrent->estatus, ["No conciliacion", "Conciliacion", "Reinstalacion"]) && $isAudiencia == 'Si')                                                                    
+                                                                        @if(auth()->user()->hasAnyRole(['Super Usuario']) || Carbon\Carbon::today()->equalTo(\Carbon\Carbon::parse($general->fecha_terminacion)))
+                                                                            <a class="btn btn-danger"
+                                                                                href="{{ route('edicion_audienciaConcluida', ['id' => $general->id, 'audiencia_id' => $audiencia->id]) }}" target="_blank">
+                                                                                Editar finalización de audiencia
+                                                                            </a>
+                                                                        @endif
+                                                                @endif
+                                                            @endhasanyrole
+                                                        @endauth
+                                                    @else
+                                                
+                                                    <a type="button" class="btn btn-primary" style="background-color:#CEA845; border-color:#CEA845;" href="{{ route('cancelar_edicion', ['redirect_to' => 'todas_solicitudes']) }}"> Regresar </a>
+                                                    @endif
+                                                @endcan
 
                                             </div>
                                         </div>

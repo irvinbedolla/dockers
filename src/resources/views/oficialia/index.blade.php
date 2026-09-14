@@ -22,11 +22,11 @@
                             @endif
 
                             <div class="d-flex justify-content-between align-items-center mb-3">
-                                @if ($userRole == 'Turnos')
+                                @can('oficialia_crear')
                                     <a href="#" class="btn btn-warning shadow-sm" data-bs-toggle="modal" data-id="{{ $id }}" data-bs-target="#oficialiaModal" style="background-color: #CEA845; border-color: #CEA845; color: #fff;">
                                         <i class="bi bi-plus-lg me-1"></i> Agregar
                                     </a>
-                                @endif
+                                @endcan
 
                             </div>
                             
@@ -64,29 +64,34 @@
                                                     <td>@if($oficialia->estatus == 'creado')Pendiente @elseif ($oficialia->estatus == 'turnado') Turnado @else Concluido @endif</td>
                                                     <td>@if($oficialia->conclusion){{ $oficialia->conclusion }} @endif</td>
                                                     <td>
-                                                        @if($oficialia->estatus == 'creado' && $oficialia->usuario_responsable == $id && $userRole != 'Turnos')
-                                                        <a href="#" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-id="{{ $oficialia->id }}" data-bs-target="#concluirModal"><i class="bi bi-check-lg"></i> Concluir</a>
-                                                        @endif
+                                                        @can('oficialia_concluir')
+                                                            @if($oficialia->estatus == 'creado' && $oficialia->usuario_responsable == $id && $userRole != 'Turnos')
+                                                            <a href="#" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-id="{{ $oficialia->id }}" data-bs-target="#concluirModal"><i class="bi bi-check-lg"></i> Concluir</a>
+                                                            @endif
+                                                        @endcan
                                                     </td>
                                                     <td>
-                                                        @if($oficialia->estatus == 'creado' && $oficialia->usuario_responsable == $id)
-                                                            <a href="#" class="btn btn-success btn-sm" data-bs-toggle="modal" data-id="{{ $oficialia->id }}" data-bs-target="#turnarModal"><i class="bi bi-file-person"></i> Turnar</a>
-                                                        @endif
+                                                        @can('oficialia_turnar')
+                                                            @if($oficialia->estatus == 'creado' && $oficialia->usuario_responsable == $id)
+                                                                <a href="#" class="btn btn-success btn-sm" data-bs-toggle="modal" data-id="{{ $oficialia->id }}" data-bs-target="#turnarModal"><i class="bi bi-file-person"></i> Turnar</a>
+                                                            @endif
+                                                        @endcan
                                                     </td>
                                                     <td>
                                                         <div class="dropdown">
-                                                        
-                                                            @if (!empty($oficialia->ruta_oficio) )
-                                                                <a target="_blank" class="btn btn-primary mt-1" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'oficialia', 'id' =>  $oficialia->id, 'archivo' => $oficialia->ruta_oficio]) }}"><i class="bi bi-file-earmark-pdf"></i> Oficio</a>
-                                                            @else
-                                                                <span class="text-muted">No se subió oficio</span>
-                                                            @endif
+                                                            @can('oficialia_oficio')
+                                                                @if (!empty($oficialia->ruta_oficio) )
+                                                                    <a target="_blank" class="btn btn-primary mt-1" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'oficialia', 'id' =>  $oficialia->id, 'archivo' => $oficialia->ruta_oficio]) }}"><i class="bi bi-file-earmark-pdf"></i> Oficio</a>
+                                                                @else
+                                                                    <span class="text-muted">No se subió oficio</span>
+                                                                @endif
+                                                            @endcan
                                                         </div>
                                                     </td>
                                                     <td>
                                                         <div class="d-flex justify-content-center gap-2">
-                                                            <a href="#" class="btn btn-warning btn-sm" data-bs-toggle="modal" data-oficialia='@json($oficialia)' data-bs-target="#detallesModal"><i class="bi bi-card-text"></i> Detalles</a>
-                                                            <a href="#" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalHistorial-{{ $oficialia->oficio_id }}"><i class="bi bi-card-list"></i> Historial</a>
+                                                            @can('oficialia_detalles')<a href="#" class="btn btn-warning btn-sm" data-bs-toggle="modal" data-oficialia='@json($oficialia)' data-bs-target="#detallesModal"><i class="bi bi-card-text"></i> Detalles</a>@endcan
+                                                            @can('oficialia_historial')<a href="#" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalHistorial-{{ $oficialia->oficio_id }}"><i class="bi bi-card-list"></i> Historial</a>@endcan
                                                         </div>
                                                     </td>
                                                     

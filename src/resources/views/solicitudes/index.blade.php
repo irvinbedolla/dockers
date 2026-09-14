@@ -40,16 +40,20 @@
                             @endif
 
                             <div class="row">
-                                <div class="col-xs-4 col-sm-4 col-md-4">
-                                    <div align="center">
-                                        <a href="{{ route('solicitudes_pendientes') }}" class="btn btn-primary" style="width: 100%">Pendientes por validar</a>
+                                @can('solicitudes_pendientes_validar')
+                                    <div class="col-xs-4 col-sm-4 col-md-4">
+                                        <div align="center">
+                                            <a href="{{ route('solicitudes_pendientes') }}" class="btn btn-primary" style="width: 100%">Pendientes por validar</a>
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="col-xs-4 col-sm-4 col-md-4">
-                                    <div align="center">
-                                        <a href="{{ route('solicitud') }}" class="btn btn-primary" style="width: 100%">Nueva Solicitud</a>
+                                @endcan
+                                @can('solicitudes_crear')
+                                    <div class="col-xs-4 col-sm-4 col-md-4">
+                                        <div align="center">
+                                            <a href="{{ route('solicitud') }}" class="btn btn-primary" style="width: 100%">Nueva Solicitud</a>
+                                        </div>
                                     </div>
-                                </div>
+                                @endcan
                                 <!--
                                 <div class="col-xs-12 col-sm-4 col-md-2">
                                     <div align="center">

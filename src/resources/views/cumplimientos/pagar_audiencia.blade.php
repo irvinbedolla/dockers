@@ -53,38 +53,47 @@
                                                     <td class="text-center">
                                                         
                                                         @if($pago->estatus == "Pendiente" || $pago->estatus == "Incomparecencia trabajador")
-                                                            <button type="button" class="btn btn-info btn-sm text-white open-modal" data-bs-toggle="modal" data-bs-target="#exampleModal" data-id="{{ $pago->id }}" data-tipo="normal">
-                                                                <i class="bi bi-check-circle me-1"></i> Generar Cumplimiento Parcial
-                                                            </button>
-                                                            @if($cantidad_pagos > 1)
-                                                                <button type="button" class="btn btn-success btn-sm text-white fw-semibold open-warning" data-bs-toggle="modal" data-bs-target="#warningModal" data-id="{{ $pago->id }}" data-numero="{{ $index + 1 }}" data-tipo="total">
-                                                                    <i class="bi bi-cash-stack me-1"></i> Generar Cumplimiento Total
+                                                            @can('cumplimientos_generar_cumplimiento')
+                                                                <button type="button" class="btn btn-info btn-sm text-white open-modal" data-bs-toggle="modal" data-bs-target="#exampleModal" data-id="{{ $pago->id }}" data-tipo="normal">
+                                                                    <i class="bi bi-check-circle me-1"></i> Generar Cumplimiento Parcial
                                                                 </button>
+                                                                @endcan
+                                                            @if($cantidad_pagos > 1)
+                                                                @can('cumplimientos_generar_cumplimiento_total')
+                                                                    <button type="button" class="btn btn-success btn-sm text-white fw-semibold open-warning" data-bs-toggle="modal" data-bs-target="#warningModal" data-id="{{ $pago->id }}" data-numero="{{ $index + 1 }}" data-tipo="total">
+                                                                        <i class="bi bi-cash-stack me-1"></i> Generar Cumplimiento Total
+                                                                    </button>
+                                                                @endcan
                                                             @endif
                                                         @endif
                                                         @if($pago->estatus == "Pendiente")
-                                                            
-                                                            <a class="btn btn-danger btn-sm text-white" href="{{ route('cumplimiento_rechazar_audiencia', $pago->id) }}" onclick="consultar_estadistica();><i class="bi bi-x-circle me-1"></i> Incumplimiento</a>
-                                                        
-                                                            <form method="POST" action="{{ route('cumplimiento_incomparecencia', $pago->id) }}" style="display:inline;">
-                                                                @csrf
-                                                                <input type="hidden" name="fecha_audiencia" value="{{ $pago->fecha }}">
-                                                                <input type="hidden" name="hora_audiencia" value="{{ $pago->hora }}">
-                                                                <button type="submit" class="btn btn-outline-danger btn-sm " onclick="consultar_estadistica();">
-                                                                    <i class="bi bi-x-circle me-1"></i> Incomparecencia
-                                                                </button>
-                                                            </form>
+                                                            @can('cumplimientos_generar_incumplimiento')
+                                                                <a class="btn btn-danger btn-sm text-white" href="{{ route('cumplimiento_rechazar_audiencia', $pago->id) }}" onclick="consultar_estadistica();"><i class="bi bi-x-circle me-1"></i> Incumplimiento</a>
+                                                            @endcan
+                                                            @can('cumplimientos_generar_incomparecencia')
+                                                                <form method="POST" action="{{ route('cumplimiento_incomparecencia', $pago->id) }}" style="display:inline;">
+                                                                    @csrf
+                                                                    <input type="hidden" name="fecha_audiencia" value="{{ $pago->fecha }}">
+                                                                    <input type="hidden" name="hora_audiencia" value="{{ $pago->hora }}">
+                                                                    <button type="submit" class="btn btn-outline-danger btn-sm " onclick="consultar_estadistica();">
+                                                                        <i class="bi bi-x-circle me-1"></i> Incomparecencia
+                                                                    </button>
+                                                                </form>
+                                                            @endcan
                                                         @endif
                                                         @if($pago->estatus == "No pagado")
+                                                            @can('cumplimientos_generar_cumplimiento')
                                                             <button type="button" class="btn btn-warning btn-sm text-white open-modal-pena" data-bs-toggle="modal" data-bs-target="#penaModal" data-id="{{ $pago->id }}">
                                                                 <i class="bi bi-cash-stack me-1"></i> Pagar con pena convencional
                                                             </button>
+                                                            @endcan
                                                         @endif
                                                     </td>
                                                     <td class="text-center">
-                                                        @php
-                                                            $totalRegistros = $cumplimientos->count();
-                                                        @endphp
+                                                        @can('cumplimientos_ver_pdf')
+                                                            @php
+                                                                $totalRegistros = $cumplimientos->count();
+                                                            @endphp
 
                                                         @if($pago->estatus == "Pagado")
                                                             @if(!(mb_substr($pago->observaciones, 0, 26, 'UTF-8') === 'Pagado en el cumplimiento '))
@@ -97,18 +106,19 @@
                                                                         <i class="bi bi-file-earmark-pdf me-1"></i> Parcialidad {{ $index + 1 }}
                                                                     </a>
                                                                 @endif
+                                                            @elseif($pago->estatus == "Pagado con pena convencional")
+                                                                <a class="btn btn-success btn-sm text-white" href="{{ route('PDFcumplimientoParcial', $pago->id) }}" target="_blank">
+                                                                    <i class="bi bi-file-earmark-pdf me-1"></i> Parcialidad {{ $index + 1 }}
+                                                                </a>
+                                                            {{--@if($pago->estatus == "Pagado")
+                                                                <a class="btn btn-success" href="{{ route('PDFcumplimientoParcial', $pago->id) }}" target="_blank">Ver PDF</a>--}}
+                                                            @elseif($pago->estatus == "No pagado")
+                                                                <a class="btn btn-info btn-sm text-white" href="{{ route('PDFincumplimientoAudiencia', $pago->id) }}" target="_blank"><i class="bi bi-file-earmark-pdf me-1"></i> Parcialidad {{ $index + 1 }}</a>
+                                                            @elseif($pago->estatus == "Incomparecencia trabajador")
+                                                                <a class="btn btn-info btn-sm text-white" href="{{ route('PDFIncomparecenciaCumplimiento', $pago->id) }}" target="_blank"><i class="bi bi-file-earmark-pdf me-1"></i> Parcialidad {{ $index + 1 }}</a>
                                                             @endif
-                                                        @elseif($pago->estatus == "Pagado con pena convencional")
-                                                            <a class="btn btn-success btn-sm text-white" href="{{ route('PDFcumplimientoParcial', $pago->id) }}" target="_blank">
-                                                                <i class="bi bi-file-earmark-pdf me-1"></i> Parcialidad {{ $index + 1 }}
-                                                            </a>
-                                                        {{--@if($pago->estatus == "Pagado")
-                                                            <a class="btn btn-success" href="{{ route('PDFcumplimientoParcial', $pago->id) }}" target="_blank">Ver PDF</a>--}}
-                                                        @elseif($pago->estatus == "No pagado")
-                                                            <a class="btn btn-info btn-sm text-white" href="{{ route('PDFincumplimientoAudiencia', $pago->id) }}" target="_blank"><i class="bi bi-file-earmark-pdf me-1"></i> Parcialidad {{ $index + 1 }}</a>
-                                                        @elseif($pago->estatus == "Incomparecencia trabajador")
-                                                            <a class="btn btn-info btn-sm text-white" href="{{ route('PDFIncomparecenciaCumplimiento', $pago->id) }}" target="_blank"><i class="bi bi-file-earmark-pdf me-1"></i> Parcialidad {{ $index + 1 }}</a>
                                                         @endif
+                                                        @endcan
                                                     </td>
                                                 </tr>
                                             @endforeach
@@ -260,6 +270,11 @@ Dicha cantidad corresponde al cumplimiento (total o parcial, según corresponda)
                 $('#example').DataTable().destroy();
             }
             $('#example').DataTable({
+                // Sin colapso de columnas: se prefiere desplazamiento horizontal, que
+                // lo da el .table-responsive de Bootstrap. No se usa scrollX porque
+                // clona el <thead> y necesita la hoja de estilos de DataTables, que
+                // este proyecto no carga.
+                "responsive": false,
                 "destroy": true,
                 "paging": true,
                 "pageLength": 10,

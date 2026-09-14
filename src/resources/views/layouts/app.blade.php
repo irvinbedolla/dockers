@@ -44,6 +44,12 @@
     <link href="{{ asset('assets/css/components.css') }}" rel="stylesheet">
 
     @livewireStyles
+    {{-- DataTables Responsive: la extension ya venia declarada en package.json
+         desde hace tiempo pero no se cargaba en ningun lado, asi que las tablas
+         de 8 a 14 columnas solo se podian leer con scroll lateral. Esta hoja
+         trae el control +/- y el formato de la fila hija. --}}
+    <link rel="stylesheet" href="https://cdn.datatables.net/responsive/3.0.2/css/responsive.bootstrap5.min.css">
+
     @yield('page_css')
     @yield('css')
 
@@ -643,6 +649,8 @@
     <!-- DataTables Bootstrap 5 -->
     <script src="https://cdn.datatables.net/2.2.1/js/dataTables.js"></script>
     <script src="https://cdn.datatables.net/2.2.1/js/dataTables.bootstrap5.js"></script>
+    <script src="https://cdn.datatables.net/responsive/3.0.2/js/dataTables.responsive.min.js"></script>
+    <script src="https://cdn.datatables.net/responsive/3.0.2/js/responsive.bootstrap5.min.js"></script>
 
     <!-- FullCalendar (antes estaba en el <head>, bloqueando el render) -->
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/index.global.min.js"></script>

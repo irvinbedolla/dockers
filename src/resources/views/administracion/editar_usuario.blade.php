@@ -15,23 +15,23 @@
                             
                             <!--Se realiza la validación de campos para ver si dejó alguno vacío-->
                             @if ($errors->any())
-                                <div class="alert alert-dark alert-dismissible fade show" role="alert">
+                                {{-- alert-dark sobre el fondo claro de la tarjeta pasaba
+                                     desapercibida, y el boton de cerrar era de Bootstrap 4
+                                     (class="close", data-dismiss), muerto en Bootstrap 5. --}}
+                                <div class="alert alert-danger alert-dismissible fade show" role="alert">
                                     <strong>¡Revise los campos!</strong>
-                                    <ul>
+                                    <ul class="mb-0">
                                         @foreach ($errors->all() as $error)
                                             <li>{{ $error }}</li>
-                                            <!--<span class="badge badge-danger">{{ $error }}</span>-->
                                         @endforeach
                                     </ul>
-                                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                                        <span aria-hidden="true">&times;</span>
-                                    </button>
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
                                 </div>
 
                             @endif
 
                             <!--Se realiza el envío de datos con formulario de Laravel Collective-->
-                            <form class='needs-validation novalidate' method='POST' action="{{route('usuarios_update', $user->id)}}" id="form_usuarios">
+                            <form class='needs-validation novalidate' method='POST' action="{{route('usuarios_update', $user->id)}}" id="form_usuarios" enctype="multipart/form-data">
                                 <input type="hidden" name="_method" value="PATCH">
                                 @csrf
                                 <div class="row">
@@ -74,6 +74,8 @@
                                     <div class="invalid-feedback">
                                         La contraseña es obligatoria.
                                     </div>
+
+                                    @include('usuarios._campo_foto')
 
                                     <div class="col-xs-12 col-sm-12 col-md-12">
                                         <button type="submit" class="btn btn-primary" style="background-color: #496163">Guardar</button>

@@ -35,129 +35,139 @@
                                 </div>
                             </div>
 
-                            <!-- Tabla Principal de Resultados -->
-                            <div class="table-responsive menu-visible">
-                                <table id="example" class="table table-striped table-hover align-middle w-100">
-                                    <thead style="background-color: #354647;">
-                                        <tr>
-                                            <th class="text-center text-white" style="color: #ffffff !important;">Folio</th>
-                                            <th class="text-white" style="color: #ffffff !important;">Fecha Captura</th>
-                                            <th class="text-white" style="color: #ffffff !important;">Expediente</th>
-                                            <th class="text-white" style="color: #ffffff !important;">Solicitante</th>
-                                            <th class="text-white" style="color: #ffffff !important;">Teléfono</th>
-                                            <th class="text-white" style="color: #ffffff !important;">Citados</th>
-                                            <th class="text-white" style="color: #ffffff !important;">Actividad Económica</th>
-                                            <th class="text-white" style="color: #ffffff !important;">Tipo Solicitante</th>
-                                            <th class="text-center text-white" style="color: #ffffff !important;">Estatus</th>
-                                            <th class="text-center text-white" style="color: #ffffff !important;">Revisar</th>
-                                            <th class="text-center text-white" style="width: 14%; color: #ffffff !important;">Documentos</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="contenidobusqueda">
-                                        @foreach($solicitudes as $solicitud)
+                            @can('solicitudes_ver')
+                                <!-- Tabla Principal de Resultados -->
+                                <div class="table-responsive">
+                                    <table id="example" class="table table-striped table-hover align-middle w-100">
+                                        <thead style="background-color: #354647;">
                                             <tr>
-                                                <td class="text-center fw-bold">{{ $solicitud->consecutivo }}</td>
-                                                <td>{{ \Carbon\Carbon::parse($solicitud->fecha)->format('d-m-Y') }}</td>
-                                                <td class="fw-bold text-primary">{{ $solicitud->NUE }}</td>
-                                                <td>{{ $solicitud->nombre }}</td>
-                                                <td>{{ $solicitud->telefono }}</td>
-                                                <td>{{ $solicitud->lista_citados }}</td>
-                                                <td>{{ $solicitud->actividad }}</td>
-                                                <td>
-                                                    @if($solicitud->tipo_solicitud == 1) Trabajador
-                                                    @elseif($solicitud->tipo_solicitud == 2) Patronal
-                                                    @elseif($solicitud->tipo_solicitud == 3) Patronal Colectiva
-                                                    @elseif($solicitud->tipo_solicitud == 4) Sindical
-                                                    @endif
-                                                </td>
-                                                <td class="text-center">
-                                                    <span class="badge bg-light text-dark border rounded-pill px-3 py-2 fw-semibold">{{ $solicitud->estatus }}</span>
-                                                </td>
-                                                <td class="text-center">
-                                                    <button type="button"
-                                                        class="btn btn-info btn-sm text-white open-audiencias-modal"
-                                                        data-bs-toggle="modal"
-                                                        data-bs-target="#modalAudiencias"
-                                                        data-id="{{ $solicitud->id }}">
-                                                        <i class="bi bi-eye me-1"></i> Revisar
-                                                    </button>
-                                                </td>
-                                                <td class="text-center">
-                                                    <div class="d-flex flex-column gap-1 align-items-center">
-                                                        <button type="button" class="btn btn-warning btn-sm text-dark fw-semibold open-expediente-modal w-100" data-bs-toggle="modal" data-bs-target="#expediente" data-id="{{ $solicitud->id }}" style="background-color: #CEA845; border-color: #CEA845; color: #000000 !important;">
-                                                            <i class="bi bi-upload me-1"></i> Subir Documento
-                                                        </button>
-
-                                                        @if(in_array($solicitud->estatus, ['Archivada', 'Incompetencia', 'Comparecencia', 'Reagendada', 'No conciliacion', 'Incumplimiento', 'Conciliacion', 'Concluida', 'Reinstalacion', 'Confirmado', 'Desistimiento', 'Prevencion']))
-                                                            <div class="dropdown w-100">
-                                                                <button class="btn btn-secondary btn-sm text-dark fw-semibold dropdown-toggle w-100" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="background-color: #e2e6ea; border-color: #d3d9df; color: #000000 !important;">
-                                                                    Documentos
-                                                                </button>
-                                                                <ul class="dropdown-menu dropdown-menu-end shadow-sm">
-                                                                    <li>
-                                                                        <button type="button" class="dropdown-item btn-cargar-lista-docs" data-id="{{ $solicitud->id }}" data-doc-url="{{ signedDocRoute('VerDocumentosAudiencia', ['id' => $solicitud->id]) }}">
-                                                                            Documentos Digitales
-                                                                        </button>
-                                                                    </li>
-
-                                                                    @if($solicitud->estatus == "Archivada")
-                                                                        <li><a class="dropdown-item" href="{{ route('PDFfalltaInteres', $solicitud->id) }}" target="_blank">Acta de Archivo</a></li>
-                                                                        <li><a class="dropdown-item" href="{{ route('PDFCaratulaInfoConcilio', ['tipo' => 'seguimiento', 'id' => $solicitud->id]) }}" target="_blank">Carátula de Seguimiento</a></li>
-                                                                        <li><a class="dropdown-item" href="{{ route('PDFCaratulaInfoConcilio', ['tipo' => 'caratula', 'id' => $solicitud->id]) }}" target="_blank">Carátula de Solicitud</a></li>
-                                                                    @elseif($solicitud->estatus == "Incompetencia")
-                                                                        <li><a class="dropdown-item" href="{{ route('PDFincompetencia', $solicitud->id) }}" target="_blank">Incompetencia</a></li>
-                                                                    @elseif($solicitud->estatus == "Comparecencia")
-                                                                        <li><a class="dropdown-item" href="{{ route('PDFinteres', $solicitud->id) }}" target="_blank">Acta de incomparecencia</a></li>
-                                                                    @elseif($solicitud->estatus == "Reagendada" || $solicitud->estatus == "Confirmado" || $solicitud->estatus == "Desistimiento")
-                                                                        <li><a class="dropdown-item" href="{{ route('PDFnotificacion_solicitante', $solicitud->id) }}" target="_blank">Notificación al solicitante</a></li>
-                                                                        @if(in_array($solicitud->estatus, ['Confirmado', 'Desistimiento']))
-                                                                            <li><a class="dropdown-item" href="{{ route('PDFacuseConfirmada', $solicitud->id) }}" target="_blank">Acuse de solicitud confirmada</a></li>
-                                                                            <li><a class="dropdown-item" href="{{ route('PDFCaratulaInfo', ['tipo' => 'solicitud', 'id' => $solicitud->id]) }}" target="_blank">Formato de Solicitud</a></li>
-                                                                            <li><a class="dropdown-item" href="{{ route('PDFCaratulaInfoConcilio', ['tipo' => 'seguimiento', 'id' => $solicitud->id]) }}" target="_blank">Carátula de Seguimiento</a></li>
-                                                                            <li><a class="dropdown-item" href="{{ route('PDFCaratulaInfoConcilio', ['tipo' => 'caratula', 'id' => $solicitud->id]) }}" target="_blank">Carátula de Solicitud</a></li>
-                                                                        @endif
-                                                                    @elseif($solicitud->estatus == "No conciliacion")
-                                                                        <li><a class="dropdown-item" href="{{ route('PDFno_conciliacion', $solicitud->id) }}" target="_blank">Constancias de no conciliación</a></li>
-                                                                        <li><a class="dropdown-item" data-bs-toggle="modal" data-bs-target="#noConciliacion" data-id="{{ $solicitud->id }}">Constancia de no conciliación</a></li>
-                                                                        <li><a class="dropdown-item" href="{{ route('PDFCaratulaInfoConcilio', ['tipo' => 'seguimiento', 'id' => $solicitud->id]) }}" target="_blank">Carátula de Seguimiento</a></li>
-                                                                        <li><a class="dropdown-item" href="{{ route('PDFCaratulaInfoConcilio', ['tipo' => 'caratula', 'id' => $solicitud->id]) }}" target="_blank">Carátula de Solicitud</a></li>
-                                                                    @elseif(in_array($solicitud->estatus, ['Conciliacion', 'Concluida', 'Reinstalacion']))
-                                                                        @if(isset($solicitud->mostrar_ptu) && $solicitud->mostrar_ptu)
-                                                                            <li><a class="dropdown-item bg-success text-white fw-bold" href="{{ route('PDFconvenioPTU_NO_S', $solicitud->id) }}" target="_blank">Convenio PTU (No Labora)</a></li>
-                                                                        @else
-                                                                            <li>
-                                                                                <a class="dropdown-item btn-convenio-audiencia" 
-                                                                                   data-id="{{ $solicitud->id }}"
-                                                                                   data-base="{{ $solicitud->estatus == 'Reinstalacion' ? route('PDFconvenioreinstalacion', $solicitud->id) : route('PDFconveniosolicitud', $solicitud->id) }}"
-                                                                                   href="{{ $solicitud->estatus == 'Reinstalacion' ? route('PDFconvenioreinstalacion', $solicitud->id) : route('PDFconveniosolicitud', $solicitud->id) }}"
-                                                                                   target="_blank">Convenio</a>
-                                                                            </li>
-                                                                            <li><a class="dropdown-item" href="{{ route('PDFCaratulaInfoConcilio', ['tipo' => 'seguimiento', 'id' => $solicitud->id]) }}" target="_blank">Carátula de Seguimiento</a></li>
-                                                                            <li><a class="dropdown-item" href="{{ route('PDFCaratulaInfoConcilio', ['tipo' => 'caratula', 'id' => $solicitud->id]) }}" target="_blank">Carátula de Solicitud</a></li>
-                                                                        @endif
-                                                                        <li>
-                                                                            <a class="dropdown-item btn-constancia-audiencia" 
-                                                                               data-id="{{ $solicitud->id }}"
-                                                                               data-base="{{ route('PDFcumplimientoTotal', $solicitud->id) }}"
-                                                                               href="{{ route('PDFcumplimientoTotal', $solicitud->id) }}"
-                                                                               target="_blank">Constancia de cumplimiento</a>
-                                                                        </li>
-                                                                    @elseif($solicitud->estatus == "Prevencion")
-                                                                        <li><a class="dropdown-item" href="{{ route('PDFacuse_solicitud', $solicitud->id) }}" target="_blank">Acuse de solicitud</a></li>
-                                                                        <li><a class="dropdown-item" href="{{ route('PDFCaratulaInfo', ['tipo' => 'solicitud', 'id' => $solicitud->id]) }}" target="_blank">Formato de Solicitud</a></li>
-                                                                    @endif
-
-                                                                    <li><button type="button" class="dropdown-item btn-mostrar-registros" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $solicitud->id }}">Citatorios</button></li>
-                                                                </ul>
-                                                            </div>
-                                                        @endif
-                                                    </div>
-                                                </td>
+                                                <th class="text-center text-white" style="color: #ffffff !important;">Folio</th>
+                                                <th class="text-white" style="color: #ffffff !important;">Fecha Captura</th>
+                                                <th class="text-white" style="color: #ffffff !important;">Expediente</th>
+                                                <th class="text-white" style="color: #ffffff !important;">Solicitante</th>
+                                                <th class="text-white" style="color: #ffffff !important;">Teléfono</th>
+                                                <th class="text-white" style="color: #ffffff !important;">Citados</th>
+                                                <th class="text-white" style="color: #ffffff !important;">Actividad Económica</th>
+                                                <th class="text-white" style="color: #ffffff !important;">Tipo Solicitante</th>
+                                                <th class="text-center text-white" style="color: #ffffff !important;">Estatus</th>
+                                                @can('solicitudes_revisar')
+                                                    <th class="text-center text-white" style="color: #ffffff !important;">Revisar</th>
+                                                @endcan
+                                                <th class="text-center text-white" style="width: 14%; color: #ffffff !important;">Documentos</th>
                                             </tr>
-                                        @endforeach
-                                    </tbody>
-                                </table>
-                            </div>
+                                        </thead>
+                                        <tbody class="contenidobusqueda">
+                                            @foreach($solicitudes as $solicitud)
+                                                <tr>
+                                                    <td class="text-center fw-bold">{{ $solicitud->consecutivo }}</td>
+                                                    <td>{{ \Carbon\Carbon::parse($solicitud->fecha)->format('d-m-Y') }}</td>
+                                                    <td class="fw-bold text-primary">{{ $solicitud->NUE }}</td>
+                                                    <td>{{ $solicitud->nombre }}</td>
+                                                    <td>{{ $solicitud->telefono }}</td>
+                                                    <td>{{ $solicitud->lista_citados }}</td>
+                                                    <td>{{ $solicitud->actividad }}</td>
+                                                    <td>
+                                                        @if($solicitud->tipo_solicitud == 1) Trabajador
+                                                        @elseif($solicitud->tipo_solicitud == 2) Patronal
+                                                        @elseif($solicitud->tipo_solicitud == 3) Patronal Colectiva
+                                                        @elseif($solicitud->tipo_solicitud == 4) Sindical
+                                                        @endif
+                                                    </td>
+                                                    <td class="text-center">
+                                                        <span class="badge bg-light text-dark border rounded-pill px-3 py-2 fw-semibold">{{ $solicitud->estatus }}</span>
+                                                    </td>
+                                                    @can('solicitudes_revisar')
+                                                        <td class="text-center">
+                                                            <button type="button"
+                                                                class="btn btn-info btn-sm text-white open-audiencias-modal"
+                                                                data-bs-toggle="modal"
+                                                                data-bs-target="#modalAudiencias"
+                                                                data-id="{{ $solicitud->id }}">
+                                                                <i class="bi bi-eye me-1"></i> Revisar
+                                                            </button>
+                                                        </td>
+                                                    @endcan
+                                                    <td class="text-center">
+                                                        <div class="d-flex flex-column gap-1 align-items-center">
+                                                            @can('solicitudes_subir_documentos')
+                                                                <button type="button" class="btn btn-warning btn-sm text-dark fw-semibold open-expediente-modal w-100" data-bs-toggle="modal" data-bs-target="#expediente" data-id="{{ $solicitud->id }}" style="background-color: #CEA845; border-color: #CEA845; color: #000000 !important;">
+                                                                    <i class="bi bi-upload me-1"></i> Subir Documento
+                                                                </button>
+                                                            @endcan
+
+                                                            @if(in_array($solicitud->estatus, ['Archivada', 'Incompetencia', 'Comparecencia', 'Reagendada', 'No conciliacion', 'Incumplimiento', 'Conciliacion', 'Concluida', 'Reinstalacion', 'Confirmado', 'Desistimiento', 'Prevencion']))
+                                                                <div class="dropdown w-100">
+                                                                    @can('solicitudes_ver_documentos')
+                                                                        <button class="btn btn-secondary btn-sm text-dark fw-semibold dropdown-toggle w-100" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="background-color: #e2e6ea; border-color: #d3d9df; color: #000000 !important;">
+                                                                            Documentos
+                                                                        </button>
+                                                                    @endcan
+                                                                    <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                                                                        <li>
+                                                                            <button type="button" class="dropdown-item btn-cargar-lista-docs" data-id="{{ $solicitud->id }}" data-doc-url="{{ signedDocRoute('VerDocumentosAudiencia', ['id' => $solicitud->id]) }}">
+                                                                                Documentos Digitales
+                                                                            </button>
+                                                                        </li>
+
+                                                                        @if($solicitud->estatus == "Archivada")
+                                                                            <li><a class="dropdown-item" href="{{ route('PDFfalltaInteres', $solicitud->id) }}" target="_blank">Acta de Archivo</a></li>
+                                                                            <li><a class="dropdown-item" href="{{ route('PDFCaratulaInfoConcilio', ['tipo' => 'seguimiento', 'id' => $solicitud->id]) }}" target="_blank">Carátula de Seguimiento</a></li>
+                                                                            <li><a class="dropdown-item" href="{{ route('PDFCaratulaInfoConcilio', ['tipo' => 'caratula', 'id' => $solicitud->id]) }}" target="_blank">Carátula de Solicitud</a></li>
+                                                                        @elseif($solicitud->estatus == "Incompetencia")
+                                                                            <li><a class="dropdown-item" href="{{ route('PDFincompetencia', $solicitud->id) }}" target="_blank">Incompetencia</a></li>
+                                                                        @elseif($solicitud->estatus == "Comparecencia")
+                                                                            <li><a class="dropdown-item" href="{{ route('PDFinteres', $solicitud->id) }}" target="_blank">Acta de incomparecencia</a></li>
+                                                                        @elseif($solicitud->estatus == "Reagendada" || $solicitud->estatus == "Confirmado" || $solicitud->estatus == "Desistimiento")
+                                                                            <li><a class="dropdown-item" href="{{ route('PDFnotificacion_solicitante', $solicitud->id) }}" target="_blank">Notificación al solicitante</a></li>
+                                                                            @if(in_array($solicitud->estatus, ['Confirmado', 'Desistimiento']))
+                                                                                <li><a class="dropdown-item" href="{{ route('PDFacuseConfirmada', $solicitud->id) }}" target="_blank">Acuse de solicitud confirmada</a></li>
+                                                                                <li><a class="dropdown-item" href="{{ route('PDFCaratulaInfo', ['tipo' => 'solicitud', 'id' => $solicitud->id]) }}" target="_blank">Formato de Solicitud</a></li>
+                                                                                <li><a class="dropdown-item" href="{{ route('PDFCaratulaInfoConcilio', ['tipo' => 'seguimiento', 'id' => $solicitud->id]) }}" target="_blank">Carátula de Seguimiento</a></li>
+                                                                                <li><a class="dropdown-item" href="{{ route('PDFCaratulaInfoConcilio', ['tipo' => 'caratula', 'id' => $solicitud->id]) }}" target="_blank">Carátula de Solicitud</a></li>
+                                                                            @endif
+                                                                        @elseif($solicitud->estatus == "No conciliacion")
+                                                                            <li><a class="dropdown-item" href="{{ route('PDFno_conciliacion', $solicitud->id) }}" target="_blank">Constancias de no conciliación</a></li>
+                                                                            <li><a class="dropdown-item" data-bs-toggle="modal" data-bs-target="#noConciliacion" data-id="{{ $solicitud->id }}">Constancia de no conciliación</a></li>
+                                                                            <li><a class="dropdown-item" href="{{ route('PDFCaratulaInfoConcilio', ['tipo' => 'seguimiento', 'id' => $solicitud->id]) }}" target="_blank">Carátula de Seguimiento</a></li>
+                                                                            <li><a class="dropdown-item" href="{{ route('PDFCaratulaInfoConcilio', ['tipo' => 'caratula', 'id' => $solicitud->id]) }}" target="_blank">Carátula de Solicitud</a></li>
+                                                                        @elseif(in_array($solicitud->estatus, ['Conciliacion', 'Concluida', 'Reinstalacion']))
+                                                                            @if(isset($solicitud->mostrar_ptu) && $solicitud->mostrar_ptu)
+                                                                                <li><a class="dropdown-item bg-success text-white fw-bold" href="{{ route('PDFconvenioPTU_NO_S', $solicitud->id) }}" target="_blank">Convenio PTU (No Labora)</a></li>
+                                                                            @else
+                                                                                <li>
+                                                                                    <a class="dropdown-item btn-convenio-audiencia" 
+                                                                                    data-id="{{ $solicitud->id }}"
+                                                                                    data-base="{{ $solicitud->estatus == 'Reinstalacion' ? route('PDFconvenioreinstalacion', $solicitud->id) : route('PDFconveniosolicitud', $solicitud->id) }}"
+                                                                                    href="{{ $solicitud->estatus == 'Reinstalacion' ? route('PDFconvenioreinstalacion', $solicitud->id) : route('PDFconveniosolicitud', $solicitud->id) }}"
+                                                                                    target="_blank">Convenio</a>
+                                                                                </li>
+                                                                                <li><a class="dropdown-item" href="{{ route('PDFCaratulaInfoConcilio', ['tipo' => 'seguimiento', 'id' => $solicitud->id]) }}" target="_blank">Carátula de Seguimiento</a></li>
+                                                                                <li><a class="dropdown-item" href="{{ route('PDFCaratulaInfoConcilio', ['tipo' => 'caratula', 'id' => $solicitud->id]) }}" target="_blank">Carátula de Solicitud</a></li>
+                                                                            @endif
+                                                                            <li>
+                                                                                <a class="dropdown-item btn-constancia-audiencia" 
+                                                                                data-id="{{ $solicitud->id }}"
+                                                                                data-base="{{ route('PDFcumplimientoTotal', $solicitud->id) }}"
+                                                                                href="{{ route('PDFcumplimientoTotal', $solicitud->id) }}"
+                                                                                target="_blank">Constancia de cumplimiento</a>
+                                                                            </li>
+                                                                        @elseif($solicitud->estatus == "Prevencion")
+                                                                            <li><a class="dropdown-item" href="{{ route('PDFacuse_solicitud', $solicitud->id) }}" target="_blank">Acuse de solicitud</a></li>
+                                                                            <li><a class="dropdown-item" href="{{ route('PDFCaratulaInfo', ['tipo' => 'solicitud', 'id' => $solicitud->id]) }}" target="_blank">Formato de Solicitud</a></li>
+                                                                        @endif
+
+                                                                        <li><button type="button" class="dropdown-item btn-mostrar-registros" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $solicitud->id }}">Citatorios</button></li>
+                                                                    </ul>
+                                                                </div>
+                                                            @endif
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            @endcan
                         </div>
                     </div>
                 </div>
@@ -333,6 +343,11 @@
             }
 
             $('#example').DataTable({
+                // Sin colapso de columnas: se prefiere desplazamiento horizontal, que
+                // lo da el .table-responsive de Bootstrap. No se usa scrollX porque
+                // clona el <thead> y necesita la hoja de estilos de DataTables, que
+                // este proyecto no carga.
+                "responsive": false,
                 "destroy": true,
                 "paging": true,
                 "pageLength": 10,
@@ -349,6 +364,18 @@
                     "zeroRecords": "No se encontraron coincidencias en esta página."
                 }
             });
+
+            // Los desplegables de la tabla quedan dentro del contenedor que hace
+            // scroll y este los recortaria. Con la estrategia 'fixed' de Popper el
+            // menu se posiciona contra el viewport y se escapa del recorte.
+            document.querySelectorAll('#example [data-bs-toggle="dropdown"]').forEach(function (boton) {
+                bootstrap.Dropdown.getOrCreateInstance(boton, {
+                    popperConfig: function (config) {
+                        return Object.assign({}, config, { strategy: 'fixed' });
+                    }
+                });
+            });
+
 
             // Modal Citatorios vía AJAX (Bootstrap 5.3 API)
             $(document).on('click', '.btn-mostrar-registros', function() {

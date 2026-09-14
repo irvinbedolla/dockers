@@ -336,6 +336,11 @@
             // Inicialización de las tablas secundarias del historial
             $('.datatable-local').each(function() {
                 $(this).DataTable({
+                    // Sin colapso de columnas: se prefiere desplazamiento horizontal, que
+                    // lo da el .table-responsive de Bootstrap. No se usa scrollX porque
+                    // clona el <thead> y necesita la hoja de estilos de DataTables, que
+                    // este proyecto no carga.
+                    "responsive": false,
                     info: false,
                     ordering: false,
                     paging: true,
