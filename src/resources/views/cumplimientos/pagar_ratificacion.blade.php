@@ -97,16 +97,18 @@
                                                     @endif
                                                 </td>
                                                 <td class="text-center">
-                                                    @if($pago->estatus == "Pagado")
-                                                        @if(!(mb_substr($pago->observaciones, 0, 26, 'UTF-8') === 'Pagado en el cumplimiento '))
-                                                            @if($total == 1)
-                                                                <a class="btn btn-success btn-sm px-3 shadow-sm" href="{{ route('PDFcumplimientoR', $pago->id_solicitud) }}" target="_blank">
-                                                                    <i class="bi bi-file-earmark-pdf me-1"></i> Parcialidad {{ $index + 1 }}
-                                                                </a>
-                                                            @else
-                                                                <a class="btn btn-success btn-sm px-3 shadow-sm" href="{{ route('PDFpagos', $pago->id) }}" target="_blank">
-                                                                    <i class="bi bi-file-earmark-pdf me-1"></i> Parcialidad {{ $index + 1 }}
-                                                                </a>
+                                                    @can('cumplimientos_ver_pdf')
+                                                        @if($pago->estatus == "Pagado")
+                                                            @if(!(mb_substr($pago->observaciones, 0, 26, 'UTF-8') === 'Pagado en el cumplimiento '))
+                                                                @if($total == 1)
+                                                                    <a class="btn btn-success btn-sm px-3 shadow-sm" href="{{ route('PDFcumplimientoR', $pago->id_solicitud) }}" target="_blank">
+                                                                        <i class="bi bi-file-earmark-pdf me-1"></i> Parcialidad {{ $index + 1 }}
+                                                                    </a>
+                                                                @else
+                                                                    <a class="btn btn-success btn-sm px-3 shadow-sm" href="{{ route('PDFpagos', $pago->id) }}" target="_blank">
+                                                                        <i class="bi bi-file-earmark-pdf me-1"></i> Parcialidad {{ $index + 1 }}
+                                                                    </a>
+                                                                @endif
                                                             @endif
                                                         @elseif($pago->estatus == "No pagado")
                                                             <a class="btn btn-info btn-sm text-white px-3 shadow-sm" href="{{ route('PDFincumplimientoRatificacion', $pago->id) }}" target="_blank">
