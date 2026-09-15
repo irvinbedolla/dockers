@@ -850,7 +850,7 @@
                     html += '<div class="col-xs-12 col-sm-12 col-md-12">';
                     html += '<div class="form-group">';
                     html += '<label for="password">Monto a pagar</label>';
-                    html +='<input type="text" class="form-control" name="monto_deduccion[]" required oninput="validarNumero(this)" placeholder="$ Solo números y puntos" >';
+                    html += '<input type="number" step="0.01" class="form-control" name="monto_deduccion[]" required>';
                     html += '<div class="invalid-feedback">';
                     html += 'El monto es obligatorio.';
                     html += '</div> </div> </div>';
