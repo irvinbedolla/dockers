@@ -14546,7 +14546,13 @@ class SeerController extends Controller
                 ->get();
         }
 
-        $duracionSlotMinutos = 75;
+        $duracionSlotMinutos = 30;
+
+        $duracionSlotComodin = 45;
+
+        $duracionSlotLargo = 75;
+
+        $duracionCitaExistenteMinutos = 75;
 
         /* A partir de esta fecha rige el grid "actual" (el que hoy se conoce como "nuevo"). Antes de
         esta fecha se usa el grid legacy (mismo corte que en ObtenerAudiencia y en obtenerAudienciasParte2).
@@ -14554,9 +14560,10 @@ class SeerController extends Controller
         $fechaCorteHorarioLegacy = '2026-08-10';
 
         /* A partir de esta fecha, por sede, rige el horario "nuevo". Mientras una sede no tenga fecha
-        aquí, se queda indefinidamente en el grid "actual". obtenerAudienciasParte3 NUNCA muestra los
-        slots cortos de 30 min (esos solo existen en obtenerAudienciasParte2); aquí lo único que puede
-        cambiar entre "actual" y "nuevo" son las horas de inicio de los slots largos. */
+        aquí, se queda indefinidamente en el grid "actual". Los grids "legacy", "actual" y "nuevo" NUNCA
+        muestran slots cortos (esos solo existen en obtenerAudienciasParte2); el grid "nuevoAlCuadrado"
+        es la excepción: sí incluye los slots cortos 12:15 y 15:30, para que también puedan reagendarse
+        audiencias de rápido desahogo desde este calendario. */
         $fechaCorteHorarioNuevoPorSede = [
             'Morelia' => '2026-10-04',
             'Zitácuaro' => '2026-10-04',
@@ -14567,18 +14574,52 @@ class SeerController extends Controller
         ];
         $fechaCorteHorarioNuevo = $fechaCorteHorarioNuevoPorSede[$sede] ?? null;
 
-        // Horas de inicio del grid legacy (vigente antes de $fechaCorteHorarioLegacy).
-        $horasLegacy = [[9, 0], [10, 15], [11, 30], [12, 45], [14, 0]];
+        // Horarios del grid legacy (vigente antes de $fechaCorteHorarioLegacy).
+        $horariosConfigLegacy = [
+            ['hora' => [9, 0],   'duracion' => $duracionSlotLargo, 'permite_empalme' => true],
+            ['hora' => [10, 15], 'duracion' => $duracionSlotLargo, 'permite_empalme' => true],
+            ['hora' => [11, 30], 'duracion' => $duracionSlotLargo, 'permite_empalme' => true],
+            ['hora' => [12, 45], 'duracion' => $duracionSlotLargo, 'permite_empalme' => true],
+            ['hora' => [14, 0],  'duracion' => $duracionSlotLargo, 'permite_empalme' => true],
+        ];
 
-        // Horas de inicio del grid "actual" (vigente entre $fechaCorteHorarioLegacy y el corte por sede).
-        $horasActual = [[9, 0], [10, 15], [12, 0], [14, 15], [15, 30]];
+        // Horarios del grid "actual" (vigente entre $fechaCorteHorarioLegacy y el corte por sede).
+        $horariosConfigActual = [
+            ['hora' => [9, 0],   'duracion' => $duracionSlotLargo, 'permite_empalme' => true],
+            ['hora' => [10, 15], 'duracion' => $duracionSlotLargo, 'permite_empalme' => true],
+            ['hora' => [12, 0],  'duracion' => $duracionSlotLargo, 'permite_empalme' => true],
+            ['hora' => [14, 15], 'duracion' => $duracionSlotLargo, 'permite_empalme' => true],
+            ['hora' => [15, 30], 'duracion' => $duracionSlotLargo, 'permite_empalme' => true],
+        ];
 
-        /* Horas de inicio de los slots largos del grid "nuevo" (vigente por sede a partir de
-        $fechaCorteHorarioNuevo). Deben coincidir con los horarios largos de $horariosConfigNuevo en
-        obtenerAudienciasParte2 (los slots cortos de 8:30 y 13:15 se excluyen a propósito). */
-        $horasNuevo = [[9, 0], [10, 15], [11, 30], [13, 45], [15, 0]];
+        /* Horarios largos del grid "nuevo" (vigente por sede a partir de $fechaCorteHorarioNuevo).
+        Deben coincidir con los horarios largos de $horariosConfigNuevo en obtenerAudienciasParte2
+        (los slots cortos de 8:30 y 13:15 se excluyen a propósito). */
+        $horariosConfigNuevo = [
+            ['hora' => [9, 0],   'duracion' => $duracionSlotLargo, 'permite_empalme' => true],
+            ['hora' => [10, 15], 'duracion' => $duracionSlotLargo, 'permite_empalme' => true],
+            ['hora' => [11, 30], 'duracion' => $duracionSlotLargo, 'permite_empalme' => true],
+            ['hora' => [13, 45], 'duracion' => $duracionSlotLargo, 'permite_empalme' => true],
+            ['hora' => [15, 0],  'duracion' => $duracionSlotLargo, 'permite_empalme' => true],
+        ];
 
-        $horasNuevoAlCuadrado = [[8, 30], [9, 45], [11, 00], [13, 0],[14, 15]];
+        /* Horarios del grid "nuevo al cuadrado", igual que $horariosConfigNuevoAlCuadrado en
+        obtenerAudienciasParte2: incluye los slots cortos 12:15 (comodín, 45 min) y 15:30 (30 min),
+        ambos sin empalme permitido. */
+        $horariosConfigNuevoAlCuadrado = [
+            ['hora' => [8, 30],  'duracion' => $duracionSlotLargo,   'permite_empalme' => true],
+            ['hora' => [9, 45],  'duracion' => $duracionSlotLargo,   'permite_empalme' => true],
+            ['hora' => [11, 0],  'duracion' => $duracionSlotLargo,   'permite_empalme' => true],
+            ['hora' => [12, 15], 'duracion' => $duracionSlotComodin, 'permite_empalme' => false],
+            ['hora' => [13, 0],  'duracion' => $duracionSlotLargo,   'permite_empalme' => true],
+            ['hora' => [14, 15], 'duracion' => $duracionSlotLargo,   'permite_empalme' => true],
+            ['hora' => [15, 30], 'duracion' => $duracionSlotMinutos, 'permite_empalme' => false],
+        ];
+
+        /* Horas de los slots cortos/comodín del grid "nuevo al cuadrado" cuyas citas YA EXISTENTES se
+        asumen con su duración real (no 75 min) al calcular traslapes contra los slots largos vecinos,
+        igual que en obtenerAudienciasParte2. */
+        $horasSlotCortoNuevoAlCuadrado = ['12:15:00', '15:30:00'];
 
         /* Traemos cada audiencia existente (no agrupada por coincidencia exacta) para poder
         detectar traslapes de horario, incluyendo citas agendadas con el formato de horarios anterior
@@ -14618,34 +14659,39 @@ class SeerController extends Controller
                 } else {
                     $nivelHorario = 'actual';
                 }
-                $horasBase = match ($nivelHorario) {
-                    'legacy' => $horasLegacy,
-                    'nuevo' => $horasNuevo,
-                    'nuevoAlCuadrado' => $horasNuevoAlCuadrado,
-                    default => $horasActual,
+                $horariosConfig = match ($nivelHorario) {
+                    'legacy' => $horariosConfigLegacy,
+                    'nuevo' => $horariosConfigNuevo,
+                    'nuevoAlCuadrado' => $horariosConfigNuevoAlCuadrado,
+                    default => $horariosConfigActual,
+                };
+                $horasSlotCortoVigente = match ($nivelHorario) {
+                    'nuevoAlCuadrado' => $horasSlotCortoNuevoAlCuadrado,
+                    default => [],
                 };
 
-                $horarios = array_map(
-                    fn ($h) => (clone $fecha)->setTime($h[0], $h[1], 0),
-                    $horasBase
-                );
-
-                foreach ($horarios as $horario) {
-                    $slot = $horario;
+                foreach ($horariosConfig as $config) {
+                    $slot = (clone $fecha)->setTime($config['hora'][0], $config['hora'][1], 0);
+                    $duracionSlot = $config['duracion'];
                     $slotStart = $slot->format('Y-m-d\TH:i:s');
-                    $slotFin = (clone $slot)->modify("+{$duracionSlotMinutos} minutes");
+                    $slotFin = (clone $slot)->modify("+{$duracionSlot} minutes");
                     $slotEnd = $slotFin->format('Y-m-d\TH:i:s');
 
                     $audienciasEnSlot = 0;
                     foreach ($audienciasPorFecha[$fechaDia] ?? [] as $horaExistente) {
                         $existenteInicio = new \DateTime($fechaDia . ' ' . $horaExistente);
-                        $existenteFin = (clone $existenteInicio)->modify("+{$duracionSlotMinutos} minutes");
+                        $duracionExistente = ($nivelHorario !== 'legacy' && in_array($horaExistente, $horasSlotCortoVigente, true))
+                            ? $duracionSlotMinutos
+                            : $duracionCitaExistenteMinutos;
+                        $existenteFin = (clone $existenteInicio)->modify("+{$duracionExistente} minutes");
                         // Traslape de intervalos semiabiertos [inicio, fin)
                         if ($existenteInicio < $slotFin && $slot < $existenteFin) {
                             $audienciasEnSlot++;
                         }
                     }
-                    $ocupado = $audienciasEnSlot >= 2;
+                    // Los slots cortos (12:15 y 15:30 en "nuevoAlCuadrado") no permiten empalme: una sola audiencia ya ocupa el horario.
+                    $umbralOcupado = $config['permite_empalme'] ? 2 : 1;
+                    $ocupado = $audienciasEnSlot >= $umbralOcupado;
 
                     $esInhabil = false;
                     $esNoInhabil = false;
