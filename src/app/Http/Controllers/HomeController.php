@@ -8,6 +8,7 @@ use App\Models\User;
 use Spatie\Permission\Models\Role;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Auth, Hash;
 use App\Models\Recepcion;
@@ -298,7 +299,8 @@ class HomeController extends Controller
             return redirect()->route('citas_exito')->with(['success' => true,'folio' => $recepcion->id,'fecha' => $fecha,'hora' => $hora,'delegacion' => $recepcion->delegacion, 'modulo' => $recepcion->lugar_auxiliar]);
         }
         catch (\Exception $e) {
-            return redirect()->route('citas')->with('error', 'No se ha podrido completar tu cita.'); 
+            Log::error('Error al guardar turno público: '.$e->getMessage(), ['exception' => $e, 'data' => $data_insertar]);
+            return back()->withInput()->with('error', 'No se ha podido completar tu cita. Intenta nuevamente.');
         }
         
     }

@@ -169,7 +169,7 @@
                                         <div class="col-xs-12 col-sm-12 col-md-4"><br>
                                             <div class="form-group">
                                                 <label for="name">Especifique el monto que quedará señalado para el concepto de pena convencional</label>
-                                                <input type="number" step="0.001" name="pena_convencional" class="form-control"  value="<?=number_format($montoPena, 2)?>" oninput="this.value" placeholder="Ingrese solo 3 decimales" > 
+                                                <input type="number" step="0.001" name="pena_convencional" class="form-control" value="<?=number_format($montoPena, 3, '.', '')?>" placeholder="Ingrese solo 3 decimales"> 
                                                 <div class="invalid-feedback">
                                                     El campo es obligatorio.
                                                 </div>
@@ -568,7 +568,7 @@
                 html += '<div class="col-xs-12 col-sm-12 col-md-6">';
                 html += '<div class="form-group">';
                 html += '<label for="password">Monto a pagar</label>';
-                html +='<input type="text" class="form-control" name="monto_pago[]" oninput="validarNumero(this)" placeholder="$">';
+                html += '<input type="number" step="0.01" class="form-control" name="monto_pago[]" placeholder="$">';
                 html += '<div class="invalid-feedback">El monto es obligatorio.</div>';
                 html += '</div> </div>';
 
@@ -635,7 +635,7 @@
             html += '<div class="form-group">';
             //Monto a pagar
             html += '<label for="password">Monto a pagar</label>';
-            html += '<input type="text" class="form-control" name="monto_pagos[]" required oninput="validarNumero(this)" >';
+            html += '<input type="number" step="0.01" class="form-control" name="monto_pagos[]" required>';
             html += '<div class="invalid-feedback">La Dirección es obligatoria.</div>';
             html += '</div></div>';
             // Marcar este Cumplimiento como el designado para la Reinstalación (solo visible si la conclusión es "Reinstalación")
@@ -1750,7 +1750,7 @@
             html += '<div class="col-xs-12 col-sm-12 col-md-12">';
             html += '<div class="form-group">';
             html += '<label for="password">Monto a pagar</label>';
-            html +='<input type="text" class="form-control" name="monto_deduccion[]" oninput="validarNumero(this)" placeholder="$ Solo números y puntos" value="'+ (montoVal ? String(montoVal).replace(/"/g,'&quot;') : '') +'">';
+            html +='<input type="text" class="form-control" step="0.01" name="monto_deduccion[]" oninput="validarNumero(this)" placeholder="$ Solo números y puntos" value="'+ (montoVal ? String(montoVal).replace(/"/g,'&quot;') : '') +'">';
             html += '<div class="invalid-feedback">El monto es obligatorio.</div> </div> </div>';
             html += '<div class="input-group-append"><button class="removeRow3 btn btn-danger" type="button">Borrar</button></div>';
             html += '</div>';
@@ -1786,7 +1786,7 @@
             html += '<div class="col-xs-12 col-sm-12 col-md-12">';
             html += '<div class="form-group">';
             html += '<label for="password">Monto a pagar</label>';
-            html += '<input type="text" class="form-control" name="monto_pagos[]" required oninput="validarNumero(this)" value="'+ (montoVal ? String(montoVal).replace(/"/g,'&quot;') : '') +'">';
+            html += '<input type="text" class="form-control" step="0.01" name="monto_pagos[]" required oninput="validarNumero(this)" value="'+ (montoVal ? String(montoVal).replace(/"/g,'&quot;') : '') +'">';
             html += '<div class="invalid-feedback">La Dirección es obligatoria.</div>';
             html += '</div></div>';
             html += '<div class="col-xs-12 col-sm-12 col-md-12">';

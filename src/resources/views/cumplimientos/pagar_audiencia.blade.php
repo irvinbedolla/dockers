@@ -95,16 +95,17 @@
                                                                 $totalRegistros = $cumplimientos->count();
                                                             @endphp
 
-                                                        @if($pago->estatus == "Pagado")
-                                                            @if(!(mb_substr($pago->observaciones, 0, 26, 'UTF-8') === 'Pagado en el cumplimiento '))
-                                                                @if($totalRegistros == 1)
-                                                                    <a class="btn btn-success btn-sm text-white" href="{{ route('PDFcumplimientoParcial', $pago->id) }}" target="_blank">
-                                                                        <i class="bi bi-file-earmark-pdf me-1"></i> Parcialidad {{ $index + 1 }}
-                                                                    </a>    
-                                                                @else
-                                                                    <a class="btn btn-success btn-sm text-white" href="{{ route('PDFcumplimientoParcial', $pago->id) }}" target="_blank">
-                                                                        <i class="bi bi-file-earmark-pdf me-1"></i> Parcialidad {{ $index + 1 }}
-                                                                    </a>
+                                                            @if($pago->estatus == "Pagado")
+                                                                @if(!(mb_substr($pago->observaciones, 0, 26, 'UTF-8') === 'Pagado en el cumplimiento '))
+                                                                    @if($totalRegistros == 1)
+                                                                        <a class="btn btn-success btn-sm text-white" href="{{ route('PDFcumplimientoParcial', $pago->id) }}" target="_blank">
+                                                                            <i class="bi bi-file-earmark-pdf me-1"></i> Parcialidad {{ $index + 1 }}
+                                                                        </a>    
+                                                                    @else
+                                                                        <a class="btn btn-success btn-sm text-white" href="{{ route('PDFcumplimientoParcial', $pago->id) }}" target="_blank">
+                                                                            <i class="bi bi-file-earmark-pdf me-1"></i> Parcialidad {{ $index + 1 }}
+                                                                        </a>
+                                                                    @endif
                                                                 @endif
                                                             @elseif($pago->estatus == "Pagado con pena convencional")
                                                                 <a class="btn btn-success btn-sm text-white" href="{{ route('PDFcumplimientoParcial', $pago->id) }}" target="_blank">
@@ -117,7 +118,7 @@
                                                             @elseif($pago->estatus == "Incomparecencia trabajador")
                                                                 <a class="btn btn-info btn-sm text-white" href="{{ route('PDFIncomparecenciaCumplimiento', $pago->id) }}" target="_blank"><i class="bi bi-file-earmark-pdf me-1"></i> Parcialidad {{ $index + 1 }}</a>
                                                             @endif
-                                                        @endif
+                                                        
                                                         @endcan
                                                     </td>
                                                 </tr>
