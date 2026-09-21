@@ -5491,11 +5491,16 @@ class SeerController extends Controller
 
             // Diccionario de mapeo de salas directo
             $salasMapeo = [
-                45 => "Sala 2", 39 => "Sala 3", 14 => "Sala 4", 42 => "Sala 5",
-                38 => "Sala 6", 54 => "Sala 7", 36 => "Sala 8", 2506 => "Sala 8",
-                35 => "Sala 9", 41 => "Sala 10", 2437 => "Sala 11", 2438 => "Sala 12"
+                45 => "Sala 1", 14 => "Sala 2", 38 => "Sala 3", 42 => "Sala 4",
+                54 => "Sala 6", 36 => "Sala 7", 2506 => "Sala 1", 35 => "Sala 2",
+                41 => "Sala 3", 2437 => "Sala 1", 2438 => "Sala 2"
             ];
-            $sala = $salasMapeo[(int)$Audiencia[3]] ?? "Pendiente";
+
+            if($delegacion->delegacion == "Sahuayo" || $delegacion->delegacion == "Zitácuaro" || $delegacion->delegacion == "Lázaro Cárdenas"){
+                $sala = "Sala Única";
+            } else {
+                $sala = $salasMapeo[(int)$Audiencia[3]] ?? "Pendiente";
+            }
 
             // Cambiado a un formato limpio usando Carbon para evitar discrepancias de zona horaria
             $fecha_audiencia = Carbon::parse($Audiencia[0])->addDays(7)->toDateString();
