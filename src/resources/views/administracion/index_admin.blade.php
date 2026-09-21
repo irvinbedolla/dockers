@@ -26,28 +26,28 @@
             'icono'  => 'bi-arrow-counterclockwise',
             'titulo' => 'Retrocesos',
             'texto'  => 'Regresar un expediente de etapa.',
-            'roles'  => ['Super Usuario', 'Delegado'],
+            'roles'  => ['Super Usuario', 'Delegado', 'Enlace'],
         ],
         [
             'ruta'   => 'configuracion_borrar_cumpli',
             'icono'  => 'bi-trash3',
             'titulo' => 'Borrar cumplimientos',
             'texto'  => 'Eliminar cumplimientos capturados.',
-            'roles'  => ['Super Usuario', 'Delegado'],
+            'roles'  => ['Super Usuario'],
         ],
         [
             'ruta'   => 'cambio_fecha_audiencia',
             'icono'  => 'bi-calendar-event',
             'titulo' => 'Cambiar fecha de audiencia',
             'texto'  => 'Reprogramar una audiencia agendada.',
-            'roles'  => ['Super Usuario', 'Delegado'],
+            'roles'  => ['Super Usuario', 'Delegado', 'Enlace'],
         ],
         [
             'ruta'   => 'cambio_fecha_cumplimiento',
             'icono'  => 'bi-cash-coin',
             'titulo' => 'Cambiar fecha de cumplimiento',
             'texto'  => 'Reprogramar un cumplimiento agendado.',
-            'roles'  => ['Super Usuario', 'Delegado'],
+            'roles'  => ['Super Usuario', 'Delegado', 'Enlace'],
         ]
     ];
 

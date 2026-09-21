@@ -112,9 +112,15 @@
                                                                         @csrf
                                                                         <input type="hidden" name="motivo">
                                                                         @can('retroceso_ratificacion_crear')
-                                                                            <button type="submit" class="btn btn-sm btn-danger text-white shadow-sm">
-                                                                                <i class="bi bi-arrow-counterclockwise"></i> Retroceso
-                                                                            </button>
+                                                                            @if(!(\Carbon\Carbon::parse($folio['fecha'])->isToday()) && !auth()->user()->hasRole('Super Usuario'))
+                                                                                <button type="submit" class="btn btn-sm btn-danger text-white shadow-sm" disabled>
+                                                                                    <i class="bi bi-arrow-counterclockwise"></i> Retroceso
+                                                                                </button>
+                                                                            @else
+                                                                                <button type="submit" class="btn btn-sm btn-danger text-white shadow-sm">
+                                                                                    <i class="bi bi-arrow-counterclockwise"></i> Retroceso
+                                                                                </button>
+                                                                            @endif
                                                                         @endcan
                                                                     </form>
                                                                 @else
