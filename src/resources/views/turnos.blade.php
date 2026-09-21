@@ -216,11 +216,18 @@
                     </div>
                     <div class="card-body p-4"> 
 
+                            @if(session('error'))
+                                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                    {{ session('error') }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                </div>
+                            @endif
+
                             <!--Se realiza el envío de datos con formulario de Laravel Collective-->
                             <form class='needs-validation novalidate' id='form_roles' method='POST' action="{{route('turnos_publico')}}">
                                 @csrf
                                 <div id="datos_formulario">
-                                
+
                                 <!-- SECCIÓN 1: DATOS DEL TRABAJADOR -->
                                 <div class="section-title-banner mt-3">
                                     <i class="bi bi-border-width me-2"></i>1. Datos Generales

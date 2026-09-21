@@ -8173,12 +8173,15 @@ class SeerController extends Controller
         $horasActual = [[9, 0], [10, 15], [12, 0], [14, 15], [15, 30]];
         $horasNuevo = [[9, 0], [10, 15], [11, 30], [13, 45], [15, 0]];
         $horasNuevoAlCuadrado = [[8, 30], [9, 45], [11, 0], [13, 0], [14, 15]];
+        $horasNuevoAlCuadradoZitacuaro = [[9, 45], [11, 0], [13, 0], [14, 15]];
 
         if ($fechaDia < $fechaCorteHorarioLegacy) {
             $horasBase = $horasLegacy;
         } elseif ($fechaCorteHorarioNuevo !== null && $fechaDia >= $fechaCorteHorarioNuevo) {
             if(($oficina == 'Zamora' || $oficina == 'Sahuayo') && $fechaDia < '2026-10-11'){
                 $horasBase = $horasNuevo;
+            } else if ($oficina == 'Zitácuaro'){
+                $horasBase = $horasNuevoAlCuadradoZitacuaro;
             } else {
                 $horasBase = $horasNuevoAlCuadrado;
             }
