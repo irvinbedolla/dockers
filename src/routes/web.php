@@ -193,7 +193,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
      |-- (Gestión de Roles, Usuarios y Configuraciones Globales de SiConcilio)
      |*/
 
-    Route::middleware(['role:Super Usuario|Administrador|Delegado'])->group(function () {
+    Route::middleware(['role:Super Usuario|Administrador|Delegado|Enlace'])->group(function () {
         // Configuración Avanzada de Sedes y Retrocesos de Estatus
         Route::get('administracion/configuracion',          [AdministracionController::class, 'configuracion'])->name('configuracion');
         Route::get('administracion/sedes',                  [AdministracionController::class, 'configuracion_sedes'])->name('configuracion_sedes');
@@ -415,7 +415,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     /*
      |-- RETROCESOS (acciones destructivas: solo mandos)
      |*/
-    Route::middleware(['role:Super Usuario|Administrador|Delegado'])->group(function () {
+    Route::middleware(['role:Super Usuario|Administrador|Delegado|Enlace'])->group(function () {
         Route::get('/ratificaciones/retrocesos',             [TurnosController::class, 'index_retroceso'])->name('index_retroceso');
 
         Route::get('/ratificaciones/retroceso',             [TurnosController::class, 'retroceso_ratificacion_index'])->name('retroceso_ratificacion');
