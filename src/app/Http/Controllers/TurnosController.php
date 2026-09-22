@@ -2093,7 +2093,7 @@ class TurnosController extends Controller
      */
     private function nombresSedesPermitidas($user): ?array
     {
-        if (!$user->hasRole('Delegado')) {
+        if (!$user->hasRole('Delegado') && !$user->hasRole('Enlace')) {
             return null;
         }
 

@@ -850,7 +850,7 @@
                     html += '<div class="col-xs-12 col-sm-12 col-md-12">';
                     html += '<div class="form-group">';
                     html += '<label for="password">Monto a pagar</label>';
-                    html += '<input type="number" step="0.01" class="form-control" name="monto_pagos[]" required>';
+                    html += '<input type="number" step="0.01" class="form-control" name="monto_deduccion[]" required>';
                     html += '<div class="invalid-feedback">';
                     html += 'El monto es obligatorio.';
                     html += '</div> </div> </div>';
@@ -1620,13 +1620,13 @@
 
                             const slotFin = info.event.end ? new Date(info.event.end) : null;
                             const duracionSlotMin = slotFin ? (slotFin.getTime() - slot.getTime()) / 60000 : null;
-                            const esHorarioCorto = duracionSlotMin !== null && duracionSlotMin <= 30;
+                            const esHorarioCorto = duracionSlotMin !== null && duracionSlotMin <= 45;
 
                             if (esHorarioCorto && window.Swal && typeof Swal.fire === 'function') {
                                 Swal.fire({
                                     icon: 'warning',
                                     title: '¡Aviso importante!',
-                                    html: 'El horario seleccionado tiene una duración máxima de <b>30 minutos</b>.' +
+                                    html: 'El horario seleccionado tiene una duración máxima de <b>' + duracionSlotMin + ' minutos</b>.' +
                                         '<br><br>Se sugiere utilizar este espacio para audiencias de <b>rápido desahogo</b>.' +
                                         '<br><br>¿Desea <b>continuar</b>?',
                                 });

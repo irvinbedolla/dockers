@@ -101,7 +101,7 @@
                                                                 </ul>
                                                             @endcan
                                                         @endif     
-                                                        @if($notificacion->estatus === "No notificada" || $notificacion->estatus === "Notificada en Audiencia")
+                                                        @if($notificacion->estatus === "No notificada" || $notificacion->estatus === "Notificada en Audiencia" || $notificacion->estatus === "Exitosa por Instructivo")
                                                             @can('notificaciones_ver_documento')
                                                                 <button class="btn btn-primary dropdown-toggle" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
                                                                     Documentos
