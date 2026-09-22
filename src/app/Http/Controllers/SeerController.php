@@ -18810,6 +18810,8 @@ class SeerController extends Controller
                 ->exists();     
                     
             $monto = \DB::table('concepto_pago')->where('id_solicitud', $id)->where('tipo_pago','Audiencia')->sum('monto');
+            $deducciones = \DB::table('deducciones')->where('id_solicitud', $id)->where('tipo_pago','Audiencia')->sum('monto');
+            $monto -= $deducciones;
             $conciliadores = SeerPerConciliador::where('id_solicitud', $id)->first();
             if($conciliadores?->fecha)
                 $solicitud->dias = Carbon::parse($solicitud->fecha_confirmacion)->diffInDays(Carbon::parse($conciliadores->fecha));
@@ -18871,6 +18873,8 @@ class SeerController extends Controller
                 $ratificacion->dias = ' ';
         $pagos = Pagos::where('id_solicitud', $id)->where('tipo_pago','Ratificacion')->get();
         $monto = \DB::table('concepto_pago')->where('id_solicitud', $id)->where('tipo_pago','Ratificación')->sum('monto');
+        $deducciones = \DB::table('deducciones')->where('id_solicitud', $id)->where('tipo_pago','Ratificación')->sum('monto');
+        $monto -= $deducciones;
         $ratificacion->nombre_auxiliar = User::where('id', $ratificacion->user_id)->pluck('name')->first();
         $html = view('PDF/CaratulaConcilioR', compact('id','ratificacion','abogado','conciliador','pagos','monto'))->render();
         
