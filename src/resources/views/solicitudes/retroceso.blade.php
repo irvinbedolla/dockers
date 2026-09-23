@@ -119,6 +119,7 @@
                                                                           data-pagos="{{ $folio['pagos'] }}"
                                                                           data-pagados="{{ $folio['pagados'] }}">
                                                                         @csrf
+                                                                        <input type="hidden" name="motivo">
                                                                         <button type="submit" class="btn btn-sm btn-danger text-white shadow-sm">
                                                                             <i class="bi bi-arrow-counterclockwise"></i> Retroceso
                                                                         </button>
@@ -200,6 +201,7 @@
 </div>
 
 @section('scripts')
+@include('retrocesos._motivo')
 <script>
     document.addEventListener('DOMContentLoaded', function () {
 
@@ -272,12 +274,12 @@
                         confirmButtonColor: '#dc3545',
                         confirmButtonText: 'Sí, aplicar retroceso',
                         cancelButtonText: 'Cancelar',
-                        closeOnConfirm: true
+                        closeOnConfirm: false
                     }, function (isConfirm) {
-                        if (isConfirm) { form.submit(); }
+                        if (isConfirm) { pedirMotivoRetroceso(form, nue); }
                     });
                 } else {
-                    if (confirm(texto + '\n¿Proceder?')) { form.submit(); }
+                    if (confirm(texto + '\n¿Proceder?')) { pedirMotivoRetroceso(form, nue); }
                 }
             });
         });
