@@ -11,6 +11,13 @@
         <div class="section-body">
             <div class="row">
                 <div class="col-lg-12">
+                    @if (session('success'))
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            {{ session('success') }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+                        </div>
+                    @endif
+
                     <div class="card shadow-sm border-0">
                         <div class="card-body p-4">
                             {{-- La tabla estaba envuelta en una comprobacion del
@@ -29,6 +36,7 @@
                                             <th class="text-white" style="color: #ffffff !important;">E-mail</th>
                                             <th class="text-white" style="color: #ffffff !important;">Rol</th>
                                             <th class="text-white" style="color: #ffffff !important;">Delegación</th>
+                                            <th class="text-center text-white" style="width: 12%; color: #ffffff !important;">Estatus</th>
                                             <th class="text-center text-white" style="width: 15%; color: #ffffff !important;">Acciones</th>
                                         </tr>
                                     </thead>
@@ -46,6 +54,38 @@
                                                     @endif
                                                 </td>
                                                 <td>{{ $usuario->delegacion }}</td>
+                                                {{-- data-order y data-search le dicen a DataTables que ordene
+                                                     y busque por el valor y no por el texto de la celda: dentro
+                                                     del <select> viven las dos opciones, así que sin esto todas
+                                                     las filas contienen "Activo" y "Inactivo" a la vez. --}}
+                                                <td class="text-center"
+                                                    data-order="{{ $usuario->estatus }}"
+                                                    data-search="{{ $usuario->estatus }}">
+                                                    @can('usuarios_editar')
+                                                        @if ((int) $usuario->id === (int) auth()->id())
+                                                            {{-- La cuenta propia no lleva select: desactivarse a uno
+                                                                 mismo deja fuera en el siguiente request. --}}
+                                                            <span class="badge bg-success rounded-pill px-3 py-2 fw-normal">Activo</span>
+                                                            <div class="form-text">Tu cuenta</div>
+                                                        @else
+                                                            <form method="POST" action="{{ route('usuarios_estatus', $usuario->id) }}" class="mb-0">
+                                                                @csrf
+                                                                <input type="hidden" name="_method" value="PATCH">
+                                                                <select name="estatus"
+                                                                        class="form-select form-select-sm estatus-select @if($usuario->estatus === 'Activo') es-activo @else es-inactivo @endif"
+                                                                        aria-label="Estatus de {{ $usuario->name }}"
+                                                                        onchange="this.form.submit()">
+                                                                    <option value="Activo" @selected($usuario->estatus === 'Activo')>Activo</option>
+                                                                    <option value="Inactivo" @selected($usuario->estatus === 'Inactivo')>Inactivo</option>
+                                                                </select>
+                                                            </form>
+                                                        @endif
+                                                    @else
+                                                        <span class="badge rounded-pill px-3 py-2 fw-normal @if($usuario->estatus === 'Activo') bg-success @else bg-secondary @endif">
+                                                            {{ $usuario->estatus }}
+                                                        </span>
+                                                    @endcan
+                                                </td>
                                                 <td>
                                                     <div class="d-flex justify-content-center gap-2">
                                                         @can('usuarios_editar')
@@ -83,6 +123,17 @@
         <div class="loader"></div>
     </div>
 @endpush
+
+@section('page_css')
+    <style>
+        /* El color no es el único indicio: el propio texto del select dice
+           Activo o Inactivo. El fondo sólo ayuda a barrer la columna de un
+           vistazo. */
+        .estatus-select { min-width: 108px; font-weight: 600; }
+        .estatus-select.es-activo   { color: #1B5E3F; border-color: #A8CFBC; background-color: #F1F8F4; }
+        .estatus-select.es-inactivo { color: #7A4A42; border-color: #E0C3BD; background-color: #FBF4F2; }
+    </style>
+@endsection
 
 @section('scripts')
     <script src="{{ asset('assets/js/usuarios/usuarios.js') }}"></script>

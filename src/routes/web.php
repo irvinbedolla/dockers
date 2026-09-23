@@ -210,6 +210,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/administracion/edit/{id}',             [AdministracionController::class, 'edit'])->name('administrador_usuarios_edit');
         Route::patch('/administracion/update/{post}',       [AdministracionController::class, 'update'])->name('usuarios_update');
         Route::delete('/administracion/destroy/{id}',       [AdministracionController::class, 'destroy'])->name('usuarios_destroy');
+        Route::patch('/administracion/usuarios/{id}/estatus', [AdministracionController::class, 'cambiarEstatus'])->name('usuarios_estatus'); //activar o desactivar desde el listado
         Route::get('/administracion/borrarCumplimientos',   [AdministracionController::class, 'consular_cumplimientos'])->name('configuracion_borrar_cumpli');
         Route::post('/administracion/borrarCumplimiento',   [AdministracionController::class, 'borrar_cumplimeinto'])->name('borrar_cumplimeinto');
         Route::delete('/administracion/borrar/{id}',        [AdministracionController::class, 'destroy_cumplimientoA'])->name('borrar_cumplimeintoA');

@@ -1019,6 +1019,42 @@ class AdministracionController extends Controller{
         return view('administracion.index_usuario', compact('usuarios'));
     }
 
+    /**
+     * Activa o desactiva una cuenta desde el listado.
+     *
+     * Desactivar no borra nada: la cuenta deja de poder entrar -LoginRequest
+     * rechaza estatus Inactivo- y sale de los tableros del Inicio, que ya
+     * filtran por activas. Se puede revertir con el mismo select.
+     */
+    public function cambiarEstatus(Request $request, $id)
+    {
+        // La vista ya esconde el select sin este permiso, pero la ruta sólo
+        // pide el rol: sin esto, un Delegado podría mandar el PATCH a mano.
+        abort_unless(auth()->user()->can('usuarios_editar'), 403);
+
+        $this->validate($request, [
+            'estatus' => 'required|in:Activo,Inactivo',
+        ], [
+            'estatus.required' => 'Falta el estatus.',
+            'estatus.in'       => 'El estatus no es válido.',
+        ]);
+
+        $user = User::findOrFail($id);
+
+        // Nadie se desactiva a sí mismo: el siguiente request lo dejaría
+        // fuera y no habría manera de volver a entrar a deshacerlo.
+        if ((int) $user->id === (int) auth()->id() && $request->input('estatus') === 'Inactivo') {
+            return back()->with('error', 'No puedes desactivar tu propia cuenta.');
+        }
+
+        $user->estatus = $request->input('estatus');
+        $user->save();
+
+        $verbo = $user->estatus === 'Activo' ? 'activada' : 'desactivada';
+
+        return back()->with('success', "Cuenta de {$user->name} {$verbo}.");
+    }
+
     public function edit($id)
     {
         $user = User::find($id);
