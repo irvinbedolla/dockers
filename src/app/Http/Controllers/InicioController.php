@@ -3,6 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Support\AgendaContexto;
+use App\Support\ConveniosDelMes;
+use App\Support\ConveniosPagados;
+use App\Support\TablaPosiciones;
+use App\Support\TasaConciliacion;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -26,10 +30,21 @@ class InicioController extends Controller
         $usuario  = auth()->user();
         $userRole = $usuario->roles->pluck('name')->all();
 
+        // Las tarjetas de estadísticas las ven todos los roles, así que se
+        // resuelven antes de la bifurcación.
+        $convenios    = ConveniosPagados::porSede();
+        $conveniosMes = ConveniosDelMes::resumen();
+        $tasaConciliacion = TasaConciliacion::resumen();
+        $posiciones       = TablaPosiciones::resumen();
+
         if (in_array('Directivo', $userRole, true)) {
             return view('inicio.index', [
                 'usuario'      => $usuario,
                 'userRole'     => $userRole,
+                'convenios'    => $convenios,
+                'conveniosMes' => $conveniosMes,
+                'tasaConciliacion' => $tasaConciliacion,
+                'posiciones'       => $posiciones,
                 'resumen'      => $this->resumenDirectivo(),
                 'resumenSedes' => $this->resumenPorSedeDetallado(),
             ]);
@@ -37,7 +52,7 @@ class InicioController extends Controller
 
         ['sedes' => $sedes, 'conciliadores' => $conciliadores] = AgendaContexto::para($usuario);
 
-        return view('inicio.index', compact('usuario', 'userRole', 'sedes', 'conciliadores'));
+        return view('inicio.index', compact('usuario', 'userRole', 'convenios', 'conveniosMes', 'tasaConciliacion', 'posiciones', 'sedes', 'conciliadores'));
     }
 
     /**

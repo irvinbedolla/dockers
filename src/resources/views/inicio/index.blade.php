@@ -64,6 +64,10 @@
                 <h2>Hola, {{ $nombre }}</h2>
                 <p>¡Bienvenid@!</p>
             </div>
+
+            {{-- Estadísticas para todos los roles: va antes de la bifurcación
+                 de abajo, que es la que separa al Directivo del resto. --}}
+            @include('inicio._tarjetas')
         </div>
 
         @if(in_array('Directivo', $userRole))
