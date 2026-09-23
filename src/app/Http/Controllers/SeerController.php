@@ -2037,15 +2037,70 @@ class SeerController extends Controller
             })
             ->select(
                 'seer_general.delegacion', // Campo para agrupar por sede
-                'municipios.nombre as municipio', 
+                'municipios.id as municipio_id',
+                'municipios.nombre as municipio',
                 DB::raw('COUNT(seer_general.id) as total_solicitudes')
             )
             ->groupBy('seer_general.delegacion', 'municipios.id', 'municipios.nombre')
-            ->orderByRaw("FIELD(seer_general.delegacion, 'Morelia', 'Zitácuaro', 'Uruapan', 'Lázaro Cárdenas', 'Zamora', 'Sahuayo') ASC")
-            ->orderBy('municipios.nombre', 'asc')
             ->get();
 
-        $agrupados = $solicutudes_minicipio->groupBy('delegacion');
+        // Primer citado (menor id) de cada solicitud cuyo municipio sea de Michoacán
+        $primerCitadoMichoacan = DB::table('seer_citados as sc')
+            ->join('municipios as mc', 'sc.municipio_citado', '=', 'mc.id')
+            ->where('mc.estado', "=", 16)
+            ->select('sc.id_solicitud', DB::raw('MIN(sc.id) as id_citado'))
+            ->groupBy('sc.id_solicitud');
+
+        $solicitudes_municipio_empleo = DB::table('seer_general')
+            ->joinSub($primerCitadoMichoacan, 'pc', 'pc.id_solicitud', '=', 'seer_general.id')
+            ->join('seer_citados', 'seer_citados.id', '=', 'pc.id_citado')
+            ->join('municipios', 'seer_citados.municipio_citado', '=', 'municipios.id')
+            ->whereBetween('seer_general.fecha', [$fecha_inicial, $fecha_final])
+            ->when($sedesPermitidas, function ($q) use ($sedesPermitidas) {
+                return $q->whereIn('seer_general.delegacion', $sedesPermitidas);
+            })
+            ->select(
+                'seer_general.delegacion',
+                'municipios.id as municipio_id',
+                'municipios.nombre as municipio',
+                DB::raw('COUNT(seer_general.id) as total_solicitudes')
+            )
+            ->groupBy('seer_general.delegacion', 'municipios.id', 'municipios.nombre')
+            ->get();
+
+        // Combinar ambos conteos por delegación y municipio
+        $filas = [];
+        foreach ($solicutudes_minicipio as $row) {
+            $filas[$row->delegacion.'|'.$row->municipio_id] = (object) [
+                'delegacion'         => $row->delegacion,
+                'municipio'          => $row->municipio,
+                'total_solicitante'  => (int) $row->total_solicitudes,
+                'total_empleo'       => 0,
+            ];
+        }
+        foreach ($solicitudes_municipio_empleo as $row) {
+            $key = $row->delegacion.'|'.$row->municipio_id;
+            if (!isset($filas[$key])) {
+                $filas[$key] = (object) [
+                    'delegacion'         => $row->delegacion,
+                    'municipio'          => $row->municipio,
+                    'total_solicitante'  => 0,
+                    'total_empleo'       => 0,
+                ];
+            }
+            $filas[$key]->total_empleo = (int) $row->total_solicitudes;
+        }
+
+        $ordenSedes = ['Morelia', 'Zitácuaro', 'Uruapan', 'Lázaro Cárdenas', 'Zamora', 'Sahuayo'];
+        usort($filas, function ($a, $b) use ($ordenSedes) {
+            $posA = array_search($a->delegacion, $ordenSedes);
+            $posB = array_search($b->delegacion, $ordenSedes);
+            $posA = $posA === false ? -1 : $posA;
+            $posB = $posB === false ? -1 : $posB;
+            return [$posA, $a->municipio] <=> [$posB, $b->municipio];
+        });
+
+        $agrupados = collect($filas)->groupBy('delegacion');
 
         $pdf = \PDF::loadView('PDF/Estadisticas/reporteMunicipios', compact('agrupados'));
         return $pdf->stream('Reporte_municipio.pdf');
