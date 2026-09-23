@@ -529,7 +529,7 @@
                                             <div class="col-xs-12 col-sm-12 col-md-3">
                                                 <div class="form-group">
                                                     <label for="name">Monto total del convenio a pagar <span style="color:red;">(*)</span></label>
-                                                    <input type="number" maxlength="8" min="0" name="monto" class="form-control soloMontos" oninput="this.value = this.value.toUpperCase(); if(this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);" value="<?=$solicitud["monto"];?>" required>
+                                                    <input type="number" maxlength="12" min="0" step="0.001" name="monto" class="form-control soloMontos" oninput="let partes = this.value.split('.'); if(partes[1] && partes[1].length > 3) this.value = partes[0] + '.' + partes[1].slice(0, 3); if(this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);" value="<?=$solicitud["monto"];?>" required>
                                                     <div class="invalid-feedback">
                                                         El campo monto es obligatorio.
                                                     </div>
@@ -595,6 +595,20 @@
                                                 <div class="form-group">
                                                     <label for="name">Hora de ratificación <span style="color:red;">(*)</span></label>
                                                     <input type="time" class="form-control" name="hora" oninput="this.value = this.value.toUpperCase()" value="<?=$solicitud["hora"];?>"required> 
+                                                </div>
+                                            </div>
+                                            <div class="col-xs-12 col-sm-6 col-md-4">
+                                                <div class="form-group"><br>
+                                                    <label for="password">Conciliador</label>
+                                                    <select class="form-control" name="conciliador_id" {{ in_array($solicitud->estatus, ['Concluida', 'Concluida Pagos', 'Incumplimiento']) ? 'required' : '' }}>
+                                                        <option value="">Seleccione</option>
+                                                        @foreach($conciliadores as $con)
+                                                            <option value="{{$con['id']}}" {{ (string) old('conciliador_id', $solicitud->id_conciliador) === (string) $con['id'] ? 'selected' : '' }}>{{$con['name']}}</option>
+                                                        @endforeach
+                                                    </select>
+                                                    <div class="invalid-feedback">
+                                                        El conciliador es obligatorio.
+                                                    </div>
                                                 </div>
                                             </div>
                                             <div class="modal-footer">
