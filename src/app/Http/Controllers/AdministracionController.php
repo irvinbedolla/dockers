@@ -36,6 +36,7 @@ use App\Models\Audiencias;
 use App\Models\SeerSolicitante;
 use App\Models\SeerCitados;
 use App\Models\PermisosConciliador;
+use App\Services\RetrocesoRecorder;
 use Carbon\CarbonPeriod;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -240,15 +241,25 @@ class AdministracionController extends Controller{
     }
 
     public function hacer_retroceso_cumplimiento($id){
-        Pagos::find($id)->update(['estatus'  => "Concluir"]);
+        DB::transaction(function () use ($id) {
+            $pago = Pagos::findOrFail($id);
+            $retroceso = RetrocesoRecorder::iniciar('cumplimiento', $pago, request('motivo'));
+            $retroceso->actualizar($pago, ['estatus'  => "Concluir"]);
+            $retroceso->terminar();
+        });
         return redirect()->back()->with('success', 'Puedes realizar tu cumplimiento nuevamente.');
     }
 
     public function hacer_retroceso_ratificacion($id){
-        Turnos::find($id)->update(['estatus'  => "Pendiente"]);
-        Pagos::      where("id_solicitud",$id)->delete();
-        Concepto::   where('id_solicitud',$id)->delete();
-        Deducciones::where('id_solicitud',$id)->where('tipo_pago','Ratificacion')->delete();
+        DB::transaction(function () use ($id) {
+            $turno = Turnos::findOrFail($id);
+            $retroceso = RetrocesoRecorder::iniciar('ratificacion', $turno, request('motivo'));
+            $retroceso->actualizar($turno, ['estatus'  => "Pendiente"]);
+            $retroceso->borrar(Pagos::      where("id_solicitud",$id)->where('tipo_pago','Ratificacion'));
+            $retroceso->borrar(Concepto::   where('id_solicitud',$id)->where('tipo_pago','Ratificacion'));
+            $retroceso->borrar(Deducciones::where('id_solicitud',$id)->where('tipo_pago','Ratificacion'));
+            $retroceso->terminar();
+        });
 
         return redirect()->back()->with('success', 'Puedes realizar tu ratificación nuevamente.');
     }

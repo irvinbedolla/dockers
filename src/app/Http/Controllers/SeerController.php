@@ -14,6 +14,7 @@ use App\Models\SeerPerConciliador;
 use App\Models\SeerColectivas;
 use App\Models\SeerConvenios;
 use App\Models\SeerCitados;
+use App\Services\RetrocesoRecorder;
 use App\Models\SeerAsesoria;
 use App\Models\SeerMotivo;
 use App\Models\SolicitudMotivo;
@@ -10107,6 +10108,14 @@ class SeerController extends Controller
 
     public function aplicar_retroceso_solicitud($id)
     {
+        request()->validate(
+            ['motivo' => 'required|string|max:1000'],
+            [
+                'motivo.required' => 'El motivo del retroceso es obligatorio.',
+                'motivo.max'      => 'El motivo no debe exceder 1000 caracteres.',
+            ]
+        );
+
         $solicitud = SeerPerGeneral::find($id);
 
         if (!$solicitud) {
@@ -10133,30 +10142,29 @@ class SeerController extends Controller
         $estatusPrevioA  = $ultima->estatus;
 
         DB::transaction(function () use ($id, $solicitud, $ultima, $estatusPrevioS, $estatusPrevioA, $totalAudiencias) {
+            // Lo borrado y modificado queda en retrocesos / retroceso_detalles.
+            $retroceso = RetrocesoRecorder::iniciar('solicitud', $solicitud, request('motivo'));
 
-            $borrado = [
-                'conceptos'   => Concepto::where('id_solicitud', $id)->where('tipo_pago', 'Audiencia')->get()->toArray(),
-                'deducciones' => Deducciones::where('id_solicitud', $id)->where('tipo_pago', 'Audiencia')->get()->toArray(),
-                'pagos'       => Pagos::where('id_solicitud', $id)->where('tipo_pago', 'Audiencia')->get()->toArray(),
-            ];
+            $retroceso->borrar(Concepto::where('id_solicitud', $id)->where('tipo_pago', 'Audiencia'));
+            $retroceso->borrar(Deducciones::where('id_solicitud', $id)->where('tipo_pago', 'Audiencia'));
+            $retroceso->borrar(Pagos::where('id_solicitud', $id)->where('tipo_pago', 'Audiencia'));
 
-            Concepto::where('id_solicitud', $id)->where('tipo_pago', 'Audiencia')->delete();
-            Deducciones::where('id_solicitud', $id)->where('tipo_pago', 'Audiencia')->delete();
-            Pagos::where('id_solicitud', $id)->where('tipo_pago', 'Audiencia')->delete();
-
-            $ultima->update([
+            $retroceso->actualizar($ultima, [
                 'estatus'            => 'Pendiente',
                 'proxima_audiencia'  => null,
                 'pena_convencional'  => null,
                 'direccion_convenio' => null,
             ]);
 
-            $solicitud->update([
+            $retroceso->actualizar($solicitud, [
                 'estatus'           => 'Confirmado',
                 'fecha_terminacion' => null,
             ]);
 
+            $retroceso->terminar();
+
             Log::warning('Retroceso de solicitud aplicado', [
+                'retroceso_id'         => $retroceso->id(),
                 'solicitud_id'         => $id,
                 'NUE'                  => $solicitud->NUE,
                 'estatus_previo'       => $estatusPrevioS,
@@ -10166,7 +10174,6 @@ class SeerController extends Controller
                 'total_audiencias'     => $totalAudiencias,
                 'user_id'              => auth()->id(),
                 'user'                 => auth()->user()->name ?? null,
-                'borrado'              => $borrado,
             ]);
         });
 
@@ -10343,6 +10350,14 @@ class SeerController extends Controller
 
     public function aplicar_retroceso_audiencia($id)
     {
+        request()->validate(
+            ['motivo' => 'required|string|max:1000'],
+            [
+                'motivo.required' => 'El motivo del retroceso es obligatorio.',
+                'motivo.max'      => 'El motivo no debe exceder 1000 caracteres.',
+            ]
+        );
+
         $solicitud = SeerPerGeneral::find($id);
 
         if (!$solicitud) {
@@ -10372,13 +10387,15 @@ class SeerController extends Controller
         $estatusPrevioA = $ultima->estatus;
 
         DB::transaction(function () use ($id, $solicitud, $ultima, $estatusPrevioS, $estatusPrevioA) {
-            
+            // Lo borrado y modificado queda en retrocesos / retroceso_detalles.
+            $retroceso = RetrocesoRecorder::iniciar('audiencia', $solicitud, request('motivo'));
+
             $conciliador = SeerPerConciliador::where('id_solicitud', $id)->orderBy('id', 'desc')->first();
             if($conciliador){
-                $conciliador->delete();
+                $retroceso->eliminar($conciliador);
             }
-            
-            $solicitud->update([
+
+            $retroceso->actualizar($solicitud, [
                 'estatus'   =>  'Confirmado',
                 'observaciones' => null,
             ]);
@@ -10387,54 +10404,49 @@ class SeerController extends Controller
                 case 'Archivada':
                 case 'Incompetencia':
                 case 'Desistimiento':
-                    $ultima->update([
+                    $retroceso->actualizar($ultima, [
                         'estatus'   =>  'Pendiente',
                     ]);
                     break;
                 case 'Archivada en Audiencia':
                 case 'No conciliacion':
-                    $ultima->update([
+                    $retroceso->actualizar($ultima, [
                         'estatus'   =>  'Pendiente',
                     ]);
-                    SeerCitados::where('id_solicitud', $solicitud->id)->where('audiencia_id', $ultima->id)->where('tipo_notificacion', 'Multa')->delete();
+                    $retroceso->borrar(SeerCitados::where('id_solicitud', $solicitud->id)->where('audiencia_id', $ultima->id)->where('tipo_notificacion', 'Multa'));
                     break;
                 case 'Conciliacion':
                 case 'Reinstalacion':
-                    $ultima->update([
+                    $retroceso->actualizar($ultima, [
                         'estatus'   =>  'Pendiente',
                     ]);
-                    SeerCitados::where('id_solicitud', $solicitud->id)->where('audiencia_id', $ultima->id)->where('tipo_notificacion', 'Multa')->delete();
+                    $retroceso->borrar(SeerCitados::where('id_solicitud', $solicitud->id)->where('audiencia_id', $ultima->id)->where('tipo_notificacion', 'Multa'));
 
-                    $borrado = [
-                        'pagos'       => Pagos::where('id_solicitud', $id)->where('tipo_pago', 'Audiencia')->get()->toArray(),
-                        'conceptos'   => Concepto::where('id_solicitud', $id)->where('tipo_pago', 'Audiencia')->get()->toArray(),
-                        'deducciones' => Deducciones::where('id_solicitud', $id)->where('tipo_pago', 'Audiencia')->get()->toArray(),
-                    ];
-
-                    Pagos::where('id_solicitud', $id)->where('tipo_pago', 'Audiencia')->delete();
-                    Concepto::where('id_solicitud', $id)->where('tipo_pago', 'Audiencia')->delete();
-                    Deducciones::where('id_solicitud', $id)->where('tipo_pago', 'Audiencia')->delete();
-
-                    SeerCitados::where('id_solicitud', $solicitud->id)->where('audiencia_id', $ultima->id)->where('tipo_notificacion', 'Multa')->delete();
+                    $retroceso->borrar(Pagos::where('id_solicitud', $id)->where('tipo_pago', 'Audiencia'));
+                    $retroceso->borrar(Concepto::where('id_solicitud', $id)->where('tipo_pago', 'Audiencia'));
+                    $retroceso->borrar(Deducciones::where('id_solicitud', $id)->where('tipo_pago', 'Audiencia'));
                     break;
                 case 'Pendiente':
-                    SeerCitados::where('id_solicitud', $solicitud->id)->where('audiencia_id', $ultima->id)->delete();
-                    $ultima->delete();
+                    $retroceso->borrar(SeerCitados::where('id_solicitud', $solicitud->id)->where('audiencia_id', $ultima->id));
+                    $retroceso->eliminar($ultima);
                     $anterior = Audiencias::where('id_solicitud', $id)
                         ->orderBy('numero_audiencia')
                         ->orderBy('id')
                         ->get()
                         ->last();
-                    $anterior->update([
+                    $retroceso->actualizar($anterior, [
                         'estatus'   => 'Pendiente',
                     ]);
-                    SeerPerConciliador::where('id_solicitud')->where('audiencia_id', $anterior->id)->delete();
+                    $retroceso->borrar(SeerPerConciliador::where('id_solicitud', $solicitud->id)->where('audiencia_id', $anterior->id));
                     break;
                 default:
                     break;
             }
 
+            $retroceso->terminar();
+
             Log::warning('Retroceso de audiencia aplicado', [
+                'retroceso_id'      => $retroceso->id(),
                 'solicitud_id'      => $id,
                 'NUE'               => $solicitud->NUE,
                 'estatus_previo'    => $estatusPrevioS,
@@ -10442,7 +10454,6 @@ class SeerController extends Controller
                 'audiencia_estatus' => $estatusPrevioA,
                 'user_id'           => auth()->id(),
                 'user'              => auth()->user()->name ?? null,
-                'borrado'           => $borrado ?? null,
             ]);
         });
 

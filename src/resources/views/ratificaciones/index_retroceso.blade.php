@@ -42,6 +42,20 @@
                                     </div>
                                 </div>
                             </div>
+                            @if (auth()->user()->hasRole('Super Usuario'))
+                                <div class="row">
+                                    <div class="col-xs-12 col-sm-4 col-md-4">
+                                        <div class="card text-center">
+                                            <div class="card-body">
+                                                <h5 class="card-title">Historial</h5>
+                                                <a href="{{ route('retrocesos_historial') }}" class="btn btn-primary" style="width: 100%">
+                                                    <i class="bi bi-clock-history"></i> Ver retrocesos aplicados
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endif
                             <br>
                             <a href="{{ route('configuracion') }}" class="btn btn-warning">Regresar</a>
                         </div>

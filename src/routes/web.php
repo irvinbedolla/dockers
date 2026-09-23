@@ -34,6 +34,7 @@ use App\Models\SeerPerGeneral;
 use App\Http\Controllers\IncidenciasController;
 use App\Http\Controllers\IncidenciasBusquedaController;
 use App\Http\Controllers\AsistenciaController;
+use App\Http\Controllers\RetrocesoHistorialController;
 
 
 /*
@@ -429,6 +430,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/solicitudes/retroceso',                [SeerController::class, 'retroceso_solicitud_index'])->name('retroceso_solicitud');
         Route::post('/solicitudes/retroceso/buscar',        [SeerController::class, 'buscar_retroceso_solicitud'])->name('retroceso_solicitud_buscar');
         Route::post('/solicitudes/retroceso/{id}',          [SeerController::class, 'aplicar_retroceso_solicitud'])->name('retroceso_solicitud_aplicar');
+
+        // Historial de retrocesos: solo Super Usuario
+        Route::get('/retrocesos/historial',                 [RetrocesoHistorialController::class, 'index'])->name('retrocesos_historial')->middleware('role:Super Usuario');
+        Route::get('/retrocesos/historial/{id}',            [RetrocesoHistorialController::class, 'show'])->name('retrocesos_historial_detalle')->middleware('role:Super Usuario');
     });
 
     /*
