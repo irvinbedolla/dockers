@@ -25,7 +25,7 @@
                                     <!--Se realiza la validación de campos para ver si dejó alguno vacío-->
                                     @if (session()->has('error'))
                                         <div class="alert alert-dark alert-dismissible fade show" role="alert">
-                                            <strong>¡Revise los campos!</strong>
+                                            
                                             {{ session()->get('error') }}
                                             <button type="button" class="close" data-dismiss="alert" aria-label="Close">
                                                 <span aria-hidden="true">&times;</span>
