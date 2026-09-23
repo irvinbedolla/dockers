@@ -1670,6 +1670,7 @@ class TurnosController extends Controller
             return $query->where('name', '=', 'Conciliador');
         })
         ->whereIn('delegacion', $delegaciones)
+        ->where('estatus', 'Activo')
         ->get();
         $turno = Turnos::find($id);
         $motivo = $turno ? $turno->motivo : null;
@@ -3081,7 +3082,31 @@ class TurnosController extends Controller
         $estados        = Estados::all();
         $municipios     = Municipios::where('estado',16)->get();
 
-        return view('/ratificaciones/edicionVistaCitas',compact('idSolicitud','representantes','solicitud','abogados','estados','municipios'));
+        $relacionEloquent = 'roles';
+
+        if($solicitud->delegacion == "Morelia" || $solicitud->delegacion =='Zitácuaro'){
+            $delegaciones = ['Morelia', 'Zitácuaro'];
+        }else if($solicitud->delegacion == "Uruapan" || $solicitud->delegacion == "Lázaro Cárdenas"){
+            $delegaciones = ['Uruapan', 'Lázaro Cárdenas'];
+        }else if($solicitud->delegacion == "Zamora" || $solicitud->delegacion =='Sahuayo'){
+            $delegaciones = ['Zamora', 'Sahuayo'];
+        }
+
+        $conciliadores = User::whereHas($relacionEloquent, function ($query) {
+            return $query->where('name', '=', 'Conciliador');
+        })
+        ->whereIn('delegacion', $delegaciones)
+        ->where('estatus', 'Activo')
+        ->get();
+
+        if (!is_null($solicitud->id_conciliador) && !$conciliadores->contains('id', $solicitud->id_conciliador)) {
+            $conciliadorAsignado = User::find($solicitud->id_conciliador);
+            if ($conciliadorAsignado) {
+                $conciliadores->push($conciliadorAsignado);
+            }
+        }
+
+        return view('/ratificaciones/edicionVistaCitas',compact('idSolicitud','representantes','solicitud','abogados','estados','municipios', 'conciliadores'));
     }
 
     public function guardarEdicion_citas(Request $request){
@@ -3093,6 +3118,14 @@ class TurnosController extends Controller
         $userRole = $user->roles->pluck('name')->all();
 
         $solicitud = Turnos::find($data['id']);
+
+        if (in_array($solicitud->estatus, ['Concluida', 'Concluida Pagos', 'Incumplimiento'])) {
+            $request->validate(
+                ['conciliador_id' => 'required'],
+                ['conciliador_id.required' => 'El conciliador es obligatorio.']
+            );
+        }
+
         //Variables opcionales
         if(isset($data["Aguinaldo"]) && $data["motivo"] == "Pago de prestaciones"){
             $Aguinaldo =  1;
@@ -3184,6 +3217,7 @@ class TurnosController extends Controller
             'num_int'             => $data["N_Int"],
             'codigo_postal'       => $data["cp"],
             'id_historial'        => $ultimoRegistro->id ?? NULL,
+            'id_conciliador'      => $data["conciliador_id"] ?? NULL,
         ];
 
         if ($request->hasFile('documentoidentificacion')) {
