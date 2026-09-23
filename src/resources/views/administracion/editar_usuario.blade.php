@@ -75,6 +75,21 @@
                                         La contraseña es obligatoria.
                                     </div>
 
+                                    <div class="col-xs-12 col-sm-12 col-md-6">
+                                        <div class="form-group">
+                                            <label for="sexo">Sexo</label>
+                                            <select name="sexo" id="sexo" class="form-control">
+                                                <option value="">Sin especificar</option>
+                                                <option value="H" @selected($user->sexo === 'H')>Hombre</option>
+                                                <option value="M" @selected($user->sexo === 'M')>Mujer</option>
+                                                <option value="NC" @selected($user->sexo === 'NC')>Prefiere no decirlo</option>
+                                            </select>
+                                            <small class="text-muted">
+                                                Se usa para escribir bien el saludo del Inicio: "Buenas tardes, Conciliadora".
+                                            </small>
+                                        </div>
+                                    </div>
+
                                     <div class="col-xs-12 col-sm-12 col-md-12">
                                         <hr>
                                         <div class="form-group">
