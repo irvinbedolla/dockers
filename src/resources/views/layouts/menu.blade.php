@@ -93,11 +93,19 @@
 
         @if ($destino)
             <li class="nav-item side-menus {{ $activo ? 'active' : '' }}">
+                {{-- aria-label va siempre, no sólo cuando el menú está angosto:
+                     con .sidebar-mini el tema le pone display:none al <span>, y
+                     eso también lo esconde de los lectores de pantalla. Sin
+                     esto, el menú colapsado son treinta enlaces sin nombre.
+
+                     data-etiqueta es de donde toma su texto el globito. --}}
                 <a class="nav-link"
                 href="{{ $destino }}"
+                aria-label="{{ $item['label'] }}"
+                data-etiqueta="{{ $item['label'] }}"
                 @isset($item['id']) id="{{ $item['id'] }}" @endisset
                 @if ($activo) aria-current="page" @endif>
-                    <i class="{{ $item['icon'] }}"></i>
+                    <i class="{{ $item['icon'] }}" aria-hidden="true"></i>
                     <span class="text-dark">{{ $item['label'] }}</span>
                     @isset($item['badge'])
                         <span id="{{ $item['badge'] }}" class="badge bg-danger ms-1" style="display: none;">0</span>
@@ -106,4 +114,142 @@
             </li>
         @endif
     @endforeach
+
+@once
+    @push('body_end')
+        {{--
+            Globito con el nombre de la pantalla para el menú colapsado.
+
+            Va con position:fixed y un solo elemento reutilizado, no con un
+            ::after en cada ítem, porque .main-sidebar lleva overflow-y:auto: un
+            globito posicionado dentro se recortaría en el borde del menú, que
+            es justo donde tiene que asomarse.
+
+            No se usa el atributo title nativo por dos razones: tarda cerca de
+            un segundo en salir, que es más de lo que alguien espera antes de
+            hacer clic a ciegas, y no aparece al navegar con el tabulador. El
+            nombre accesible del enlace lo da el aria-label de arriba, así que
+            esto es puro apoyo visual y se esconde del lector de pantalla.
+        --}}
+        <div id="menu-etiqueta" class="menu-etiqueta" role="presentation" aria-hidden="true"></div>
+
+        <style>
+            .menu-etiqueta {
+                position: fixed;
+                z-index: 1000;
+                left: 0;
+                top: 0;
+                max-width: 220px;
+                padding: 7px 11px;
+                border-radius: 7px;
+                background: #354647;
+                color: #fff;
+                font-size: 12.5px;
+                font-weight: 600;
+                line-height: 1.25;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                box-shadow: 0 6px 18px rgba(46, 60, 61, .22);
+                pointer-events: none;
+                opacity: 0;
+                visibility: hidden;
+                transform: translateX(-4px);
+            }
+
+            .menu-etiqueta.se-ve {
+                opacity: 1;
+                visibility: visible;
+                transform: translateX(0);
+            }
+
+            /* La puntita que lo amarra al icono. */
+            .menu-etiqueta::before {
+                content: '';
+                position: absolute;
+                top: 50%;
+                left: -5px;
+                width: 10px;
+                height: 10px;
+                margin-top: -5px;
+                background: #354647;
+                transform: rotate(45deg);
+                border-radius: 2px;
+            }
+
+            @media (prefers-reduced-motion: no-preference) {
+                .menu-etiqueta { transition: opacity .12s ease, transform .12s ease; }
+            }
+        </style>
+
+        <script>
+        (function () {
+            var globo = document.getElementById('menu-etiqueta');
+            var menu  = document.querySelector('.main-sidebar');
+            if (!globo || !menu) { return; }
+
+            // Sólo en escritorio y sólo con el menú angosto. Abajo de 1025px el
+            // menú se abre encima y ya enseña los nombres.
+            function aplica() {
+                return window.innerWidth > 1024 && document.body.classList.contains('sidebar-mini');
+            }
+
+            function mostrar(enlace) {
+                var texto = enlace.getAttribute('data-etiqueta');
+                if (!texto || !aplica()) { return; }
+
+                globo.textContent = texto;
+                globo.classList.add('se-ve');
+
+                // Se mide ya con el texto puesto: el alto depende de él.
+                var caja = enlace.getBoundingClientRect();
+                var alto = globo.offsetHeight;
+                var top  = caja.top + (caja.height / 2) - (alto / 2);
+
+                // Sin dejar que se salga por arriba ni por abajo de la ventana.
+                top = Math.max(8, Math.min(top, window.innerHeight - alto - 8));
+
+                globo.style.left = (caja.right + 12) + 'px';
+                globo.style.top  = top + 'px';
+            }
+
+            function esconder() {
+                globo.classList.remove('se-ve');
+            }
+
+            function enlaceDe(e) {
+                return e.target && e.target.closest
+                    ? e.target.closest('.sidebar-menu .nav-link')
+                    : null;
+            }
+
+            menu.addEventListener('mouseover', function (e) {
+                var enlace = enlaceDe(e);
+                // Pasar por el fondo del menú, entre un ítem y otro, también
+                // lo esconde: si no, se queda colgado señalando a nada.
+                if (enlace) { mostrar(enlace); } else { esconder(); }
+            });
+
+            menu.addEventListener('mouseleave', esconder);
+
+            // Con el tabulador también: el title nativo nunca sale con el foco.
+            menu.addEventListener('focusin', function (e) {
+                var enlace = enlaceDe(e);
+                if (enlace) { mostrar(enlace); }
+            });
+            menu.addEventListener('focusout', esconder);
+
+            // Si el menú se desplaza, la posición ya no corresponde a nada.
+            menu.addEventListener('scroll', esconder, { passive: true });
+            window.addEventListener('resize', esconder);
+
+            // Al abrir o cerrar el menú el globito deja de tener sentido.
+            new MutationObserver(esconder).observe(document.body, {
+                attributes: true,
+                attributeFilter: ['class']
+            });
+        })();
+        </script>
+    @endpush
+@endonce
 @endauth
