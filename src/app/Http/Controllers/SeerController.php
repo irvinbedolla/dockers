@@ -10036,13 +10036,16 @@ class SeerController extends Controller
                 ->orderBy('id', 'asc')
                 ->first();
         }
+        
+        $primeraAudienciaId = Audiencias::where('id_solicitud', $solicitud["id"])->min('id');
+        $esPrimeraAudiencia = $audiencia && (int) $audiencia->id === (int) $primeraAudienciaId;
         $conciliador  = User::where('id', $audiencia["id_conciliador"])->first();
         $municipio = Municipios::find($citado->municipio_citado);
         $estado = Estados::find($citado->estado_citado);
         $municipioNombre = $municipio ? mb_strtoupper($municipio->nombre, 'UTF-8') : '';
         $estadoNombre = $estado ? mb_strtoupper($estado->nombre, 'UTF-8') : '';
         $fechaEmision = $audiencia ? $audiencia->created_at : now();
-        $html = view('PDF/Solicitudes/citatorio', compact('solicitud','solicitante','citado','motivos','audiencia','conciliador','municipioNombre','estadoNombre','fechaEmision','inicialesConcluye','etiquetaIniciales'))->render();
+        $html = view('PDF/Solicitudes/citatorio', compact('solicitud','solicitante','citado','motivos','audiencia','conciliador','municipioNombre','estadoNombre','fechaEmision','inicialesConcluye','etiquetaIniciales','esPrimeraAudiencia'))->render();
         $pdf = \PDF::loadHTML($html)
             ->setPaper('a4', 'portrait')
             ->setOption('isHtml5ParserEnabled', true)
@@ -16709,20 +16712,30 @@ class SeerController extends Controller
         return back()->with('success', 'Pago Deducción Correctamente.');
     }
 
-    public function mostrar_citatorios($id) {
-        
+    public function mostrar_citatorios($id, Request $request) {
+        $audiencia_id = $request->query('audiencia_id');
+
+        // Citados de la audiencia indicada; los que no tienen audiencia_id pertenecen a la primera
+        $base = SeerCitados::where('id_solicitud', $id)
+            ->when($audiencia_id, function($query) use ($audiencia_id, $id) {
+                $primeraAudienciaId = Audiencias::where('id_solicitud', $id)->min('id');
+                $query->where(function($q) use ($audiencia_id, $primeraAudienciaId) {
+                    $q->where('audiencia_id', $audiencia_id);
+                    if ((int) $primeraAudienciaId === (int) $audiencia_id) {
+                        $q->orWhereNull('audiencia_id');
+                    }
+                });
+            });
+
         // Obtener los citados
-        $citadoCentro = SeerCitados::where('id_solicitud', $id)->where('notificacion', 'Centro')->exists();
+        $citadoCentro = (clone $base)->where('notificacion', 'Centro')->exists();
 
         if($citadoCentro){
-            $citados = SeerCitados::where('id_solicitud', $id)->where('notificacion', 'Centro')->get();
+            $citados = (clone $base)->where('notificacion', 'Centro')->get();
         } else{
-            $citados = SeerCitados::select('id','nombre','primer_apellido','segundo_apellido')->where('id_solicitud', $id)->get();
+            $citados = (clone $base)->select('id','nombre','primer_apellido','segundo_apellido')->get();
         }
 
-        if ($citados->isEmpty()) {
-            return redirect()->back()->with('error', 'No hay citados para esta solicitud.');
-        }
         return response()->json($citados);
     }
     public function solicitudesAuxiliares(){
