@@ -138,7 +138,6 @@ class InicioController extends Controller
             ->pluck('total', 'delegacion');
 
         $audienciasConciliadas = DB::table('audiencias')
-            ->where($condicionCelebrada)
             ->whereIn('audiencias.estatus', ['Conciliacion', 'Reinstalacion'])
             ->select('delegacion', DB::raw('COUNT(*) as total'))
             ->groupBy('delegacion')
