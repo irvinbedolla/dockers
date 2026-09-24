@@ -4,7 +4,7 @@
 <style>
     /* Evita que los dropdowns se corten dentro de la tabla en Bootstrap 5 */
     .table-responsive {
-        overflow: visible !important;
+        overflow: visible;
     }
 </style>
 
