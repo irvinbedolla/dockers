@@ -60,8 +60,8 @@
                             </a>
 
                             <div class="dropdown-menu dropdown-menu-right">
-                                <a href="{{ route('password_cambiar') }}" class="dropdown-item has-icon text-success">
-                                    <i class="bi bi-pass"></i> Cambiar contraseña
+                                <a href="{{ route('perfil') }}" class="dropdown-item has-icon text-success">
+                                    <i class="bi bi-person-circle"></i> Mi perfil
                                 </a>
                                 <a href="{{ url('logout') }}" class="dropdown-item has-icon text-danger" onclick="event.preventDefault(); localStorage.clear(); document.getElementById('logout-form').submit();">
                                     <i class="bi bi-door-open"></i> Salir

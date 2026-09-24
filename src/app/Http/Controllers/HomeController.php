@@ -335,32 +335,10 @@ class HomeController extends Controller
         return 'Modulo 0';
     }
 
-    public function password_cambiar(){
-        return view('/cambio_contraseña/reset-password');
-    }
+    // password_cambiar() y contraseña_update() vivían aquí. Los reemplaza
+    // PerfilController: /perfil hace lo mismo y además la foto, y la vieja
+    // validación aceptaba una contraseña de una sola letra.
 
-    public function contraseña_update(Request $request){
-        $request->validate([
-            'password'  => 'required',
-            'password1' => 'required'
-        ]);
-        $data = $request->all();
-        //dd($data);
-        
-        if ($data["password"] !== $data["password1"]){
-            return back()->withErrors('¡La contraseña no coincide!');
-        }
-        else{
-            $id = auth()->user()->id;
-            $user = User::find($id);
-    
-            $user->password = Hash::make($data["password"]);
-            $user->save();
-
-            return back()->with('success', 'Contraseña Actualizada correctamente.');
-        }
-    }
-    
     public function create_publico(){
         return view('citas');
     }
