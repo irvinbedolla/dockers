@@ -221,7 +221,7 @@
                 DEL CENTRO DE CONCILIACIÓN LABORAL<br>DEL ESTADO DE MICHOACÁN DE OCAMPO</p>
             </div>
 
-            @if(!empty($etiquetaIniciales) && !empty($inicialesConcluye) && (($citado->estatus ?? null) !== 'Notificada en Audiencia') && !empty($solicitud->fecha_confirmacion) && $solicitud->fecha_confirmacion > \Carbon\Carbon::parse('2026-06-03'))
+            @if(!empty($esPrimeraAudiencia) && !empty($etiquetaIniciales) && !empty($inicialesConcluye) && (($citado->estatus ?? null) !== 'Notificada en Audiencia') && !empty($solicitud->fecha_confirmacion) && $solicitud->fecha_confirmacion > \Carbon\Carbon::parse('2026-06-03'))
                 <div class="etiqueta-iniciales-pie">
                     <small><b>{{ $etiquetaIniciales }}</b></small><br>
                     <small>Elaboró: <b>{{ $inicialesConcluye }}</b></small>
