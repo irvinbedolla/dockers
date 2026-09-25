@@ -218,7 +218,7 @@
                                                     <option value="Titularidad">Contratos ley</option>
                                                 </optgroup>
                                                     <option value="Titularidad" style="font-weight: bold;">Impugnación de los estatutos de los sindicatos o su modificación</option>
-                                                    <option value="Ninguno" style="font-weight: bold;">No, ninguno</option>
+                                                    
                                             </select>
                                             <div class="invalid-feedback">
                                                 El campo es obligatorio.

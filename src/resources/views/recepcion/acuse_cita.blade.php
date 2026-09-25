@@ -91,8 +91,8 @@
         .campo-qr {
             position: absolute;
             top: 308px;
-            left: 660px;
-            width: 12%;
+            left: 650px;
+            width: 13%;
             height: 12%;
         }
         .campo-requisitos {
@@ -119,7 +119,7 @@
         </div>
 
         <div class="campo-folio">
-            {{ $cita->consecutivo }}
+            {{ str_pad($cita->consecutivo, 5, '0', STR_PAD_LEFT) }}
         </div>
 
         <div class="campo-modulo">

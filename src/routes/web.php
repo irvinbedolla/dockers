@@ -382,6 +382,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/excepciones/index',         [RecepcionController::class, 'index_excepciones'])->name('excepcion');
         Route::get('/excepciones/atender/{id}',  [RecepcionController::class, 'atender_excepcion'])->name('atender_excepcion');
         Route::post('/excepciones/guardar',       [RecepcionController::class, 'guardar_excepcion'])->name('guardar_excepcion');
+        Route::get('/excepciones/solicitud/{id}',  [RecepcionController::class, 'solicitud_excepcion'])->name('solicitud_excepcion');
         Route::get('/audiencias_Revisar/{id}/{isAudiencia?}',               [SeerController::class, 'solicitud_audiencia_revisar'])->name('solicitud_audiencia');
         Route::get('/citas/{id}/documento',         [RecepcionController::class, 'verDocumentoCita'])->name('citas.documento');
         Route::get('/citas/{id}/confirmar',         [RecepcionController::class, 'confirmarAsistencia'])->name('citas.confirmar')->middleware('auth');
