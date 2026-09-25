@@ -151,9 +151,11 @@
         }
 
         /* Evento seleccionado */
-        .fc-event-selected {
+        #calendarTurno .fc-event-selected {
             border: 3px solid var(--color-oro) !important;
-            box-shadow: 0 0 10px rgba(206, 168, 69, .8);
+            box-shadow: 0 0 10px rgba(206, 168, 69, .8) !important;
+            opacity: 1 !important;
+            filter: none !important;
         }
 
         /* Modal del calendario */
@@ -186,7 +188,42 @@
             background: url("{{ asset('assets/images/pageLoader.gif') }}")
                 50% 50% no-repeat rgba(255, 255, 255, .85);
         }
+        @media (max-width: 768px) {
 
+            #calendarTurno {
+                width: 100% !important;
+            }
+
+            #calendarTurno .fc-list,
+            #calendarTurno .fc-list-table {
+                width: 100% !important;
+            }
+
+            #calendarTurno .fc-list-table {
+                table-layout: fixed !important;
+            }
+
+            #calendarTurno .fc-list-event {
+                width: 100% !important;
+                box-sizing: border-box !important;
+                opacity: 1 !important;
+                filter: none !important;
+                transform: translateZ(0);
+            }
+
+            #calendarTurno .fc-list-event td {
+                box-sizing: border-box !important;
+            }
+
+            #calendarTurno .fc-list-event::before,
+            #calendarTurno .fc-list-event::after,
+            #calendarTurno .fc-list-event td::before,
+            #calendarTurno .fc-list-event td::after {
+                display: none !important;
+                content: none !important;
+            }
+
+        }
 
     </style>
     @livewireStyles
@@ -680,7 +717,7 @@
                 calendarTurno = new FullCalendar.Calendar(calendarEl, {
 
                     // Vista inicial igual al primer calendario
-                    initialView: 'dayGridWeek',
+                    initialView: window.innerWidth <= 768 ? 'listWeek' : 'dayGridWeek',
 
                     locale: 'es',
                     firstDay: 1,
@@ -689,7 +726,7 @@
                     headerToolbar: {
                         left: 'prev,next today',
                         center: 'title',
-                        right: 'dayGridWeek,timeGridDay'
+                        right: 'dayGridWeek,listWeek,timeGridDay'
                     },
 
                     // No permitir fechas anteriores a hoy
@@ -735,22 +772,17 @@
 
                         const estado = info.event.extendedProps.estado;
 
-                        // Sólo se pueden seleccionar estos estados
                         if (estado !== 'disponible' && estado !== 'turnos') {
-                            alert(
-                                'Este horario no está disponible. Por favor seleccione otro.'
-                            );
+                            alert('Este horario no está disponible. Por favor seleccione otro.');
                             return;
                         }
 
-                        // Quitar selección anterior
                         document
-                            .querySelectorAll('.fc-event-selected')
+                            document.querySelectorAll('#calendarTurno .fc-event-selected')
                             .forEach(evento => {
                                 evento.classList.remove('fc-event-selected');
                             });
 
-                        // Marcar evento seleccionado
                         info.el.classList.add('fc-event-selected');
 
                         turnoSeleccionado = info.event;
@@ -758,6 +790,8 @@
                         document
                             .getElementById('confirmarTurno')
                             .removeAttribute('disabled');
+                        
+                            
                     },
 
                     // Aplicar colores según estado

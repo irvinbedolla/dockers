@@ -20,37 +20,55 @@
                             <div class="table-responsive">
                                 <table id="example" class="table table-striped mt-2">
                                     <thead style="background-color: #354647;">
-                                        <th style="color: #fff;">ID</th>
+                                        <th style="color: #fff;">Folio</th>
+                                        <th style="color: #fff;">Hora</th>
                                         <th style="color: #fff;">Nombre</th>
                                         <th style="color: #fff;">Tipo de Caso</th>
                                         <th style="color: #fff;">Grupos Vulnerable</th>
                                         <th style="color: #fff;">Delegación</th>
+                                        <th style="color: #fff;">Estatus</th>
                                         <th style="color: #fff;"></th>
                                     </thead>
                                     <tbody>
                                         @foreach($recepciones as $recepcion)
                                             <tr>
-                                                <td>{{$recepcion->id}}</td>
+                                                <td>{{ str_pad($recepcion->consecutivo, 5, '0', STR_PAD_LEFT) }}</td>
+                                                <td>{{$recepcion->hora->format('H:i')}}</td>
                                                 <td>{{$recepcion->solicitante}}</td>
                                                 <td>{{$recepcion->tipo_caso}}</td>
                                                 <td>{{$recepcion->vulnerables}}</td>
                                                 <td>{{$recepcion->delegacion}}</td>
-                                                <td>
-                                                @if($recepcion->estatus === 'atendido')
-                                                
-                                                    <div class="dropdown">
-                                                        <button class="btn btn-secondary dropdown-toggle btn-sm" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
-                                                            <i class="bi bi-file-earmark-text-fill"></i> Documentos
-                                                        </button>
-                                                        <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
-                                                            @can('casos_excepcion_atencion')<li><a class="btn btn-info" style="width: 100%" href="{{route('VerPDFCasosPrevistos' , $recepcion->id) }}"  target="_blank">Atención para casos previstos</a></li>@endcan
-                                                            @can('casos_excepcion_canalizacion')<li><a class="btn btn-info" style="width: 100%" href="{{route('VerPDFCanalizacion' , $recepcion->id) }}"  target="_blank">Canalización</a></li>@endcan
-                                                        </ul>
-                                                    </div>
+                                                <td class="text-center">
+                                                    @if($recepcion->estatus === 'atendido')
+                                                        <span class="badge bg-success rounded-pill px-3 py-2">
+                                                    @elseif($recepcion->estatus === 'confirmada')
+                                                        <span class="badge bg-info rounded-pill px-3 py-2">
+                                                    @elseif($recepcion->estatus === 'expirada')
+                                                        <span class="badge bg-danger rounded-pill px-3 py-2">
+                                                    @else
+                                                        <span class="badge bg-warning rounded-pill px-3 py-2">
                                                         
-                                                @else
-                                                    <a class="btn btn-warning btn-sm" href="{{ route('atender_excepcion' , $recepcion->id)}}"  onclick=crear_turnos();><i class="bi bi-play-fill"></i> Atender</a>
-                                                @endif
+                                                    @endif
+                                                    {{$recepcion->estatus}}</span>
+                                                    
+                                                </td>
+                                                <td  class="text-center">
+                                                    @if($recepcion->estatus === 'atendido')
+                                                    
+                                                        <div class="dropdown">
+                                                            <button class="btn btn-secondary dropdown-toggle btn-sm" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
+                                                                <i class="bi bi-file-earmark-text-fill"></i> Documentos
+                                                            </button>
+                                                            <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
+                                                                @can('casos_excepcion_atencion')<li><a class="btn btn-info" style="width: 100%" href="{{route('VerPDFCasosPrevistos' , $recepcion->id) }}"  target="_blank">Atención para casos previstos</a></li>@endcan
+                                                                @can('casos_excepcion_canalizacion')<li><a class="btn btn-info" style="width: 100%" href="{{route('VerPDFCanalizacion' , $recepcion->id) }}"  target="_blank">Canalización</a></li>@endcan
+                                                            </ul>
+                                                        </div>
+                                                            
+                                                    @elseif($recepcion->estatus === 'confirmada')
+                                                        <a class="btn btn-info btn-sm" href="{{ route('atender_excepcion' , $recepcion->id)}}"  onclick=crear_turnos();><i class="bi bi-play-fill"></i> Atender</a>
+                                                        <a class="btn btn-primary btn-sm" href="{{ route('solicitud_excepcion', $recepcion->id)}} }}"  target="_blank">Nueva Solicitud</a>
+                                                    @endif
                                                 </td>
                                                 
                                             </tr>
