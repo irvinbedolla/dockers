@@ -13,7 +13,7 @@
         
         <style>
             @page {
-                margin: 0px 0px;
+                margin: 3cm 2cm 3cm 2cm;
                 size: A4 portrait;
             }
             body {
@@ -45,14 +45,14 @@
 
             .fondo-membrete {
                 position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
+                top: -3cm;
+                left: -2cm;
+                width: 21cm;
+                height: 29.7cm;
                 z-index: -1;
             }
             .content {
-                padding: 3cm 2cm 3cm 2cm;
+                padding: 0;
                 position: relative;
                 /*padding: 4cm 2cm 3cm 2cm; /* Deja espacio para encabezado y pie  padding: 100px 50px;*/
                 z-index: 1;
@@ -65,12 +65,25 @@
             /* Pie fijo: código de delegación + elaboró */
             .etiqueta-iniciales-pie {
                 position: fixed;
-                bottom: 60px;
-                left: 2cm;
-                right: 2cm;
+                bottom: -53px;
+                left: 0;
+                right: 0;
                 text-align: left;
                 font-size: 10px;
                 z-index: 10;
+            }
+
+            /* Bloque de firmas*/
+            .firmas {
+                width: 100%;
+                margin-top: 70px;
+                page-break-inside: avoid;
+            }
+            .firmas td {
+                width: 50%;
+                text-align: center;
+                vertical-align: top;
+                font-weight: bold;
             }
         </style>
     </head>
@@ -151,19 +164,12 @@
                     <p>
                         Asimismo, de conformidad con la fracción X del artículo 684-E, me hago conocedor que <b>de no comparecer se archivará el presente asunto por falta de interés</b>.
                     </p>
-                    <br><br><br><br><br><br><br>
-                    <div class="row">
-                        <div class="col-12 text-center">
-                            
-                            <div style="display: inline-block; margin-right: 50px;">
-                                <p><center><b>___________________________________<br> {{ $solicitante->nombre }} <br> SOLICITANTE</b></center></p>
-                            </div>
-                        
-                            <div style="display: inline-block; margin-right: 50px;">
-                                <p><center><b>___________________________________<br> {{ $conciliador->name }} <br> FUNCIONARIO/A CONCILIADOR/A</b></center> </p>
-                            </div>
-                        </div>
-                    </div>
+                    <table class="firmas">
+                        <tr>
+                            <td>___________________________________<br>{{ $solicitante->nombre }}<br>SOLICITANTE</td>
+                            <td>___________________________________<br>{{ $conciliador->name }}<br>FUNCIONARIO/A CONCILIADOR/A</td>
+                        </tr>
+                    </table>
                 </div>
             </div>
 
