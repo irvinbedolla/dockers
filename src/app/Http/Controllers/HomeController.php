@@ -22,6 +22,9 @@ use Maatwebsite\Excel\Facades\Excel;
 use App\Imports\ConceptoPagoImport;
 use App\Imports\TurnosImport;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\SolicitudMail;
+use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class HomeController extends Controller
 {
@@ -43,6 +46,15 @@ class HomeController extends Controller
     public function pantallaMorelia()
     {
         $fecha_actual = date('y-m-d');
+        $horaLimite = now()->subMinutes(5)->format('H:i:s');
+        $horaInicio = now()->subMinutes(60)->format('H:i:s');
+        $horaFinal =  now()->addMinutes(60)->format('H:i:s');
+        $expiradas = Recepcion::
+        where('fecha',$fecha_actual)
+        ->where('delegacion','Morelia')
+        ->where('estatus', 'pendiente')
+        ->where('hora', '<=', $horaLimite)
+        ->update(['estatus' => 'expirada']); 
 
         $cumplimientos = Pagos::
         where('pago_solicitud.fecha',$fecha_actual)
@@ -67,21 +79,25 @@ class HomeController extends Controller
         ->get();
 
         $turnos = Recepcion::
-        where('recepcion.fecha',$fecha_actual)
-        ->leftjoin('users', 'users.id', '=', 'recepcion.auxiliar')
-        ->where('recepcion.tipo','Ratificación')
-        ->where('recepcion.delegacion','Morelia')
-        ->select('recepcion.solicitante as NUE',DB::raw("'Ratificación' as tramite"))
+        where('fecha',$fecha_actual)
+        ->where('tipo','Ratificación')
+        ->where('delegacion','Morelia')
+        ->whereIn('estatus', ['pendiente', 'expirada', 'confirmada'])
+        ->whereBetween('hora', [$horaInicio, $horaFinal])
+        ->select('consecutivo as NUE', 'tipo as tramite', 'hora', 'lugar_auxiliar as modulo', 'estatus')
         ->limit(7)
+        ->orderBy('hora')
         ->get();
 
         $solicitudes = Recepcion::
-        where('recepcion.fecha',$fecha_actual)
-        ->leftjoin('users', 'users.id', '=', 'recepcion.auxiliar')
-        ->where('recepcion.tipo','Solicitud')
-        ->where('recepcion.delegacion','Morelia')
-        ->select('recepcion.solicitante as NUE',DB::raw("'Solicitudes' as tramite"))
+        where('fecha',$fecha_actual)
+        ->whereIn('tipo',['Solicitud','Asesoría'])
+        ->where('delegacion','Morelia')
+        ->whereIn('estatus', ['pendiente', 'expirada', 'confirmada'])
+        ->whereBetween('hora', [$horaInicio, $horaFinal])
+        ->select('consecutivo as NUE', 'tipo as tramite', 'hora', 'lugar_auxiliar as modulo', 'estatus')
         ->limit(7)
+        ->orderBy('hora')
         ->get();
 
         return view('pantalla', compact('cumplimientos','turnos','audienencias','solicitudes'));
@@ -90,6 +106,15 @@ class HomeController extends Controller
     public function pantallaUruapan()
     {
         $fecha_actual = date('y-m-d');
+        $horaLimite = now()->subMinutes(5)->format('H:i:s');
+        $horaInicio = now()->subMinutes(60)->format('H:i:s');
+        $horaFinal =  now()->addMinutes(60)->format('H:i:s');
+        $expiradas = Recepcion::
+        where('fecha',$fecha_actual)
+        ->where('delegacion','Uruapan')
+        ->where('estatus', 'pendiente')
+        ->where('hora', '<=', $horaLimite)
+        ->update(['estatus' => 'expirada']);
        
         $cumplimientos = Pagos::where('pago_solicitud.fecha',$fecha_actual)
         ->join('seer_general','seer_general.id','pago_solicitud.id_solicitud')
@@ -112,21 +137,25 @@ class HomeController extends Controller
         ->get();
 
         $turnos = Recepcion::
-        where('recepcion.fecha',$fecha_actual)
-        ->leftjoin('users', 'users.id', '=', 'recepcion.auxiliar')
-        ->where('recepcion.tipo','Ratificación')
-        ->where('recepcion.delegacion','Uruapan')
-        ->select('recepcion.solicitante as NUE',DB::raw("'Ratificación' as tramite"))
+        where('fecha',$fecha_actual)
+        ->where('tipo','Ratificación')
+        ->where('delegacion','Uruapan')
+        ->whereIn('estatus', ['pendiente', 'expirada', 'confirmada'])
+        ->whereBetween('hora', [$horaInicio, $horaFinal])
+        ->select('consecutivo as NUE', 'tipo as tramite', 'hora', 'lugar_auxiliar as modulo', 'estatus')
         ->limit(7)
+        ->orderBy('hora')
         ->get();
 
         $solicitudes = Recepcion::
-        where('recepcion.fecha',$fecha_actual)
-        ->leftjoin('users', 'users.id', '=', 'recepcion.auxiliar')
-        ->where('recepcion.tipo','Solicitud')
-        ->where('recepcion.delegacion','Uruapan')
-        ->select('recepcion.solicitante as NUE',DB::raw("'Solicitudes' as tramite"))
+        where('fecha',$fecha_actual)
+        ->whereIn('tipo',['Solicitud','Asesoría'])
+        ->where('delegacion','Uruapan')
+        ->whereIn('estatus', ['pendiente', 'expirada', 'confirmada'])
+        ->whereBetween('hora', [$horaInicio, $horaFinal])
+        ->select('consecutivo as NUE', 'tipo as tramite', 'hora', 'lugar_auxiliar as modulo', 'estatus')
         ->limit(7)
+        ->orderBy('hora')
         ->get();
 
 
@@ -136,6 +165,15 @@ class HomeController extends Controller
     public function pantallaZamora()
     {
         $fecha_actual = date('y-m-d');
+        $horaLimite = now()->subMinutes(5)->format('H:i:s');
+        $horaInicio = now()->subMinutes(60)->format('H:i:s');
+        $horaFinal =  now()->addMinutes(60)->format('H:i:s');
+        $expiradas = Recepcion::
+        where('fecha',$fecha_actual)
+        ->where('delegacion','Zamora')
+        ->where('estatus', 'pendiente')
+        ->where('hora', '<=', $horaLimite)
+        ->update(['estatus' => 'expirada']);
 
         $cumplimientos = Pagos::where('pago_solicitud.fecha',$fecha_actual)
         ->join('seer_general','seer_general.id','pago_solicitud.id_solicitud')
@@ -158,21 +196,25 @@ class HomeController extends Controller
         ->get();
 
         $turnos = Recepcion::
-        where('recepcion.fecha',$fecha_actual)
-        ->leftjoin('users', 'users.id', '=', 'recepcion.auxiliar')
-        ->where('recepcion.tipo','Ratificación')
-        ->where('recepcion.delegacion','Zamora')
-        ->select('recepcion.solicitante as NUE',DB::raw("'Ratificación' as tramite"))
+        where('fecha',$fecha_actual)
+        ->where('tipo','Ratificación')
+        ->where('delegacion','Zamora')
+        ->whereIn('estatus', ['pendiente', 'expirada', 'confirmada'])
+        ->whereBetween('hora', [$horaInicio, $horaFinal])
+        ->select('consecutivo as NUE', 'tipo as tramite', 'hora', 'lugar_auxiliar as modulo', 'estatus')
         ->limit(7)
+        ->orderBy('hora')
         ->get();
 
         $solicitudes = Recepcion::
-        where('recepcion.fecha',$fecha_actual)
-        ->leftjoin('users', 'users.id', '=', 'recepcion.auxiliar')
-        ->where('recepcion.tipo','Solicitud')
-        ->where('recepcion.delegacion','Zamora')
-        ->select('recepcion.solicitante as NUE',DB::raw("'Solicitudes' as tramite"))
+        where('fecha',$fecha_actual)
+        ->whereIn('tipo',['Solicitud','Asesoría'])
+        ->where('delegacion','Zamora')
+        ->whereIn('estatus', ['pendiente', 'expirada', 'confirmada'])
+        ->whereBetween('hora', [$horaInicio, $horaFinal])
+        ->select('consecutivo as NUE', 'tipo as tramite', 'hora', 'lugar_auxiliar as modulo', 'estatus')
         ->limit(7)
+        ->orderBy('hora')
         ->get();
 
         return view('pantalla', compact('cumplimientos','turnos','audienencias','solicitudes'));
@@ -337,7 +379,7 @@ class HomeController extends Controller
             'hora'          => $hora_turno,
             'hora_fin'      => $hora_fin,
             'delegacion'    => $sede,
-            'estatus'       => "no atendido",
+            'estatus'       => "pendiente",
             'exepcion'      => $excepcion,
             'edad'          => $data["edad"],
             'sexo'          => $data["sexo"],
@@ -347,15 +389,20 @@ class HomeController extends Controller
             'telefono'      => $data["telefono"],
             'observaciones' => $data["conflicto"]
         );
-        try{
+    
             $recepcion=Recepcion::create($data_insertar);
             $fecha=$recepcion->fecha->format('Y-m-d');
             $hora=$recepcion->hora->format('H:i');
+            $pdfCitas = $this->verDocumentoCita($recepcion->id);
+            $variables = [
+                'Nombre'           => $data["nombre"],
+                'email'            => $data["email"],
+                'NumFolio'         => $numero_consecutivo,
+                'tipo'             => $tipo
+            ];
+            Mail::to($data["email"])->send(new SolicitudMail($pdfCitas, $variables));
             return redirect()->route('citas_exito')->with(['success' => true,'id'=>$recepcion->id,'folio' => $recepcion->consecutivo,'fecha' => $fecha,'hora' => $hora,'delegacion' => $recepcion->delegacion, 'modulo' => $recepcion->lugar_auxiliar, 'direccion' => $direccion]);
-        }
-        catch (\Throwable $e) { 
-            return redirect()->route('citas')->with('error', 'No se ha podido completar tu cita.'); 
-        }
+        
         
     }
     public function citas_exito(){
@@ -752,6 +799,36 @@ class HomeController extends Controller
         Excel::import(new TurnosImport, $request->file('file'));
         
         return back()->with('success', '¡Registros migrados correctamente!');
+    }
+    public function verDocumentoCita($id)
+    {
+        $cita = Recepcion::findOrFail($id);
+        $fecha = $cita->fecha->format('Y-m-d');
+        $hora = $cita->hora->format('H:i');
+        $todas_direcciones = [
+            'Morelia' => 'BLVD. GARCÍA DE LEÓN NO. 1575, COL. CHAPULTEPEC ORIENTE, C.P. 58260, MORELIA, MICHOACÁN',
+            'Zitácuaro' => '5 DE MAYO NTE. 3, CENTRO, C.P. 61500, ZITÁCUARO, MICHOACÁN.',
+            'Zamora' => 'JUSTO SIERRA NO. 290, COL. JARDINES DE CATEDRAL, C.P. 59670, ZAMORA DE HIDALGO, MICHOACÁN.',
+            'Sahuayo' => 'AV. UNIVERSIDAD SUR NO. 3000, SEGUNDO PISO, EDIFICIO CENTRAL, COL. LOMAS DE UNIVERSIDAD, C.P. 59103, SAHUAYO DE MORELOS, MICHOACÁN.',
+            'Uruapan' => 'NUEVO PARICUTÍN NO. 308, COL. SAN RAFAEL, C.P. 60136, URUAPAN, MICHOACÁN.',
+            'Lázaro Cárdenas' => 'PARACHO NO. 26, COL. 600 CASAS, C.P. 60950, LÁZARO CÁRDENAS, MICHOACÁN.',
+        ];
+        $direccion = $todas_direcciones[$cita->delegacion];
+        // Se genera la URL absoluta que abrirá el teléfono al escanear
+        $urlConfirmacion = route('citas.confirmar', $cita->id);
+
+        // Se crea el QR apuntando a esa URL específica
+        $qrCode = QrCode::size(200)->color(94, 119, 122)->generate($urlConfirmacion);
+        $html = view('recepcion.acuse_cita', compact('cita', 'qrCode', 'direccion','fecha','hora'))->render();
+        
+        $pdf = \PDF::loadHTML($html)
+            ->setPaper('a4', 'portrait')
+            ->setOption('isHtml5ParserEnabled', true)
+            ->setOption('isPhpEnabled', true); 
+
+        $nombreArchivo = 'Confirmacion_cita' .'.pdf';
+        return $pdf; 
+
     }
     
 }
