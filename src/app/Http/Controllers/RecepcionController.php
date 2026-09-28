@@ -180,7 +180,7 @@ class RecepcionController extends Controller
             'vulnerables'     => $vulnerables,
             'conflicto'       => $data["conflicto"] ?? null,
             'solicitante'     => $data["nombre"] ?? null,
-            'estatus'         => 'no atendido',
+            'estatus'         => 'pendiente',
             'orientacion'     => $data["orientacion"] ?? 'No',
             'delegacion'      => $sede,
             'folio'           => $data["folio"] ?? null,
@@ -289,7 +289,7 @@ class RecepcionController extends Controller
                     'orientacion'   => $data["orientacion"],
                     'conflicto'     => $data["conflicto"],
                     'solicitante'   => $data["nombre"],
-                    'estatus'       => "no atendido",
+                    'estatus'       => "pendiente",
                     'delegacion'    => $data["delegacion"],
                 );   
             }
@@ -310,7 +310,7 @@ class RecepcionController extends Controller
                     'orientacion'   => $data["orientacion"],
                     'conflicto'     => $data["conflicto"],
                     'solicitante'   => $data["nombre"],
-                    'estatus'       => "no atendido",
+                    'estatus'       => "pendiente",
                     'delegacion'    => $data["delegacion"],
                 );
             }
@@ -331,7 +331,7 @@ class RecepcionController extends Controller
                     'orientacion'   => $data["orientacion"],
                     'conflicto'     => $data["conflicto"],
                     'solicitante'   => $data["nombre"],
-                    'estatus'       => "no atendido",
+                    'estatus'       => "pendiente",
                     'delegacion'    => $data["delegacion"],
                 );
             }
@@ -353,7 +353,7 @@ class RecepcionController extends Controller
                 'orientacion'   => $data["orientacion"],
                 'conflicto'     => $data["conflicto"],
                 'solicitante'   => $data["nombre"],
-                'estatus'       => "no atendido",
+                'estatus'       => "pendiente",
                 'delegacion'    => $data["delegacion"],
             );    
         }
@@ -685,11 +685,20 @@ class RecepcionController extends Controller
     public function misturnos(){
         $id = auth()->user()->id;
         $fecha_actual = date('Y-m-d');
+        $user = auth()->user();
+        $roles = Role::pluck('name','name')->all();
+        $userRole = $user->roles->pluck('name')->all();
 
-        /////Validar si es auxiliar o exepcion /////
-        $misturnos = Recepcion::where('auxiliar', $id)
-        ->where('fecha', $fecha_actual)
-        ->get();
+        if($userRole[0] == "Super Usuario"){
+            $misturnos = Recepcion::where('fecha', $fecha_actual)->orderBy('hora')
+            ->get();
+        }
+        else{
+            $misturnos = Recepcion::where('auxiliar', $id)
+            ->where('fecha', $fecha_actual)->orderBy('hora')
+            ->get();
+        }
+        
 
         return view('turnos.misturnos',compact('misturnos'));
     }
@@ -1093,8 +1102,7 @@ class RecepcionController extends Controller
     public function index_excepciones()
     {
         $fecha_actual = date('Y-m-d');
-        $recepciones = Recepcion::where('exepcion', 'Si')->where('fecha',$fecha_actual)->where('estatus','no atendido')->get();
-        $recepciones = Recepcion::where('exepcion', 'Si')->get();
+        $recepciones = Recepcion::where('exepcion', 'Si')->where('fecha',$fecha_actual)->orderBy('hora')->get();
 
         return view('excepciones.index',compact('recepciones'));
     }
@@ -1103,6 +1111,12 @@ class RecepcionController extends Controller
         
         $recepcion = Recepcion::find($id);
         return view('excepciones.atender', compact('recepcion'));
+    }
+    public function solicitud_excepcion($id){
+        
+        $recepcion = Recepcion::find($id);
+        $recepcion->update(['exepcion' => 'No']);
+         return redirect()->route('solicitud');
     }
 
     public function guardar_excepcion(Request $request){
@@ -1119,7 +1133,7 @@ class RecepcionController extends Controller
             'expediente'        => $data['expediente'], 
             'situacion_laboral' => $data['situacion_laboral'],
             'frecuencia'        => $data['frecuencia'],
-            'descripcion_conductas' => $data['descripcion_conductas'],
+            'descripcion_conductas' => $data['descripcion_conductas'] ?? null,
             'tipo_caso'         => $data['tipo_caso'],
             'vulnerables'       => $data['vulnerables'],
             'jefe_inmediato'    => $data['jefe_inmediato'],
@@ -1202,7 +1216,7 @@ class RecepcionController extends Controller
         $urlConfirmacion = route('citas.confirmar', $cita->id);
 
         // Se crea el QR apuntando a esa URL específica
-        $qrCode = QrCode::size(200)->generate($urlConfirmacion);
+        $qrCode = QrCode::size(200)->color(94, 119, 122)->generate($urlConfirmacion);
         $html = view('recepcion.acuse_cita', compact('cita', 'qrCode', 'direccion','fecha','hora'))->render();
         
         $pdf = \PDF::loadHTML($html)
@@ -1211,7 +1225,7 @@ class RecepcionController extends Controller
             ->setOption('isPhpEnabled', true); 
 
         $nombreArchivo = 'Confirmacion_cita' .'.pdf';
-        return $pdf->stream($nombreArchivo); 
+        return $pdf; 
 
     }
     public function confirmarAsistencia($id)
@@ -1238,7 +1252,7 @@ class RecepcionController extends Controller
                         $cita->update(['estatus' => 'expirada']); 
                         $bandera = '3';
                         
-                    } elseif ($cita->estatus === 'no atendido') {
+                    } elseif ($cita->estatus === 'pendiente') {
                         $cita->update(['estatus' => 'confirmada']);
                         
                     } 
