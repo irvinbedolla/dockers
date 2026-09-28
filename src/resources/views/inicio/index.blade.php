@@ -62,8 +62,15 @@
                 <img class="inicio-saludo__logo" src="{{ asset('assets/images/ccl-r.png') }}"
                      alt="SiConcilio — Sistema Integral para la Conciliación">
                 <h2>Hola, {{ $nombre }}</h2>
-                <p>¡Bienvenid@!</p>
+                {{-- "Buenas tardes, Conciliadora". El rol sólo aparece
+                     cuando se puede escribir bien; si no, queda el saludo a
+                     secas. Lo resuelve App\Support\Saludo. --}}
+                <p>{{ $saludo }}</p>
             </div>
+
+            {{-- Estadísticas para todos los roles: va antes de la bifurcación
+                 de abajo, que es la que separa al Directivo del resto. --}}
+            @include('inicio._tarjetas')
         </div>
 
         @if(in_array('Directivo', $userRole))
