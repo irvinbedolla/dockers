@@ -123,9 +123,16 @@ class SeerController extends Controller
             if (extension_loaded('imagick')) {
                 try {
                     $im = new \Imagick();
-                    $im->readImageBlob($contenido);
+                    $im->readImageBlob($mime === 'image/tiff' ? ($this->revelarRaw($contenido) ?? $contenido) : $contenido);
                     $im->setIteratorIndex(0); // TIFF multipágina: solo la primera
                     $im = $im->getImage();
+                    // Si aun así quedan datos de sensor de 10-12 bits en 16 bits
+                    // (RAW que dcraw no reconoció), se estiran los niveles para
+                    // que no salga negra.
+                    if ($im->getImageRange()['maxima'] < \Imagick::getQuantumRange()['quantumRangeLong'] / 4) {
+                        $im->autoLevelImage();
+                        $im->gammaImage(2.2);
+                    }
                     $im->autoOrient();
                     $im->setImageBackgroundColor('white');
                     $im = $im->mergeImageLayers(\Imagick::LAYERMETHOD_FLATTEN);
@@ -170,6 +177,30 @@ class SeerController extends Controller
         imagedestroy($reducida);
 
         return 'data:image/jpeg;base64,' . base64_encode($jpeg);
+    }
+
+    /**
+     * Revela un RAW de cámara (DNG del modo Pro de algunos Huawei) con dcraw.
+     * Imagick lo lee como un TIFF en gris con los datos crudos del sensor y
+     * queda casi negro. Regresa un PPM, o null si no es RAW o no hay dcraw.
+     */
+    private function revelarRaw(string $contenido): ?string
+    {
+        $tmp = tempnam(sys_get_temp_dir(), 'raw');
+        file_put_contents($tmp, $contenido);
+
+        try {
+            // -c a stdout, -w balance de blancos de la cámara, -h media
+            // resolución (sobra para los 1200px del PDF y es 4 veces más rápido).
+            $proceso = \Illuminate\Support\Facades\Process::timeout(60)
+                ->run(['dcraw', '-c', '-w', '-h', $tmp]);
+
+            return $proceso->successful() && $proceso->output() !== '' ? $proceso->output() : null;
+        } catch (\Throwable $e) {
+            return null;
+        } finally {
+            @unlink($tmp);
+        }
     }
 
     /** Devuelve el array del lock actual, o null si no existe. */
