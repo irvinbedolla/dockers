@@ -375,7 +375,7 @@ class RecepcionController extends Controller
         ->where('recepcion.delegacion', $user["delegacion"])
         //->where('recepcion.estatus','no atendido')
         ->leftjoin('users', 'users.id', '=', 'recepcion.auxiliar')
-        ->select('users.name','recepcion.id','recepcion.solicitante','recepcion.fecha','recepcion.hora','recepcion.estatus','recepcion.tipo','recepcion.exepcion', 'recepcion.lugar_auxiliar')
+        ->select('users.name','recepcion.consecutivo','recepcion.id','recepcion.solicitante','recepcion.fecha','recepcion.hora','recepcion.estatus','recepcion.tipo','recepcion.exepcion', 'recepcion.lugar_auxiliar')
         ->get();
 
         return view('recepcion.turnos',compact('turnos'));
@@ -953,7 +953,7 @@ class RecepcionController extends Controller
         $esExcepcion = $excepcion === 'Si';
         $maxEmpalme = $esExcepcion ? 1 : ($sede === 'Morelia' ? ($tipo === 'Ratificación' ? 2 : 3) : 1);
 
-        $ocupadosQuery = Recepcion::whereBetween('fecha', [$fecha_inicio_str, $fecha_fin_str]);
+        $ocupadosQuery = Recepcion::whereBetween('fecha', [$fecha_inicio_str, $fecha_fin_str])->where('estatus', '!=', 'expirada');
         if ($esExcepcion) {
             $ocupadosQuery->where('exepcion', 'Si'); 
         } else {
@@ -973,7 +973,7 @@ class RecepcionController extends Controller
             $ocupadosCount[$key] = ($ocupadosCount[$key] ?? 0) + 1;
         }
 
-        $ahora = new \DateTime();
+        $ahora = now();
         $eventos = [];
         $fecha = (new \DateTime($fecha_inicio_str))->setTime(0, 0, 0);
         $fin = (new \DateTime($fecha_fin_str))->setTime(0, 0, 0);
@@ -1021,11 +1021,11 @@ class RecepcionController extends Controller
                     }
                     $hora_actual = $slot->format('H:i:s');
                     $cantidadOcupados = $ocupadosCount[$slotStart] ?? 0;
-
+                    $tolerancia = Carbon::parse($slot)->addMinutes(10);
                     if($lleno && !$esExcepcion){
                         $estado = 'expirado';
                     }
-                    elseif ($esInhabil || $esNoInhabil || $ahora > $slot || $slot == $hora_comida) {
+                    elseif ($esInhabil || $esNoInhabil || $ahora > $tolerancia  || $slot == $hora_comida ) {
                         $estado = 'expirado';
                     }
                     elseif ($cantidadOcupados >= $maxEmpalme) {
@@ -1225,7 +1225,7 @@ class RecepcionController extends Controller
             ->setOption('isPhpEnabled', true); 
 
         $nombreArchivo = 'Confirmacion_cita' .'.pdf';
-        return $pdf; 
+        return $pdf->stream($nombreArchivo, ["Attachment" => false]);
 
     }
     public function confirmarAsistencia($id)

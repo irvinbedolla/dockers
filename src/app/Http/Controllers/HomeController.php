@@ -407,7 +407,7 @@ class HomeController extends Controller
     }
     public function citas_exito(){
         if (!session()->has('success')) {
-            return redirect()->route('citas')->with('error', 'No se ha podido completar tu cita.'); 
+            return redirect()->route('citas')->with('errorr', 'No se ha podido completar tu cita.'); 
         }
 
         return view('turnos_exito');
