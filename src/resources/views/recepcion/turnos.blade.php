@@ -29,13 +29,14 @@
                                                 <th class="text-white" style="color: #ffffff !important;">Módulo</th>
                                                 <th class="text-white" style="color: #ffffff !important;">Auxiliar</th>
                                                 <th class="text-center text-white" style="color: #ffffff !important;">Estatus</th>
+                                                <th class="text-center text-white" style=" width: 8%; color: #ffffff;">Documento</th>
                                                 <th class="text-center text-white" style="width: 12%; color: #ffffff !important;">Acciones</th>
                                             </tr>
                                         </thead>
                                         <tbody class="contenidobusqueda">
                                             @foreach($turnos as $turno)
                                                 <tr>
-                                                    <td class="text-center fw-bold">{{ $turno->id }}</td>
+                                                    <td class="text-center fw-bold">{{ str_pad($turno->consecutivo, 5, '0', STR_PAD_LEFT) }}</td>
                                                     <td>{{ $turno->solicitante }}</td>
                                                     <td>{{ $turno->tipo }}</td>
                                                     <td>{{ $turno->hora }}</td>
@@ -50,19 +51,27 @@
                                                     <td class="text-center">
                                                         @if(strtolower($turno->estatus) === 'atendido')
                                                             <span class="badge bg-success rounded-pill px-3 py-2">Atendido</span>
-                                                        @elseif(strtolower($turno->estatus) === 'no atendido')
-                                                            <span class="badge bg-danger rounded-pill px-3 py-2">No atendido</span>
+                                                        @elseif(strtolower($turno->estatus) === 'confirmada')
+                                                            <span class="badge bg-info rounded-pill px-3 py-2">Confirmada</span>
+                                                        @elseif(strtolower($turno->estatus) === 'pendiente')
+                                                            <span class="badge bg-warning rounded-pill px-3 py-2">pendiente</span>
                                                         @else
                                                             <span class="badge bg-secondary rounded-pill px-3 py-2">{{ $turno->estatus }}</span>
                                                         @endif
                                                     </td>
                                                     <td class="text-center">
+                                                        <a class="btn btn-primary btn-sm text-white" href="{{ route('citas.documento', $turno->id) }}" onclick="disponibles(); " target="_blank">
+                                                            <i class="bi bi-file-pdf"></i> Acuse Cita
+                                                        </a>
+                                                    </td>
+                                                    <td class="text-center" >
                                                         @can('turnos_asignar')
-                                                            @if($turno->estatus === "no atendido" && $turno->exepcion === "No")
+                                                            @if($turno->estatus === "pendiente" && $turno->exepcion === "No")
                                                                 <a class="btn btn-info btn-sm text-white" href="{{ route('cambiar', $turno->id) }}" onclick="disponibles();">
                                                                     <i class="bi bi-person-check me-1"></i> Asignar
                                                                 </a>
                                                             @endif
+                                                            
                                                         @endcan
                                                     </td>
                                                 </tr>

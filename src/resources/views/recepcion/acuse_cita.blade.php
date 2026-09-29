@@ -106,7 +106,7 @@
 </head>
 <body>
 
-    <img src="{{ public_path('assets/images/acuse_cita.jpg') }}" class="fondo-membrete">
+     @if($cita->tipo !== 'Ratificación')<img src="{{ public_path('assets/images/acuse_cita.jpg') }}" class="fondo-membrete">@else<img src="{{ public_path('assets/images/acuse_cita2.jpg') }}" class="fondo-membrete">@endif
 
     <div class="capa-datos">
         
