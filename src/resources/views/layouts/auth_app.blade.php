@@ -36,7 +36,7 @@
             flex: 1 1 auto;
             position: relative;
             overflow: hidden;
-            background-image: url('{{ asset("assets/images/login-background.webp") }}');
+            background-image: url('{{ asset("assets/images/login-background1.webp") }}');
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;

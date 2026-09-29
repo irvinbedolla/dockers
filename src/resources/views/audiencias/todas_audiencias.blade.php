@@ -108,7 +108,7 @@
                                                                                 <li><a class="btn btn-info" style="width: 100%" href="{{ route('PDFfalltaInteres', $audiencia->id_solicitud) }}"        target="_blank">Acta de Archivo</a></li>
                                                                                 <li><a class="btn btn-info" style="width: 100%" href="{{ route('VerPDFAudiencia', $audiencia->id_solicitud) . '?audiencia_id=' . $audiencia->id }}"  target="_blank">Acta de Audiencia</a></li>
                                                                                 @can('audiencias_ver_citatorios')
-                                                                                    <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $audiencia->id_solicitud }}">Citatorios</button></li>
+                                                                                    <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $audiencia->id_solicitud }}" data-audiencia-id="{{ $audiencia->id }}">Citatorios</button></li>
                                                                                 @endcan
                                                                             </ul>
                                                                         </div>
@@ -123,7 +123,7 @@
                                                                                 <li><button type="button" class="btn btn-info btn-cargar-lista-docs" style="width: 100%" data-id="{{ $audiencia->id_solicitud }}" data-doc-url="{{ signedDocRoute('VerDocumentosAudiencia', ['id' => $audiencia->id_solicitud]) }}">Documentos Digitales</button></li>
                                                                                 <li><a class="btn btn-info" style="width: 100%" href="{{ route('PDFfalltaInteres', $audiencia->id_solicitud) }}"        target="_blank">Acta de Archivo</a></li>
                                                                                 @can('audiencias_ver_citatorios')
-                                                                                    <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $audiencia->id_solicitud }}">Citatorios</button></li>
+                                                                                    <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $audiencia->id_solicitud }}" data-audiencia-id="{{ $audiencia->id }}">Citatorios</button></li>
                                                                                 @endcan
                                                                             </ul>
                                                                         </div>
@@ -138,7 +138,7 @@
                                                                                 <li><button type="button" class="btn btn-info btn-cargar-lista-docs" style="width: 100%" data-id="{{ $audiencia->id_solicitud }}" data-doc-url="{{ signedDocRoute('VerDocumentosAudiencia', ['id' => $audiencia->id_solicitud]) }}">Documentos Digitales</button></li>
                                                                                 <li><a class="btn btn-info" style="width: 100%" href="{{ route('PDFincompetencia', $audiencia->id_solicitud) }}"        target="_blank">Incompetencia</a></li>
                                                                                 @can('audiencias_ver_citatorios')
-                                                                                    <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $audiencia->id_solicitud }}">Citatorios</button></li>
+                                                                                    <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $audiencia->id_solicitud }}" data-audiencia-id="{{ $audiencia->id }}">Citatorios</button></li>
                                                                                 @endcan
                                                                             </ul>
                                                                         </div>
@@ -153,7 +153,7 @@
                                                                                 <li><button type="button" class="btn btn-info btn-cargar-lista-docs" style="width: 100%" data-id="{{ $audiencia->id_solicitud }}" data-doc-url="{{ signedDocRoute('VerDocumentosAudiencia', ['id' => $audiencia->id_solicitud]) }}">Documentos Digitales</button></li>
                                                                                 <li><a class="btn btn-info" style="width: 100%" href="{{ route('PDFinteres', $audiencia->id_solicitud) }}"              target="_blank">Acta de incomparecencia</a></li>
                                                                                 @can('audiencias_ver_citatorios')
-                                                                                    <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $audiencia->id_solicitud }}">Citatorios</button></li>
+                                                                                    <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $audiencia->id_solicitud }}" data-audiencia-id="{{ $audiencia->id }}">Citatorios</button></li>
                                                                                 @endcan
                                                                             </ul>
                                                                         </div>
@@ -168,7 +168,7 @@
                                                                                 <li><button type="button" class="btn btn-info btn-cargar-lista-docs" style="width: 100%" data-id="{{ $audiencia->id_solicitud }}" data-doc-url="{{ signedDocRoute('VerDocumentosAudiencia', ['id' => $audiencia->id_solicitud]) }}">Documentos Digitales</button></li>
                                                                                 <li><a class="btn btn-info" style="width: 100%" href="{{ route('PDFnotificacion_solicitante', $audiencia->id_solicitud) }}" target="_blank">Notificación al solicitante</a></li>
                                                                                 @can('audiencias_ver_citatorios')
-                                                                                    <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $audiencia->id_solicitud }}">Citatorios</button></li>
+                                                                                    <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $audiencia->id_solicitud }}" data-audiencia-id="{{ $audiencia->id }}">Citatorios</button></li>
                                                                                 @endcan
                                                                             </ul>
                                                                         </div>
@@ -184,7 +184,7 @@
                                                                                 <li><a class="btn btn-info" style="width: 100%" href="{{ route('PDFno_conciliacion', $audiencia->id_solicitud) }}" target="_blank">Constancias de no conciliación (En un solo archivo)</a></li>
                                                                                 <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#noConciliacion" data-id="{{ $audiencia->id_solicitud }}">Constancias de no conciliación</button></li>
                                                                                 @can('audiencias_ver_citatorios')
-                                                                                    <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $audiencia->id_solicitud }}">Citatorios</button></li>
+                                                                                    <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $audiencia->id_solicitud }}" data-audiencia-id="{{ $audiencia->id }}">Citatorios</button></li>
                                                                                 @endcan
                                                                             </ul>
                                                                         </div>
@@ -199,7 +199,7 @@
                                                                                 <li><button type="button" class="btn btn-info btn-cargar-lista-docs" style="width: 100%" data-id="{{ $audiencia->id_solicitud }}" data-doc-url="{{ signedDocRoute('VerDocumentosAudiencia', ['id' => $audiencia->id_solicitud]) }}">Documentos Digitales</button></li>
                                                                                 <li><a class="btn btn-info" style="width: 100%" href="{{ route('PDFincumplimientoAudiencia', $audiencia->id_solicitud) }}"      target="_blank">Constancia de Incumplimiento</a></li>
                                                                                 @can('audiencias_ver_citatorios')
-                                                                                    <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $audiencia->id_solicitud }}">Citatorios</button></li>
+                                                                                    <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $audiencia->id_solicitud }}" data-audiencia-id="{{ $audiencia->id }}">Citatorios</button></li>
                                                                                 @endcan
                                                                     </div> 
                                                                 @elseif($audiencia->estatus_modelo == "Conciliacion" || $audiencia->estatus_modelo == "Concluida" || $audiencia->estatus_modelo == "Reinstalacion")
@@ -222,7 +222,7 @@
                                                                                     <li><a class="dropdown-item" href="{{ route('PDFcumplimientoTotal', $audiencia->id_solicitud) }}"  target="_blank">Constancia de cumplimiento</a></li>
                                                                                 @endif
                                                                                 @can('audiencias_ver_citatorios')
-                                                                                    <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $audiencia->id_solicitud }}">Citatorios</button></li>
+                                                                                    <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $audiencia->id_solicitud }}" data-audiencia-id="{{ $audiencia->id }}">Citatorios</button></li>
                                                                                 @endcan
                                                                             </ul>
                                                                         </div>
@@ -236,7 +236,7 @@
                                                                             <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
                                                                                 <li><button type="button" class="dropdown-item btn-cargar-lista-docs" data-id="{{ $audiencia->id_solicitud }}" data-doc-url="{{ signedDocRoute('VerDocumentosAudiencia', ['id' => $audiencia->id_solicitud]) }}">Documentos Digitales</button></li>
                                                                                 @can('audiencias_ver_citatorios')
-                                                                                    <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $audiencia->id_solicitud }}">Citatorios</button></li>
+                                                                                    <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $audiencia->id_solicitud }}" data-audiencia-id="{{ $audiencia->id }}">Citatorios</button></li>
                                                                                 @endcan
                                                                             </ul>
                                                                         </div>
@@ -251,7 +251,7 @@
                                                                                 <li><button type="button" class="dropdown-item btn-cargar-lista-docs" data-id="{{ $audiencia->id_solicitud }}" data-doc-url="{{ signedDocRoute('VerDocumentosAudiencia', ['id' => $audiencia->id_solicitud]) }}">Documentos Digitales</button></li>
                                                                                 <li><a class="btn btn-info" style="width: 100%" href="{{ route('PDFfalltaInteres', $audiencia->id_solicitud) }}"        target="_blank">Acta de Desistimiento</a></li>
                                                                                 @can('audiencias_ver_citatorios')
-                                                                                    <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $audiencia->id_solicitud }}">Citatorios</button></li>
+                                                                                    <li><button type="button" class="btn btn-info btn-mostrar-registros" style="width: 100%" data-bs-toggle="modal" data-bs-target="#documentos" data-id="{{ $audiencia->id_solicitud }}" data-audiencia-id="{{ $audiencia->id }}">Citatorios</button></li>
                                                                                 @endcan
                                                                             </ul>
                                                                         </div>
@@ -451,11 +451,13 @@
                 const listaRegistros = $('#listaRegistros');
                 const pdfsUrlBase = "{{ url('ObtenerCitatorios') }}";
                 const id = $(this).data('id');
+                const audienciaId = $(this).data('audienciaId');
                 const pdfRouteBase = '{{ route("pdfCitatorioAudiencia", ["id" => "xxx"]) }}';
 
                 listaRegistros.empty(); // Limpiar lista
                 $.ajax({
                     url: `${pdfsUrlBase}/${id}`,
+                    data: audienciaId ? { audiencia_id: audienciaId } : {},
                     type: 'GET',
                     dataType: 'json',
                     success: function(data) {

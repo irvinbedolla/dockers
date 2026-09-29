@@ -87,6 +87,13 @@ class UsuarioController extends Controller
             'delegacion' => 'required',
             'type' => 'required',
             'foto_perfil' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:8192|dimensions:min_width=200,min_height=200',
+            'sexo'        => 'nullable|in:H,M,NC',
+        ], [
+            'foto_perfil.image'      => 'El archivo debe ser una imagen.',
+            'foto_perfil.mimes'      => 'La foto debe ser JPG, PNG o WebP.',
+            'foto_perfil.max'        => 'La foto no debe pesar más de 8 MB.',
+            'foto_perfil.dimensions' => 'La foto debe medir al menos 200x200 píxeles.',
+            'foto_perfil.uploaded'   => 'La foto no se pudo subir: excede el límite del servidor.',
         ]);
 
         $user = User::findOrFail($id);
@@ -95,12 +102,22 @@ class UsuarioController extends Controller
         // archivo subido entraba como UploadedFile a una columna de texto.
         $input = $request->only(['name', 'email', 'delegacion', 'type']);
 
+        // El select manda cadena vacía cuando se deja en "Sin especificar";
+        // la columna es un enum, así que eso tiene que llegar como NULL.
+        $input['sexo'] = $request->input('sexo') ?: null;
+
         if ($request->filled('password')) {
             $input['password'] = Hash::make($request->input('password'));
         }
 
         if ($request->hasFile('foto_perfil')) {
-            $input['foto_perfil'] = FotoPerfil::guardar($request->file('foto_perfil'), $user->foto_perfil);
+            try {
+                $input['foto_perfil'] = FotoPerfil::guardar($request->file('foto_perfil'), $user->foto_perfil);
+            } catch (\RuntimeException $e) {
+                // Mejor devolverlo al formulario con el motivo que guardar en la
+                // base la ruta de un archivo que no se escribio.
+                return back()->withInput()->withErrors(['foto_perfil' => $e->getMessage()]);
+            }
         } elseif ($request->boolean('quitar_foto')) {
             FotoPerfil::borrar($user->foto_perfil);
             $input['foto_perfil'] = null;

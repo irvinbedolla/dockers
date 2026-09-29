@@ -223,16 +223,43 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="table-responsive">
-                        <table class="table table-striped align-middle w-100 text-center">
-                            <thead style="background-color: #D2D3D5;">
-                                <tr>
-                                    <th>Citatorios</th>
-                                    <th>Acción</th>
-                                </tr>
-                            </thead>
-                            <tbody id="listaRegistros"></tbody>
-                        </table>
+                    <div id="citatoriosPasoAudiencias">
+                        <p class="text-muted mb-2">Selecciona la audiencia de la que quieres ver los citatorios.</p>
+                        <div class="table-responsive">
+                            <table class="table table-striped align-middle w-100 text-center">
+                                <thead style="background-color: #D2D3D5;">
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Estatus</th>
+                                        <th>Fecha</th>
+                                        <th>Hora</th>
+                                        <th>Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="listaAudienciasCitatorios"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Paso 2: citatorios de la audiencia elegida -->
+                    <div id="citatoriosPasoCitados" style="display:none;">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-semibold" id="citatoriosAudienciaTitulo"></span>
+                            <button type="button" class="btn btn-secondary btn-sm" id="citatoriosVolver">
+                                <i class="bi bi-arrow-left me-1"></i> Volver a audiencias
+                            </button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-striped align-middle w-100 text-center">
+                                <thead style="background-color: #D2D3D5;">
+                                    <tr>
+                                        <th>Citatorios</th>
+                                        <th>Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="listaRegistros"></tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -378,25 +405,82 @@
 
 
             // Modal Citatorios vía AJAX (Bootstrap 5.3 API)
-            $(document).on('click', '.btn-mostrar-registros', function() {
-                const listaRegistros = $('#listaRegistros');
-                const pdfsUrlBase = "{{ url('ObtenerCitatorios') }}";
-                const id = $(this).data('id');
-                const pdfRouteBase = '{{ route("PDFSolicitud", ["id" => "xxx"]) }}';
+            // Paso 1: al abrir el modal se listan las audiencias de la solicitud para elegir una
+            let citatoriosSolicitudId = null;
 
-                listaRegistros.empty();
+            function mostrarPasoAudienciasCitatorios() {
+                $('#citatoriosPasoCitados').hide();
+                $('#citatoriosPasoAudiencias').show();
+            }
+
+            $(document).on('click', '.btn-mostrar-registros', function() {
+                citatoriosSolicitudId = $(this).data('id');
+                const lista = $('#listaAudienciasCitatorios');
+                const endpoint = `{{ url('/api/audiencias-por-solicitud') }}/${citatoriosSolicitudId}`;
+
+                mostrarPasoAudienciasCitatorios();
+                lista.html('<tr><td colspan="5" class="text-muted">Cargando...</td></tr>');
 
                 $.ajax({
-                    url: `${pdfsUrlBase}/${id}`,
+                    url: endpoint,
                     type: 'GET',
                     dataType: 'json',
                     success: function(data) {
+                        lista.empty();
+                        if (Array.isArray(data) && data.length > 0) {
+                            data.forEach(function(a, index) {
+                                const hora = a.hora ? (a.hora.substring(0, 5) + ' HRS') : '';
+                                const titulo = `Audiencia ${index + 1} de ${data.length} (${a.fecha || 'sin fecha'})`;
+                                lista.append(`
+                                    <tr>
+                                        <td>${a.id}</td>
+                                        <td>${a.estatus || ''}</td>
+                                        <td>${a.fecha || ''}</td>
+                                        <td>${hora}</td>
+                                        <td>
+                                            <button type="button" class="btn btn-primary btn-sm btn-citatorios-audiencia"
+                                                data-audiencia-id="${a.id}" data-titulo="${titulo}">
+                                                Ver citatorios
+                                            </button>
+                                        </td>
+                                    </tr>
+                                `);
+                            });
+                        } else {
+                            lista.append('<tr><td colspan="5" class="text-muted">No se encontraron audiencias para esta solicitud.</td></tr>');
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Error al obtener audiencias:', error);
+                        lista.html('<tr><td colspan="5" class="text-danger">Error de conexión con el servidor.</td></tr>');
+                    }
+                });
+            });
+
+            // Paso 2: citatorios de la audiencia elegida
+            $(document).on('click', '.btn-citatorios-audiencia', function() {
+                const listaRegistros = $('#listaRegistros');
+                const pdfsUrlBase = "{{ url('ObtenerCitatorios') }}";
+                const pdfRouteBase = '{{ route("pdfCitatorioAudiencia", ["id" => "xxx"]) }}';
+
+                $('#citatoriosAudienciaTitulo').text($(this).data('titulo'));
+                $('#citatoriosPasoAudiencias').hide();
+                $('#citatoriosPasoCitados').show();
+                listaRegistros.html('<tr><td colspan="2" class="text-muted">Cargando...</td></tr>');
+
+                $.ajax({
+                    url: `${pdfsUrlBase}/${citatoriosSolicitudId}`,
+                    data: { audiencia_id: $(this).data('audienciaId') },
+                    type: 'GET',
+                    dataType: 'json',
+                    success: function(data) {
+                        listaRegistros.empty();
                         if (data.length > 0) {
                             $.each(data, function(index, registro) {
                                 const pdfUrl = pdfRouteBase.replace('xxx', registro.id);
                                 const listItem = `
                                 <tr>
-                                    <td class="text-start"><strong>${registro.nombre} ${registro.primer_apellido} ${registro.segundo_apellido}</strong></td>
+                                    <td class="text-start"><strong>${registro.nombre} ${registro.primer_apellido} ${registro.segundo_apellido || ''}</strong></td>
                                     <td>
                                         <a href="${pdfUrl}" target="_blank" class="btn btn-primary btn-sm">Ver PDF</a>
                                     </td>
@@ -404,23 +488,17 @@
                                 listaRegistros.append(listItem);
                             });
                         } else {
-                            listaRegistros.append('<tr><td colspan="2" class="text-muted">No se encontraron registros.</td></tr>');
+                            listaRegistros.append('<tr><td colspan="2" class="text-muted">No hay citatorios para esta audiencia.</td></tr>');
                         }
-
-                        const modalElement = document.getElementById('documentos');
-                        const modalInstance = bootstrap.Modal.getInstance(modalElement) || new bootstrap.Modal(modalElement);
-                        modalInstance.show();
                     },
                     error: function(xhr, status, error) {
                         console.error("Error al obtener los datos:", error);
-                        listaRegistros.append('<tr><td colspan="2" class="text-danger">Error de conexión con el servidor.</td></tr>');
-
-                        const modalElement = document.getElementById('documentos');
-                        const modalInstance = bootstrap.Modal.getInstance(modalElement) || new bootstrap.Modal(modalElement);
-                        modalInstance.show();
+                        listaRegistros.html('<tr><td colspan="2" class="text-danger">Error de conexión con el servidor.</td></tr>');
                     }
                 });
             });
+
+            $('#citatoriosVolver').on('click', mostrarPasoAudienciasCitatorios);
 
             $(document).on('click', '.open-expediente-modal', function() {
                 var idRegistro = $(this).data('id');            

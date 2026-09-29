@@ -47,8 +47,8 @@
             </a>
 
             <div class="dropdown-menu dropdown-menu-end shadow-sm">
-                <a href="{{ route('password_cambiar' ) }}" class="dropdown-item d-flex align-items-center">
-                    <i class="bi bi-pass me-2 text-success"></i> Cambiar contraseña
+                <a href="{{ route('perfil') }}" class="dropdown-item d-flex align-items-center">
+                    <i class="bi bi-person-circle me-2 text-success"></i> Mi perfil
                 </a>
                 <div class="dropdown-divider"></div>
                 <form id="logout-form" action="{{ route('logout') }}" method="POST" class="m-0">

@@ -37,8 +37,16 @@ class FotoPerfil
     public static function guardar(UploadedFile $archivo, ?string $anterior = null): string
     {
         $destino = self::CARPETA.'/'.Str::uuid()->toString().'.webp';
+        $disco   = Storage::disk('public');
 
-        Storage::disk('public')->put($destino, self::procesar($archivo->getRealPath()));
+        $escrito = $disco->put($destino, self::procesar($archivo->getRealPath()));
+
+        if ($escrito === false || ! $disco->exists($destino)) {
+            throw new RuntimeException(
+                'No se pudo escribir la foto en storage/app/public/'.self::CARPETA.'. '.
+                'Revisa que el usuario de PHP tenga permiso de escritura en esa carpeta.'
+            );
+        }
 
         // Solo despues de escribir la nueva: si algo falla arriba, el usuario
         // se queda con la que tenia en vez de quedarse sin ninguna.
