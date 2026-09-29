@@ -113,18 +113,28 @@
                 <table class="table-custom">
                     <thead>
                         <tr>
-                            <th width="70%">Municipio</th>
-                            <th width="30%" style="text-align: center;">Total de Solicitudes</th>
+                            <th width="50%" rowspan="2" style="vertical-align: bottom;">Municipio</th>
+                            <th width="50%" colspan="2" style="text-align: center;">Total de Solicitudes</th>
+                        </tr>
+                        <tr>
+                            <th width="25%" style="text-align: center;">Municipio Particular del Solicitante</th>
+                            <th width="25%" style="text-align: center;">Municipio de la fuente de Empleo</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @php $subtotal = 0; @endphp
+                        @php $subtotalSolicitante = 0; $subtotalEmpleo = 0; @endphp
                         @foreach($municipios as $item)
-                            @php $subtotal += $item->total_solicitudes; @endphp
+                            @php
+                                $subtotalSolicitante += $item->total_solicitante;
+                                $subtotalEmpleo += $item->total_empleo;
+                            @endphp
                             <tr>
                                 <td>{{ $item->municipio }}</td>
                                 <td style="text-align: center;">
-                                    <span class="total-badge">{{ $item->total_solicitudes }}</span>
+                                    <span class="total-badge">{{ $item->total_solicitante }}</span>
+                                </td>
+                                <td style="text-align: center;">
+                                    <span class="total-badge">{{ $item->total_empleo }}</span>
                                 </td>
                             </tr>
                         @endforeach
@@ -132,7 +142,8 @@
                     <tfoot>
                         <tr style="background-color: #f1f3f3; font-weight: bold;">
                             <td style="text-align: right; padding: 10px;">Subtotal {{ $delegacion }}:</td>
-                            <td style="text-align: center; color: #5a6a6b;">{{ $subtotal }}</td>
+                            <td style="text-align: center; color: #5a6a6b;">{{ $subtotalSolicitante }}</td>
+                            <td style="text-align: center; color: #5a6a6b;">{{ $subtotalEmpleo }}</td>
                         </tr>
                     </tfoot>
                 </table>

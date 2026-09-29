@@ -33,6 +33,7 @@ use Illuminate\Support\Facades\Storage;
 use NumberToWords\NumberToWords; // para convertir números(cantidades) a letras
 use DateTime;
 use Illuminate\Support\Facades\Log;
+use App\Services\RetrocesoRecorder;
 
 class TurnosController extends Controller 
 {
@@ -1669,6 +1670,7 @@ class TurnosController extends Controller
             return $query->where('name', '=', 'Conciliador');
         })
         ->whereIn('delegacion', $delegaciones)
+        ->where('estatus', 'Activo')
         ->get();
         $turno = Turnos::find($id);
         $motivo = $turno ? $turno->motivo : null;
@@ -2187,6 +2189,14 @@ class TurnosController extends Controller
 
     public function aplicar_retroceso_ratificacion($id)
     {
+        request()->validate(
+            ['motivo' => 'required|string|max:1000'],
+            [
+                'motivo.required' => 'El motivo del retroceso es obligatorio.',
+                'motivo.max'      => 'El motivo no debe exceder 1000 caracteres.',
+            ]
+        );
+
         $turno = Turnos::find($id);
 
         if (!$turno) {
@@ -2202,24 +2212,20 @@ class TurnosController extends Controller
         $estatusPrevio = $turno->estatus;
 
         DB::transaction(function () use ($id, $turno, $estatusPrevio) {
-            // Se guarda lo que se va a borrar para dejarlo en la bitácora.
-            $borrado = [
-                'pagos'       => Pagos::where('id_solicitud', $id)->where('tipo_pago', 'Ratificacion')->get()->toArray(),
-                'conceptos'   => Concepto::where('id_solicitud', $id)->where('tipo_pago', 'Ratificacion')->get()->toArray(),
-                'deducciones' => Deducciones::where('id_solicitud', $id)->where('tipo_pago', 'Ratificacion')->get()->toArray(),
-            ];
+            // Lo borrado y modificado queda en retrocesos / retroceso_detalles.
+            $retroceso = RetrocesoRecorder::iniciar('ratificacion', $turno, request('motivo'));
 
             // IMPORTANTE: el filtro tipo_pago es obligatorio. id_solicitud es una
             // columna polimórfica: con 'Ratificacion' apunta a turnos.id y con
             // 'Audiencia' a seer_general.id. Sin el filtro se borran los registros
             // de la audiencia que comparta el mismo número de id.
-            Pagos::where('id_solicitud', $id)->where('tipo_pago', 'Ratificacion')->delete();
-            Concepto::where('id_solicitud', $id)->where('tipo_pago', 'Ratificacion')->delete();
-            Deducciones::where('id_solicitud', $id)->where('tipo_pago', 'Ratificacion')->delete();
+            $retroceso->borrar(Pagos::where('id_solicitud', $id)->where('tipo_pago', 'Ratificacion'));
+            $retroceso->borrar(Concepto::where('id_solicitud', $id)->where('tipo_pago', 'Ratificacion'));
+            $retroceso->borrar(Deducciones::where('id_solicitud', $id)->where('tipo_pago', 'Ratificacion'));
 
             // El registro de turnos NO se borra: solo se limpian las manifestaciones
             // y se regresa al estatus que habilita el botón "Concluir".
-            $turno->update([
+            $retroceso->actualizar($turno, [
                 'estatus'                  => 'Confirmado',
                 'resolucion_primera'       => null,
                 'resolucion_trabajadores'  => null,
@@ -2227,13 +2233,15 @@ class TurnosController extends Controller
                 'resolucion_segunda'       => null,
             ]);
 
+            $retroceso->terminar();
+
             Log::warning('Retroceso de ratificación aplicado', [
+                'retroceso_id'   => $retroceso->id(),
                 'turno_id'       => $id,
                 'NUE'            => $turno->NUE,
                 'estatus_previo' => $estatusPrevio,
                 'user_id'        => auth()->id(),
                 'user'           => auth()->user()->name ?? null,
-                'borrado'        => $borrado,
             ]);
         });
 
@@ -3076,11 +3084,13 @@ class TurnosController extends Controller
         $delegaciones   = null;
         $relacionEloquent = 'roles';
 
-        if($sede == "Morelia" || $sede =='Zitácuaro'){
+        $relacionEloquent = 'roles';
+
+        if($solicitud->delegacion == "Morelia" || $solicitud->delegacion =='Zitácuaro'){
             $delegaciones = ['Morelia', 'Zitácuaro'];
-        }else if($sede == "Uruapan" || $sede == "Lázaro Cárdenas"){
+        }else if($solicitud->delegacion == "Uruapan" || $solicitud->delegacion == "Lázaro Cárdenas"){
             $delegaciones = ['Uruapan', 'Lázaro Cárdenas'];
-        }else if($sede == "Zamora" || $sede =='Sahuayo'){
+        }else if($solicitud->delegacion == "Zamora" || $solicitud->delegacion =='Sahuayo'){
             $delegaciones = ['Zamora', 'Sahuayo'];
         }
 
@@ -3088,9 +3098,17 @@ class TurnosController extends Controller
             return $query->where('name', '=', 'Conciliador');
         })
         ->whereIn('delegacion', $delegaciones)
+        ->where('estatus', 'Activo')
         ->get();
 
-        return view('/ratificaciones/edicionVistaCitas',compact('idSolicitud','representantes','solicitud','abogados','estados','municipios','conciliadores'));
+        if (!is_null($solicitud->id_conciliador) && !$conciliadores->contains('id', $solicitud->id_conciliador)) {
+            $conciliadorAsignado = User::find($solicitud->id_conciliador);
+            if ($conciliadorAsignado) {
+                $conciliadores->push($conciliadorAsignado);
+            }
+        }
+
+        return view('/ratificaciones/edicionVistaCitas',compact('idSolicitud','representantes','solicitud','abogados','estados','municipios', 'conciliadores'));
     }
 
     public function guardarEdicion_citas(Request $request){
@@ -3102,6 +3120,14 @@ class TurnosController extends Controller
         $userRole = $user->roles->pluck('name')->all();
 
         $solicitud = Turnos::find($data['id']);
+
+        if (in_array($solicitud->estatus, ['Concluida', 'Concluida Pagos', 'Incumplimiento'])) {
+            $request->validate(
+                ['conciliador_id' => 'required'],
+                ['conciliador_id.required' => 'El conciliador es obligatorio.']
+            );
+        }
+
         //Variables opcionales
         if(isset($data["Aguinaldo"]) && $data["motivo"] == "Pago de prestaciones"){
             $Aguinaldo =  1;
@@ -3193,7 +3219,7 @@ class TurnosController extends Controller
             'num_int'             => $data["N_Int"],
             'codigo_postal'       => $data["cp"],
             'id_historial'        => $ultimoRegistro->id ?? NULL,
-            'id_conciliador'      => $data["conciliador_id"],
+            'id_conciliador'      => $data["conciliador_id"] ?? NULL,
         ];
 
         if ($request->hasFile('documentoidentificacion')) {

@@ -14,6 +14,7 @@ use App\Models\SeerPerConciliador;
 use App\Models\SeerColectivas;
 use App\Models\SeerConvenios;
 use App\Models\SeerCitados;
+use App\Services\RetrocesoRecorder;
 use App\Models\SeerAsesoria;
 use App\Models\SeerMotivo;
 use App\Models\SolicitudMotivo;
@@ -2037,15 +2038,70 @@ class SeerController extends Controller
             })
             ->select(
                 'seer_general.delegacion', // Campo para agrupar por sede
-                'municipios.nombre as municipio', 
+                'municipios.id as municipio_id',
+                'municipios.nombre as municipio',
                 DB::raw('COUNT(seer_general.id) as total_solicitudes')
             )
             ->groupBy('seer_general.delegacion', 'municipios.id', 'municipios.nombre')
-            ->orderByRaw("FIELD(seer_general.delegacion, 'Morelia', 'Zitácuaro', 'Uruapan', 'Lázaro Cárdenas', 'Zamora', 'Sahuayo') ASC")
-            ->orderBy('municipios.nombre', 'asc')
             ->get();
 
-        $agrupados = $solicutudes_minicipio->groupBy('delegacion');
+        // Primer citado (menor id) de cada solicitud cuyo municipio sea de Michoacán
+        $primerCitadoMichoacan = DB::table('seer_citados as sc')
+            ->join('municipios as mc', 'sc.municipio_citado', '=', 'mc.id')
+            ->where('mc.estado', "=", 16)
+            ->select('sc.id_solicitud', DB::raw('MIN(sc.id) as id_citado'))
+            ->groupBy('sc.id_solicitud');
+
+        $solicitudes_municipio_empleo = DB::table('seer_general')
+            ->joinSub($primerCitadoMichoacan, 'pc', 'pc.id_solicitud', '=', 'seer_general.id')
+            ->join('seer_citados', 'seer_citados.id', '=', 'pc.id_citado')
+            ->join('municipios', 'seer_citados.municipio_citado', '=', 'municipios.id')
+            ->whereBetween('seer_general.fecha', [$fecha_inicial, $fecha_final])
+            ->when($sedesPermitidas, function ($q) use ($sedesPermitidas) {
+                return $q->whereIn('seer_general.delegacion', $sedesPermitidas);
+            })
+            ->select(
+                'seer_general.delegacion',
+                'municipios.id as municipio_id',
+                'municipios.nombre as municipio',
+                DB::raw('COUNT(seer_general.id) as total_solicitudes')
+            )
+            ->groupBy('seer_general.delegacion', 'municipios.id', 'municipios.nombre')
+            ->get();
+
+        // Combinar ambos conteos por delegación y municipio
+        $filas = [];
+        foreach ($solicutudes_minicipio as $row) {
+            $filas[$row->delegacion.'|'.$row->municipio_id] = (object) [
+                'delegacion'         => $row->delegacion,
+                'municipio'          => $row->municipio,
+                'total_solicitante'  => (int) $row->total_solicitudes,
+                'total_empleo'       => 0,
+            ];
+        }
+        foreach ($solicitudes_municipio_empleo as $row) {
+            $key = $row->delegacion.'|'.$row->municipio_id;
+            if (!isset($filas[$key])) {
+                $filas[$key] = (object) [
+                    'delegacion'         => $row->delegacion,
+                    'municipio'          => $row->municipio,
+                    'total_solicitante'  => 0,
+                    'total_empleo'       => 0,
+                ];
+            }
+            $filas[$key]->total_empleo = (int) $row->total_solicitudes;
+        }
+
+        $ordenSedes = ['Morelia', 'Zitácuaro', 'Uruapan', 'Lázaro Cárdenas', 'Zamora', 'Sahuayo'];
+        usort($filas, function ($a, $b) use ($ordenSedes) {
+            $posA = array_search($a->delegacion, $ordenSedes);
+            $posB = array_search($b->delegacion, $ordenSedes);
+            $posA = $posA === false ? -1 : $posA;
+            $posB = $posB === false ? -1 : $posB;
+            return [$posA, $a->municipio] <=> [$posB, $b->municipio];
+        });
+
+        $agrupados = collect($filas)->groupBy('delegacion');
 
         $pdf = \PDF::loadView('PDF/Estadisticas/reporteMunicipios', compact('agrupados'));
         return $pdf->stream('Reporte_municipio.pdf');
@@ -9980,13 +10036,16 @@ class SeerController extends Controller
                 ->orderBy('id', 'asc')
                 ->first();
         }
+        
+        $primeraAudienciaId = Audiencias::where('id_solicitud', $solicitud["id"])->min('id');
+        $esPrimeraAudiencia = $audiencia && (int) $audiencia->id === (int) $primeraAudienciaId;
         $conciliador  = User::where('id', $audiencia["id_conciliador"])->first();
         $municipio = Municipios::find($citado->municipio_citado);
         $estado = Estados::find($citado->estado_citado);
         $municipioNombre = $municipio ? mb_strtoupper($municipio->nombre, 'UTF-8') : '';
         $estadoNombre = $estado ? mb_strtoupper($estado->nombre, 'UTF-8') : '';
         $fechaEmision = $audiencia ? $audiencia->created_at : now();
-        $html = view('PDF/Solicitudes/citatorio', compact('solicitud','solicitante','citado','motivos','audiencia','conciliador','municipioNombre','estadoNombre','fechaEmision','inicialesConcluye','etiquetaIniciales'))->render();
+        $html = view('PDF/Solicitudes/citatorio', compact('solicitud','solicitante','citado','motivos','audiencia','conciliador','municipioNombre','estadoNombre','fechaEmision','inicialesConcluye','etiquetaIniciales','esPrimeraAudiencia'))->render();
         $pdf = \PDF::loadHTML($html)
             ->setPaper('a4', 'portrait')
             ->setOption('isHtml5ParserEnabled', true)
@@ -10107,6 +10166,14 @@ class SeerController extends Controller
 
     public function aplicar_retroceso_solicitud($id)
     {
+        request()->validate(
+            ['motivo' => 'required|string|max:1000'],
+            [
+                'motivo.required' => 'El motivo del retroceso es obligatorio.',
+                'motivo.max'      => 'El motivo no debe exceder 1000 caracteres.',
+            ]
+        );
+
         $solicitud = SeerPerGeneral::find($id);
 
         if (!$solicitud) {
@@ -10133,30 +10200,29 @@ class SeerController extends Controller
         $estatusPrevioA  = $ultima->estatus;
 
         DB::transaction(function () use ($id, $solicitud, $ultima, $estatusPrevioS, $estatusPrevioA, $totalAudiencias) {
+            // Lo borrado y modificado queda en retrocesos / retroceso_detalles.
+            $retroceso = RetrocesoRecorder::iniciar('solicitud', $solicitud, request('motivo'));
 
-            $borrado = [
-                'conceptos'   => Concepto::where('id_solicitud', $id)->where('tipo_pago', 'Audiencia')->get()->toArray(),
-                'deducciones' => Deducciones::where('id_solicitud', $id)->where('tipo_pago', 'Audiencia')->get()->toArray(),
-                'pagos'       => Pagos::where('id_solicitud', $id)->where('tipo_pago', 'Audiencia')->get()->toArray(),
-            ];
+            $retroceso->borrar(Concepto::where('id_solicitud', $id)->where('tipo_pago', 'Audiencia'));
+            $retroceso->borrar(Deducciones::where('id_solicitud', $id)->where('tipo_pago', 'Audiencia'));
+            $retroceso->borrar(Pagos::where('id_solicitud', $id)->where('tipo_pago', 'Audiencia'));
 
-            Concepto::where('id_solicitud', $id)->where('tipo_pago', 'Audiencia')->delete();
-            Deducciones::where('id_solicitud', $id)->where('tipo_pago', 'Audiencia')->delete();
-            Pagos::where('id_solicitud', $id)->where('tipo_pago', 'Audiencia')->delete();
-
-            $ultima->update([
+            $retroceso->actualizar($ultima, [
                 'estatus'            => 'Pendiente',
                 'proxima_audiencia'  => null,
                 'pena_convencional'  => null,
                 'direccion_convenio' => null,
             ]);
 
-            $solicitud->update([
+            $retroceso->actualizar($solicitud, [
                 'estatus'           => 'Confirmado',
                 'fecha_terminacion' => null,
             ]);
 
+            $retroceso->terminar();
+
             Log::warning('Retroceso de solicitud aplicado', [
+                'retroceso_id'         => $retroceso->id(),
                 'solicitud_id'         => $id,
                 'NUE'                  => $solicitud->NUE,
                 'estatus_previo'       => $estatusPrevioS,
@@ -10166,7 +10232,6 @@ class SeerController extends Controller
                 'total_audiencias'     => $totalAudiencias,
                 'user_id'              => auth()->id(),
                 'user'                 => auth()->user()->name ?? null,
-                'borrado'              => $borrado,
             ]);
         });
 
@@ -10343,6 +10408,14 @@ class SeerController extends Controller
 
     public function aplicar_retroceso_audiencia($id)
     {
+        request()->validate(
+            ['motivo' => 'required|string|max:1000'],
+            [
+                'motivo.required' => 'El motivo del retroceso es obligatorio.',
+                'motivo.max'      => 'El motivo no debe exceder 1000 caracteres.',
+            ]
+        );
+
         $solicitud = SeerPerGeneral::find($id);
 
         if (!$solicitud) {
@@ -10372,13 +10445,15 @@ class SeerController extends Controller
         $estatusPrevioA = $ultima->estatus;
 
         DB::transaction(function () use ($id, $solicitud, $ultima, $estatusPrevioS, $estatusPrevioA) {
-            
+            // Lo borrado y modificado queda en retrocesos / retroceso_detalles.
+            $retroceso = RetrocesoRecorder::iniciar('audiencia', $solicitud, request('motivo'));
+
             $conciliador = SeerPerConciliador::where('id_solicitud', $id)->orderBy('id', 'desc')->first();
             if($conciliador){
-                $conciliador->delete();
+                $retroceso->eliminar($conciliador);
             }
-            
-            $solicitud->update([
+
+            $retroceso->actualizar($solicitud, [
                 'estatus'   =>  'Confirmado',
                 'observaciones' => null,
             ]);
@@ -10387,54 +10462,49 @@ class SeerController extends Controller
                 case 'Archivada':
                 case 'Incompetencia':
                 case 'Desistimiento':
-                    $ultima->update([
+                    $retroceso->actualizar($ultima, [
                         'estatus'   =>  'Pendiente',
                     ]);
                     break;
                 case 'Archivada en Audiencia':
                 case 'No conciliacion':
-                    $ultima->update([
+                    $retroceso->actualizar($ultima, [
                         'estatus'   =>  'Pendiente',
                     ]);
-                    SeerCitados::where('id_solicitud', $solicitud->id)->where('audiencia_id', $ultima->id)->where('tipo_notificacion', 'Multa')->delete();
+                    $retroceso->borrar(SeerCitados::where('id_solicitud', $solicitud->id)->where('audiencia_id', $ultima->id)->where('tipo_notificacion', 'Multa'));
                     break;
                 case 'Conciliacion':
                 case 'Reinstalacion':
-                    $ultima->update([
+                    $retroceso->actualizar($ultima, [
                         'estatus'   =>  'Pendiente',
                     ]);
-                    SeerCitados::where('id_solicitud', $solicitud->id)->where('audiencia_id', $ultima->id)->where('tipo_notificacion', 'Multa')->delete();
+                    $retroceso->borrar(SeerCitados::where('id_solicitud', $solicitud->id)->where('audiencia_id', $ultima->id)->where('tipo_notificacion', 'Multa'));
 
-                    $borrado = [
-                        'pagos'       => Pagos::where('id_solicitud', $id)->where('tipo_pago', 'Audiencia')->get()->toArray(),
-                        'conceptos'   => Concepto::where('id_solicitud', $id)->where('tipo_pago', 'Audiencia')->get()->toArray(),
-                        'deducciones' => Deducciones::where('id_solicitud', $id)->where('tipo_pago', 'Audiencia')->get()->toArray(),
-                    ];
-
-                    Pagos::where('id_solicitud', $id)->where('tipo_pago', 'Audiencia')->delete();
-                    Concepto::where('id_solicitud', $id)->where('tipo_pago', 'Audiencia')->delete();
-                    Deducciones::where('id_solicitud', $id)->where('tipo_pago', 'Audiencia')->delete();
-
-                    SeerCitados::where('id_solicitud', $solicitud->id)->where('audiencia_id', $ultima->id)->where('tipo_notificacion', 'Multa')->delete();
+                    $retroceso->borrar(Pagos::where('id_solicitud', $id)->where('tipo_pago', 'Audiencia'));
+                    $retroceso->borrar(Concepto::where('id_solicitud', $id)->where('tipo_pago', 'Audiencia'));
+                    $retroceso->borrar(Deducciones::where('id_solicitud', $id)->where('tipo_pago', 'Audiencia'));
                     break;
                 case 'Pendiente':
-                    SeerCitados::where('id_solicitud', $solicitud->id)->where('audiencia_id', $ultima->id)->delete();
-                    $ultima->delete();
+                    $retroceso->borrar(SeerCitados::where('id_solicitud', $solicitud->id)->where('audiencia_id', $ultima->id));
+                    $retroceso->eliminar($ultima);
                     $anterior = Audiencias::where('id_solicitud', $id)
                         ->orderBy('numero_audiencia')
                         ->orderBy('id')
                         ->get()
                         ->last();
-                    $anterior->update([
+                    $retroceso->actualizar($anterior, [
                         'estatus'   => 'Pendiente',
                     ]);
-                    SeerPerConciliador::where('id_solicitud')->where('audiencia_id', $anterior->id)->delete();
+                    $retroceso->borrar(SeerPerConciliador::where('id_solicitud', $solicitud->id)->where('audiencia_id', $anterior->id));
                     break;
                 default:
                     break;
             }
 
+            $retroceso->terminar();
+
             Log::warning('Retroceso de audiencia aplicado', [
+                'retroceso_id'      => $retroceso->id(),
                 'solicitud_id'      => $id,
                 'NUE'               => $solicitud->NUE,
                 'estatus_previo'    => $estatusPrevioS,
@@ -10442,7 +10512,6 @@ class SeerController extends Controller
                 'audiencia_estatus' => $estatusPrevioA,
                 'user_id'           => auth()->id(),
                 'user'              => auth()->user()->name ?? null,
-                'borrado'           => $borrado ?? null,
             ]);
         });
 
@@ -16643,20 +16712,30 @@ class SeerController extends Controller
         return back()->with('success', 'Pago Deducción Correctamente.');
     }
 
-    public function mostrar_citatorios($id) {
-        
+    public function mostrar_citatorios($id, Request $request) {
+        $audiencia_id = $request->query('audiencia_id');
+
+        // Citados de la audiencia indicada; los que no tienen audiencia_id pertenecen a la primera
+        $base = SeerCitados::where('id_solicitud', $id)
+            ->when($audiencia_id, function($query) use ($audiencia_id, $id) {
+                $primeraAudienciaId = Audiencias::where('id_solicitud', $id)->min('id');
+                $query->where(function($q) use ($audiencia_id, $primeraAudienciaId) {
+                    $q->where('audiencia_id', $audiencia_id);
+                    if ((int) $primeraAudienciaId === (int) $audiencia_id) {
+                        $q->orWhereNull('audiencia_id');
+                    }
+                });
+            });
+
         // Obtener los citados
-        $citadoCentro = SeerCitados::where('id_solicitud', $id)->where('notificacion', 'Centro')->exists();
+        $citadoCentro = (clone $base)->where('notificacion', 'Centro')->exists();
 
         if($citadoCentro){
-            $citados = SeerCitados::where('id_solicitud', $id)->where('notificacion', 'Centro')->get();
+            $citados = (clone $base)->where('notificacion', 'Centro')->get();
         } else{
-            $citados = SeerCitados::select('id','nombre','primer_apellido','segundo_apellido')->where('id_solicitud', $id)->get();
+            $citados = (clone $base)->select('id','nombre','primer_apellido','segundo_apellido')->get();
         }
 
-        if ($citados->isEmpty()) {
-            return redirect()->back()->with('error', 'No hay citados para esta solicitud.');
-        }
         return response()->json($citados);
     }
     public function solicitudesAuxiliares(){

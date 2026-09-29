@@ -87,6 +87,7 @@ class UsuarioController extends Controller
             'delegacion' => 'required',
             'type' => 'required',
             'foto_perfil' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:8192|dimensions:min_width=200,min_height=200',
+            'sexo'        => 'nullable|in:H,M,NC',
         ], [
             'foto_perfil.image'      => 'El archivo debe ser una imagen.',
             'foto_perfil.mimes'      => 'La foto debe ser JPG, PNG o WebP.',
@@ -100,6 +101,10 @@ class UsuarioController extends Controller
         // Solo los campos que esta pantalla muestra. Con $request->all() el
         // archivo subido entraba como UploadedFile a una columna de texto.
         $input = $request->only(['name', 'email', 'delegacion', 'type']);
+
+        // El select manda cadena vacía cuando se deja en "Sin especificar";
+        // la columna es un enum, así que eso tiene que llegar como NULL.
+        $input['sexo'] = $request->input('sexo') ?: null;
 
         if ($request->filled('password')) {
             $input['password'] = Hash::make($request->input('password'));
