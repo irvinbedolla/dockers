@@ -274,7 +274,7 @@
                                     <div class="col-xs-12 col-sm-12 col-md-4">
                                         <div class="form-group mb-3">
                                             <label for="name">Selecciona el tipo de trámite que deseas realizar <span style="color:red;">(*)</span></label>
-                                            <select name="tipo" class="form-control" onchange="blockCalendar();" required>
+                                            <select id="tipo" name="tipo" class="form-control" onchange="blockCalendar();" required>
                                                 <option value="">Seleccione</option>
                                                 <option value="Asesoría">Asesoría</option>
                                                 <option value="Ratificación">Ratificación</option>
@@ -283,6 +283,17 @@
                                             <div class="invalid-feedback">
                                                 El tipo de solicitud es obligatoria.
                                             </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-xs-12 col-sm-12 col-md-4" style="display:none;"  id="si_ratificacion">
+                                        <div class="form-group mb-3">
+                                            <label for="name">¿Cuenta con un folio patronal?</label>
+                                            <select id="folio_patronal" class="form-control" >
+                                                <option value="">Seleccione</option>
+                                                <option value="si">Sí</option>
+                                                <option value="no">No</option>
+
+                                            </select>
                                         </div>
                                     </div>
                                     <div class="col-xs-12 col-sm-12 col-md-4">
@@ -452,9 +463,12 @@
                                         <div id="resumenTurno" class="alert alert-info mt-2" style="display:none;"></div>
                                     
                                     </div>
-
-                                    <div class="text-center pt-3 border-top">
-                                        <button type="submit" class="btn btn-oro btn-lg px-5 me-2">
+                                    <div class="text-center pt-3 border-top" style= "color:rgba(0, 0, 0, .4);">
+                                        <label for="name">Favor de presionar el boton de Guardar para agendar su cita </label>
+                                    </div>
+                                    <div class="text-center pt-3 ">
+                                        
+                                        <button id="btnGuardar" type="submit" class="btn btn-oro btn-lg px-5 me-2">
                                             <i class="bi bi-box-arrow-down me-1"></i> Guardar Cita
                                         </button>
                                     
@@ -832,6 +846,9 @@
         document.getElementById("form_roles").addEventListener("submit", function (e) {
             const fecha = document.getElementById("fecha_turno").value;
             const hora = document.getElementById("hora_turno").value;
+            const btn = document.getElementById('btnGuardar');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Guardando...';
             if (!fecha || !hora) {
                 e.preventDefault();
                 alert("Debes seleccionar la fecha y el horario del turno antes de guardar.");
@@ -870,8 +887,39 @@
                 blockCalendar();
             });
         });
+
+          
     </script>
 
+
+    <script>
+        $(document).ready(function() {
+            
+
+            $('#tipo').on('change', function() {
+                var tipoSeleccionado = $(this).val();
+                
+                if (tipoSeleccionado === 'Ratificación') {
+
+                    $('#si_ratificacion').fadeIn();
+                } else {
+
+                    $('#si_ratificacion').fadeOut();
+                    $('#folio_patronal').val(''); 
+                }
+            });
+
+            // 2. Detectar cuando cambia el select de "folio patronal"
+            $('#folio_patronal').on('change', function() {
+                var tieneFolio = $(this).val();
+                
+                if (tieneFolio === 'si') {
+                    window.location.href = '{{ route('create_cita') }}'; 
+                }
+            });
+
+        });
+    </script>
 @section('scripts')
     <script src="{{ asset('assets/js/validaciones-ratificacion.js') }}"></script> 
     <script src="{{ asset('assets/js/poderes/general.js') }}"></script>
