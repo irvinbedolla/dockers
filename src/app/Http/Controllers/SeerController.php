@@ -110,9 +110,46 @@ class SeerController extends Controller
         $original = @imagecreatefromstring($contenido);
 
         if ($original === false) {
-            // Formato que GD no entiende: se manda tal cual, como antes.
-            $mime = (new \finfo(FILEINFO_MIME_TYPE))->buffer($contenido) ?: 'image/jpeg';
-            return 'data:' . $mime . ';base64,' . base64_encode($contenido);
+            // dompdf decodifica las imágenes con GD, así que si GD no puede leerla
+            // dompdf tampoco podrá y solo agotaría la memoria. SVG lo dibuja dompdf
+            // por su cuenta; lo demás (TIFF, HEIC de iPhone...) se intenta con
+            // Imagick y, si tampoco se puede, se omite del PDF.
+            $mime = (new \finfo(FILEINFO_MIME_TYPE))->buffer($contenido) ?: 'desconocido';
+
+            if ($mime === 'image/svg+xml' && strlen($contenido) < 2_000_000) {
+                return 'data:image/svg+xml;base64,' . base64_encode($contenido);
+            }
+
+            if (extension_loaded('imagick')) {
+                try {
+                    $im = new \Imagick();
+                    $im->readImageBlob($contenido);
+                    $im->setIteratorIndex(0); // TIFF multipágina: solo la primera
+                    $im = $im->getImage();
+                    $im->autoOrient();
+                    $im->setImageBackgroundColor('white');
+                    $im = $im->mergeImageLayers(\Imagick::LAYERMETHOD_FLATTEN);
+                    $im->transformImageColorspace(\Imagick::COLORSPACE_SRGB);
+                    if (max($im->getImageWidth(), $im->getImageHeight()) > $maxLado) {
+                        $im->thumbnailImage($maxLado, $maxLado, true);
+                    }
+                    $im->setImageFormat('jpeg');
+                    $im->setImageCompressionQuality(75);
+                    $im->stripImage();
+                    $jpeg = $im->getImageBlob();
+                    $im->clear();
+
+                    return 'data:image/jpeg;base64,' . base64_encode($jpeg);
+                } catch (\Throwable $e) {
+                    // Cae al warning de abajo.
+                }
+            }
+
+            \Log::warning('imagenParaPdf: formato no soportado, se omite del PDF', [
+                'mime' => $mime,
+                'bytes' => strlen($contenido),
+            ]);
+            return null;
         }
 
         $ancho = imagesx($original);
