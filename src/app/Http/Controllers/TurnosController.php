@@ -1016,9 +1016,16 @@ class TurnosController extends Controller
 
         while ($fecha <= $fin) {
             if ($fecha->format('N') < 6) { 
-                $slotDt = new \DateTime($fecha->format('Y-m-d') . ' 08:30:00');
                 $slotEndDt = new \DateTime($fecha->format('Y-m-d') . ' 15:30:00');
-                $slotComida = new \DateTime($fecha->format('Y-m-d') . ' 17:00:00');
+                if($fecha->format('Y-m-d') >= '2026-11-01'){
+                    $slotDt = new \DateTime($fecha->format('Y-m-d') . ' 08:30:00');
+                    $slotComida = new \DateTime($fecha->format('Y-m-d') . ' 17:00:00');
+                }
+                else{
+                    $slotDt = new \DateTime($fecha->format('Y-m-d') . ' 09:00:00');
+                    $slotComida = new \DateTime($fecha->format('Y-m-d') . ' 13:00:00');
+                }
+                
 
                 while ($slotDt <= $slotEndDt) {
                         $hora_str = $slotDt->format('H:i:s');
@@ -1106,7 +1113,12 @@ class TurnosController extends Controller
                             $slotDt->modify('+30 minutes');
                         }
                         else{
-                            $slotDt->modify('+50 minutes');
+                            if($fecha->format('Y-m-d') >= '2026-11-01'){
+                                $slotDt->modify('+50 minutes');
+                            }
+                            else{
+                                $slotDt->modify('+60 minutes');
+                            }
                         }
                         
                         
