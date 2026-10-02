@@ -37,17 +37,18 @@
                                 Actualizar representantes
                             </!--a-->
 
-                            @if ($allCentro == 1)
-                            <button type="button" class="btn btn-info open-modal" data-bs-toggle="modal" data-bs-target="#ModalReagendar" data-id="{{ $id }}">
-                                Reagendar
-                            </button>
+                            @if ($allCentro || $isExhorto)
+                            @else
+                                <button type="button" class="btn btn-info open-modal" data-bs-toggle="modal" data-bs-target="#ModalReagendar" data-id="{{ $id }}">
+                                    Reagendar
+                                </button>
                             @endif
 
                             @php
                                 $totalCentroTop = 0;
                                 $totalCentroSinComparecenciaTop = 0;
                                 foreach ($citados as $c) {
-                                    if (($c->notificacion ?? null) === 'Centro') {
+                                    if (($c->notificacion ?? null) === 'Centro' || ($c->notificacion ?? null) === 'Exhorto') {
                                         $totalCentroTop++;
                                         $tieneComparecenciaTop = ($c->comparecencia == 'Si');
                                         if (!$tieneComparecenciaTop) {

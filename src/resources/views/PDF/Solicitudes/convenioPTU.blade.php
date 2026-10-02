@@ -17,6 +17,7 @@
                    del flujo completo, por eso el texto invadía las franjas verdes
                    del membrete en las páginas intermedias. */
                 margin: 145px 0 80px 0;
+                size: A4 portrait;
             }
             header {
                 position: fixed;
