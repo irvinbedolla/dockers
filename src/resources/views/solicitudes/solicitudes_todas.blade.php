@@ -130,7 +130,7 @@
                                                                             <li><a class="dropdown-item" data-bs-toggle="modal" data-bs-target="#noConciliacion" data-id="{{ $solicitud->id }}">Constancia de no conciliación</a></li>
                                                                             <li><a class="dropdown-item" href="{{ route('PDFCaratulaInfoConcilio', ['tipo' => 'seguimiento', 'id' => $solicitud->id]) }}" target="_blank">Carátula de Seguimiento</a></li>
                                                                             <li><a class="dropdown-item" href="{{ route('PDFCaratulaInfoConcilio', ['tipo' => 'caratula', 'id' => $solicitud->id]) }}" target="_blank">Carátula de Solicitud</a></li>
-                                                                        @elseif(in_array($solicitud->estatus, ['Conciliacion', 'Concluida', 'Reinstalacion']))
+                                                                        @elseif(in_array($solicitud->estatus, ['Conciliacion', 'Concluida', 'Reinstalacion','Incumplimiento']))
                                                                             @if(isset($solicitud->mostrar_ptu) && $solicitud->mostrar_ptu)
                                                                                 <li><a class="dropdown-item bg-success text-white fw-bold" href="{{ route('PDFconvenioPTU_NO_S', $solicitud->id) }}" target="_blank">Convenio PTU (No Labora)</a></li>
                                                                             @else
