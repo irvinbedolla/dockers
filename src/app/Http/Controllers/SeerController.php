@@ -6330,18 +6330,27 @@ class SeerController extends Controller
         // 2. Optimización de Flags con métodos nativos de Colecciones (Cero bucles for pesados)
         $citadosCentro = SeerCitados::where('id_solicitud', $id)->latest()->get();
         
-        $allCentro = $citadosCentro->contains('notificacion', 'Centro') ? 0 : 1;
+        $allCentro = $citadosCentro->contains('notificacion', 'Centro') ? 1 : 0;
+        $isExhorto = $citadosCentro->contains('notificacion', 'Exhorto') ? 1 : 0;
         $hasAudienciaID = $citadosCentro->contains(function($value) { return !is_null($value->audiencia_id); }) ? 0 : 1;
 
         $sessionKey = "audiencia_data_{$id}";
         if (!session()->has($sessionKey)) {
             $solicitanteDB = SeerSolicitante::where('id_solicitud', $id)->first();
             
-            if ($allCentro == 0) {
+            if ($allCentro) {
                 $queryCitados = SeerCitados::where('id_solicitud', $id)
                     ->where('notificacion', 'Centro')
                     ->where('tipo_notificacion', '!=', 'Multa');
                     
+                if ($hasAudienciaID == 0) {
+                    $queryCitados->where('audiencia_id', $audiencia_id);
+                }
+                $citadosDB = $queryCitados->get();
+            } elseif ($isExhorto) {
+                $queryCitados = SeerCitados::where('id_solicitud', $id)
+                    ->where('notificacion', 'Exhorto')
+                    ->where('tipo_notificacion', '!=', 'Multa');
                 if ($hasAudienciaID == 0) {
                     $queryCitados->where('audiencia_id', $audiencia_id);
                 }
@@ -6409,7 +6418,7 @@ class SeerController extends Controller
 
         return view($viewName, compact(
             'id', 'audiencia_id', 'solicitudes', 'solicitante', 'conciliador', 
-            'solicitud', 'estados', 'municipios', 'fechaConfirmacion', 'allCentro', 'NUE', 'audiencia'
+            'solicitud', 'estados', 'municipios', 'fechaConfirmacion', 'allCentro', 'isExhorto', 'NUE', 'audiencia'
         ) + ($tipo_solicitud == "1" ? compact('representantes') : compact('citados')));
     }
 
@@ -14550,7 +14559,7 @@ class SeerController extends Controller
                 if ($fechaDia < $fechaCorteHorarioLegacy) {
                     $nivelHorario = 'legacy';
                 } elseif ($fechaCorteHorarioNuevo !== null && $fechaDia >= $fechaCorteHorarioNuevo) {
-                    if($sede == 'Zamora' && $fechaDia < '2026-10-08'){
+                    if($sede == 'Zamora' && $fechaDia < '2026-10-11'){
                         $nivelHorario = 'nuevo';
                     } else {
                         $nivelHorario = 'nuevoAlCuadrado';
@@ -14831,7 +14840,7 @@ class SeerController extends Controller
                 if ($fechaDia < $fechaCorteHorarioLegacy) {
                     $nivelHorario = 'legacy';
                 } elseif ($fechaCorteHorarioNuevo !== null && $fechaDia >= $fechaCorteHorarioNuevo) {
-                    if($sede == 'Zamora' && $fechaDia < '2026-10-08'){
+                    if($sede == 'Zamora' && $fechaDia < '2026-10-11'){
                         $nivelHorario = 'nuevo';
                     }
                     else{
