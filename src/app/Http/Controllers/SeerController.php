@@ -14559,7 +14559,7 @@ class SeerController extends Controller
                 if ($fechaDia < $fechaCorteHorarioLegacy) {
                     $nivelHorario = 'legacy';
                 } elseif ($fechaCorteHorarioNuevo !== null && $fechaDia >= $fechaCorteHorarioNuevo) {
-                    if($sede == 'Zamora' && $fechaDia < '2026-10-11'){
+                    if(($sede == 'Zamora' || $sede == 'Sahuayo') && $fechaDia < '2026-10-11'){
                         $nivelHorario = 'nuevo';
                     } else {
                         $nivelHorario = 'nuevoAlCuadrado';
@@ -14840,7 +14840,7 @@ class SeerController extends Controller
                 if ($fechaDia < $fechaCorteHorarioLegacy) {
                     $nivelHorario = 'legacy';
                 } elseif ($fechaCorteHorarioNuevo !== null && $fechaDia >= $fechaCorteHorarioNuevo) {
-                    if($sede == 'Zamora' && $fechaDia < '2026-10-11'){
+                    if(($sede == 'Zamora' || $sede == 'Sahuayo') && $fechaDia < '2026-10-11'){
                         $nivelHorario = 'nuevo';
                     }
                     else{
