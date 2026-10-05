@@ -9,6 +9,14 @@ return new class extends Migration
 {
     public function up(): void
     {
+
+        DB::statement("
+            ALTER TABLE recepcion
+            MODIFY COLUMN estatus
+            ENUM('atendido', 'confirmada', 'expirada', 'pendiente', 'no atendido')
+            NOT NULL
+            DEFAULT 'pendiente'
+        ");
     
         DB::table('recepcion')
             ->where('estatus', 'no atendido')
