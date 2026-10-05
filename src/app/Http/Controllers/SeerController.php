@@ -17141,51 +17141,16 @@ class SeerController extends Controller
         $citados = SeerCitados::where('id_solicitud', $id)->get();
         $nombreCompleto = "{$solicitante->nombre} {$solicitante->primer_apellido} {$solicitante->segundo_apellido}";
 
-        // 2. Buscar usuario existente por CURP o Email
-        $usuario = User::where('profile_photo_path', $solicitante->curp)
-        ->orWhere('email', $solicitante->email)
-        ->first();
-
-        // Inicializamos variables para el flujo de correo
-        $passwordPlana = "Ya está registrada";
-        if (!$usuario) {
-            // Generar contraseña temporal
-            $numero_aleatorio = mt_rand(1, 1000);
-            $passwordPlana = "CCLMICHOACAN" . $numero_aleatorio;
-        
-            $usuario = User::create([
-                'name'               => $nombreCompleto,
-                'email'              => $solicitante->email,
-                'delegacion'         => $solicitud->delegacion,
-                'type'               => "Seer",
-                'remember_token'     => $solicitante->curp,
-                'profile_photo_path' => $solicitante->curp,
-                'password'           => Hash::make($passwordPlana),
-                'estatus'            => 'Inactivo',
-            ]);
-            
-            $usuario->assignRole('Solicitante');
-            $mensaje = " el correo: {$usuario->email} y la contraseña: {$passwordPlana} para continuar tú trámite.";
-        } else {
-            $mensaje = " el correo: {$usuario->email} ya está registrado en Si Concilio. Su solicitud será asignada al usuario existente.";
-        }
-
-        // 3. Generación de PDF (Se hace una sola vez, fuera del IF)
+        // 2. Generación de PDF (Se hace una sola vez, fuera del IF)
         $pdf = \PDF::loadView('PDF/Solicitudes/acuseSolicitud', compact('id', 'solicitud', 'solicitante', 'citados'))
         ->setPaper('a4', 'portrait')
         ->setOptions(['isHtml5ParserEnabled' => true, 'isPhpEnabled' => true]);
 
         $pdfContent = $pdf->output();
 
-        // 4. Envío de Correo (Se hace una sola vez)
-        $variables = [
-        'Nombre'     => $nombreCompleto,
-        'Contraseña' => $passwordPlana,
-        'email'      => $solicitante->email,
-        'NumFolio'   => $id,
-        ];
-
         //Mail::to($solicitante->email)->send(new SolicitudMail($pdfContent, $variables));
+
+        $mensaje = " el correo: x ya está registrado en Si Concilio. Su solicitud será asignada al usuario existente.";
 
         return view('solicitudes.auxiliares.avisoAux',compact('id','mensaje','delegacion'));
     }
