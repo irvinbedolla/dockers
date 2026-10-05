@@ -729,7 +729,11 @@ class AdministracionController extends Controller{
 
                 $fechaDia = $fecha->format('Y-m-d');
                 if($fechaDia >= '2026-10-05'){
-                    $horasBase=$horasnuevas;
+                    if(($sede == 'Zamora' || $sede == 'Sahuayo') && $fechaDia < '2026-10-11'){
+                        $horasBase = $horasviejas;
+                    } else {
+                        $horasBase = $horasnuevas;
+                    }         
                 }
                 else{
                     $horasBase = $horasviejas;

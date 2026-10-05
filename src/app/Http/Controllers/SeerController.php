@@ -93,6 +93,116 @@ class SeerController extends Controller
      */
     private const SOLICITUD_AUX_TTL = 2700;
 
+    /**
+     * Convierte una imagen en data URI lista para dompdf, reducida a un máximo
+     * de 1200px por lado. Las fotos de celular llegan a pesar varios MB y dompdf
+     * las decodifica completas en memoria, lo que agota los 256MB de PHP.
+     */
+    private function imagenParaPdf(string $contenido, int $maxLado = 1200): ?string
+    {
+        // GD necesita ~5 bytes por pixel para decodificar la original: una foto de
+        // 48MP son ~240MB. Solo en ese caso se sube el límite para esta petición.
+        $info = @getimagesizefromstring($contenido);
+        if ($info && $info[0] * $info[1] > 20_000_000) {
+            ini_set('memory_limit', '768M');
+        }
+
+        $original = @imagecreatefromstring($contenido);
+
+        if ($original === false) {
+            // dompdf decodifica las imágenes con GD, así que si GD no puede leerla
+            // dompdf tampoco podrá y solo agotaría la memoria. SVG lo dibuja dompdf
+            // por su cuenta; lo demás (TIFF, HEIC de iPhone...) se intenta con
+            // Imagick y, si tampoco se puede, se omite del PDF.
+            $mime = (new \finfo(FILEINFO_MIME_TYPE))->buffer($contenido) ?: 'desconocido';
+
+            if ($mime === 'image/svg+xml' && strlen($contenido) < 2_000_000) {
+                return 'data:image/svg+xml;base64,' . base64_encode($contenido);
+            }
+
+            if (extension_loaded('imagick')) {
+                try {
+                    $im = new \Imagick();
+                    $im->readImageBlob($mime === 'image/tiff' ? ($this->revelarRaw($contenido) ?? $contenido) : $contenido);
+                    $im->setIteratorIndex(0); // TIFF multipágina: solo la primera
+                    $im = $im->getImage();
+                    // Si aun así quedan datos de sensor de 10-12 bits en 16 bits
+                    // (RAW que dcraw no reconoció), se estiran los niveles para
+                    // que no salga negra.
+                    if ($im->getImageRange()['maxima'] < \Imagick::getQuantumRange()['quantumRangeLong'] / 4) {
+                        $im->autoLevelImage();
+                        $im->gammaImage(2.2);
+                    }
+                    $im->autoOrient();
+                    $im->setImageBackgroundColor('white');
+                    $im = $im->mergeImageLayers(\Imagick::LAYERMETHOD_FLATTEN);
+                    $im->transformImageColorspace(\Imagick::COLORSPACE_SRGB);
+                    if (max($im->getImageWidth(), $im->getImageHeight()) > $maxLado) {
+                        $im->thumbnailImage($maxLado, $maxLado, true);
+                    }
+                    $im->setImageFormat('jpeg');
+                    $im->setImageCompressionQuality(75);
+                    $im->stripImage();
+                    $jpeg = $im->getImageBlob();
+                    $im->clear();
+
+                    return 'data:image/jpeg;base64,' . base64_encode($jpeg);
+                } catch (\Throwable $e) {
+                    // Cae al warning de abajo.
+                }
+            }
+
+            \Log::warning('imagenParaPdf: formato no soportado, se omite del PDF', [
+                'mime' => $mime,
+                'bytes' => strlen($contenido),
+            ]);
+            return null;
+        }
+
+        $ancho = imagesx($original);
+        $alto = imagesy($original);
+        $escala = min(1, $maxLado / max($ancho, $alto));
+        $nuevoAncho = max(1, (int) round($ancho * $escala));
+        $nuevoAlto = max(1, (int) round($alto * $escala));
+
+        // Fondo blanco para que los PNG con transparencia no queden en negro al pasar a JPEG.
+        $reducida = imagecreatetruecolor($nuevoAncho, $nuevoAlto);
+        imagefill($reducida, 0, 0, imagecolorallocate($reducida, 255, 255, 255));
+        imagecopyresampled($reducida, $original, 0, 0, 0, 0, $nuevoAncho, $nuevoAlto, $ancho, $alto);
+        imagedestroy($original);
+
+        ob_start();
+        imagejpeg($reducida, null, 75);
+        $jpeg = ob_get_clean();
+        imagedestroy($reducida);
+
+        return 'data:image/jpeg;base64,' . base64_encode($jpeg);
+    }
+
+    /**
+     * Revela un RAW de cámara (DNG del modo Pro de algunos Huawei) con dcraw.
+     * Imagick lo lee como un TIFF en gris con los datos crudos del sensor y
+     * queda casi negro. Regresa un PPM, o null si no es RAW o no hay dcraw.
+     */
+    private function revelarRaw(string $contenido): ?string
+    {
+        $tmp = tempnam(sys_get_temp_dir(), 'raw');
+        file_put_contents($tmp, $contenido);
+
+        try {
+            // -c a stdout, -w balance de blancos de la cámara, -h media
+            // resolución (sobra para los 1200px del PDF y es 4 veces más rápido).
+            $proceso = \Illuminate\Support\Facades\Process::timeout(60)
+                ->run(['dcraw', '-c', '-w', '-h', $tmp]);
+
+            return $proceso->successful() && $proceso->output() !== '' ? $proceso->output() : null;
+        } catch (\Throwable $e) {
+            return null;
+        } finally {
+            @unlink($tmp);
+        }
+    }
+
     /** Devuelve el array del lock actual, o null si no existe. */
     private function getSolicitudAuxLock(): ?array
     {
@@ -10802,20 +10912,19 @@ class SeerController extends Controller
                 continue;
             }
 
-            $path = "documentos_notificacion/{$id_solicitud}/{$img}";
+            // Cada llamada al disco s3 es un viaje de red hasta MinIO, así que se
+            // pide el archivo directo (get() regresa null si no existe, por
+            // 'throw' => false) en vez de exists() + mimeType() + get().
+            $contenido = Storage::disk('s3')->get("documentos_notificacion/{$id_solicitud}/{$img}")
+                ?? Storage::disk('s3')->get("documentos_notificacion/{$img}");
 
-            if (Storage::disk('s3')->exists($path)) {
-                $mime = Storage::disk('s3')->mimeType($path);
-                $imagenes[] = 'data:' . $mime . ';base64,' . base64_encode(Storage::disk('s3')->get($path));
-            } else {
-                $fallbackPath = "documentos_notificacion/{$img}";
-                if (Storage::disk('s3')->exists($fallbackPath)) {
-                    $mime = Storage::disk('s3')->mimeType($fallbackPath);
-                    $imagenes[] = 'data:' . $mime . ';base64,' . base64_encode(Storage::disk('s3')->get($fallbackPath));
-                } else {
-                    $imagenes[] = null;
-                }
+            if ($contenido === null) {
+                $imagenes[] = null;
+                continue;
             }
+
+            $imagenes[] = $this->imagenParaPdf($contenido);
+            unset($contenido);
         }
         $html = view('PDF/Solicitudes/razonNotificacion', compact('id', 'solicitud','citado','solicitante','notificador','imagenes','municipioCitado','estadoCitado','fechaCitatorio'))->render();
 
@@ -11748,20 +11857,19 @@ class SeerController extends Controller
                 continue;
             }
             
-            $path = "documentos_notificacion/{$id_solicitud}/{$img}";
+            // Cada llamada al disco s3 es un viaje de red hasta MinIO, así que se
+            // pide el archivo directo (get() regresa null si no existe, por
+            // 'throw' => false) en vez de exists() + mimeType() + get().
+            $contenido = Storage::disk('s3')->get("documentos_notificacion/{$id_solicitud}/{$img}")
+                ?? Storage::disk('s3')->get("documentos_notificacion/{$img}");
 
-            if (Storage::disk('s3')->exists($path)) {
-                $mime = Storage::disk('s3')->mimeType($path);
-                $imagenes[] = 'data:' . $mime . ';base64,' . base64_encode(Storage::disk('s3')->get($path));
-            } else {
-                $fallbackPath = "documentos_notificacion/{$img}";
-                if (Storage::disk('s3')->exists($fallbackPath)) {
-                    $mime = Storage::disk('s3')->mimeType($fallbackPath);
-                    $imagenes[] = 'data:' . $mime . ';base64,' . base64_encode(Storage::disk('s3')->get($fallbackPath));
-                } else {
-                    $imagenes[] = null;
-                }
+            if ($contenido === null) {
+                $imagenes[] = null;
+                continue;
             }
+
+            $imagenes[] = $this->imagenParaPdf($contenido);
+            unset($contenido);
         }
             
         $html = view('PDF/Solicitudes/razonPorInstructivo', compact('id', 'solicitud','citado','solicitante','notificador','imagenes','municipioCitado','estadoCitado','fechaCitatorio'))->render();
@@ -11850,20 +11958,19 @@ class SeerController extends Controller
                 continue;
             }
         
-            $path = "documentos_notificacion/{$id_solicitud}/{$img}";
+            // Cada llamada al disco s3 es un viaje de red hasta MinIO, así que se
+            // pide el archivo directo (get() regresa null si no existe, por
+            // 'throw' => false) en vez de exists() + mimeType() + get().
+            $contenido = Storage::disk('s3')->get("documentos_notificacion/{$id_solicitud}/{$img}")
+                ?? Storage::disk('s3')->get("documentos_notificacion/{$img}");
 
-            if (Storage::disk('s3')->exists($path)) {
-                $mime = Storage::disk('s3')->mimeType($path);
-                $imagenes[] = 'data:' . $mime . ';base64,' . base64_encode(Storage::disk('s3')->get($path));
-            } else {
-                $fallbackPath = "documentos_notificacion/{$img}";
-                if (Storage::disk('s3')->exists($fallbackPath)) {
-                    $mime = Storage::disk('s3')->mimeType($fallbackPath);
-                    $imagenes[] = 'data:' . $mime . ';base64,' . base64_encode(Storage::disk('s3')->get($fallbackPath));
-                } else {
-                    $imagenes[] = null;
-                }
+            if ($contenido === null) {
+                $imagenes[] = null;
+                continue;
             }
+
+            $imagenes[] = $this->imagenParaPdf($contenido);
+            unset($contenido);
         }
             
         $html = view('PDF/Solicitudes/razonNoExitosa', compact('id', 'solicitud','citado','solicitante','notificador','imagenes','municipioCitado','estadoCitado','fechaCitatorio'))->render();
@@ -11953,20 +12060,19 @@ class SeerController extends Controller
                 continue;
             }
         
-            $path = "documentos_notificacion/{$id_solicitud}/{$img}";
+            // Cada llamada al disco s3 es un viaje de red hasta MinIO, así que se
+            // pide el archivo directo (get() regresa null si no existe, por
+            // 'throw' => false) en vez de exists() + mimeType() + get().
+            $contenido = Storage::disk('s3')->get("documentos_notificacion/{$id_solicitud}/{$img}")
+                ?? Storage::disk('s3')->get("documentos_notificacion/{$img}");
 
-            if (Storage::disk('s3')->exists($path)) {
-                $mime = Storage::disk('s3')->mimeType($path);
-                $imagenes[] = 'data:' . $mime . ';base64,' . base64_encode(Storage::disk('s3')->get($path));
-            } else {
-                $fallbackPath = "documentos_notificacion/{$img}";
-                if (Storage::disk('s3')->exists($fallbackPath)) {
-                    $mime = Storage::disk('s3')->mimeType($fallbackPath);
-                    $imagenes[] = 'data:' . $mime . ';base64,' . base64_encode(Storage::disk('s3')->get($fallbackPath));
-                } else {
-                    $imagenes[] = null;
-                }
+            if ($contenido === null) {
+                $imagenes[] = null;
+                continue;
             }
+
+            $imagenes[] = $this->imagenParaPdf($contenido);
+            unset($contenido);
         }
              
         $html = view('PDF/Solicitudes/razonNumInt', compact('id', 'solicitud','citado','solicitante','notificador','imagenes','municipioCitado','estadoCitado','fechaCitatorio'))->render();
@@ -12056,20 +12162,19 @@ class SeerController extends Controller
                 continue;
             }
         
-            $path = "documentos_notificacion/{$id_solicitud}/{$img}";
+            // Cada llamada al disco s3 es un viaje de red hasta MinIO, así que se
+            // pide el archivo directo (get() regresa null si no existe, por
+            // 'throw' => false) en vez de exists() + mimeType() + get().
+            $contenido = Storage::disk('s3')->get("documentos_notificacion/{$id_solicitud}/{$img}")
+                ?? Storage::disk('s3')->get("documentos_notificacion/{$img}");
 
-            if (Storage::disk('s3')->exists($path)) {
-                $mime = Storage::disk('s3')->mimeType($path);
-                $imagenes[] = 'data:' . $mime . ';base64,' . base64_encode(Storage::disk('s3')->get($path));
-            } else {
-                $fallbackPath = "documentos_notificacion/{$img}";
-                if (Storage::disk('s3')->exists($fallbackPath)) {
-                    $mime = Storage::disk('s3')->mimeType($fallbackPath);
-                    $imagenes[] = 'data:' . $mime . ';base64,' . base64_encode(Storage::disk('s3')->get($fallbackPath));
-                } else {
-                    $imagenes[] = null;
-                }
+            if ($contenido === null) {
+                $imagenes[] = null;
+                continue;
             }
+
+            $imagenes[] = $this->imagenParaPdf($contenido);
+            unset($contenido);
         }
              
         $html = view('PDF/Solicitudes/razonNoExitosaNS', compact('id', 'solicitud','citado','solicitante','notificador','imagenes','municipioCitado','estadoCitado','fechaCitatorio'))->render();
@@ -14454,7 +14559,7 @@ class SeerController extends Controller
                 if ($fechaDia < $fechaCorteHorarioLegacy) {
                     $nivelHorario = 'legacy';
                 } elseif ($fechaCorteHorarioNuevo !== null && $fechaDia >= $fechaCorteHorarioNuevo) {
-                    if($sede == 'Zamora' && $fechaDia < '2026-10-11'){
+                    if(($sede == 'Zamora' || $sede == 'Sahuayo') && $fechaDia < '2026-10-11'){
                         $nivelHorario = 'nuevo';
                     } else {
                         $nivelHorario = 'nuevoAlCuadrado';
@@ -14735,7 +14840,7 @@ class SeerController extends Controller
                 if ($fechaDia < $fechaCorteHorarioLegacy) {
                     $nivelHorario = 'legacy';
                 } elseif ($fechaCorteHorarioNuevo !== null && $fechaDia >= $fechaCorteHorarioNuevo) {
-                    if($sede == 'Zamora' && $fechaDia < '2026-10-11'){
+                    if(($sede == 'Zamora' || $sede == 'Sahuayo') && $fechaDia < '2026-10-11'){
                         $nivelHorario = 'nuevo';
                     }
                     else{
@@ -18659,20 +18764,19 @@ class SeerController extends Controller
                 continue;
             }
         
-            $path = "documentos_notificacion/{$id_solicitud}/{$img}";
+            // Cada llamada al disco s3 es un viaje de red hasta MinIO, así que se
+            // pide el archivo directo (get() regresa null si no existe, por
+            // 'throw' => false) en vez de exists() + mimeType() + get().
+            $contenido = Storage::disk('s3')->get("documentos_notificacion/{$id_solicitud}/{$img}")
+                ?? Storage::disk('s3')->get("documentos_notificacion/{$img}");
 
-            if (Storage::disk('s3')->exists($path)) {
-                $mime = Storage::disk('s3')->mimeType($path);
-                $imagenes[] = 'data:' . $mime . ';base64,' . base64_encode(Storage::disk('s3')->get($path));
-            } else {
-                $fallbackPath = "documentos_notificacion/{$img}";
-                if (Storage::disk('s3')->exists($fallbackPath)) {
-                    $mime = Storage::disk('s3')->mimeType($fallbackPath);
-                    $imagenes[] = 'data:' . $mime . ';base64,' . base64_encode(Storage::disk('s3')->get($fallbackPath));
-                } else {
-                    $imagenes[] = null;
-                }
+            if ($contenido === null) {
+                $imagenes[] = null;
+                continue;
             }
+
+            $imagenes[] = $this->imagenParaPdf($contenido);
+            unset($contenido);
         }
         $html = view('PDF/Solicitudes/multaNotificaciones', compact('id', 'solicitud','citado','solicitante','notificador','imagenes','municipioCitado','estadoCitado','audiencia'))->render();
 
@@ -19703,20 +19807,19 @@ class SeerController extends Controller
                 continue;
             }
         
-            $path = "documentos_notificacion/{$id_solicitud}/{$img}";
+            // Cada llamada al disco s3 es un viaje de red hasta MinIO, así que se
+            // pide el archivo directo (get() regresa null si no existe, por
+            // 'throw' => false) en vez de exists() + mimeType() + get().
+            $contenido = Storage::disk('s3')->get("documentos_notificacion/{$id_solicitud}/{$img}")
+                ?? Storage::disk('s3')->get("documentos_notificacion/{$img}");
 
-            if (Storage::disk('s3')->exists($path)) {
-                $mime = Storage::disk('s3')->mimeType($path);
-                $imagenes[] = 'data:' . $mime . ';base64,' . base64_encode(Storage::disk('s3')->get($path));
-            } else {
-                $fallbackPath = "documentos_notificacion/{$img}";
-                if (Storage::disk('s3')->exists($fallbackPath)) {
-                    $mime = Storage::disk('s3')->mimeType($fallbackPath);
-                    $imagenes[] = 'data:' . $mime . ';base64,' . base64_encode(Storage::disk('s3')->get($fallbackPath));
-                } else {
-                    $imagenes[] = null;
-                }
+            if ($contenido === null) {
+                $imagenes[] = null;
+                continue;
             }
+
+            $imagenes[] = $this->imagenParaPdf($contenido);
+            unset($contenido);
         }
         $html = view('PDF/Solicitudes/multaNotificacionInstructivo', compact('id', 'solicitud','citado','solicitante','notificador','imagenes','municipioCitado','estadoCitado','audiencia'))->render();
 
@@ -19771,20 +19874,19 @@ class SeerController extends Controller
                 continue;
             }
         
-            $path = "documentos_notificacion/{$id_solicitud}/{$img}";
+            // Cada llamada al disco s3 es un viaje de red hasta MinIO, así que se
+            // pide el archivo directo (get() regresa null si no existe, por
+            // 'throw' => false) en vez de exists() + mimeType() + get().
+            $contenido = Storage::disk('s3')->get("documentos_notificacion/{$id_solicitud}/{$img}")
+                ?? Storage::disk('s3')->get("documentos_notificacion/{$img}");
 
-            if (Storage::disk('s3')->exists($path)) {
-                $mime = Storage::disk('s3')->mimeType($path);
-                $imagenes[] = 'data:' . $mime . ';base64,' . base64_encode(Storage::disk('s3')->get($path));
-            } else {
-                $fallbackPath = "documentos_notificacion/{$img}";
-                if (Storage::disk('s3')->exists($fallbackPath)) {
-                    $mime = Storage::disk('s3')->mimeType($fallbackPath);
-                    $imagenes[] = 'data:' . $mime . ';base64,' . base64_encode(Storage::disk('s3')->get($fallbackPath));
-                } else {
-                    $imagenes[] = null;
-                }
+            if ($contenido === null) {
+                $imagenes[] = null;
+                continue;
             }
+
+            $imagenes[] = $this->imagenParaPdf($contenido);
+            unset($contenido);
         }
         $html = view('PDF/Solicitudes/multaNotificacionNExitosaSeConstituye', compact('id', 'solicitud','citado','solicitante','notificador','imagenes','municipioCitado','estadoCitado','audiencia'))->render();
 
