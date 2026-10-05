@@ -30,6 +30,9 @@ class User extends Authenticatable
         'type',
         'remember_token',
         'delegacion',
+        // Sin esto update() lo descarta en silencio y el select de sexo
+        // parece guardar sin guardar nada.
+        'sexo',
     ];
 
     /**

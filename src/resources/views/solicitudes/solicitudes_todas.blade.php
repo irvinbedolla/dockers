@@ -130,7 +130,7 @@
                                                                             <li><a class="dropdown-item" data-bs-toggle="modal" data-bs-target="#noConciliacion" data-id="{{ $solicitud->id }}">Constancia de no conciliación</a></li>
                                                                             <li><a class="dropdown-item" href="{{ route('PDFCaratulaInfoConcilio', ['tipo' => 'seguimiento', 'id' => $solicitud->id]) }}" target="_blank">Carátula de Seguimiento</a></li>
                                                                             <li><a class="dropdown-item" href="{{ route('PDFCaratulaInfoConcilio', ['tipo' => 'caratula', 'id' => $solicitud->id]) }}" target="_blank">Carátula de Solicitud</a></li>
-                                                                        @elseif(in_array($solicitud->estatus, ['Conciliacion', 'Concluida', 'Reinstalacion']))
+                                                                        @elseif(in_array($solicitud->estatus, ['Conciliacion', 'Concluida', 'Reinstalacion','Incumplimiento']))
                                                                             @if(isset($solicitud->mostrar_ptu) && $solicitud->mostrar_ptu)
                                                                                 <li><a class="dropdown-item bg-success text-white fw-bold" href="{{ route('PDFconvenioPTU_NO_S', $solicitud->id) }}" target="_blank">Convenio PTU (No Labora)</a></li>
                                                                             @else
@@ -144,13 +144,15 @@
                                                                                 <li><a class="dropdown-item" href="{{ route('PDFCaratulaInfoConcilio', ['tipo' => 'seguimiento', 'id' => $solicitud->id]) }}" target="_blank">Carátula de Seguimiento</a></li>
                                                                                 <li><a class="dropdown-item" href="{{ route('PDFCaratulaInfoConcilio', ['tipo' => 'caratula', 'id' => $solicitud->id]) }}" target="_blank">Carátula de Solicitud</a></li>
                                                                             @endif
-                                                                            <li>
-                                                                                <a class="dropdown-item btn-constancia-audiencia" 
-                                                                                data-id="{{ $solicitud->id }}"
-                                                                                data-base="{{ route('PDFcumplimientoTotal', $solicitud->id) }}"
-                                                                                href="{{ route('PDFcumplimientoTotal', $solicitud->id) }}"
-                                                                                target="_blank">Constancia de cumplimiento</a>
-                                                                            </li>
+                                                                            @if(in_array($solicitud->estatus, ['Conciliacion', 'Concluida', 'Reinstalacion']))
+                                                                                <li>
+                                                                                    <a class="dropdown-item btn-constancia-audiencia" 
+                                                                                    data-id="{{ $solicitud->id }}"
+                                                                                    data-base="{{ route('PDFcumplimientoTotal', $solicitud->id) }}"
+                                                                                    href="{{ route('PDFcumplimientoTotal', $solicitud->id) }}"
+                                                                                    target="_blank">Constancia de cumplimiento</a>
+                                                                                </li>
+                                                                            @endif
                                                                         @elseif($solicitud->estatus == "Prevencion")
                                                                             <li><a class="dropdown-item" href="{{ route('PDFacuse_solicitud', $solicitud->id) }}" target="_blank">Acuse de solicitud</a></li>
                                                                             <li><a class="dropdown-item" href="{{ route('PDFCaratulaInfo', ['tipo' => 'solicitud', 'id' => $solicitud->id]) }}" target="_blank">Formato de Solicitud</a></li>

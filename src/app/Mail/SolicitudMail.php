@@ -31,8 +31,8 @@ class SolicitudMail extends Mailable
                 'variables' => $this->variables,
             ])
                     
-            // 2. Adjunta el PDF generado en memoria
-            ->attachData($this->pdfContent, 'Acuse de solicitud.pdf', [
+            // 2. Adjunta el PDF generado en memoria agregando ->output()
+            ->attachData($this->pdfContent->output(), 'Acuse de solicitud.pdf', [
                 'mime' => 'application/pdf', 
             ]);
     }

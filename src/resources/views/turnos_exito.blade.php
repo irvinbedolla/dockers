@@ -231,6 +231,7 @@
                                         <strong>Fecha:</strong> {{ session('fecha') }} <br>
                                         <strong>Hora:</strong> {{ session('hora') }} <br>
                                         <strong>Delegación:</strong> {{ session('delegacion') }}<br>
+                                        <strong>Dirección:</strong> {{ session('direccion') }}<br>
                                         <strong>Modulo:</strong> {{ session('modulo') }}
                                     </div>
                                     
@@ -268,37 +269,6 @@
 
             
         </section>
-        
-    <script>
-    document.addEventListener("DOMContentLoaded", function () {
-
-        const avisoModalEl = document.getElementById('avisoModal');
-        const seguridadModalEl = document.getElementById('seguridadModal');
-
-        const avisoModal = bootstrap.Modal.getOrCreateInstance(avisoModalEl);
-        const seguridadModal = bootstrap.Modal.getOrCreateInstance(seguridadModalEl);
-
-        // Mostrar el primer modal
-        avisoModal.show();
-
-        avisoModalEl.addEventListener('hidden.bs.modal', function () {
-            seguridadModal.show();
-        });
-
-        seguridadModalEl.addEventListener('hidden.bs.modal', function () {
-
-            document.body.classList.remove('modal-open');
-
-            document.body.style.removeProperty('padding-right');
-
-            document.querySelectorAll('.modal-backdrop').forEach(function(backdrop){
-                backdrop.remove();
-            });
-
-        });
-
-    });
-</script>
         
 
     

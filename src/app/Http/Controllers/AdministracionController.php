@@ -729,7 +729,11 @@ class AdministracionController extends Controller{
 
                 $fechaDia = $fecha->format('Y-m-d');
                 if($fechaDia >= '2026-10-05'){
-                    $horasBase=$horasnuevas;
+                    if(($sede == 'Zamora' || $sede == 'Sahuayo') && $fechaDia < '2026-10-11'){
+                        $horasBase = $horasviejas;
+                    } else {
+                        $horasBase = $horasnuevas;
+                    }         
                 }
                 else{
                     $horasBase = $horasviejas;
@@ -996,6 +1000,14 @@ class AdministracionController extends Controller{
         return back()->with('success', 'Bloqueo eliminado correctamente.');
     }
 
+    /**
+     * Roles que esta pantalla administra. Deliberadamente no estan todos: no
+     * lista Super Usuario, Administrador, Enlace, Registro, Turnos,
+     * Estadistica ni los demas, asi que esas cuentas no se ven aqui aunque
+     * existan. Si algun dia hay que administrarlas, se agregan a esta lista.
+     */
+    private const ROLES_ADMINISTRABLES = ['Notificador', 'Conciliador', 'Auxiliar', 'Excepcion', 'Delegado'];
+
     public function configuracion_usuarios(){
         $id = auth()->user()->id;
         $user = User::findOrFail($id);
@@ -1003,17 +1015,59 @@ class AdministracionController extends Controller{
         $userRole = $user->roles->pluck('name')->all();
         $sede = $user->delegacion;
 
-        if($sede == "Morelia"){
-            $usuarios = User::role(['Notificador', 'Conciliador','Auxiliar','Excepcion','Delegado'])->whereIn('delegacion', ['Morelia', 'Zitácuaro'])->get();
-        }
-        else if($sede == "Uruapan"){
-            $usuarios = User::role(['Notificador', 'Conciliador','Auxiliar','Excepcion','Delegado'])->whereIn('delegacion', ['Uruapan', 'Lázaro Cárdenas'])->get();
-        }
-        else if($sede == "Zamora"){
-            $usuarios = User::role(['Notificador', 'Conciliador','Auxiliar','Excepcion','Delegado'])->whereIn('delegacion', ['Zamora', 'Sahuayo'])->get();
-        }
-            
+        // Cada cabecera administra tambien a su sede satelite. Quien no esta
+        // en una cabecera ve la suya: antes no habia rama para ellos y la
+        // vista recibia $usuarios sin definir, asi que la pantalla reventaba
+        // para Zitacuaro, Lazaro Cardenas y Sahuayo.
+        $aCargo = match ($sede) {
+            'Morelia' => ['Morelia', 'Zitácuaro'],
+            'Uruapan' => ['Uruapan', 'Lázaro Cárdenas'],
+            'Zamora'  => ['Zamora', 'Sahuayo'],
+            default   => [$sede],
+        };
+
+        $usuarios = User::role(self::ROLES_ADMINISTRABLES)
+            ->whereIn('delegacion', $aCargo)
+            ->orderBy('name')
+            ->get();
+
         return view('administracion.index_usuario', compact('usuarios'));
+    }
+
+    /**
+     * Activa o desactiva una cuenta desde el listado.
+     *
+     * Desactivar no borra nada: la cuenta deja de poder entrar -LoginRequest
+     * rechaza estatus Inactivo- y sale de los tableros del Inicio, que ya
+     * filtran por activas. Se puede revertir con el mismo select.
+     */
+    public function cambiarEstatus(Request $request, $id)
+    {
+        // La vista ya esconde el select sin este permiso, pero la ruta sólo
+        // pide el rol: sin esto, un Delegado podría mandar el PATCH a mano.
+        abort_unless(auth()->user()->can('usuarios_editar'), 403);
+
+        $this->validate($request, [
+            'estatus' => 'required|in:Activo,Inactivo',
+        ], [
+            'estatus.required' => 'Falta el estatus.',
+            'estatus.in'       => 'El estatus no es válido.',
+        ]);
+
+        $user = User::findOrFail($id);
+
+        // Nadie se desactiva a sí mismo: el siguiente request lo dejaría
+        // fuera y no habría manera de volver a entrar a deshacerlo.
+        if ((int) $user->id === (int) auth()->id() && $request->input('estatus') === 'Inactivo') {
+            return back()->with('error', 'No puedes desactivar tu propia cuenta.');
+        }
+
+        $user->estatus = $request->input('estatus');
+        $user->save();
+
+        $verbo = $user->estatus === 'Activo' ? 'activada' : 'desactivada';
+
+        return back()->with('success', "Cuenta de {$user->name} {$verbo}.");
     }
 
     public function edit($id)
@@ -1032,6 +1086,7 @@ class AdministracionController extends Controller{
             'email'       => 'required|email|unique:users,email,'.$id,
             'password'    => 'same:confirm-password',
             'foto_perfil' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:8192|dimensions:min_width=200,min_height=200',
+            'sexo'        => 'nullable|in:H,M,NC',
         ], [
             'foto_perfil.image'      => 'El archivo debe ser una imagen.',
             'foto_perfil.mimes'      => 'La foto debe ser JPG, PNG o WebP.',
@@ -1046,6 +1101,10 @@ class AdministracionController extends Controller{
         // delegacion, type y profile_photo_path (la CURP) a un formulario
         // que ni siquiera los muestra.
         $datos = $request->only(['name', 'email']);
+
+        // El select manda cadena vacía cuando se deja en "Sin especificar";
+        // la columna es un enum, así que eso tiene que llegar como NULL.
+        $datos['sexo'] = $request->input('sexo') ?: null;
 
         if ($request->filled('password')) {
             $datos['password'] = Hash::make($request->input('password'));

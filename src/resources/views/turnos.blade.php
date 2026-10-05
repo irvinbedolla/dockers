@@ -151,9 +151,11 @@
         }
 
         /* Evento seleccionado */
-        .fc-event-selected {
+        #calendarTurno .fc-event-selected {
             border: 3px solid var(--color-oro) !important;
-            box-shadow: 0 0 10px rgba(206, 168, 69, .8);
+            box-shadow: 0 0 10px rgba(206, 168, 69, .8) !important;
+            opacity: 1 !important;
+            filter: none !important;
         }
 
         /* Modal del calendario */
@@ -186,7 +188,42 @@
             background: url("{{ asset('assets/images/pageLoader.gif') }}")
                 50% 50% no-repeat rgba(255, 255, 255, .85);
         }
+        @media (max-width: 768px) {
 
+            #calendarTurno {
+                width: 100% !important;
+            }
+
+            #calendarTurno .fc-list,
+            #calendarTurno .fc-list-table {
+                width: 100% !important;
+            }
+
+            #calendarTurno .fc-list-table {
+                table-layout: fixed !important;
+            }
+
+            #calendarTurno .fc-list-event {
+                width: 100% !important;
+                box-sizing: border-box !important;
+                opacity: 1 !important;
+                filter: none !important;
+                transform: translateZ(0);
+            }
+
+            #calendarTurno .fc-list-event td {
+                box-sizing: border-box !important;
+            }
+
+            #calendarTurno .fc-list-event::before,
+            #calendarTurno .fc-list-event::after,
+            #calendarTurno .fc-list-event td::before,
+            #calendarTurno .fc-list-event td::after {
+                display: none !important;
+                content: none !important;
+            }
+
+        }
 
     </style>
     @livewireStyles
@@ -237,7 +274,7 @@
                                     <div class="col-xs-12 col-sm-12 col-md-4">
                                         <div class="form-group mb-3">
                                             <label for="name">Selecciona el tipo de trámite que deseas realizar <span style="color:red;">(*)</span></label>
-                                            <select name="tipo" class="form-control" onchange="blockCalendar();" required>
+                                            <select id="tipo" name="tipo" class="form-control" onchange="blockCalendar();" required>
                                                 <option value="">Seleccione</option>
                                                 <option value="Asesoría">Asesoría</option>
                                                 <option value="Ratificación">Ratificación</option>
@@ -246,6 +283,17 @@
                                             <div class="invalid-feedback">
                                                 El tipo de solicitud es obligatoria.
                                             </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-xs-12 col-sm-12 col-md-4" style="display:none;"  id="si_ratificacion">
+                                        <div class="form-group mb-3">
+                                            <label for="name">¿Cuenta con un folio patronal?</label>
+                                            <select id="folio_patronal" class="form-control" >
+                                                <option value="">Seleccione</option>
+                                                <option value="si">Sí</option>
+                                                <option value="no">No</option>
+
+                                            </select>
                                         </div>
                                     </div>
                                     <div class="col-xs-12 col-sm-12 col-md-4">
@@ -415,9 +463,12 @@
                                         <div id="resumenTurno" class="alert alert-info mt-2" style="display:none;"></div>
                                     
                                     </div>
-
-                                    <div class="text-center pt-3 border-top">
-                                        <button type="submit" class="btn btn-oro btn-lg px-5 me-2">
+                                    <div class="text-center pt-3 border-top" style= "color:rgba(0, 0, 0, .4);">
+                                        <label for="name">Favor de presionar el boton de Guardar para agendar su cita </label>
+                                    </div>
+                                    <div class="text-center pt-3 ">
+                                        
+                                        <button id="btnGuardar" type="submit" class="btn btn-oro btn-lg px-5 me-2">
                                             <i class="bi bi-box-arrow-down me-1"></i> Guardar Cita
                                         </button>
                                     
@@ -680,7 +731,7 @@
                 calendarTurno = new FullCalendar.Calendar(calendarEl, {
 
                     // Vista inicial igual al primer calendario
-                    initialView: 'dayGridWeek',
+                    initialView: window.innerWidth <= 768 ? 'listWeek' : 'dayGridWeek',
 
                     locale: 'es',
                     firstDay: 1,
@@ -689,7 +740,7 @@
                     headerToolbar: {
                         left: 'prev,next today',
                         center: 'title',
-                        right: 'dayGridWeek,timeGridDay'
+                        right: 'dayGridWeek,listWeek,timeGridDay'
                     },
 
                     // No permitir fechas anteriores a hoy
@@ -735,22 +786,17 @@
 
                         const estado = info.event.extendedProps.estado;
 
-                        // Sólo se pueden seleccionar estos estados
                         if (estado !== 'disponible' && estado !== 'turnos') {
-                            alert(
-                                'Este horario no está disponible. Por favor seleccione otro.'
-                            );
+                            alert('Este horario no está disponible. Por favor seleccione otro.');
                             return;
                         }
 
-                        // Quitar selección anterior
                         document
-                            .querySelectorAll('.fc-event-selected')
+                            document.querySelectorAll('#calendarTurno .fc-event-selected')
                             .forEach(evento => {
                                 evento.classList.remove('fc-event-selected');
                             });
 
-                        // Marcar evento seleccionado
                         info.el.classList.add('fc-event-selected');
 
                         turnoSeleccionado = info.event;
@@ -758,6 +804,8 @@
                         document
                             .getElementById('confirmarTurno')
                             .removeAttribute('disabled');
+                        
+                            
                     },
 
                     // Aplicar colores según estado
@@ -798,6 +846,9 @@
         document.getElementById("form_roles").addEventListener("submit", function (e) {
             const fecha = document.getElementById("fecha_turno").value;
             const hora = document.getElementById("hora_turno").value;
+            const btn = document.getElementById('btnGuardar');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Guardando...';
             if (!fecha || !hora) {
                 e.preventDefault();
                 alert("Debes seleccionar la fecha y el horario del turno antes de guardar.");
@@ -836,8 +887,39 @@
                 blockCalendar();
             });
         });
+
+          
     </script>
 
+
+    <script>
+        $(document).ready(function() {
+            
+
+            $('#tipo').on('change', function() {
+                var tipoSeleccionado = $(this).val();
+                
+                if (tipoSeleccionado === 'Ratificación') {
+
+                    $('#si_ratificacion').fadeIn();
+                } else {
+
+                    $('#si_ratificacion').fadeOut();
+                    $('#folio_patronal').val(''); 
+                }
+            });
+
+            // 2. Detectar cuando cambia el select de "folio patronal"
+            $('#folio_patronal').on('change', function() {
+                var tieneFolio = $(this).val();
+                
+                if (tieneFolio === 'si') {
+                    window.location.href = '{{ route('create_cita') }}'; 
+                }
+            });
+
+        });
+    </script>
 @section('scripts')
     <script src="{{ asset('assets/js/validaciones-ratificacion.js') }}"></script> 
     <script src="{{ asset('assets/js/poderes/general.js') }}"></script>

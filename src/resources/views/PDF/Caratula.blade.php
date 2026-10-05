@@ -144,9 +144,9 @@
             <td width="37%">
                 <span class="label">FECHA DE TÉRMINO DE LABORES:</span>
                 @if($bandera == 'Solicitud')
-                    <div class="value">{{ \Carbon\Carbon::parse($solicitante->fecha_salida)->translatedFormat('d \d\e F \d\e\l Y') }}</div>
+                    <div class="value">@if($solicitante->fecha_salida){{ \Carbon\Carbon::parse($solicitante->fecha_salida)->translatedFormat('d \d\e F \d\e\l Y') }}@endif</div>
                 @else
-                    <div class="value">{{ \Carbon\Carbon::parse($ratificacion->fecha_termino)->translatedFormat('d \d\e F \d\e\l Y') }}</div>
+                    <div class="value">@if($ratificacion->fecha_termino){{ \Carbon\Carbon::parse($ratificacion->fecha_termino)->translatedFormat('d \d\e F \d\e\l Y') }}@endif</div>
                 @endif
             </td>
             <td width="25%">

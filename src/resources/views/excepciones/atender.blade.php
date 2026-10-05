@@ -37,12 +37,39 @@
                                         <div class="form-group">
                                             <label for="name">Tipo de situación que enfrenta<span style="color:red;">(*)</span></label>
                                             <select id="situacion" name= 'tipo_caso' class="form-control" required>
-                                                <option value="">Selecciona</option>
-                                                <option value="Discriminación" {{ $recepcion->tipo_caso == 'Discriminación' ? 'selected' : '' }}>He sido objeto de discriminación</option>
-                                                <option value="Acoso u hostigamiento sexual" {{ $recepcion->tipo_caso == 'Acoso u hostigamiento sexual' ? 'selected' : '' }}>He recibido acoso sexual por parte de un superior jerárquico o de un compañero de trabajo</option>
-                                                <option value="Riesgo o accidente">He sufrido un riesgo o accidente de trabajo.</option>
-                                                <option value="Malos tratos o violencia">He sido objeto de malos tratos o violencia laboral</option>
-                                                <option value="No aplica" {{ $recepcion->tipo_caso == 'No aplica' ? 'selected' : '' }}>No aplica</option>
+                                                <option value="">Seleccione</option>
+                                                <option value="No, ninguno" style="font-weight: bold;">No, ninguno</option>
+                                                <optgroup label="Discriminación en el empleo y ocupación por:">
+                                                    <option value="Acoso u hostigamiento sexual">Acoso/Hostigamiento Sexual</option>
+                                                    <option value="Condición social">Condición social</option>
+                                                    <option value="Embarazo">Embarazo</option>
+                                                    <option value="Raza">Raza</option>
+                                                    <option value="Razones de sexo">Razones de sexo</option>
+                                                    <option value="Religión">Religión</option>
+                                                    <option value="Orientación sexual">Orientación sexual</option>
+                                                    <option value="Origen étnico">Origen étnico</option>
+                                                </optgroup>
+                                                    <option value="Designacion" style="font-weight: bold;">Designación de beneficiarios por Muerte</option>
+                                                <optgroup label="Prestaciones de seguridad social por:">
+                                                    <option value="Accidentes de trabajo">Accidentes de trabajo</option>
+                                                    <option value="Enfermedades">Enfermedades</option>
+                                                    <option value="Guarderias">Guarderias</option>
+                                                    <option value="Invalidez">Invalidez</option>
+                                                    <option value="Maternidad">Maternidad</option>
+                                                    <option value="Riesgos de trabajo">Riesgos de trabajo</option>
+                                                    <option value="Prestaciones en especie">Prestaciones en especie</option>
+                                                    <option value="Vida">Vida</option>
+                                                <optgroup label="Tutela de derechos fundamentales y libertades públicas, ambos de carácter laboral relacionados con:">
+                                                    <option value="Libertad de asociación">Libertad de asociación</option>
+                                                    <option value="Libertad sindical">Libertad sindical</option>
+                                                    <option value="Reconocimiento efectivo de la negociacion colectiva">Reconocimiento efectivo de la negociacion colectiva</option>
+                                                    <option value="Trabajo infantil">Trabajo infantil</option>
+                                                    <option value="Trabajo laboral forzoso y obligatorio">Trabajo laboral forzoso y obligatorio</option>
+                                                <optgroup label="Disputa de titularidad de:">
+                                                    <option value="Contratos colectivos">Contratos colectivos</option>
+                                                    <option value="Contratos ley">Contratos ley</option>
+                                                </optgroup>
+                                                    <option value="Impugnación de los estatutos de los sindicatos o su modificación" style="font-weight: bold;">Impugnación de los estatutos de los sindicatos o su modificación</option>
                                             </select>
                                         </div>
                                         <div class="invalid-feedback">
@@ -159,18 +186,6 @@
                                     <input type="hidden" name="jefe_inmediato" id="jefe_inmediato">
                                     
 
-                                    <div class="col-xs-12 col-sm-12 col-md-6">
-                                        <div class="form-group">
-                                            <label for="name">Expediente<span style="color:red;">(*)</span></label>
-                                            <input type="text" class="form-control" name="expediente" maxlength="18" required>
-                                            <div class="invalid-feedback">
-                                                El número de expediente es obligatorio.
-                                            </div>
-                                            
-                                            <a href="{{ route('solicitud') }}" class="btn btn-primary"  target="_blank">Nueva Solicitud</a>
-                                            
-                                        </div>
-                                    </div>
 
                                     <div class="col-xs-12 col-sm-12 col-md-6">
                                         <div class="form-group">

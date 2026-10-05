@@ -189,16 +189,26 @@
                                             </div>
                                         </div>
                                         <div id="newRowaPago"></div>
+                                       
                                         <div class="col-xs-12 col-sm-12 col-md-12">
-                                            <h4 class="text-center" style="margin-top:20px;">Total a pagar:</h4>
+                                            <h4 class="text-center" style="margin-top:20px;">Total de conceptos:</h4>
                                             <h3 id="totalCalculado" class="text-center" style="color:green;">$0.00</h3>
                                         </div>
+                                        <div class="col-xs-12 col-sm-12 col-md-12">
+                                            <h4 class="text-center" style="margin-top:20px;">Total de parcialidades:</h4>
+                                            <h3 id="totalCalculadoPar" class="text-center" style="color:rgb(0, 70, 128);">$0.00</h3>
+                                        </div>
+                                        <div class="col-xs-12 col-sm-12 col-md-12">
+                                            <h4 class="text-center" style="margin-top:20px;">Total pendiente:</h4>
+                                            <h3 id="totalPendiente" class="text-center" style="color:green;"> $0.00 </h3>
+                                        </div>
+                                     
                                         <div class="row">
                                             <div class="col-xs-12 col-sm-12 col-md-2">
-                                                <br><button type="submit" class="btn btn-primary" name="valor" value="2">Guardar</button>
+                                                <br><button id="guardar" type="submit" class="btn btn-primary" name="valor" value="2">Guardar</button>
                                             </div>
                                             <div class="col-xs-12 col-sm-12 col-md-2">
-                                                <br><button type="submit" class="btn btn-primary" name="valor" value="1">Vista Previa</button>
+                                                <br><button id="previa" type="submit" class="btn btn-primary" name="valor" value="1">Vista Previa</button>
                                             </div>
                                         </div>
                                     </div>
@@ -211,6 +221,7 @@
         </div>
     </section>
 @endsection
+
 
 <!-- Modal -->
 <div class="modal fade" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
@@ -438,7 +449,10 @@
         $(document).on('input', 'input[name="monto_deduccion[]"]', function () {
             calcularTotal();
         });
-        $(document).on('click', '.removeRow, .removeRow3', function () {
+        $(document).on('input', 'input[name="monto_pagos[]"]', function () {
+            calcularTotal();
+        });
+        $(document).on('click', '.removeRow, .removeRow2, .removeRow3', function () {
             setTimeout(calcularTotal, 100);
         });
 
@@ -542,9 +556,24 @@
             if (!isNaN(val)) totalPagosDiferidos += val;
             });
 
+            let totalPendiente = total - totalPagosDiferidos;
+
             $('#totalCalculado').text("$" + formatoMoneda(total));
-            $("#totalPagosDiferidos").text('$' + formatoMoneda(totalPagosDiferidos));
+            $("#totalCalculadoPar").text('$' + formatoMoneda(totalPagosDiferidos));
+            $('#totalPendiente').text( "$" + formatoMoneda(totalPendiente));
+            if (totalPendiente != 0) {
+                $('#totalPendiente').css("color", "red");
+                document.getElementById("guardar").style.visibility = "hidden";
+                document.getElementById("previa").style.visibility = "hidden";
+            } else {
+                $('#totalPendiente').css("color", "green");
+                document.getElementById("guardar").style.visibility = "visible";
+                document.getElementById("previa").style.visibility = "visible";
+            }
+
         }
+
+        
 
     </script>
 @endsection

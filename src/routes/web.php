@@ -5,6 +5,7 @@ use App\Http\Controllers\Apps\RoleManagementController;
 use App\Http\Controllers\Apps\UserManagementController;
 use App\Http\Controllers\Auth\SocialiteController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\PerfilController;
 use App\Http\Controllers\DashboardController;
 use Illuminate\Support\Facades\Route;
 
@@ -165,15 +166,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Descarga la agenda del rango visible del calendario, una hoja por
     // conciliador. El alcance lo acota AgendaContexto dentro del controlador.
     Route::get('/agenda/exportar',                      [DashboardController::class, 'exportar'])->name('agenda.exportar');
-    // URI en ASCII: la ruta sí viaja por la red y con eñe llega como
-    // /cambio_contrase%C3%B1a/index. Eso pasa por CloudFront y por el WAF, donde
-    // las secuencias percent-encoded son justo lo que miran las reglas de evasión.
-    // El nombre de la ruta y el método del controlador se quedan: son internos.
-    Route::get('/cambio-contrasena/index',              [HomeController::class, 'password_cambiar'])->name('password_cambiar');
-    // Esta ruta compartía la URI POST /notificaciones/editar con editar_citado_enlace
-    // (más abajo en este archivo). Laravel indexa por método+URI, así que la segunda
-    // pisaba a la primera y el nombre 'contraseña_update' desaparecía de la tabla.
-    Route::post('/cambio-contrasena/actualizar',        [HomeController::class, 'contraseña_update'])->name('contraseña_update');
+    // Mi perfil: lo poco que cada quien puede cambiar de su propia cuenta.
+    // Sustituye a /cambio-contrasena, que sólo hacía la contraseña.
+    Route::get('/perfil',                               [PerfilController::class, 'index'])->name('perfil');
+    Route::patch('/perfil/foto',                        [PerfilController::class, 'actualizarFoto'])->name('perfil.foto');
+    Route::patch('/perfil/contrasena',                  [PerfilController::class, 'actualizarContrasena'])->name('perfil.contrasena');
+
+    // La URI vieja sigue viva como redirección: está en marcadores y en correos
+    // internos, y un 404 manda a la gente a soporte. El nombre 'password_cambiar'
+    // se conserva por lo mismo, apuntando ya al perfil.
+    Route::redirect('/cambio-contrasena/index', '/perfil')->name('password_cambiar');
 
     // Calendario Compartido
     Route::get('/calendario',                   [App\Http\Controllers\CalendarController::class, 'index'])->name('calendario.index');
@@ -211,6 +213,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/administracion/edit/{id}',             [AdministracionController::class, 'edit'])->name('administrador_usuarios_edit');
         Route::patch('/administracion/update/{post}',       [AdministracionController::class, 'update'])->name('usuarios_update');
         Route::delete('/administracion/destroy/{id}',       [AdministracionController::class, 'destroy'])->name('usuarios_destroy');
+        Route::patch('/administracion/usuarios/{id}/estatus', [AdministracionController::class, 'cambiarEstatus'])->name('usuarios_estatus'); //activar o desactivar desde el listado
         Route::get('/administracion/borrarCumplimientos',   [AdministracionController::class, 'consular_cumplimientos'])->name('configuracion_borrar_cumpli');
         Route::post('/administracion/borrarCumplimiento',   [AdministracionController::class, 'borrar_cumplimeinto'])->name('borrar_cumplimeinto');
         Route::delete('/administracion/borrar/{id}',        [AdministracionController::class, 'destroy_cumplimientoA'])->name('borrar_cumplimeintoA');
@@ -383,8 +386,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/excepciones/index',         [RecepcionController::class, 'index_excepciones'])->name('excepcion');
         Route::get('/excepciones/atender/{id}',  [RecepcionController::class, 'atender_excepcion'])->name('atender_excepcion');
         Route::post('/excepciones/guardar',       [RecepcionController::class, 'guardar_excepcion'])->name('guardar_excepcion');
+        Route::get('/excepciones/solicitud/{id}',  [RecepcionController::class, 'solicitud_excepcion'])->name('solicitud_excepcion');
         Route::get('/audiencias_Revisar/{id}/{isAudiencia?}',               [SeerController::class, 'solicitud_audiencia_revisar'])->name('solicitud_audiencia');
-
+        Route::get('/citas/{id}/documento',         [RecepcionController::class, 'verDocumentoCita'])->name('citas.documento');
+        Route::get('/citas/{id}/confirmar',         [RecepcionController::class, 'confirmarAsistencia'])->name('citas.confirmar')->middleware('auth');
     });
 
     /*
