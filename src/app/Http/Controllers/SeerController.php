@@ -5547,9 +5547,9 @@ class SeerController extends Controller
 
             // Diccionario de mapeo de salas directo
             $salasMapeo = [
-                45 => "Sala 1", 14 => "Sala 2", 38 => "Sala 3", 42 => "Sala 4",
-                54 => "Sala 6", 36 => "Sala 7", 2506 => "Sala 1", 35 => "Sala 2",
-                41 => "Sala 3", 2437 => "Sala 1", 2438 => "Sala 2"
+                45 => "Sala 1", 14 => "Sala 2", 38 => "Sala 3", 42 => "Sala 4", 9 => "Sala 5",
+                54 => "Sala 6", 36 => "Sala 7", 2506 => "Sala 1", 35 => "Sala 2", 2437 => "Sala 1", 
+                2438 => "Sala 2"
             ];
 
             if($delegacion->delegacion == "Sahuayo" || $delegacion->delegacion == "Zitácuaro" || $delegacion->delegacion == "Lázaro Cárdenas"){

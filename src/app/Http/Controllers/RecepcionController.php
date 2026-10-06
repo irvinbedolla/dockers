@@ -44,7 +44,7 @@ class RecepcionController extends Controller
         $hora_turno = $data["hora_turno"];
         $id_auxiliar = auth()->user()->id;
         $hora_fin =$hora_turno;
-        $lista_solicitudes = [5,3919,65,2817,2664,2814,70,61];
+        $lista_solicitudes = [5,209,3919,65,2817,2664,2814,70,61];
         $lista_ratificaciones = [4,6,9,32,28,2663,74,731,154,44,47];
         $todas_direcciones = [
             'Morelia' => 'BLVD. GARCÍA DE LEÓN NO. 1575, COL. CHAPULTEPEC ORIENTE, C.P. 58260, MORELIA, MICHOACÁN',
@@ -561,7 +561,7 @@ class RecepcionController extends Controller
         $hora_actual  = date("H:i:s");
         $id_user = auth()->user()->id;
         $user = User::find($id_user);
-        $lista_solicitudes = [5,3919,65,2817,2664,2814,70,61];
+        $lista_solicitudes = [5,209,3919,65,2817,2664,2814,70,61];
         $lista_ratificaciones = [4,6,9,32,28,2663,74,731,154,44,47];
 
         //Se actualizan los estatus
@@ -645,12 +645,14 @@ class RecepcionController extends Controller
         switch($aux){
             //Modulos de Morelia
             case '5':       return 'Modulo 1'; //Sandra Rocio Varela Cortés (Solicitudes y asesorias)
-            case '3919':    return 'Modulo 2'; //Mónica Alejandra Pérez López (Solicitudes y asesorias)
+            case '209':      return 'Modulo 2'; // Luis Alejandro Morán Rodríguez (Solicitudes y asesorias)
+            //case '3919':    return 'Modulo 2'; //Mónica Alejandra Pérez López (Solicitudes y asesorias)
             case '65':      return 'Modulo 3'; // Lorena Lachino Barboza (Solicitudes y asesorias)
             case '4':       return 'Modulo 4'; // Ana Luisa Soriano Virueta (Ratificaciones)
-            case '6':       return 'Modulo 5'; // Erandi Martinez barajas (Ratificaciones)
+            case '10':      return 'Modulo 5'; //Maria Del Rosario Valle Garcia (Ratificaciones)
+            //case '6':       return 'Modulo 5'; // Erandi Martinez barajas (Ratificaciones)
             //case '3':       return 'Modulo 6'; // Yesenia Arteaga Vences (Cumplimientos)
-            case '9':       return 'Modulo 7'; // Luis Rico Tinoco (Ratificaciones)
+            //case '9':       return 'Modulo 7'; // Luis Rico Tinoco (Ratificaciones)
 
             //Modulos de Uruapan
             case '2817':    return 'Modulo 1'; //Andrea Cristina Lagunas Toledo (Solicitudes y asesorias)
@@ -665,7 +667,7 @@ class RecepcionController extends Controller
             //modulos de Lázaro Cárdenas
             case '2814':    return 'Modulo 1'; //Alizon Yanine García Rosas (Solicitudes y asesorias)
             case '731':     return 'Modulo 2'; //Judith Adriana De la Peña Carrillo (Ratificaciones) ->enlace
-            case '154':     return 'Modulo 3'; //Bertha Marisol Barriga Garcia (Solicitudes y asesorias)
+            case '154':     return 'Modulo 3'; //Bertha Marisol Barriga Garcia (Ratificaciones)
 
             //modulos de Sahuayo
             case '70':      return 'Modulo 1'; //María Guadalupe Villanueva Macías (Solicitudes y asesorias)
