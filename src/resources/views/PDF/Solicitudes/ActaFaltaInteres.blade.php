@@ -48,7 +48,7 @@
                 margin-top: 50px;
             }
             .seccion-resuelve {
-                page-break-before: always;
+                page-break-inside: avoid; /*Solo salta de página si el bloque no cabe completo*/
                 padding-top: 30px;
             }
             .fondo-membrete {
