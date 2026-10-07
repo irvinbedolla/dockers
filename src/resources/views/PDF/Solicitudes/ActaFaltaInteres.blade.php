@@ -47,6 +47,10 @@
                 text-align: justify;
                 margin-top: 50px;
             }
+            .seccion-resuelve {
+                page-break-before: always;
+                padding-top: 30px;
+            }
             .fondo-membrete {
                 position: fixed;
                 top: 0;
@@ -162,7 +166,8 @@
                     </b> horas para la Audiencia, se notificó a la parte 
                     solicitante <b>{{ $solicitante->nombre }}</b>, sin embargo, no acudió, no obrando una causa justificada de la incomparecencia. <br><br> 
                     Por lo anteriormente expuesto, se:
-                </p> <br><br><br><br><br>      
+                </p>
+                <div class="seccion-resuelve">
                 <p><center><b>RESUELVE</b></center><br>
 
                 @if($audiencia->estatus == 'Desistimiento')
@@ -186,7 +191,8 @@
 
                 <br>
                 <center><p><b>___________________________________<br>{{ mb_strtoupper($conciliador->name, 'UTF-8') }} <br> FUNCIONARIO/A CONCILIADOR/A<br>
-                        DEL CENTRO DE CONCILIACIÓN LABORAL DEL<br>ESTADO DE MICHOACÁN DE OCAMPO</b></p></center>     
+                        DEL CENTRO DE CONCILIACIÓN LABORAL DEL<br>ESTADO DE MICHOACÁN DE OCAMPO</b></p></center>
+                </div>
             </div>
             <script type="text/php">
                 if (isset($pdf)) {
