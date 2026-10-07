@@ -1723,8 +1723,8 @@
 
                                                             @if($isAudiencia == 'No' && $general->estatus == 'Pendiente')
                                                                 <button type="submit" class="btn btn-primary" name="toquen" value="1">Guardar Edición</button>
-                                                            @elseif($fecha_actual->isSameDay($general->fecha_confirmacion) && auth()->user()->hasRole('Auxiliar'))
-                                                                @hasanyrole('Auxiliar')
+                                                            @elseif($fecha_actual->isSameDay($general->fecha_confirmacion) && auth()->user()->hasAnyRole(['Auxiliar', 'Orientador']))
+                                                                @hasanyrole('Auxiliar|Orientador')
                                                                     <button type="submit" class="btn btn-primary" name="toquen" value="1">Guardar Edición</button>
                                                                 @endhasanyrole
                                                             @elseif($isAudiencia == 'Si' && auth()->user()->hasRole('Conciliador'))
