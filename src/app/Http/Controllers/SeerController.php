@@ -4689,8 +4689,7 @@ class SeerController extends Controller
                     'tipo_generacion' =>  $solicitud_data["tipo_generacion"],
                     'consecutivo'     =>  $solicitud_data["consecutivo"],
                     'año'             =>  $solicitud_data["año"],
-                    'caso_excepcion'  =>  $solicitante_data['excepcion'] ?? 'No', // En caso de que no venga el campo, se asume "No"
-                    'numero_guia'     =>  SeerPerGeneral::generarNumeroGuia(),
+                    'caso_excepcion'  =>  $solicitante_data['excepcion'] ?? 'No' // En caso de que no venga el campo, se asume "No"
                 ];
 
                  // 2. Guardar Motivos
@@ -4703,8 +4702,7 @@ class SeerController extends Controller
                     }
                 }
 
-                SeerPerGeneral::create($general_insert);
-                $general_record = SeerPerGeneral::latest('id')->first();
+                $general_record = SeerPerGeneral::crearConGuia($general_insert);
                 $new_id = $general_record->id;
 
                 // Mover archivos temporales a carpeta final: documentosSolicitud/{new_id}/
@@ -17037,8 +17035,7 @@ class SeerController extends Controller
                 //para obtener los valores de solicittanteData se debe usar $solicitanteData['campo']
 
                // 1. Guardar SeerPerGeneral inicial
-                $solicitudData['numero_guia'] = SeerPerGeneral::generarNumeroGuia();
-                $general = SeerPerGeneral::create($solicitudData);
+                $general = SeerPerGeneral::crearConGuia($solicitudData);
                 $id = $general->id;
 
                 $consecutivo = $general->consecutivo;
@@ -17231,8 +17228,7 @@ class SeerController extends Controller
             DB::beginTransaction();
             //try {
                 // 1. Guardar SeerPerGeneral inicial
-                $solicitudData['numero_guia'] = SeerPerGeneral::generarNumeroGuia();
-                $general = SeerPerGeneral::create($solicitudData);
+                $general = SeerPerGeneral::crearConGuia($solicitudData);
                 $id = $general->id;
 
                 $consecutivo = $general->consecutivo;

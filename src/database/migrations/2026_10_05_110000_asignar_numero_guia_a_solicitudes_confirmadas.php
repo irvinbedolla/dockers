@@ -16,7 +16,6 @@ return new class extends Migration
             ->all();
 
         DB::table('seer_general')
-            ->where('estatus', 'Confirmado')
             ->whereNull('numero_guia')
             ->select('id', 'año', 'fecha')
             ->chunkById(500, function ($registros) use (&$usadas) {

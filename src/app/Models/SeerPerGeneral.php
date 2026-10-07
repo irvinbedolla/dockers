@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\UniqueConstraintViolationException;
 
 class SeerPerGeneral extends Model
 {
@@ -24,6 +25,21 @@ class SeerPerGeneral extends Model
         } while (static::where('numero_guia', $guia)->exists());
 
         return $guia;
+    }
+
+    public static function crearConGuia(array $data, int $intentos = 5): self
+    {
+        for ($i = 1; ; $i++) {
+            $data['numero_guia'] = static::generarNumeroGuia();
+
+            try {
+                return static::create($data);
+            } catch (UniqueConstraintViolationException $e) {
+                if ($i >= $intentos || !str_contains($e->getMessage(), 'numero_guia')) {
+                    throw $e;
+                }
+            }
+        }
     }
 
     public function audiencias() {
