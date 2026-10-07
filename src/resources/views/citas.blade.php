@@ -525,7 +525,7 @@
 
                                 <!-- Botones de Acción -->
                                 <div class="text-center pt-3 border-top">
-                                    <button type="submit" class="btn btn-oro btn-lg px-5 me-2">
+                                    <button id="btnGuardar" type="submit" class="btn btn-oro btn-lg px-5 me-2">
                                         <i class="bi bi-box-arrow-down me-1"></i> Guardar Cita
                                     </button>
                                     <a href="{{ route('publico') }}" class="btn btn-outline-secondary btn-lg px-4">
@@ -911,6 +911,10 @@
                     if(detieneEnvio) {
                         event.preventDefault();
                         event.stopPropagation();
+                    } else {
+                        const btn = document.getElementById('btnGuardar');
+                        btn.disabled = true;
+                        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Guardando...';
                     }
 
                     form.classList.add('was-validated');
