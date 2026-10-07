@@ -44,8 +44,11 @@ class RecepcionController extends Controller
         $hora_turno = $data["hora_turno"];
         $id_auxiliar = auth()->user()->id;
         $hora_fin =$hora_turno;
-        $lista_solicitudes = [5,209,3919,65,2817,2664,2814,70,61];
+        $esExcepcion = $request->input('excepcion') === 'Si';
+
+        $lista_solicitudes = [5,209,65,2817,2664,2814,70,61];
         $lista_ratificaciones = [4,6,9,32,28,2663,74,731,154,44,47];
+
         $todas_direcciones = [
             'Morelia' => 'BLVD. GARCÍA DE LEÓN NO. 1575, COL. CHAPULTEPEC ORIENTE, C.P. 58260, MORELIA, MICHOACÁN',
             'Zitácuaro' => '5 DE MAYO NTE. 3, CENTRO, C.P. 61500, ZITÁCUARO, MICHOACÁN.',
@@ -55,148 +58,110 @@ class RecepcionController extends Controller
             'Lázaro Cárdenas' => 'PARACHO NO. 26, COL. 600 CASAS, C.P. 60950, LÁZARO CÁRDENAS, MICHOACÁN.',
         ];
 
-        if($data["excepcion"]== 'Si'){
-             $hora_fin = date("H:i:s", strtotime($hora_turno . " +75 minutes"));
-        }
-        else{
-            if($data["tipo"]=='Solicitud'){
-                 $hora_fin = date("H:i:s", strtotime($hora_turno . " +40 minutes"));
-            }
-            else{
-                 $hora_fin = date("H:i:s", strtotime($hora_turno . " +60 minutes"));
-            }
-        }
+        $minutosDuracion = $esExcepcion ? 75 : ($tipoTramite === 'Solicitud' ? 40 : 60);
+        $hora_fin = Carbon::parse($hora_turno)->addMinutes($minutosDuracion)->format('H:i:s');
+
         // El horario seleccionado en el calendario ya no debe estar ocupado ni caer en un día/horario inhábil
         if (!$this->turnoSlotDisponible($sede, $tipoTramite, $fecha_asignada_str, $hora_turno, $data["excepcion"] ?? null)) {
             return redirect()->back()->with('error', 'El horario seleccionado ya no está disponible. Por favor selecciona otro.');
-        }
-
-        // 2. Calcular el consecutivo dinámico de acuerdo a la FECHA ASIGNADA y SEDE
-        $consecutivo  = Recepcion::latest('id')->where('delegacion', $sede)->first();
-
-        if (empty($consecutivo)) {
-            $numero_consecutivo = 1;
-        } else {
-            $numero_consecutivo = $consecutivo["consecutivo"] + 1;
         }
 
         // 3. SOLUCIÓN AL ERROR: Validar si los campos múltiples vienen como array o como string
         $tipo_caso    = isset($data["tipo_caso"])    ? (is_array($data["tipo_caso"])    ? implode(',', $data["tipo_caso"])    : $data["tipo_caso"])    : null;
         $prestacionSS = isset($data["prestacionSS"]) ? (is_array($data["prestacionSS"]) ? implode(',', $data["prestacionSS"]) : $data["prestacionSS"]) : null;
         $vulnerables  = isset($data["vulnerables"])  ? (is_array($data["vulnerables"])  ? implode(',', $data["vulnerables"])  : $data["vulnerables"])  : 'Ninguno';
-
-        $listado_auxiliares = array();
-        $relacionEloquent = 'roles';
-        $usuariosauxiliares = User::whereHas($relacionEloquent, function ($query) {
-            return $query->where('name', '=', 'Auxiliar');
-        })
-        ->where('delegacion', $sede)
-        ->get();
-        
         
         if($data["excepcion"] == "Si"){
             $modulo = "Departamento de genero e igualdad";
             $id_aux = 13;
-            $direccion = $todas_direcciones[$sede];
         }
         
         else{
-            $listado_auxiliares = $usuariosauxiliares->pluck('id')->toArray();
-            if($tipoTramite == "Ratificación"){
-                $auxiliares = array_intersect($listado_auxiliares,$lista_ratificaciones);
-            }
-            else{
-                $auxiliares = array_intersect($listado_auxiliares,$lista_solicitudes);
-            }
-            if(!empty($auxiliares)){
-                $random = array_rand($auxiliares);
-            }
-            else{
-                $sedesEspeciales = ['Zamora', 'Sahuayo', 'Zitácuaro'];
+            $idAuxiliaresOcupados = Recepcion::where('hora', $hora_turno)->where('fecha', $fecha_asignada_str)->pluck('auxiliar')->toArray();
 
-                if ($tipoTramite !== "Ratificación" && in_array($sede, $sedesEspeciales)) {
-                    
-                    $ratificadoresSede = array_intersect($listado_auxiliares, $lista_ratificaciones);
-                   
-                    $auxiliaresOcupados = Recepcion::where('hora', $hora_turno)
-                        ->where('fecha', $fecha_asignada_str)
-                        ->whereIn('auxiliar', $listado_auxiliares)
-                        ->pluck('auxiliar')
-                        ->toArray();
-
-                    
-                    $auxiliares = array_diff($ratificadoresSede, $auxiliaresOcupados);
-
-                    if (!empty($auxiliares)) {
-                        $random = array_rand($auxiliares);
-                    }
-                    else {
-                        return redirect()->route('citas')->with('error', 'No se ha podido completar tu cita. No se ha encontrado auxiliar disponible.'); 
-                    }
-                } else {
-                    return redirect()->route('citas')->with('error', 'No se ha podido completar tu cita. No se ha encontrado auxiliar disponible.'); 
-                }
-                
+            if($sede === 'Morelia'){
+                if($hora_turno === '13:00:00') $idAuxiliaresOcupados[] = 5;
+                if($hora_turno === '13:30:00') $idAuxiliaresOcupados[] = 209;
             }
+            $queryAuxiliares = User::whereHas('roles', function ($q) {
+                $q->where('name', 'Auxiliar');
+            })
+            ->where('delegacion', $sede)->where('estatus','Activo')
+            ->whereNotIn('id', $idAuxiliaresOcupados);
+
+            if($tipoTramite === 'Ratificación') $queryAuxiliares->whereIn('id', $lista_ratificaciones);
+            else                                $queryAuxiliares->whereIn('id', $lista_solicitudes);
+
+            $auxiliarAsignado = $queryAuxiliares->inRandomOrder()->first();
+
+            if (!$auxiliarAsignado && $tipoTramite !== 'Ratificación' && in_array($sede, ['Zamora', 'Sahuayo', 'Zitácuaro'])) {
+                $auxiliarAsignado = User::whereHas('roles', function ($q) {
+                        $q->where('name', 'Auxiliar');
+                    })
+                    ->where('delegacion', $sede)
+                    ->whereNotIn('id', $idAuxiliaresOcupados)
+                    ->whereIn('id', $lista_ratificaciones) // Se le asigna a un auxiliar encargado de las ratificaciones
+                    ->inRandomOrder()
+                    ->first();
+            }
+            if (!$auxiliarAsignado) {
+                return redirect()->back()->with('error', 'No se ha podido completar tu cita. No se ha encontrado auxiliar disponible.');
+            }
+            $id_aux = $auxiliarAsignado->id;
+            $modulo = $this->asignarModulo($id_aux);
             
-            //validar si hay disponibles
-            
-            if($sede == 'Morelia'){
-                $auxiliaresOcupados = Recepcion::where('hora', $hora_turno)->where('fecha', $fecha_asignada_str)->where('delegacion', $sede)->pluck('auxiliar')->toArray();
-                $disponibles = array_diff($auxiliares, $auxiliaresOcupados);
-                if($hora_turno === '13:00:00') $disponibles = array_diff($disponibles, [5]);
-                elseif($hora_turno === '13:30:00') $disponibles = array_diff($disponibles, [209]);
-                if(!empty($disponibles)){
-                    $random = array_rand($disponibles);
-                }
-                else{
-                    return  redirect()->back()->with('error', 'No se ha podido completar tu cita. No se ha encontrado auxiliar disponible.'); 
-                }
-                
-                $modulo = $this->asignarModulo($disponibles[$random]);
-                $id_aux=$disponibles[$random];
-            }
-            else{
-                $modulo = $this->asignarModulo($auxiliares[$random]);
-                $id_aux=$auxiliares[$random];
-            }
-            $direccion = $todas_direcciones[$sede];
         }
+        $direccion = $todas_direcciones[$sede];
+        
+        try {
 
-        // 4. Preparar el guardado mapeado con la estructura e inputs del Blade
-        $data_insertar = array(
-            'consecutivo'     => $numero_consecutivo,
-            'fecha'           => $fecha_asignada_str,
-            'hora'            => $hora_turno,
-            'hora_fin'        => $hora_fin,
-            'auxiliar'        => $id_aux,
-            'tipo'            => $tipoTramite,
-            'lugar_auxiliar'  => $modulo,
-            'exepcion'        => $data["excepcion"] ?? 'No',
-            'edad'            => $data["edad"] ?? null,
-            'sexo'            => $data["sexo"] ?? null,
-            'tipo_caso'       => $tipo_caso,
-            'prestacionSS'    => $prestacionSS,
-            'vulnerables'     => $vulnerables,
-            'conflicto'       => $data["conflicto"] ?? null,
-            'solicitante'     => $data["nombre"] ?? null,
-            'estatus'         => 'pendiente',
-            'orientacion'     => $data["orientacion"] ?? 'No',
-            'delegacion'      => $sede,
-            'folio'           => $data["folio"] ?? null,
-            'INS'             => $data["INS"] ?? null,
-            'resultado'       => null,
-            'telefono'        => $data["telefono"],
-            'correo'          => $data["correo"],
-            'municipio'       => $data["municipio_solicitante"],
-        );
-        try{
-            // 5. Ejecutar el Insert a través de Eloquent
-            Recepcion::create($data_insertar);
-            // Traducir fecha legible (Ej: "Martes 9 de Junio")
+            $numero_consecutivo = 0;
+            $cita = null;
+
+            DB::transaction(function () use (
+                $sede, $fecha_asignada_str, $hora_turno, $hora_fin, $id_aux, 
+                $tipoTramite, $modulo, $data, $tipo_caso, $prestacionSS, 
+                $vulnerables, &$numero_consecutivo, &$cita
+            ) {
+                $ultimoTurno = Recepcion::where('delegacion', $sede) 
+                    ->lockForUpdate()
+                    ->latest('id')
+                    ->first();
+
+                $numero_consecutivo = $ultimoTurno ? ($ultimoTurno->consecutivo + 1) : 1;
+
+                $cita = Recepcion::create([
+                    'consecutivo'     => $numero_consecutivo,
+                    'fecha'           => $fecha_asignada_str,
+                    'hora'            => $hora_turno,
+                    'hora_fin'        => $hora_fin,
+                    'auxiliar'        => $id_aux,
+                    'tipo'            => $tipoTramite,
+                    'lugar_auxiliar'  => $modulo,
+                    'exepcion'        => $data["excepcion"] ?? 'No',
+                    'edad'            => $data["edad"] ?? null,
+                    'sexo'            => $data["sexo"] ?? null,
+                    'tipo_caso'       => $tipo_caso,
+                    'prestacionSS'    => $prestacionSS,
+                    'vulnerables'     => $vulnerables,
+                    'conflicto'       => $data["conflicto"] ?? null,
+                    'solicitante'     => $data["nombre"] ?? null,
+                    'estatus'         => 'pendiente',
+                    'orientacion'     => $data["orientacion"] ?? 'No',
+                    'delegacion'      => $sede,
+                    'folio'           => $data["folio"] ?? null,
+                    'INS'             => $data["INS"] ?? null,
+                    'resultado'       => null,
+                    'telefono'        => $data["telefono"],
+                    'correo'          => $data["correo"],
+                    'municipio'       => $data["municipio_solicitante"],
+                ]);
+            }); 
+
             $fechaFormateada = ucfirst(Carbon::parse($fecha_asignada_str)->isoFormat('dddd D [de] MMMM'));
 
-            return redirect()->back()->with('success', 'Turno de ' . $tipoTramite .' con folio ' . $numero_consecutivo. ' generado exitosamente para la sede ' . $sede . 'Localizada en '. $direccion .' el día ' . $fechaFormateada . ' a las ' . substr($hora_turno, 0, 5) . ' horas.');
+            return redirect()->back()->with('success', 'Turno de ' . $tipoTramite .' con folio ' . $numero_consecutivo. ' generado exitosamente para la sede ' . $sede . ' localizada en '. $direccion .' el día ' . $fechaFormateada . ' a las ' . substr($hora_turno, 0, 5) . ' horas.');
+        
         }
         catch (\Throwable $e) { 
             return redirect()->back()->with('error', 'No se ha podrido completar tu cita.'); 
