@@ -13,6 +13,13 @@
                 <div class="col-lg-12">
                     <div class="card">
                         <div class="card-body">
+                            @if (auth()->user()->hasRole('Super Usuario'))
+                                <div class="text-end mb-2">
+                                    <a href="{{ route('administracion_historial', 'borrar_cumplimiento') }}" class="btn btn-outline-primary">
+                                        <i class="bi bi-clock-history"></i> Historial
+                                    </a>
+                                </div>
+                            @endif
                             <form class='needs-validation novalidate' id='form_roles' method='POST' action="{{route('borrar_cumplimeinto')}}">
                                 @csrf
                                 <div class="modal-body" id="modal-body-content">

@@ -36,6 +36,7 @@ use App\Http\Controllers\IncidenciasController;
 use App\Http\Controllers\IncidenciasBusquedaController;
 use App\Http\Controllers\AsistenciaController;
 use App\Http\Controllers\RetrocesoHistorialController;
+use App\Http\Controllers\BitacoraAdministracionController;
 
 
 /*
@@ -224,6 +225,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/administracion/cambiarFechaCumplimiento',         [AdministracionController::class, 'cambio_cumplimiento'])->name('cambio_fecha_cumplimiento');
         Route::post('/administracion/cambiarFechaCumplimiento/buscar', [AdministracionController::class, 'fecha_cumplimiento_buscar'])->name('fecha_cumplimiento_buscar');
         Route::post('/administracion/cambiarFechaCumplimiento/cambio', [AdministracionController::class, 'cambiar_fecha_cumplimiento'])->name('cambiar_fecha_cumplimiento');
+
+        // Historiales de borrado de cumplimientos y cambios de fecha: solo Super Usuario
+        Route::get('/administracion/historial/{tipo}',      [BitacoraAdministracionController::class, 'index'])->name('administracion_historial')
+            ->where('tipo', 'borrar_cumplimiento|cambio_fecha_audiencia|cambio_fecha_cumplimiento')
+            ->middleware('role:Super Usuario');
     });
 
     /*

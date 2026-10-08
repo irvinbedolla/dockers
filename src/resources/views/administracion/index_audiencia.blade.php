@@ -20,6 +20,13 @@
                                 <div class="col-xs-12 col-sm-6 col-md-4"><br>
                                     <a href="{{ route('configuracion') }}" class="btn btn-secondary">Regresar</a>
                                 </div>
+                                @if (auth()->user()->hasRole('Super Usuario'))
+                                    <div class="col-xs-12 col-sm-6 col-md-4"><br>
+                                        <a href="{{ route('administracion_historial', 'cambio_fecha_audiencia') }}" class="btn btn-outline-primary">
+                                            <i class="bi bi-clock-history"></i> Historial
+                                        </a>
+                                    </div>
+                                @endif
                             </div>
                             <br>
 
