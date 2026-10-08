@@ -240,7 +240,7 @@ class HomeController extends Controller
         $excepcion = $data["excepcion"] ?? "No";
         $fecha_turno = $data["fecha_turno"];
         $hora_turno = $data["hora_turno"];
-        $lista_solicitudes = [5,209,3919,65,2817,2664,2814,70,61];
+        $lista_solicitudes = [5,209,65,2817,2664,2814,70,61];
         $lista_ratificaciones = [4,6,9,32,28,2663,74,731,154,44,47];
         $todas_direcciones = [
             'Morelia' => 'BLVD. GARCÍA DE LEÓN NO. 1575, COL. CHAPULTEPEC ORIENTE, C.P. 58260, MORELIA, MICHOACÁN',

@@ -96,7 +96,7 @@ class RecepcionController extends Controller
 
             if (!$auxiliarAsignado && $tipoTramite !== 'Ratificación' && in_array($sede, ['Zamora', 'Sahuayo', 'Zitácuaro'])) {
                 $auxiliarAsignado = User::whereHas('roles', function ($q) {
-                        $q->where('name', 'Auxiliar');
+                        $q->whereIn('name', ['Auxiliar', 'Orientador']);
                     })
                     ->where('delegacion', $sede)
                     ->whereNotIn('id', $idAuxiliaresOcupados)
