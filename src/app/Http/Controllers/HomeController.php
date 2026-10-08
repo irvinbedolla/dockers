@@ -291,7 +291,7 @@ class HomeController extends Controller
         }
         else{
             $usuariosauxiliares = User::whereHas($relacionEloquent, function ($query) {
-                return $query->where('name', '=', 'Auxiliar');
+                return $query->whereIn('name', ['Auxiliar', 'Orientador']);
             })
             ->where('delegacion', $sede)
             ->get();

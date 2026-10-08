@@ -84,7 +84,7 @@ class RecepcionController extends Controller
                 if($hora_turno === '13:30:00') $idAuxiliaresOcupados[] = 209;
             }
             $queryAuxiliares = User::whereHas('roles', function ($q) {
-                $q->where('name', 'Auxiliar');
+                $q->whereIn('name', ['Auxiliar', 'Orientador']);
             })
             ->where('delegacion', $sede)->where('estatus','Activo')
             ->whereNotIn('id', $idAuxiliaresOcupados);
