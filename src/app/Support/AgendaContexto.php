@@ -42,6 +42,26 @@ class AgendaContexto
         $rol         = $usuario->roles->pluck('name')->first();
         $delegacion  = $usuario->delegacion;
 
+        // La recepción no se acota por su delegación sino por su rol: la
+        // regional atiende cinco sedes a la vez. Y no filtra por conciliador
+        // porque sus citas todavía no tienen uno, así que la lista va vacía.
+        // Morelia 02 sí ve audiencias, así que a ella se le ofrecen los
+        // conciliadores de sus sedes para filtrar.
+        if (Recepcion::es($usuario)) {
+            $sedes = Recepcion::sedes($usuario);
+
+            return [
+                'sedes'         => $sedes,
+                'conciliadores' => Recepcion::veFuente($usuario, 'audiencias')
+                    ? User::whereHas('roles', fn ($q) => $q->where('name', 'Conciliador'))
+                        ->whereIn('delegacion', $sedes)
+                        ->where('estatus', 'Activo')
+                        ->orderBy('name')
+                        ->get()
+                    : new \Illuminate\Database\Eloquent\Collection(),
+            ];
+        }
+
         if (in_array($rol, self::ROLES_SIN_LIMITE, true)) {
             return [
                 'sedes'         => self::TODAS_LAS_SEDES,

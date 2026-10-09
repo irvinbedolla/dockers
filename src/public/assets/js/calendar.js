@@ -327,7 +327,10 @@ function calFuente(id) {
         conciliador:    urlConciliadores,
         pagos:          urlPagos,
         ratificaciones: urlRatificaciones,
-        citas:          urlCitas
+        citas:          urlCitas,
+        // Citas en linea de recepcion (tabla recepcion). Ojo: no confundir con
+        // "citas", que a pesar del nombre son cumplimientos de ratificacion.
+        citasLinea:     typeof urlCitasLinea !== 'undefined' ? urlCitasLinea : ''
     };
 
     return { id: id, url: urls[id] + getFilterParams() };
@@ -343,7 +346,8 @@ var CAL_PASTILLAS = {
     'btn-cumpl-audiencias':   ['conciliador'],
     'btn-cumpl-generales':    ['pagos'],
     'btn-ratificaciones':     ['ratificaciones', 'citas'],
-    'btn-rati-cumplimientos': ['citas']
+    'btn-rati-cumplimientos': ['citas'],
+    'btn-citas-linea':        ['citasLinea']
 };
 
 // Que semaforo describe a cada pastilla. Las claves son las de
@@ -356,10 +360,14 @@ var CAL_PASTILLA_LEYENDA = {
     'btn-cumpl-audiencias':   'cumplimientos',
     'btn-cumpl-generales':    'cumplimientos',
     'btn-ratificaciones':     'ratificaciones',
-    'btn-rati-cumplimientos': 'cumplimientos'
+    'btn-rati-cumplimientos': 'cumplimientos',
+    'btn-citas-linea':        'citas_linea'
 };
 
-var pastillaActiva = 'btn-todos';
+// La recepcion no tiene "Todos": abre en su unica pastilla.
+var pastillaActiva = (typeof CAL_SOLO_CITAS !== 'undefined' && CAL_SOLO_CITAS)
+    ? 'btn-citas-linea'
+    : 'btn-todos';
 
 function calFuentes(tipo) {
     return (CAL_PASTILLAS[tipo] || []).map(calFuente);
@@ -556,11 +564,16 @@ function calContenidoEvento(info) {
 
     tarjeta.appendChild(hora);
 
-    [
+    // Una fuente puede mandar sus propios renglones en props.lineas: una cita
+    // en linea no tiene citado ni conciliador todavia, y pintar dos "N/A"
+    // en cada tarjeta solo estorba.
+    const lineas = Array.isArray(props.lineas) ? props.lineas : [
         ['Solicitante', props.solicitante],
         ['Citado', props.citado],
         ['Conciliador', props.conciliador]
-    ].forEach(function (par) {
+    ];
+
+    lineas.forEach(function (par) {
         const linea = document.createElement('div');
         linea.className = 'evt-linea';
         linea.title = par[0] + ': ' + (par[1] || 'N/A');
@@ -667,7 +680,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    // Todas las sesiones abren en "Todos", primera pastilla del orden.
+    // Abre en "Todos", salvo recepcion, que abre en "Citas en linea".
     calSeleccionarPastilla(pastillaActiva);
 
     const btnPrev = document.getElementById('calPrev');
@@ -689,7 +702,84 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 
+// Detalle de una cita en linea. Se arma con nodos y textContent, no con una
+// plantilla de texto: el nombre y el correo los escribe el ciudadano en el
+// formulario publico, y con innerHTML cualquier "<" se interpretaria como
+// marcado. Es la misma regla que ya sigue calContenidoEvento.
+function calModalCita(info) {
+    const props = info.event.extendedProps || {};
+    const cuerpo = document.querySelector('#evento .modal-body');
+    if (!cuerpo) {
+        return;
+    }
+
+    const estatus = {
+        pendiente:  'Sin confirmar',
+        confirmada: 'Confirmada',
+        atendido:   'Atendida',
+        expirada:   'No se presentó'
+    };
+
+    const datos = [
+        ['Solicitante', props.solicitante],
+        ['Trámite',     props.tipo + (props.excepcion ? ' (caso de excepción)' : '')],
+        ['Fecha',       info.event.start ? info.event.start.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' }) : ''],
+        ['Hora',        props.hora],
+        ['Estatus',     estatus[props.estatus] || props.estatus],
+        ['Sede',        props.delegacion],
+        ['Atiende',     props.atiende],
+        ['Módulo',      props.modulo],
+        ['Teléfono',    props.telefono],
+        ['Correo',      props.correo],
+        ['Folio',       props.folio]
+    ];
+
+    cuerpo.textContent = '';
+
+    datos.forEach(function (par) {
+        if (par[1] === null || par[1] === undefined || par[1] === '') {
+            return;
+        }
+        const etiqueta = document.createElement('strong');
+        etiqueta.textContent = par[0] + ': ';
+        cuerpo.appendChild(etiqueta);
+        cuerpo.appendChild(document.createTextNode(String(par[1])));
+        cuerpo.appendChild(document.createElement('br'));
+    });
+
+    const pie = document.createElement('div');
+    pie.className = 'modal-footer';
+
+    const cerrar = document.createElement('button');
+    cerrar.type = 'button';
+    cerrar.className = 'btn btn-secondary';
+    cerrar.setAttribute('data-bs-dismiss', 'modal');
+    cerrar.textContent = 'Cerrar';
+    pie.appendChild(cerrar);
+
+    // Solo el acuse, que es de lectura. La confirmacion de asistencia NO va
+    // aqui: es la URL del QR y cambia el estatus segun la hora en que se
+    // abre, asi que un clic en otro dia marcaria la cita como expirada.
+    if (typeof urlAcuseCita !== 'undefined') {
+        const acuse = document.createElement('a');
+        acuse.className = 'btn btn-info';
+        acuse.href = urlAcuseCita + '/' + encodeURIComponent(info.event.id) + '/documento';
+        acuse.target = '_blank';
+        acuse.rel = 'noopener';
+        acuse.textContent = 'Ver acuse';
+        pie.appendChild(acuse);
+    }
+
+    cuerpo.appendChild(pie);
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('evento')).show();
+}
+
 function handleEventClick(info, calendarType) {
+    if (calendarType === 'citasLinea') {
+        calModalCita(info);
+        return;
+    }
+
     const props = info.event.extendedProps;
     let modalContent = '';
 
@@ -797,6 +887,11 @@ function handleEventClick(info, calendarType) {
     // Bootstrap 5 quitó la API de plugins por jQuery: $('#evento').modal('show')
     // dejó de existir al pasar esta pantalla de Bootstrap 4 a 5.3.
     document.querySelector('#evento .modal-body').innerHTML = modalContent;
+
+    // Recepcion ve el evento pero no entra a la audiencia ni al cumplimiento.
+    if (typeof CAL_ES_RECEPCION !== 'undefined' && CAL_ES_RECEPCION) {
+        document.querySelectorAll('#evento .modal-body .modal-footer a.btn-info').forEach(function (a) { a.remove(); });
+    }
     bootstrap.Modal.getOrCreateInstance(document.getElementById('evento')).show();
 }
 

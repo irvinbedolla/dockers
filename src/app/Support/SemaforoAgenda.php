@@ -86,6 +86,24 @@ class SemaforoAgenda
         'incompetencia'   => self::GUINDA,
     ];
 
+    /**
+     * Citas en línea de recepción. Cuatro estados que cuentan quién viene,
+     * quién vino y quién no: el color dice lo mismo que en las demás agendas
+     * -gris en espera, verde confirmado, naranja no se presentó-, y la cita
+     * ya atendida va en plomo para que no compita con las que faltan.
+     */
+    private const CITAS = [
+        'pendiente'  => self::GRIS,
+        'confirmada' => self::VERDE,
+        'atendido'   => self::PLOMO,
+        'expirada'   => self::NARANJA,
+    ];
+
+    public static function cita(?string $estatus): string
+    {
+        return self::resolver(self::CITAS, $estatus);
+    }
+
     public static function cumplimiento(?string $estatus): string
     {
         return self::resolver(self::CUMPLIMIENTOS, $estatus);
@@ -154,6 +172,12 @@ class SemaforoAgenda
                 ['color' => self::GRIS,  'texto' => 'En proceso'],
                 ['color' => self::VERDE, 'texto' => 'Conciliación'],
                 ['color' => self::ROJO,  'texto' => 'No conciliación'],
+            ],
+            'citas_linea' => [
+                ['color' => self::GRIS,    'texto' => 'Sin confirmar'],
+                ['color' => self::VERDE,   'texto' => 'Confirmada'],
+                ['color' => self::PLOMO,   'texto' => 'Atendida'],
+                ['color' => self::NARANJA, 'texto' => 'No se presentó'],
             ],
         ];
     }
