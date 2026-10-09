@@ -91,6 +91,7 @@
                                                 <th>Fecha anterior</th>
                                                 <th>Fecha nueva</th>
                                             @endif
+                                            <th>Motivo</th>
                                             <th>Usuario</th>
                                             <th></th>
                                         </tr>
@@ -125,6 +126,7 @@
                                                     <td class="text-danger">{{ $fechaHora($antes) }}</td>
                                                     <td class="text-success">{{ $fechaHora($despues) }}</td>
                                                 @endif
+                                                <td style="max-width: 280px; white-space: pre-line;">{{ $registro->motivo ?? 'No capturado' }}</td>
                                                 <td>{{ $registro->user_nombre ?? '—' }}</td>
                                                 <td class="text-end">
                                                     <button type="button" class="btn btn-sm btn-light"
