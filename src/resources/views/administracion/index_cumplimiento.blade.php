@@ -20,6 +20,13 @@
                                 <div class="col-xs-12 col-sm-6 col-md-4"><br>
                                     <a href="{{ route('configuracion') }}" class="btn btn-secondary">Regresar</a>
                                 </div>
+                                @if (auth()->user()->hasRole('Super Usuario'))
+                                    <div class="col-xs-12 col-sm-6 col-md-4"><br>
+                                        <a href="{{ route('administracion_historial', 'cambio_fecha_cumplimiento') }}" class="btn btn-outline-primary">
+                                            <i class="bi bi-clock-history"></i> Historial
+                                        </a>
+                                    </div>
+                                @endif
                             </div>
                             <br>
 
@@ -193,10 +200,11 @@
     </div>
 </div>
 
-<div class="modal fade" id="ModalReagendarPago" tabindex="-1" aria-labelledby="reagendarPagoModalLabel" aria-hidden="true">
+<div class="modal fade" id="ModalReagendarPago" tabindex="-1" data-bs-focus="false" aria-labelledby="reagendarPagoModalLabel" aria-hidden="true">
     <form class='needs-validation novalidate' method='POST' action="{{ route('cambiar_fecha_cumplimiento') }}">
     @csrf
     <input type="hidden" name="id_pago" id="modal-id-pago" value="">
+    <input type="hidden" name="motivo" id="motivoReagendarPago" value="">
 
     <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">
         <div class="modal-content">
@@ -407,8 +415,16 @@
                     function lanzar(){
                         Swal.fire({
                             title: 'Confirmar cambio de fecha', html: mensajeHtml, icon: 'question',
+                            input: 'textarea', inputLabel: 'Motivo del cambio (obligatorio)',
+                            inputPlaceholder: 'Ej. Solicitud de las partes', inputAttributes: { maxlength: 1000 },
+                            inputValidator: (valor) => { if (!valor || !valor.trim()) return 'El motivo es obligatorio.'; },
                             showCancelButton: true, confirmButtonText: 'Sí', cancelButtonText: 'No', reverseButtons: true
-                        }).then((result)=>{ if(result.isConfirmed) formReagendarPago.submit(); });
+                        }).then((result)=>{
+                            if(result.isConfirmed){
+                                document.getElementById('motivoReagendarPago').value = result.value.trim();
+                                formReagendarPago.submit();
+                            }
+                        });
                     }
                     if (window.Swal) lanzar(); else setTimeout(lanzar, 200);
                 });

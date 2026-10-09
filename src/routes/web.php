@@ -42,6 +42,7 @@ use App\Http\Controllers\IncidenciasController;
 use App\Http\Controllers\IncidenciasBusquedaController;
 use App\Http\Controllers\AsistenciaController;
 use App\Http\Controllers\RetrocesoHistorialController;
+use App\Http\Controllers\BitacoraAdministracionController;
 
 
 /*
@@ -264,6 +265,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/administracion/cambiarFechaCumplimiento',         [AdministracionController::class, 'cambio_cumplimiento'])->name('cambio_fecha_cumplimiento');
         Route::post('/administracion/cambiarFechaCumplimiento/buscar', [AdministracionController::class, 'fecha_cumplimiento_buscar'])->name('fecha_cumplimiento_buscar');
         Route::post('/administracion/cambiarFechaCumplimiento/cambio', [AdministracionController::class, 'cambiar_fecha_cumplimiento'])->name('cambiar_fecha_cumplimiento');
+
+        // Historiales de borrado de cumplimientos y cambios de fecha: solo Super Usuario
+        Route::get('/administracion/historial/{tipo}',      [BitacoraAdministracionController::class, 'index'])->name('administracion_historial')
+            ->where('tipo', 'borrar_cumplimiento|cambio_fecha_audiencia|cambio_fecha_cumplimiento')
+            ->middleware('role:Super Usuario');
     });
 
     /*
@@ -342,8 +348,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/seer/convenios',                   [SeerController::class, 'index_convenios'])->name('index_convenios');
         Route::get('/seer/colectivas',                  [SeerController::class, 'index_colectivas'])->name('index_colectivas');
         Route::get('/audiencias_Revisar/{id}/{isAudiencia?}',               [SeerController::class, 'solicitud_audiencia_revisar'])->name('solicitud_audiencia');
-        Route::get('/citas/{id}/documento',         [RecepcionController::class, 'verDocumentoCita'])->name('citas.documento');
-        Route::get('/citas/{id}/confirmar',         [RecepcionController::class, 'confirmarAsistencia'])->name('citas.confirmar')->middleware('auth');
+        
 
         //Reportes conciliciador, auxiliares y notificaciones
         Route::get('/indexConciliadores/Reportes',          [SeerController::class, 'indexCAN'])->name('reportes_conciliador');
@@ -400,7 +405,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
      |*/
     // Los roles de recepción se suman desde App\Support\Recepcion: un nombre
     // con acento mal escrito aquí no truena, sólo deja fuera a la persona.
-    Route::middleware([Recepcion::middleware('Super Usuario', 'Auxiliar', 'Recepcion', 'Turnos')])->group(function () {
+    Route::middleware([Recepcion::middleware('Super Usuario', 'Auxiliar', 'Recepción General', 'Turnos', 'Recepción Morelia 1', 'Recepción Morelia 2')])->group(function () {
         Route::get('/turnos/index',                                         [RecepcionController::class, 'index_turnos'])->name('turnos');
         Route::get('/turnos/misturnos',                                     [RecepcionController::class, 'misturnos'])->name('misturnos');
         
@@ -432,7 +437,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/excepciones/index',         [RecepcionController::class, 'index_excepciones'])->name('excepcion');
         Route::get('/excepciones/atender/{id}',  [RecepcionController::class, 'atender_excepcion'])->name('atender_excepcion');
         Route::post('/excepciones/guardar',       [RecepcionController::class, 'guardar_excepcion'])->name('guardar_excepcion');
+        Route::get('/excepciones/solicitud/{id}',  [RecepcionController::class, 'solicitud_excepcion'])->name('solicitud_excepcion');
         Route::get('/audiencias_Revisar/{id}/{isAudiencia?}',               [SeerController::class, 'solicitud_audiencia_revisar'])->name('solicitud_audiencia');
+        Route::get('/citas/{id}/documento',         [RecepcionController::class, 'verDocumentoCita'])->name('citas.documento');
+        Route::get('/citas/{id}/confirmar',         [RecepcionController::class, 'confirmarAsistencia'])->name('citas.confirmar')->middleware('auth');
 
     });
 

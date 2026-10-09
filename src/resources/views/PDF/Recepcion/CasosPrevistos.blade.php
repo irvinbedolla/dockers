@@ -13,6 +13,7 @@
         <style>
             @page {
                 margin: 0px 0px;
+                size: A4 portrait;
             }
             body{
                 padding-top: 12%;
@@ -43,8 +44,8 @@
                 font-family: sans-serif;
                 font-size: 15px;
                 text-align: justify;
-                margin-left: 3cm;     
-                margin-right: 3cm; 
+                margin-left: 1.5cm;     
+                margin-right: 1.5cm; 
                 line-height: 1.3;
             }
             .fondo-membrete {
@@ -56,9 +57,9 @@
                 z-index: -1;
             }
             .sangria {
-                margin-left: 20px;
+                margin-left: 2px;
                 text-indent: -15px; 
-                padding-left: 15px;
+                padding-left: 5px;
             }
             .table-compacta td, 
             .table-compacta th {
@@ -90,8 +91,8 @@
             .datos{
                 font-family: sans-serif;
                 font-size: 15px;
-                margin-left: 1cm;     
-                margin-right: 1cm; 
+                margin-left: 1.5cm;     
+                margin-right: 1.5cm; 
                 line-height: 1.2;
             }
             .contenedor-firmas {
@@ -107,6 +108,11 @@
                 font-weight: bold; 
                 margin: 0; 
                 font-size: 14px;
+            }
+            .nueva-pagina {
+                page-break-before: always;
+                margin-left: 50px; 
+                margin-right: 50px;
             }
             
         </style>
@@ -146,9 +152,10 @@
                     </ul>
                     <b>Confidencialidad y transferencia de datos:</b> La información proporcionada será tratada de manera confidencial y no será compartida con terceros ajenos al procedimiento, salvo en los casos en que sea necesario atender requerimientos de autoridad competente, 
                     conforme a la legislación aplicable. En ningún caso se realizará la transferencia de datos personales sin el consentimiento del titular, salvo las excepciones previstas en la ley. <br>
-                    <b>Consentimiento:</b> De conformidad con lo dispuesto en el artículo 101 de la Ley de Transparencia, el titular de los datos personales otorga su consentimiento para el tratamiento de los mismos al proporcionar su información a través del presente formato. 
+                    <br><b>Consentimiento:</b> De conformidad con lo dispuesto en el artículo 101 de la Ley de Transparencia, el titular de los datos personales otorga su consentimiento para el tratamiento de los mismos al proporcionar su información a través del presente formato. 
                 </p>
-                <div class="titulos">
+                <div class="nueva-pagina"></div>
+                <div class="titulos ">
                 <p><center><b>
                     DATOS DE LA PERSONA SOLICITANTE:
                 </b></center></p><br>
@@ -163,6 +170,7 @@
             
                 </p>
                 </div>
+                
                 <div class="titulos">
                 <p><center><b>
                     DATOS DE LA FUENTE DE EMPLEO:
@@ -175,7 +183,7 @@
                     <b>Puesto:</b> {{$caso->puesto}}.<br><br>
                     <b>¿Cuál es el nombre del jefe inmediato?</b> {{ $caso->jefe_inmediato }}. 
                     
-                    <br><br><br><br>
+                    <br>
 
                 </p>
                 <p>
@@ -206,25 +214,25 @@
                     <b>Nota:</b> En caso de advertirse que la persona usuaria se encuentra dentro de alguno de los supuestos de excepción establecidos en el Artículo 685 Ter de la LFT, se le informará que no se encuentra obligada a agotar la instancia conciliatoria; asimismo, se hará constar 
                     que manifiesta no haber recibido orientación jurídica previa, que reconoce encontrarse en un caso de excepción y que, con pleno conocimiento de ello, expresa su voluntad de continuar con el procedimiento de conciliación; de igual forma, se asentará que le fue 
                     leído el Decálogo de Derechos y Obligaciones de las y los Usuarios, quedando debidamente enterada de su contenido.<br><br>
-
+                    <div class="nueva-pagina"></div>
                     En caso de que la persona usuaria determine no continuar con el procedimiento, y una vez proporcionada la asesoría jurídica correspondiente, autoriza al Centro de Conciliación para ser canalizada ante el Departamento de la Procuraduría Local de la Defensa
                     del Trabajo, ubicado en {{ $caso->ubicacion }}, a efecto de que le brinden la representación legal que corresponda. Asimismo, en caso de advertirse la posible comisión de un delito, se procederá a su 
                     canalización ante las dependencias competentes, tales como la Comisión de Atención a Víctimas, la SEIMUJER y la COEPREDV con el propósito de garantizar una atención integral. 
                 </p> 
                 
                 <div class="salto-inteligente"></div>
-                <<div class="contenedor-firmas">
+                <div class="contenedor-firmas">
                     <h3 class="texto-centro texto-negrita" style="letter-spacing: 5px;">A C E P T O</h3><br><br><br><br>
-                    <p><center><b>___________________________________<br> <br> {{$recepcion->solicitante}}</b></center> </p><br><br>
+                    <p><center><b>__________________________<br> <br> {{$recepcion->solicitante}}</b></center> </p><br><br>
                     <div class="row">
                         <div class="col-12 text-center">
                             <div style="display: inline-block; margin-right: 30px;">
-                                <p><center><b>___________________________________<br>  <br> {{$auxiliar->name}}<br></b></center></p>
+                                <p><center><b>__________________________<br>  <br> {{$auxiliar->name}}<br></b></center></p>
                             </div>
                                     
                             <div style="display: inline-block;">
                                 <p><center><b>Vo. Bo.<br><br><br></b></center></p>
-                                <p><center><b>___________________________________<br><br>Lic. Mariam Samantha Cazarez Sánchez<br></b></center></p>
+                                <p><center><b>__________________________<br><br>Lic. Mariam Samantha Cazarez Sánchez<br></b></center></p>
                             </div>
                         </div>
                     </div>

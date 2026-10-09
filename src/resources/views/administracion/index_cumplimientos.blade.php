@@ -13,6 +13,13 @@
                 <div class="col-lg-12">
                     <div class="card">
                         <div class="card-body">
+                            @if (auth()->user()->hasRole('Super Usuario'))
+                                <div class="text-end mb-2">
+                                    <a href="{{ route('administracion_historial', 'borrar_cumplimiento') }}" class="btn btn-outline-primary">
+                                        <i class="bi bi-clock-history"></i> Historial
+                                    </a>
+                                </div>
+                            @endif
                             <form class='needs-validation novalidate' id='form_roles' method='POST' action="{{route('borrar_cumplimeinto')}}">
                                 @csrf
                                 <div class="modal-body" id="modal-body-content">
@@ -82,11 +89,12 @@
                                                                 <td style="text-align: center;">{{ $folio['descripcion'] }}</td>
                                                                 <td style="text-align: center;">{{ $folio['estatus'] }}</td> 
                                                                 <td style="text-align: center;">
-                                                                    <form method="POST" action="{{ route('borrar_cumplimeintoA', $folio['id']) }} ">
+                                                                    <form method="POST" action="{{ route('borrar_cumplimeintoA', $folio['id']) }}" class="form-borrar-cumplimiento" data-nue="{{ $folio['NUE'] }}" data-descripcion="{{ $folio['descripcion'] }}">
                                                                         @csrf
                                                                         <input type="hidden" name="_method" value="DELETE">
+                                                                        <input type="hidden" name="motivo">
                                                                         @can('cumplimientos_borrar_cumplimiento')
-                                                                            <button class="btn btn-danger" onclick=editar_usuario(); type="submit">Borrar cumplimeinto</button>
+                                                                            <button class="btn btn-danger" type="submit">Borrar cumplimeinto</button>
                                                                         @endcan
                                                                     </form>
                                                                 </td>
@@ -114,11 +122,12 @@
                                                                 <td style="text-align: center;">{{ $folio['descripcion'] }}</td>
                                                                 <td style="text-align: center;">{{ $folio['estatus'] }}</td> 
                                                                 <td style="text-align: center;">
-                                                                    <form method="POST" action="{{ route('borrar_cumplimeintoA', $folio['id']) }} ">
+                                                                    <form method="POST" action="{{ route('borrar_cumplimeintoA', $folio['id']) }}" class="form-borrar-cumplimiento" data-nue="{{ $folio['NUE'] }}" data-descripcion="{{ $folio['descripcion'] }}">
                                                                         @csrf
                                                                         <input type="hidden" name="_method" value="DELETE">
+                                                                        <input type="hidden" name="motivo">
                                                                         @can('cumplimientos_borrar_cumplimiento')
-                                                                            <button class="btn btn-danger" onclick=editar_usuario(); type="submit">Borrar cumplimeinto</button>
+                                                                            <button class="btn btn-danger" type="submit">Borrar cumplimeinto</button>
                                                                         @endcan
                                                                     </form>
                                                                 </td>
@@ -163,3 +172,34 @@
     <div class="loader"></div>
 </div>
 @endpush
+
+@section('scripts')
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        // Confirmación y motivo obligatorio antes de borrar un cumplimiento.
+        document.querySelectorAll('.form-borrar-cumplimiento').forEach(function (form) {
+            form.addEventListener('submit', function (e) {
+                e.preventDefault();
+
+                var detalle = document.createElement('div');
+                detalle.innerHTML = '<p>Se borrará el cumplimiento <strong></strong> del expediente <strong></strong>.</p>';
+                detalle.querySelectorAll('strong')[0].textContent = form.dataset.descripcion || '';
+                detalle.querySelectorAll('strong')[1].textContent = form.dataset.nue || 'sin NUE';
+
+                Swal.fire({
+                    title: 'Confirmar borrado', html: detalle, icon: 'warning',
+                    input: 'textarea', inputLabel: 'Motivo del borrado (obligatorio)',
+                    inputPlaceholder: 'Ej. Cumplimiento capturado por error', inputAttributes: { maxlength: 1000 },
+                    inputValidator: function (valor) { if (!valor || !valor.trim()) return 'El motivo es obligatorio.'; },
+                    showCancelButton: true, confirmButtonColor: '#dc3545',
+                    confirmButtonText: 'Sí, borrar', cancelButtonText: 'Cancelar', reverseButtons: true
+                }).then(function (result) {
+                    if (result.isConfirmed) {
+                        form.querySelector('[name=motivo]').value = result.value.trim();
+                        form.submit();
+                    }
+                });
+            });
+        });
+    </script>
+@endsection

@@ -12,28 +12,42 @@
                 <div class="col-lg-12">
                     <div class="card">
                         <div class="card-body">
-                            <a class="btn btn-warning" href="{{ route('misturnos') }}"  onclick=crear_turnos();>Cargar turnos</a>
+                            <a class="btn btn-primary btn-sm" href="{{ route('misturnos') }}"  onclick=crear_turnos();>Cargar turnos</a>
                             <div class="table-responsive">
                                 <table id="example" class="table table-striped mt-2">
                                     <thead style="background-color: #354647;">
-                                        <th style="color: #fff;">ID</th>
-                                        <th style="color: #fff;">Nombre</th>
-                                        <th style="color: #fff;">Estatus</th>
-                                        <th style="color: #fff;">Acciones</th>
+                                        <th class="text-center" style="color: #fff;">Folio</th>
+                                        <th class="text-center" style="color: #fff;">Hora</th>
+                                        <th class="text-center" style="color: #fff;">Tramite</th>
+                                        <th class="text-center" style="color: #fff;">Nombre</th>
+                                        <th class="text-center" style="color: #fff;">Estatus</th>
+                                        <th class="text-center" style="color: #fff; width: 15%;">Acciones</th>
                                     </thead>
                                     <tbody>
                                         @foreach($misturnos as $turnos)
                                             <tr>
-                                                <td>{{$turnos->id}}</td>
-                                                <td>{{$turnos->solicitante}}</td>
-                                                <td>{{$turnos->estatus}}</td>
-                                                <td>
-                                                    @if($turnos->estatus == "no atendido")
-                                                        @if($turnos->exepcion == "Si")
-                                                            <a class="btn btn-info"     href="{{ route('turnos.terminado_revisar', $turnos->id) }}" onclick=no_disponible();>Terminado</a>
-                                                        @else
-                                                            <a class="btn btn-warning"  href="{{ route('turnos.cambioexcepcion', $turnos->id) }}" onclick=no_disponible();>Caso Excepción</a>
-                                                            <a class="btn btn-info"     href="{{ route('turnos.terminado', $turnos->id) }}" onclick=no_disponible();>Terminado</a>
+                                                <td class="text-center">{{str_pad($turnos->consecutivo, 5, '0', STR_PAD_LEFT)}}</td>
+                                                <td class="text-center">{{$turnos->hora->format('H:i')}}</td>
+                                                <td class="text-center">@if($turnos->exepcion === 'Si')Caso de excepcion/@endif{{$turnos->tipo}}</td>
+                                                <td class="text-center">{{$turnos->solicitante}}</td>
+                                                <td class="text-center">
+                                                    @if($turnos->estatus === 'atendido')
+                                                        <span class="badge bg-success rounded-pill px-3 py-2">
+                                                    @elseif($turnos->estatus === 'confirmada')
+                                                        <span class="badge bg-info rounded-pill px-3 py-2">
+                                                    @elseif($turnos->estatus === 'expirada')
+                                                        <span class="badge bg-danger rounded-pill px-3 py-2">
+                                                    @else
+                                                        <span class="badge bg-warning rounded-pill px-3 py-2">
+                                                        
+                                                    @endif
+                                                    {{$turnos->estatus}}</span>
+                                                    
+                                                </td>
+                                                <td class="text-center">
+                                                    @if($turnos->estatus == "confirmada")
+                                                        @if($turnos->exepcion == "No")
+                                                            <a class="btn btn-info btn-sm" href="{{ route('turnos.terminado', $turnos->id) }}" onclick=no_disponible();><i class="bi bi-check2-square"></i> Atendido</a>
                                                         @endif
                                                     @endif
                                                 </td>

@@ -25,7 +25,7 @@
                                     <!--Se realiza la validación de campos para ver si dejó alguno vacío-->
                                     @if (session()->has('error'))
                                         <div class="alert alert-dark alert-dismissible fade show" role="alert">
-                                            <strong>¡Revise los campos!</strong>
+                                            
                                             {{ session()->get('error') }}
                                             <button type="button" class="close" data-dismiss="alert" aria-label="Close">
                                                 <span aria-hidden="true">&times;</span>
@@ -218,7 +218,7 @@
                                                     <option value="Titularidad">Contratos ley</option>
                                                 </optgroup>
                                                     <option value="Titularidad" style="font-weight: bold;">Impugnación de los estatutos de los sindicatos o su modificación</option>
-                                                    <option value="Ninguno" style="font-weight: bold;">No, ninguno</option>
+                                                    
                                             </select>
                                             <div class="invalid-feedback">
                                                 El campo es obligatorio.
@@ -245,7 +245,7 @@
                                     </div>
 
                                     <div class="col-xs-12 col-sm-12 col-md-12 d-flex justify-content-center align-items-center">
-                                        <button type="submit" class="btn btn-primary">Guardar</button>
+                                        <button id="btnGuardar" type="submit" class="btn btn-primary">Guardar</button>
                                     </div>
                                 </div>
                             </form>
@@ -560,6 +560,9 @@
         document.getElementById("form_roles").addEventListener("submit", function (e) {
             const fecha = document.getElementById("fecha_turno").value;
             const hora = document.getElementById("hora_turno").value;
+            const btn = document.getElementById('btnGuardar');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Guardando...';
             if (!fecha || !hora) {
                 e.preventDefault();
                 alert("Debes seleccionar la fecha y el horario del turno antes de guardar.");

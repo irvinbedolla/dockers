@@ -151,4 +151,9 @@ Route::prefix('v1')->group(function () {
     //Rutas solicitud en línea trabajadores
     Route::get('/actividadEconomica/{id}',  [SeerController::class, 'obtenerActEconomica']);
 
+    //Ruta pública para consultar un expediente por número de guía
+    Route::get('/expedientes/{numero_guia}', [SeerController::class, 'consultarPorGuia'])
+        ->middleware('throttle:30,1')
+        ->where('numero_guia', '[0-9]{10}');
+
 });

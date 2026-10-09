@@ -37,6 +37,7 @@ use App\Models\SeerSolicitante;
 use App\Models\SeerCitados;
 use App\Models\PermisosConciliador;
 use App\Services\RetrocesoRecorder;
+use App\Services\BitacoraAdministracionRecorder;
 use Carbon\CarbonPeriod;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -366,13 +367,15 @@ class AdministracionController extends Controller{
             ->with('folio', $resultado);
     }
     public function cambiar_fecha(Request $request){
+        $this->validarMotivo($request);
         $data = $request->all();
         //$data['audiencia_id'], $data["fecha"],$data["hora"],
-        $audienciaOld = Audiencias::where('id', $data["id_audiencia"])->first();
-        $audienciaOld->update([
+        $audienciaOld = Audiencias::findOrFail($data["id_audiencia"]);
+        $NUE = SeerPerGeneral::where('id', $audienciaOld->id_solicitud)->value('NUE');
+        BitacoraAdministracionRecorder::actualizar('cambio_fecha_audiencia', $audienciaOld, [
                     'fecha' => $data["fecha"],
                     'hora'  => $data["hora"],
-                ]);
+                ], trim($data["motivo"]), $NUE);
         return redirect()->route('cambio_fecha_audiencia');
     }
 
@@ -493,6 +496,7 @@ class AdministracionController extends Controller{
     }
 
     public function cambiar_fecha_cumplimiento(Request $request){
+        $this->validarMotivo($request);
         $data = $request->all();
         $pagoOld = Pagos::where('id', $data["id_pago"])->first();
 
@@ -501,10 +505,10 @@ class AdministracionController extends Controller{
         }
 
         if ($pagoOld) {
-            $pagoOld->update([
+            BitacoraAdministracionRecorder::actualizar('cambio_fecha_cumplimiento', $pagoOld, [
                 'fecha' => $data["fecha"],
                 'hora'  => $data["hora"],
-            ]);
+            ], trim($data["motivo"]), $this->nuePago($pagoOld));
         }
         return redirect()->route('cambio_fecha_cumplimiento');
     }
@@ -1133,6 +1137,19 @@ class AdministracionController extends Controller{
         $user = User::find($id)->delete();
         return redirect()->route('configuracion_usuarios');
     }
+    
+    private function nuePago(Pagos $pago): ?string
+    {
+        if (!empty($pago->NUE)) {
+            return $pago->NUE;
+        }
+
+        return match ($pago->tipo_pago) {
+            'Audiencia'    => SeerPerGeneral::where('id', $pago->id_solicitud)->value('NUE'),
+            'Ratificacion' => Turnos::where('id', $pago->id_solicitud)->value('NUE'),
+            default        => null,
+        };
+    }
 
     public function consular_cumplimientos(){
         return view('administracion.index_cumplimientos');
@@ -1199,9 +1216,26 @@ class AdministracionController extends Controller{
         }
     }
 
-    public function destroy_cumplimientoA($id){
-        Pagos::find($id)->update(['tipo_pago'  => "Borrado"]);
+    public function destroy_cumplimientoA(Request $request, $id){
+        $this->validarMotivo($request);
+        $pago = Pagos::findOrFail($id);
+        BitacoraAdministracionRecorder::actualizar('borrar_cumplimiento', $pago, ['tipo_pago'  => "Borrado"], trim($request->motivo), $this->nuePago($pago));
         return back()->with('success', 'Cumplimeinto borrado correctamente.');
+    }
+
+    /**
+     * El motivo es obligatorio en las acciones que quedan en historial_administracion.
+     * Se valida también aquí para que no se pueda omitir saltándose la pantalla.
+     */
+    private function validarMotivo(Request $request): void
+    {
+        $request->validate(
+            ['motivo' => 'required|string|max:1000'],
+            [
+                'motivo.required' => 'El motivo es obligatorio.',
+                'motivo.max'      => 'El motivo no debe exceder 1000 caracteres.',
+            ]
+        );
     }
 
     /**
