@@ -4,11 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class BitacoraAdministracion extends Model
+class HistorialAdministracion extends Model
 {
     protected $table = 'historial_administracion';
     protected $primaryKey = 'id';
-    protected $fillable = ['tipo', 'tabla', 'registro_id', 'NUE', 'delegacion', 'datos_antes', 'datos_despues',
+    protected $fillable = ['tipo', 'tabla', 'registro_id', 'NUE', 'delegacion', 'datos_antes', 'datos_despues', 'motivo',
     'user_id', 'user_nombre', 'ip'];
     protected $casts = [
         'datos_antes'   => 'array',

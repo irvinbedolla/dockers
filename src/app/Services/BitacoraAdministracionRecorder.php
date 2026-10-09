@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Models\BitacoraAdministracion;
+use App\Models\HistorialAdministracion;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
@@ -13,9 +13,9 @@ use Illuminate\Support\Facades\DB;
  */
 class BitacoraAdministracionRecorder
 {
-    public static function actualizar(string $tipo, Model $modelo, array $cambios, ?string $NUE = null, ?string $delegacion = null): void
+    public static function actualizar(string $tipo, Model $modelo, array $cambios, ?string $motivo, ?string $NUE = null, ?string $delegacion = null): void
     {
-        DB::transaction(function () use ($tipo, $modelo, $cambios, $NUE, $delegacion) {
+        DB::transaction(function () use ($tipo, $modelo, $cambios, $motivo, $NUE, $delegacion) {
             $antes = $modelo->getRawOriginal();
 
             $modelo->fill($cambios);
@@ -30,7 +30,7 @@ class BitacoraAdministracionRecorder
             // Se relee de BD para que datos_despues tenga el mismo formato que datos_antes.
             $despues = array_intersect_key($modelo->fresh()->getRawOriginal(), $cambiado);
 
-            BitacoraAdministracion::create([
+            HistorialAdministracion::create([
                 'tipo'          => $tipo,
                 'tabla'         => $modelo->getTable(),
                 'registro_id'   => $modelo->getKey(),
@@ -38,6 +38,7 @@ class BitacoraAdministracionRecorder
                 'delegacion'    => $delegacion ?? ($antes['delegacion'] ?? null),
                 'datos_antes'   => $antes,
                 'datos_despues' => $despues,
+                'motivo'        => $motivo,
                 'user_id'       => auth()->id(),
                 'user_nombre'   => auth()->user()->name ?? null,
                 'ip'            => request()->ip(),

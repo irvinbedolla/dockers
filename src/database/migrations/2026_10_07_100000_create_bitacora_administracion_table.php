@@ -17,6 +17,7 @@ return new class extends Migration
             $table->string('delegacion', 30)->nullable();
             $table->json('datos_antes')->nullable();
             $table->json('datos_despues')->nullable();
+            $table->text('motivo')->nullable();             // obligatorio desde la pantalla y el controlador
             $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
             $table->string('user_nombre')->nullable();      // se conserva aunque el usuario se elimine
             $table->string('ip', 45)->nullable();
