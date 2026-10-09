@@ -1104,49 +1104,28 @@ class RecepcionController extends Controller
     }
     public function confirmarAsistencia($id)
     {
-        try{
+        // La regla vive en App\Support\ValidadorCita, compartida con el
+        // escáner de recepción. Aquí sólo se traduce a la "bandera" que la
+        // vista recepcion.confirmacion ya sabía pintar.
+        try {
             $cita = Recepcion::findOrFail($id);
-            $bandera = '0';
-            
-            $horaLimite = $cita->hora->copy()->addMinutes(5)->format('H:i:s');
-            $fecha_hora = $cita->fecha->format('Y-m-d'). ' ' . $cita->hora->format('H:i:s');
-            $bandera = '0';
+            $fecha_hora = $cita->fecha->format('Y-m-d').' '.$cita->hora->format('H:i:s');
 
-            if($cita->estatus === 'expirada'){
-                $bandera = '3';
-            }
-            else{
-                if (now()->isSameDay($cita->fecha)) {
-                    $bandera = '1'; 
+            $bandera = match (\App\Support\ValidadorCita::validar($cita)['resultado']) {
+                'otro_dia'                => '0',
+                'confirmada', 'atendida'  => '1',
+                'ya_confirmada', 'pasada' => '2',
+                default                   => '3', // tarde, expirada
+            };
 
-                    if ($cita->estatus === 'confirmada') {
-                        $bandera = '2';
-                    }
-                    elseif (now()->format('H:i:s') > $horaLimite) {
-                        $cita->update(['estatus' => 'expirada']); 
-                        $bandera = '3';
-                        
-                    } elseif ($cita->estatus === 'pendiente') {
-                        $cita->update(['estatus' => 'confirmada']);
-                        
-                    } 
-                }
-                elseif (now()->startOfDay() > $cita->fecha->startOfDay()){
-                    $cita->update(['estatus' => 'expirada']); 
-                    $bandera = '3';
-                }
-
-            }
-            
             return view('recepcion.confirmacion', compact('cita', 'bandera', 'fecha_hora'));
         }
-        catch(\Throwable $e) {
+        catch (\Throwable $e) {
             $bandera = '4';
-            $cita =null;
-            $horaLimite = null;
+            $cita = null;
             $fecha_hora = null;
+
             return view('recepcion.confirmacion', compact('cita', 'bandera', 'fecha_hora'));
         }
-        
     }
 }

@@ -9,6 +9,7 @@ use App\Http\Controllers\PerfilController;
 use App\Http\Controllers\AgendaCitasController;
 use App\Http\Controllers\TurnosHistorialController;
 use App\Http\Controllers\ModulosController;
+use App\Http\Controllers\EscanerCitasController;
 use App\Http\Middleware\SinRecepcion;
 use App\Support\Recepcion;
 use App\Http\Controllers\DashboardController;
@@ -185,6 +186,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // SinRecepcion. Los nombres de rol salen de App\Support\Recepcion.
     Route::get('/agenda/citas-en-linea',                AgendaCitasController::class)->name('agenda.citas_linea')
         ->middleware(Recepcion::middleware(...Recepcion::SUPERVISAN));
+    // Escáner de QR de citas. La cámara sólo se permite en esta pantalla
+    // (ver ContentSecurityPolicy). Super Usuario y las tres recepciones.
+    Route::middleware(Recepcion::middleware('Super Usuario'))->group(function () {
+        Route::get('/recepcion/escanear',            [EscanerCitasController::class, 'index'])->name('recepcion.escaner');
+        Route::post('/recepcion/escanear/validar',   [EscanerCitasController::class, 'validar'])->name('recepcion.escaner.validar')
+            ->middleware('throttle:90,1');
+    });
+
     // Mi perfil: lo poco que cada quien puede cambiar de su propia cuenta.
     // Sustituye a /cambio-contrasena, que sólo hacía la contraseña.
     Route::get('/perfil',                               [PerfilController::class, 'index'])->name('perfil');
