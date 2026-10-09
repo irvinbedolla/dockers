@@ -7813,8 +7813,29 @@ class SeerController extends Controller
         ];*/
         $delegacion = $solicitud->delegacion;
         $delegado = null;
-        if (!empty($solicitud->delegado_id)) {
-            $delegado = User::select('id', 'name', 'delegacion')->find($solicitud->delegado_id);
+        if($delegacion === 'Morelia' || $delegacion === 'Zitácuaro'){
+            $delegado = User::where('delegacion', 'Morelia')
+                ->whereHas('roles', function ($query) {
+                    $query->where('name', 'Delegado');
+                })
+                ->select('users.id', 'users.name', 'users.delegacion')
+                ->first();
+        }
+        elseif($delegacion === 'Uruapan' || $delegacion === 'Lázaro Cárdenas'){
+            $delegado = User::where('delegacion', 'Uruapan')
+                ->whereHas('roles', function ($query) {
+                    $query->where('name', 'Delegado');
+                })
+                ->select('users.id', 'users.name', 'users.delegacion')
+                ->first();
+        }
+        else{
+            $delegado = User::where('delegacion', 'Zamora')
+                ->whereHas('roles', function ($query) {
+                    $query->where('name', 'Delegado');
+                })
+                ->select('users.id', 'users.name', 'users.delegacion')
+                ->first();
         }
 
         if (!$delegado) {
