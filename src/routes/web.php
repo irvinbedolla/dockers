@@ -8,6 +8,7 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\PerfilController;
 use App\Http\Controllers\AgendaCitasController;
 use App\Http\Controllers\TurnosHistorialController;
+use App\Http\Controllers\ModulosController;
 use App\Http\Middleware\SinRecepcion;
 use App\Support\Recepcion;
 use App\Http\Controllers\DashboardController;
@@ -214,6 +215,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware(['role:Super Usuario|Administrador|Delegado|Enlace'])->group(function () {
         // Configuración Avanzada de Sedes y Retrocesos de Estatus
         Route::get('administracion/configuracion',          [AdministracionController::class, 'configuracion'])->name('configuracion');
+        // Módulos de atención: catálogo, citas del día por módulo y reasignación.
+        Route::middleware('role:Super Usuario')->group(function () {
+            Route::get('administracion/modulos',                         [ModulosController::class, 'index'])->name('modulos.index');
+            Route::post('administracion/modulos',                        [ModulosController::class, 'guardar'])->name('modulos.crear');
+            Route::put('administracion/modulos/{modulo}',                [ModulosController::class, 'guardar'])->name('modulos.actualizar');
+            Route::post('administracion/modulos/citas/{id}/reasignar',   [ModulosController::class, 'reasignar'])->name('modulos.reasignar')->whereNumber('id');
+        });
         Route::get('administracion/sedes',                  [AdministracionController::class, 'configuracion_sedes'])->name('configuracion_sedes');
         Route::get('administracion/usuarios',               [AdministracionController::class, 'configuracion_usuarios'])->name('configuracion_usuarios');
         Route::get('administracion/retrocesos',             [AdministracionController::class, 'genera_retroceso'])->name('genera_retroceso');       

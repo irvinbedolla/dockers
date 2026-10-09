@@ -231,7 +231,7 @@
                                                 @if (count($sedesVisibles) > 1) · {{ $p->delegacion }}@endif
                                             </span>
                                         </span>
-                                        @if (filled($p->correo))
+                                        @if ($p->origen === 'linea')
                                             <span class="tn-origen tn-origen--linea">En línea</span>
                                         @else
                                             <span class="tn-origen tn-origen--ventanilla">Ventanilla</span>
