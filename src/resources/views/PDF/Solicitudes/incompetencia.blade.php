@@ -144,8 +144,8 @@
                                         <td style="text-align:center; vertical-align:top; padding:0;">
                                             <b>Doy fe</b><br><br><br><br>
                                             <div style="border-top: 2px solid #000; width:80%; margin: 0 auto 5px auto;"></div>
-                                            <b>{{ mb_strtoupper($conciliador->name, 'UTF-8') }}<br>
-                                                    FUNCIONARIO/A CONCILIADOR/A<br>
+                                            <b>{{ mb_strtoupper($delegado->name, 'UTF-8') }}<br>
+                                                    DELEGADO/A<br>
                                                     DEL CENTRO DE CONCILIACIÓN LABORAL
                                                     DEL ESTADO DE MICHOACÁN DE OCAMPO
                                             </b>
