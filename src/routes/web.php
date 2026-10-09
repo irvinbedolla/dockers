@@ -348,6 +348,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/seer/convenios',                   [SeerController::class, 'index_convenios'])->name('index_convenios');
         Route::get('/seer/colectivas',                  [SeerController::class, 'index_colectivas'])->name('index_colectivas');
         Route::get('/audiencias_Revisar/{id}/{isAudiencia?}',               [SeerController::class, 'solicitud_audiencia_revisar'])->name('solicitud_audiencia');
+        
 
         //Reportes conciliciador, auxiliares y notificaciones
         Route::get('/indexConciliadores/Reportes',          [SeerController::class, 'indexCAN'])->name('reportes_conciliador');
@@ -404,7 +405,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
      |*/
     // Los roles de recepción se suman desde App\Support\Recepcion: un nombre
     // con acento mal escrito aquí no truena, sólo deja fuera a la persona.
-    Route::middleware([Recepcion::middleware('Super Usuario', 'Auxiliar', 'Recepcion', 'Turnos')])->group(function () {
+    Route::middleware([Recepcion::middleware('Super Usuario', 'Auxiliar', 'Recepción General', 'Turnos', 'Recepción Morelia 1', 'Recepción Morelia 2')])->group(function () {
         Route::get('/turnos/index',                                         [RecepcionController::class, 'index_turnos'])->name('turnos');
         Route::get('/turnos/misturnos',                                     [RecepcionController::class, 'misturnos'])->name('misturnos');
         
@@ -440,6 +441,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/audiencias_Revisar/{id}/{isAudiencia?}',               [SeerController::class, 'solicitud_audiencia_revisar'])->name('solicitud_audiencia');
         Route::get('/citas/{id}/documento',         [RecepcionController::class, 'verDocumentoCita'])->name('citas.documento');
         Route::get('/citas/{id}/confirmar',         [RecepcionController::class, 'confirmarAsistencia'])->name('citas.confirmar')->middleware('auth');
+
     });
 
     /*

@@ -23,7 +23,7 @@ class Recepcion
 {
     public const MORELIA_01 = 'Recepción Morelia 01';
     public const MORELIA_02 = 'Recepción Morelia 02';
-    public const REGIONAL   = 'Recepción Regional';
+    public const REGIONAL   = 'Recepción General';
 
     public const ROLES = [self::MORELIA_01, self::MORELIA_02, self::REGIONAL];
 
