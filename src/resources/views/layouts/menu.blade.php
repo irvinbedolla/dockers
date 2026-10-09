@@ -19,6 +19,10 @@
 
         $userRoles = auth()->user()->getRoleNames()->all();
 
+        // Los tres roles de recepción. Sus nombres viven en un solo lugar
+        // (App\Support\Recepcion) para que el menú y las rutas no se separen.
+        $recepcion = \App\Support\Recepcion::ROLES;
+
         $menu = [
             // 'roles' => '*' significa que lo ve cualquiera que haya entrado.
             ['route' => 'inicio',                     'label' => 'Inicio',                  'icon' => 'bi bi-house-door',          'roles' => '*'],
@@ -62,7 +66,9 @@
             ['route' => 'plantillas_index',           'label' => 'Plantillas',              'icon' => 'bi bi-file-text-fill',      'roles' => ['Super Usuario', 'Administrador', 'Auxiliar', 'Orientador', 'Conciliador', 'Notificador', 'Delegado', 'Cumplimientos', 'Directivo']],
             ['route' => 'solicitudes_pendientes',     'label' => 'Solicitudes Pendientes',  'icon' => 'bi bi-file-earmark-text-fill', 'roles' => []],
             ['route' => 'index_tercer_encuentro',     'label' => 'Tercer Encuentro',        'icon' => 'bi bi-bank',                'roles' => ['Tercer Encuentro']],
-            ['route' => 'turnos',                     'label' => 'Turnos',                  'icon' => 'bi bi-file-person',         'roles' => ['Super Usuario']],
+            ['route' => 'turnos',                     'label' => 'Turnos',                  'icon' => 'bi bi-file-person',         'roles' => ['Super Usuario', 'Turnos', ...$recepcion]],
+            // Sólo la recepción Morelia 01 por ahora; la pantalla dice "Próximamente".
+            ['route' => 'correspondencia',            'label' => 'Correspondencia',         'icon' => 'bi bi-envelope-paper',      'roles' => [\App\Support\Recepcion::MORELIA_01]],
             //['route' => 'turnos',                     'label' => 'Turnos',                  'icon' => 'bi bi-file-person',         'roles' => ['Super Usuario', 'Administrador','Directivo', 'Delegado']],
             //['route' => 'turnos.listado',             'label' => 'Turnos',                  'icon' => 'bi bi-book',                'roles' => ['Turnos']],
             ['route' => 'roles',                      'label' => 'Roles',                   'icon' => 'bi bi-person-lines-fill',   'roles' => ['Super Usuario']],

@@ -199,7 +199,27 @@ class RecepcionController extends Controller
         }
         $total = count($auxiliares_morelia);
 
-        return view('turnos.index',compact('auxiliares_morelia','total', 'last_hora_solicitud', 'last_hora_ratificacion', 'last_sede_solicitud', 'last_sede_ratificacion'));
+        // Resumen de hoy en las sedes que esta persona puede ver (la
+        // recepción regional ve cinco; los demás, la suya).
+        $sedesVisibles = \App\Support\Recepcion::sedesVisibles($user);
+        $hoy = DB::table('recepcion')
+            ->whereIn('delegacion', $sedesVisibles ?: ['__ninguna__'])
+            ->where('fecha', $fecha_actual);
+
+        $hoyPorEstatus = (clone $hoy)
+            ->selectRaw('estatus, COUNT(*) as total')
+            ->groupBy('estatus')
+            ->pluck('total', 'estatus');
+        $hoyEnLinea = (clone $hoy)->whereNotNull('correo')->where('correo', '<>', '')->count();
+        $proximos = (clone $hoy)
+            ->where('estatus', 'pendiente')
+            ->where('hora', '>=', date('H:i:s', strtotime('-30 minutes')))
+            ->orderBy('hora')
+            ->limit(6)
+            ->get(['id', 'consecutivo', 'solicitante', 'tipo', 'hora', 'lugar_auxiliar', 'correo', 'delegacion']);
+
+        return view('turnos.index',compact('auxiliares_morelia','total', 'last_hora_solicitud', 'last_hora_ratificacion', 'last_sede_solicitud', 'last_sede_ratificacion',
+            'sedesVisibles', 'hoyPorEstatus', 'hoyEnLinea', 'proximos'));
     }
 
     public function create()
