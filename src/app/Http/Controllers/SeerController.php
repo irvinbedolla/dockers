@@ -4702,8 +4702,7 @@ class SeerController extends Controller
                     }
                 }
 
-                SeerPerGeneral::create($general_insert);
-                $general_record = SeerPerGeneral::latest('id')->first();
+                $general_record = SeerPerGeneral::crearConGuia($general_insert);
                 $new_id = $general_record->id;
 
                 // Mover archivos temporales a carpeta final: documentosSolicitud/{new_id}/
@@ -15089,6 +15088,62 @@ class SeerController extends Controller
         return response()->json($payload);
     }
 
+    // Consulta de un expediente por número de guía. Devuelve datos generales, solicitante, citados y audiencias.
+    public function consultarPorGuia($numero_guia)
+    {
+        if (!preg_match('/^\d{10}$/', (string) $numero_guia)) {
+            return response()->json(['message' => 'Número de guía inválido.'], 422);
+        }
+
+        $general = SeerPerGeneral::where('numero_guia', $numero_guia)
+            ->with([
+                'solicitante:id,id_solicitud,tipo_persona,nombre',
+                'citados:id,id_solicitud,tipo_persona,nombre,primer_apellido,segundo_apellido,estatus',
+                'audiencias' => fn ($q) => $q->orderBy('numero_audiencia')
+                    ->select('id', 'id_solicitud', 'numero_audiencia', 'folio_audiencia', 'estatus', 'fecha', 'hora', 'delegacion', 'sala'),
+            ])
+            ->first([
+                'id', 'numero_guia', 'NUE', 'fecha', 'fecha_confirmacion', 'fecha_terminacion',
+                'delegacion', 'tipo', 'tipo_solicitud', 'estatus',
+            ]);
+
+        if (!$general) {
+            return response()->json(['message' => 'No se encontró un expediente con ese número de guía.'], 404);
+        }
+
+        return response()->json([
+            'numero_guia'        => $general->numero_guia,
+            'nue'                => $general->NUE,
+            'fecha'              => $general->fecha,
+            'fecha_confirmacion' => $general->fecha_confirmacion,
+            'fecha_terminacion'  => $general->fecha_terminacion,
+            'delegacion'         => $general->delegacion,
+            'tipo'               => $general->tipo,
+            'tipo_solicitud'     => $general->tipo_solicitud,
+            'estatus'            => $general->estatus,
+            'solicitante'        => $general->solicitante ? [
+                'tipo_persona' => $general->solicitante->tipo_persona,
+                'nombre'       => $general->solicitante->nombre,
+            ] : null,
+            'citados'            => $general->citados->map(fn ($c) => [
+                'tipo_persona'     => $c->tipo_persona,
+                'nombre'           => $c->nombre,
+                'primer_apellido'  => $c->primer_apellido,
+                'segundo_apellido' => $c->segundo_apellido,
+                'estatus'          => $c->estatus,
+            ])->values(),
+            'audiencias'         => $general->audiencias->map(fn ($a) => [
+                'numero_audiencia' => $a->numero_audiencia,
+                'folio_audiencia'  => $a->folio_audiencia,
+                'estatus'          => $a->estatus,
+                'fecha'            => optional($a->fecha)->format('Y-m-d'),
+                'hora'             => optional($a->hora)->format('H:i'),
+                'delegacion'       => $a->delegacion,
+                'sala'             => $a->sala,
+            ])->values(),
+        ]);
+    }
+
     public function diasInhabilesCentro(Request $request)
     {
         $centro = $request->query('centro');
@@ -16980,7 +17035,7 @@ class SeerController extends Controller
                 //para obtener los valores de solicittanteData se debe usar $solicitanteData['campo']
 
                // 1. Guardar SeerPerGeneral inicial
-                $general = SeerPerGeneral::create($solicitudData);
+                $general = SeerPerGeneral::crearConGuia($solicitudData);
                 $id = $general->id;
 
                 $consecutivo = $general->consecutivo;
@@ -17173,7 +17228,7 @@ class SeerController extends Controller
             DB::beginTransaction();
             //try {
                 // 1. Guardar SeerPerGeneral inicial
-                $general = SeerPerGeneral::create($solicitudData);
+                $general = SeerPerGeneral::crearConGuia($solicitudData);
                 $id = $general->id;
 
                 $consecutivo = $general->consecutivo;
