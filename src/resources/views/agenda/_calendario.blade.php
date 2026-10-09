@@ -16,6 +16,11 @@
                                                 // le ofrece ninguna decisión, así que va oculto y ya seleccionado.
                                                 $esConciliador = ($userRole[0] ?? '') === 'Conciliador';
                                                 $idUsuario     = auth()->id();
+
+                                                // La recepción sólo ve sus citas en línea: sin conciliadores,
+                                                // sin descarga y con una sola pastilla. El servidor le cierra
+                                                // además las otras fuentes (middleware SinRecepcion).
+                                                $esRecepcion   = \App\Support\Recepcion::es(auth()->user());
                                             @endphp
 
                                             <div class="col-12">
@@ -59,9 +64,11 @@
                                                                 <i class="bi bi-arrows-angle-expand"></i> Fin de semana
                                                             </button>
 
-                                                            <button type="button" id="calExportar" class="cal-select" title="Descargar en Excel la agenda del rango visible">
-                                                                <i class="bi bi-file-earmark-excel"></i> Exportar
-                                                            </button>
+                                                            @unless ($esRecepcion)
+                                                                <button type="button" id="calExportar" class="cal-select" title="Descargar en Excel la agenda del rango visible">
+                                                                    <i class="bi bi-file-earmark-excel"></i> Exportar
+                                                                </button>
+                                                            @endunless
                                                         </div>
                                                     </div>
 
@@ -71,7 +78,11 @@
                                                          actividad reciente (ver AgendaContexto). --}}
                                                     <div class="cal-personas">
                                                         <select id="filtro-sede" class="cal-select" aria-label="Filtrar por sede">
-                                                            <option value="Todos">Todas las sedes</option>
+                                                            {{-- Recepción de una sola sede no elige: sin "Todas",
+                                                                 porque las agendas viejas leen "Todos" como la región. --}}
+                                                            @unless ($esRecepcion && count($sedes) === 1)
+                                                                <option value="Todos">Todas las sedes</option>
+                                                            @endunless
                                                             @foreach($sedes as $sede)
                                                                 <option value="{{ $sede }}">{{ $sede }}</option>
                                                             @endforeach
@@ -81,6 +92,11 @@
                                                             {{-- Un conciliador no elige: el valor va fijo y oculto,
                                                                  calendar.js lo lee igual que antes. --}}
                                                             <input type="hidden" id="filter-conciliador" value="{{ $idUsuario }}">
+                                                        @elseif ($esRecepcion && $conciliadores->isEmpty())
+                                                            {{-- Las citas no tienen conciliador todavía: no hay nada
+                                                                 que elegir. El input vacío hace que calendar.js no
+                                                                 mande filtro, igual que "Todos". --}}
+                                                            <input type="hidden" id="filter-conciliador" value="">
                                                         @else
                                                             <button type="button" class="cal-persona active" data-conciliador="">Todos</button>
                                                             @foreach($conciliadores as $conciliador)
@@ -97,11 +113,32 @@
                                                          elegirlas pintan sus hijas juntas y despliegan la fila de
                                                          abajo para acotar a una sola. --}}
                                                     <div class="cal-tabs">
-                                                        <button type="button" class="cal-tab btn-calendar active" data-tipo="btn-todos">Todos</button>
-                                                        <button type="button" class="cal-tab btn-calendar" data-tipo="btn-solicitudes">Solicitudes</button>
-                                                        <button type="button" class="cal-tab btn-calendar" data-tipo="btn-audiencias">Audiencias</button>
-                                                        <button type="button" class="cal-tab btn-calendar" data-tipo="btn-cumplimientos" data-hijas="sub-cumplimientos">Cumplimientos</button>
-                                                        <button type="button" class="cal-tab btn-calendar" data-tipo="btn-ratificaciones" data-hijas="sub-ratificaciones">Ratificaciones</button>
+                                                        @if ($esRecepcion)
+                                                            @php $fuentesRecepcion = \App\Support\Recepcion::fuentes(auth()->user()); @endphp
+                                                            <button type="button" class="cal-tab btn-calendar active" data-tipo="btn-citas-linea">Citas en línea</button>
+                                                            @if (in_array('audiencias', $fuentesRecepcion, true))
+                                                                <button type="button" class="cal-tab btn-calendar" data-tipo="btn-audiencias">Audiencias</button>
+                                                            @endif
+                                                            @if (in_array('pagos', $fuentesRecepcion, true))
+                                                                <button type="button" class="cal-tab btn-calendar" data-tipo="btn-cumplimientos" data-hijas="sub-cumplimientos">Cumplimientos</button>
+                                                            @endif
+                                                            @if (in_array('ratificaciones', $fuentesRecepcion, true))
+                                                                <button type="button" class="cal-tab btn-calendar" data-tipo="btn-ratificaciones" data-hijas="sub-ratificaciones">Ratificaciones</button>
+                                                            @endif
+                                                        @else
+                                                            <button type="button" class="cal-tab btn-calendar active" data-tipo="btn-todos">Todos</button>
+                                                            <button type="button" class="cal-tab btn-calendar" data-tipo="btn-solicitudes">Solicitudes</button>
+                                                            <button type="button" class="cal-tab btn-calendar" data-tipo="btn-audiencias">Audiencias</button>
+                                                            <button type="button" class="cal-tab btn-calendar" data-tipo="btn-cumplimientos" data-hijas="sub-cumplimientos">Cumplimientos</button>
+                                                            <button type="button" class="cal-tab btn-calendar" data-tipo="btn-ratificaciones" data-hijas="sub-ratificaciones">Ratificaciones</button>
+                                                            {{-- Supervisión de las citas en línea. No entra en "Todos":
+                                                                 una cita aún no tiene conciliador, así que con una
+                                                                 persona elegida en la barra aparecería igual y
+                                                                 confundiría el filtro. --}}
+                                                            @if (\App\Support\Recepcion::veCitas(auth()->user()))
+                                                                <button type="button" class="cal-tab btn-calendar" data-tipo="btn-citas-linea">Citas en línea</button>
+                                                            @endif
+                                                        @endif
                                                     </div>
 
                                                     {{-- Sub-pastillas. Se muestran solo cuando su padre esta activo. --}}

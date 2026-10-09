@@ -6,6 +6,12 @@ use App\Http\Controllers\Apps\UserManagementController;
 use App\Http\Controllers\Auth\SocialiteController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\PerfilController;
+use App\Http\Controllers\AgendaCitasController;
+use App\Http\Controllers\TurnosHistorialController;
+use App\Http\Controllers\ModulosController;
+use App\Http\Controllers\EscanerCitasController;
+use App\Http\Middleware\SinRecepcion;
+use App\Support\Recepcion;
 use App\Http\Controllers\DashboardController;
 use Illuminate\Support\Facades\Route;
 
@@ -92,9 +98,17 @@ Route::get('/pantallaZamora',                       [HomeController::class, 'pan
 Route::get('/poder-crear',                          [PoderController::class, 'registro'])->name('poder-crear');
 Route::get('/poder-guardar',                        [PoderController::class, 'show'])->name('poder');
 Route::post('/poderes/publico',                     [PoderController::class, 'publico'])->name('poderes.publico');
-Route::get('/generarCita',                          [HomeController::class, 'citas'])->name('citas');
-Route::get('/generarCitaExito',                     [HomeController::class, 'citas_exito'])->name('citas_exito');
-Route::post('/turnos_guardar',                      [HomeController::class, 'turnos_publico'])->name('turnos_publico'); 
+// Cita en línea. Las vistas y controladores usan los nombres (citas,
+// citas_exito, turnos_publico), así que cambiar la dirección no toca nada más.
+Route::get('/generar-cita',                         [HomeController::class, 'citas'])->name('citas');
+Route::post('/generar-cita',                        [HomeController::class, 'turnos_publico'])->name('turnos_publico');
+Route::get('/generar-cita/exito',                   [HomeController::class, 'citas_exito'])->name('citas_exito');
+// Direcciones viejas. Las GET ya circulan en el portal, correos y carteles:
+// 301 a la nueva. El POST se conserva para quien tenga el formulario abierto
+// justo cuando se despliegue; se puede quitar después.
+Route::permanentRedirect('/generarCita',            '/generar-cita');
+Route::permanentRedirect('/generarCitaExito',       '/generar-cita');
+Route::post('/turnos_guardar',                      [HomeController::class, 'turnos_publico']);
 Route::get('citas',                                 [TurnosController::class, 'create_publico'])->name('create_cita');
 Route::post('/citas/store_publico',                 [TurnosController::class, 'store_publico'])->name('turnos.publico');
 Route::get('/validar_folio_abogado/{folio}',        [TurnosController::class, 'validarFolio'])->name('validar_folio_abogado');
@@ -166,7 +180,21 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/agenda',                               [DashboardController::class, 'index'])->name('agenda');
     // Descarga la agenda del rango visible del calendario, una hoja por
     // conciliador. El alcance lo acota AgendaContexto dentro del controlador.
-    Route::get('/agenda/exportar',                      [DashboardController::class, 'exportar'])->name('agenda.exportar');
+    Route::get('/agenda/exportar',                      [DashboardController::class, 'exportar'])->name('agenda.exportar')->middleware(SinRecepcion::class);
+
+    // Citas en línea de recepción. Es la única fuente de la agenda que ven
+    // los tres roles de recepción; las demás les quedan cerradas por
+    // SinRecepcion. Los nombres de rol salen de App\Support\Recepcion.
+    Route::get('/agenda/citas-en-linea',                AgendaCitasController::class)->name('agenda.citas_linea')
+        ->middleware(Recepcion::middleware(...Recepcion::SUPERVISAN));
+    // Escáner de QR de citas. La cámara sólo se permite en esta pantalla
+    // (ver ContentSecurityPolicy). Super Usuario y las tres recepciones.
+    Route::middleware(Recepcion::middleware('Super Usuario'))->group(function () {
+        Route::get('/recepcion/escanear',            [EscanerCitasController::class, 'index'])->name('recepcion.escaner');
+        Route::post('/recepcion/escanear/validar',   [EscanerCitasController::class, 'validar'])->name('recepcion.escaner.validar')
+            ->middleware('throttle:90,1');
+    });
+
     // Mi perfil: lo poco que cada quien puede cambiar de su propia cuenta.
     // Sustituye a /cambio-contrasena, que sólo hacía la contraseña.
     Route::get('/perfil',                               [PerfilController::class, 'index'])->name('perfil');
@@ -178,14 +206,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // se conserva por lo mismo, apuntando ya al perfil.
     Route::redirect('/cambio-contrasena/index', '/perfil')->name('password_cambiar');
 
+    // Correspondencia de la recepción Morelia 01. Por ahora sólo la pantalla
+    // de "Próximamente"; Super Usuario entra para revisarla.
+    Route::view('/correspondencia', 'correspondencia.index')->name('correspondencia')
+        ->middleware('role:Super Usuario|'.Recepcion::MORELIA_01);
+
     // Calendario Compartido
     Route::get('/calendario',                   [App\Http\Controllers\CalendarController::class, 'index'])->name('calendario.index');
-    Route::get('/citas/eventos',                [App\Http\Controllers\CitaController::class, 'citas'])->name('citas.eventos');
-    Route::get('/pagos/eventos',                [App\Http\Controllers\CitaController::class, 'pagos'])->name('pagos.eventos');
-    Route::get('/pagos/conciliadores',          [App\Http\Controllers\CitaController::class, 'conciliadores'])->name('conciliador.eventos');
-    Route::get('/solicitudes/eventos',          [App\Http\Controllers\AudienciasController::class, 'solicitudes'])->name('solicitudes.eventos');
-    Route::get('/audiencias/eventos',           [App\Http\Controllers\AudienciasController::class, 'audiencias'])->name('audiencias.eventos');
-    Route::get('/ratificaciones/eventos',       [App\Http\Controllers\AudienciasController::class, 'ratificaciones'])->name('ratificaciones.eventos');
+    Route::get('/citas/eventos',                [App\Http\Controllers\CitaController::class, 'citas'])->name('citas.eventos')->middleware(SinRecepcion::class.':citas');
+    Route::get('/pagos/eventos',                [App\Http\Controllers\CitaController::class, 'pagos'])->name('pagos.eventos')->middleware(SinRecepcion::class.':pagos');
+    Route::get('/pagos/conciliadores',          [App\Http\Controllers\CitaController::class, 'conciliadores'])->name('conciliador.eventos')->middleware(SinRecepcion::class.':conciliador');
+    Route::get('/solicitudes/eventos',          [App\Http\Controllers\AudienciasController::class, 'solicitudes'])->name('solicitudes.eventos')->middleware(SinRecepcion::class.':solicitudes');
+    Route::get('/audiencias/eventos',           [App\Http\Controllers\AudienciasController::class, 'audiencias'])->name('audiencias.eventos')->middleware(SinRecepcion::class.':audiencias');
+    Route::get('/ratificaciones/eventos',       [App\Http\Controllers\AudienciasController::class, 'ratificaciones'])->name('ratificaciones.eventos')->middleware(SinRecepcion::class.':ratificaciones');
     Route::get('citas/exportar-excel',          [CitaController::class, 'exportarExcel']);
     Route::get('/obtenerBloqueosCalendario',    [AdministracionController::class, 'obtenerBloqueosCalendario'])->name('calendario.bloqueos');
     // Dias inhabiles del rango visible, para pintarlos deshabilitados.
@@ -200,6 +233,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware(['role:Super Usuario|Administrador|Delegado|Enlace'])->group(function () {
         // Configuración Avanzada de Sedes y Retrocesos de Estatus
         Route::get('administracion/configuracion',          [AdministracionController::class, 'configuracion'])->name('configuracion');
+        // Módulos de atención: catálogo, citas del día por módulo y reasignación.
+        Route::middleware('role:Super Usuario')->group(function () {
+            Route::get('administracion/modulos',                         [ModulosController::class, 'index'])->name('modulos.index');
+            Route::post('administracion/modulos',                        [ModulosController::class, 'guardar'])->name('modulos.crear');
+            Route::put('administracion/modulos/{modulo}',                [ModulosController::class, 'guardar'])->name('modulos.actualizar');
+            Route::post('administracion/modulos/citas/{id}/reasignar',   [ModulosController::class, 'reasignar'])->name('modulos.reasignar')->whereNumber('id');
+        });
         Route::get('administracion/sedes',                  [AdministracionController::class, 'configuracion_sedes'])->name('configuracion_sedes');
         Route::get('administracion/usuarios',               [AdministracionController::class, 'configuracion_usuarios'])->name('configuracion_usuarios');
         Route::get('administracion/retrocesos',             [AdministracionController::class, 'genera_retroceso'])->name('genera_retroceso');       
@@ -362,7 +402,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
      |-- SUB-GRUPO DE CONTROL DE ACCESO: AUXILIARES DE CONCILIACIÓN / RECEPCIÓN
      |-- (Pre-registro presencial, validación inicial y asignación de turnos rápidos)
      |*/
-    Route::middleware(['role:Super Usuario|Auxiliar|Recepcion|Turnos'])->group(function () {
+    // Los roles de recepción se suman desde App\Support\Recepcion: un nombre
+    // con acento mal escrito aquí no truena, sólo deja fuera a la persona.
+    Route::middleware([Recepcion::middleware('Super Usuario', 'Auxiliar', 'Recepcion', 'Turnos')])->group(function () {
         Route::get('/turnos/index',                                         [RecepcionController::class, 'index_turnos'])->name('turnos');
         Route::get('/turnos/misturnos',                                     [RecepcionController::class, 'misturnos'])->name('misturnos');
         
@@ -375,6 +417,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/turnos/create',             [RecepcionController::class, 'create'])->name('turnos.create');
         Route::post('/turnos/store',             [RecepcionController::class, 'store_turnos'])->name('turnos.store');
         Route::get('/turnos/turnos',             [RecepcionController::class, 'turnos'])->name('turnos.listado');
+        // Todos los turnos con filtro por día, sede, tipo, origen y estatus.
+        Route::get('/turnos/todos',              TurnosHistorialController::class)->name('turnos.todos')->middleware('permission:turnos_ver');
         Route::get('/turnos/activo/{id}',        [RecepcionController::class, 'activo'])->name('turnos.activo');
         Route::get('/turnos/noactivo/{id}',      [RecepcionController::class, 'noactivo'])->name('turnos.noactivo');
         Route::get('/turnos/cambiar/{id}',       [RecepcionController::class, 'cambiar'])->name('cambiar');

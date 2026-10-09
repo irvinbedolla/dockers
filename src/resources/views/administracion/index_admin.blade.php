@@ -15,6 +15,13 @@
             'roles'  => ['Super Usuario'],
         ],
         [
+            'ruta'   => 'modulos.index',
+            'icono'  => 'bi-grid-3x3-gap',
+            'titulo' => 'Módulos y citas',
+            'texto'  => 'Quién atiende cada módulo y sus citas del día.',
+            'roles'  => ['Super Usuario'],
+        ],
+        [
             'ruta'   => 'configuracion_sedes',
             'icono'  => 'bi-calendar-x',
             'titulo' => 'Días inhábiles',

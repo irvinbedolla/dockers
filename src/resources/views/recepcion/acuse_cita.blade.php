@@ -45,7 +45,7 @@
         .campo-domicilio {
             position: absolute;
             top: 365px;
-            left: 80px;
+            left: 35px;
             width: 125px;
             font-size: 10px;
             text-align: center;
@@ -54,7 +54,16 @@
         .campo-folio {
             position: absolute;
             top: 390px;
-            left: 225px;
+            left: 170px;
+            width: 80px;
+            font-size: 13px;
+            font-weight: bold;
+            text-align: center;
+        }
+        .campo-tramite {
+            position: absolute;
+            top: 390px;
+            left: 275px;
             width: 80px;
             font-size: 13px;
             font-weight: bold;
@@ -64,7 +73,7 @@
         .campo-modulo {
             position: absolute;
             top: 390px;
-            left: 320px;
+            left: 370px;
             width: 85px;
             font-size: 13px;
             text-align: center;
@@ -73,7 +82,7 @@
         .campo-fecha {
             position: absolute;
             top: 390px;
-            left: 425px;
+            left: 480px;
             width: 80px;
             font-size: 14px;
             text-align: center;
@@ -82,7 +91,7 @@
         .campo-horario {
             position: absolute;
             top: 390px;
-            left: 520px;
+            left: 570px;
             width: 80px;
             font-size: 14px;
             text-align: center;
@@ -90,18 +99,12 @@
 
         .campo-qr {
             position: absolute;
-            top: 308px;
-            left: 650px;
-            width: 13%;
-            height: 12%;
+            top: 315px;
+            left: 690px;
+            width: 12%;
+            height: 11%;
         }
-        .campo-requisitos {
-            position: absolute;
-            top: 495px;
-            left: 207px;
-            font-size: 17px;
-            font-weight: bold;
-        }
+        
     </style>
 </head>
 <body>
@@ -122,6 +125,10 @@
             {{ str_pad($cita->consecutivo, 5, '0', STR_PAD_LEFT) }}
         </div>
 
+        <div class="campo-tramite">
+            {{ str_pad($cita->tipo, 5, '0', STR_PAD_LEFT) }}
+        </div>
+
         <div class="campo-modulo">
             {{ $cita->lugar_auxiliar }}
         </div>
@@ -140,9 +147,7 @@
                 <img src="data:image/png;base64, {!! base64_encode($qrCode) !!}" width="100%" height="100%">
             @endif
         </div>
-        <div class="campo-requisitos">
-            REQUISITOS PARA SU SOLICITUD {{  mb_strtoupper($cita->tipo, 'UTF-8') }}
-        </div>
+        
 
     </div>
 

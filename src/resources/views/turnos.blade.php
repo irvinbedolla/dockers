@@ -180,6 +180,43 @@
             font-size: 20px;
         }
 
+        /* Aviso de cobros indebidos */
+        .aviso-engano {
+            margin: 6px 0 10px;
+            text-align: center;
+            font-size: clamp(26px, 4vw, 36px);
+            font-weight: 800;
+            line-height: 1.15;
+            color: var(--color-guinda);
+        }
+        .aviso-denuncia {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            margin: 22px auto 4px;
+            text-align: center;
+        }
+        .aviso-denuncia__titulo {
+            font-size: 18px;
+            font-weight: 700;
+            color: #2E3C3D;
+        }
+        .aviso-denuncia__numero {
+            font-size: clamp(56px, 9vw, 80px);
+            font-weight: 800;
+            line-height: 1;
+            letter-spacing: .04em;
+            color: #C8102E;
+            text-decoration: none;
+        }
+        .aviso-denuncia__numero:hover,
+        .aviso-denuncia__numero:focus { color: #A00D25; text-decoration: none; }
+        .aviso-denuncia__dependencia {
+            font-size: 14px;
+            color: #5E6E6F;
+        }
+
         /* Loader */
         .loader {
             position: fixed;
@@ -564,9 +601,16 @@
                             <p class="text-center">Todos los servicios que brinda este Centro de Conciliación Laboral son completamente gratuitos<br><br>
                             Ningún servidor público, asociación, sindicato o gestor particular está autorizado para solicitar dinero o gratificaciones para agendar una cita, iniciar una solicitud o realizar tus trámites de conciliación.<br><br>
                             Si detectas o eres víctima de cualquier cobro indebido, ¡denúncialo inmediatamente por nuestros medios oficiales!<br><br>
-                            <b>¡No te dejes engañar!</b><br><br>
-                            Proteger tus derechos laborales es nuestra prioridad.<br>
                             </p>
+                            <p class="aviso-engano">¡No te dejes engañar!</p>
+                            <p class="text-center mb-0">Proteger tus derechos laborales es nuestra prioridad.</p>
+
+                            {{-- Línea de denuncia. En celular el número se puede tocar para llamar. --}}
+                            <div class="aviso-denuncia">
+                                <span class="aviso-denuncia__titulo">Centro de Atención Telefónica</span>
+                                <a class="aviso-denuncia__numero" href="tel:070" aria-label="Llamar al 070">070</a>
+                                <span class="aviso-denuncia__dependencia">Secretaría de Contraloría del Estado de Michoacán de Ocampo</span>
+                            </div>
                          
                     
                         </div>

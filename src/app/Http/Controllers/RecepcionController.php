@@ -44,8 +44,8 @@ class RecepcionController extends Controller
         $hora_turno = $data["hora_turno"];
         $id_auxiliar = auth()->user()->id;
         $hora_fin =$hora_turno;
-        $lista_solicitudes = [5,3919,65,2817,2664,2814,70,61];
-        $lista_ratificaciones = [4,6,9,32,28,2663,74,731,154,44,47];
+        $esExcepcion = $request->input('excepcion') === 'Si';
+
         $todas_direcciones = [
             'Morelia' => 'BLVD. GARCÍA DE LEÓN NO. 1575, COL. CHAPULTEPEC ORIENTE, C.P. 58260, MORELIA, MICHOACÁN',
             'Zitácuaro' => '5 DE MAYO NTE. 3, CENTRO, C.P. 61500, ZITÁCUARO, MICHOACÁN.',
@@ -55,148 +55,87 @@ class RecepcionController extends Controller
             'Lázaro Cárdenas' => 'PARACHO NO. 26, COL. 600 CASAS, C.P. 60950, LÁZARO CÁRDENAS, MICHOACÁN.',
         ];
 
-        if($data["excepcion"]== 'Si'){
-             $hora_fin = date("H:i:s", strtotime($hora_turno . " +75 minutes"));
-        }
-        else{
-            if($data["tipo"]=='Solicitud'){
-                 $hora_fin = date("H:i:s", strtotime($hora_turno . " +40 minutes"));
-            }
-            else{
-                 $hora_fin = date("H:i:s", strtotime($hora_turno . " +60 minutes"));
-            }
-        }
+        $minutosDuracion = $esExcepcion ? 75 : ($tipoTramite === 'Solicitud' ? 40 : 60);
+        $hora_fin = Carbon::parse($hora_turno)->addMinutes($minutosDuracion)->format('H:i:s');
+
         // El horario seleccionado en el calendario ya no debe estar ocupado ni caer en un día/horario inhábil
         if (!$this->turnoSlotDisponible($sede, $tipoTramite, $fecha_asignada_str, $hora_turno, $data["excepcion"] ?? null)) {
             return redirect()->back()->with('error', 'El horario seleccionado ya no está disponible. Por favor selecciona otro.');
-        }
-
-        // 2. Calcular el consecutivo dinámico de acuerdo a la FECHA ASIGNADA y SEDE
-        $consecutivo  = Recepcion::latest('id')->where('delegacion', $sede)->first();
-
-        if (empty($consecutivo)) {
-            $numero_consecutivo = 1;
-        } else {
-            $numero_consecutivo = $consecutivo["consecutivo"] + 1;
         }
 
         // 3. SOLUCIÓN AL ERROR: Validar si los campos múltiples vienen como array o como string
         $tipo_caso    = isset($data["tipo_caso"])    ? (is_array($data["tipo_caso"])    ? implode(',', $data["tipo_caso"])    : $data["tipo_caso"])    : null;
         $prestacionSS = isset($data["prestacionSS"]) ? (is_array($data["prestacionSS"]) ? implode(',', $data["prestacionSS"]) : $data["prestacionSS"]) : null;
         $vulnerables  = isset($data["vulnerables"])  ? (is_array($data["vulnerables"])  ? implode(',', $data["vulnerables"])  : $data["vulnerables"])  : 'Ninguno';
-
-        $listado_auxiliares = array();
-        $relacionEloquent = 'roles';
-        $usuariosauxiliares = User::whereHas($relacionEloquent, function ($query) {
-            return $query->where('name', '=', 'Auxiliar');
-        })
-        ->where('delegacion', $sede)
-        ->get();
         
-        
+        $modulo_id = null;
         if($data["excepcion"] == "Si"){
             $modulo = "Departamento de genero e igualdad";
             $id_aux = 13;
-            $direccion = $todas_direcciones[$sede];
         }
-        
         else{
-            $listado_auxiliares = $usuariosauxiliares->pluck('id')->toArray();
-            if($tipoTramite == "Ratificación"){
-                $auxiliares = array_intersect($listado_auxiliares,$lista_ratificaciones);
+            // Catálogo de módulos: Administración → Módulos.
+            $elegido = \App\Support\AsignadorModulos::elegir($sede, $tipoTramite, $fecha_asignada_str, $hora_turno);
+            if (!$elegido) {
+                return redirect()->back()->with('error', 'No se ha podido completar tu cita. No se ha encontrado auxiliar disponible.');
             }
-            else{
-                $auxiliares = array_intersect($listado_auxiliares,$lista_solicitudes);
-            }
-            if(!empty($auxiliares)){
-                $random = array_rand($auxiliares);
-            }
-            else{
-                $sedesEspeciales = ['Zamora', 'Sahuayo', 'Zitácuaro'];
-
-                if ($tipoTramite !== "Ratificación" && in_array($sede, $sedesEspeciales)) {
-                    
-                    $ratificadoresSede = array_intersect($listado_auxiliares, $lista_ratificaciones);
-                   
-                    $auxiliaresOcupados = Recepcion::where('hora', $hora_turno)
-                        ->where('fecha', $fecha_asignada_str)
-                        ->whereIn('auxiliar', $listado_auxiliares)
-                        ->pluck('auxiliar')
-                        ->toArray();
-
-                    
-                    $auxiliares = array_diff($ratificadoresSede, $auxiliaresOcupados);
-
-                    if (!empty($auxiliares)) {
-                        $random = array_rand($auxiliares);
-                    }
-                    else {
-                        return redirect()->route('citas')->with('error', 'No se ha podido completar tu cita. No se ha encontrado auxiliar disponible.'); 
-                    }
-                } else {
-                    return redirect()->route('citas')->with('error', 'No se ha podido completar tu cita. No se ha encontrado auxiliar disponible.'); 
-                }
-                
-            }
-            
-            //validar si hay disponibles
-            
-            if($sede == 'Morelia'){
-                $auxiliaresOcupados = Recepcion::where('hora', $hora_turno)->where('fecha', $fecha_asignada_str)->where('delegacion', $sede)->pluck('auxiliar')->toArray();
-                $disponibles = array_diff($auxiliares, $auxiliaresOcupados);
-                if($hora_turno === '13:00:00') $disponibles = array_diff($disponibles, [5]);
-                elseif($hora_turno === '13:30:00') $disponibles = array_diff($disponibles, [209]);
-                if(!empty($disponibles)){
-                    $random = array_rand($disponibles);
-                }
-                else{
-                    return  redirect()->back()->with('error', 'No se ha podido completar tu cita. No se ha encontrado auxiliar disponible.'); 
-                }
-                
-                $modulo = $this->asignarModulo($disponibles[$random]);
-                $id_aux=$disponibles[$random];
-            }
-            else{
-                $modulo = $this->asignarModulo($auxiliares[$random]);
-                $id_aux=$auxiliares[$random];
-            }
-            $direccion = $todas_direcciones[$sede];
+            $id_aux    = $elegido->user_id;
+            $modulo    = $elegido->nombre;
+            $modulo_id = $elegido->id;
         }
+        $direccion = $todas_direcciones[$sede];
+        
+        try {
 
-        // 4. Preparar el guardado mapeado con la estructura e inputs del Blade
-        $data_insertar = array(
-            'consecutivo'     => $numero_consecutivo,
-            'fecha'           => $fecha_asignada_str,
-            'hora'            => $hora_turno,
-            'hora_fin'        => $hora_fin,
-            'auxiliar'        => $id_aux,
-            'tipo'            => $tipoTramite,
-            'lugar_auxiliar'  => $modulo,
-            'exepcion'        => $data["excepcion"] ?? 'No',
-            'edad'            => $data["edad"] ?? null,
-            'sexo'            => $data["sexo"] ?? null,
-            'tipo_caso'       => $tipo_caso,
-            'prestacionSS'    => $prestacionSS,
-            'vulnerables'     => $vulnerables,
-            'conflicto'       => $data["conflicto"] ?? null,
-            'solicitante'     => $data["nombre"] ?? null,
-            'estatus'         => 'pendiente',
-            'orientacion'     => $data["orientacion"] ?? 'No',
-            'delegacion'      => $sede,
-            'folio'           => $data["folio"] ?? null,
-            'INS'             => $data["INS"] ?? null,
-            'resultado'       => null,
-            'telefono'        => $data["telefono"],
-            'correo'          => $data["correo"],
-            'municipio'       => $data["municipio_solicitante"],
-        );
-        try{
-            // 5. Ejecutar el Insert a través de Eloquent
-            Recepcion::create($data_insertar);
-            // Traducir fecha legible (Ej: "Martes 9 de Junio")
+            $numero_consecutivo = 0;
+            $cita = null;
+
+            DB::transaction(function () use (
+                $sede, $fecha_asignada_str, $hora_turno, $hora_fin, $id_aux, 
+                $tipoTramite, $modulo, $modulo_id, $data, $tipo_caso, $prestacionSS, 
+                $vulnerables, &$numero_consecutivo, &$cita
+            ) {
+                $ultimoTurno = Recepcion::where('delegacion', $sede) 
+                    ->lockForUpdate()
+                    ->latest('id')
+                    ->first();
+
+                $numero_consecutivo = $ultimoTurno ? ($ultimoTurno->consecutivo + 1) : 1;
+
+                $cita = Recepcion::create([
+                    'consecutivo'     => $numero_consecutivo,
+                    'fecha'           => $fecha_asignada_str,
+                    'hora'            => $hora_turno,
+                    'hora_fin'        => $hora_fin,
+                    'auxiliar'        => $id_aux,
+                    'tipo'            => $tipoTramite,
+                    'lugar_auxiliar'  => $modulo,
+                    'modulo_id'       => $modulo_id,
+                    'origen'          => 'ventanilla',
+                    'exepcion'        => $data["excepcion"] ?? 'No',
+                    'edad'            => $data["edad"] ?? null,
+                    'sexo'            => $data["sexo"] ?? null,
+                    'tipo_caso'       => $tipo_caso,
+                    'prestacionSS'    => $prestacionSS,
+                    'vulnerables'     => $vulnerables,
+                    'conflicto'       => $data["conflicto"] ?? null,
+                    'solicitante'     => $data["nombre"] ?? null,
+                    'estatus'         => 'pendiente',
+                    'orientacion'     => $data["orientacion"] ?? 'No',
+                    'delegacion'      => $sede,
+                    'folio'           => $data["folio"] ?? null,
+                    'INS'             => $data["INS"] ?? null,
+                    'resultado'       => null,
+                    'telefono'        => $data["telefono"],
+                    'correo'          => $data["correo"],
+                    'municipio'       => $data["municipio_solicitante"],
+                ]);
+            }); 
+
             $fechaFormateada = ucfirst(Carbon::parse($fecha_asignada_str)->isoFormat('dddd D [de] MMMM'));
 
-            return redirect()->back()->with('success', 'Turno de ' . $tipoTramite .' con folio ' . $numero_consecutivo. ' generado exitosamente para la sede ' . $sede . 'Localizada en '. $direccion .' el día ' . $fechaFormateada . ' a las ' . substr($hora_turno, 0, 5) . ' horas.');
+            return redirect()->back()->with('success', 'Turno de ' . $tipoTramite .' con folio ' . $numero_consecutivo. ' generado exitosamente para la sede ' . $sede . ' localizada en '. $direccion .' el día ' . $fechaFormateada . ' a las ' . substr($hora_turno, 0, 5) . ' horas.');
+        
         }
         catch (\Throwable $e) { 
             return redirect()->back()->with('error', 'No se ha podrido completar tu cita.'); 
@@ -245,7 +184,27 @@ class RecepcionController extends Controller
         }
         $total = count($auxiliares_morelia);
 
-        return view('turnos.index',compact('auxiliares_morelia','total', 'last_hora_solicitud', 'last_hora_ratificacion', 'last_sede_solicitud', 'last_sede_ratificacion'));
+        // Resumen de hoy en las sedes que esta persona puede ver (la
+        // recepción regional ve cinco; los demás, la suya).
+        $sedesVisibles = \App\Support\Recepcion::sedesVisibles($user);
+        $hoy = DB::table('recepcion')
+            ->whereIn('delegacion', $sedesVisibles ?: ['__ninguna__'])
+            ->where('fecha', $fecha_actual);
+
+        $hoyPorEstatus = (clone $hoy)
+            ->selectRaw('estatus, COUNT(*) as total')
+            ->groupBy('estatus')
+            ->pluck('total', 'estatus');
+        $hoyEnLinea = (clone $hoy)->where('origen', 'linea')->count();
+        $proximos = (clone $hoy)
+            ->where('estatus', 'pendiente')
+            ->where('hora', '>=', date('H:i:s', strtotime('-30 minutes')))
+            ->orderBy('hora')
+            ->limit(6)
+            ->get(['id', 'consecutivo', 'solicitante', 'tipo', 'hora', 'lugar_auxiliar', 'origen', 'delegacion']);
+
+        return view('turnos.index',compact('auxiliares_morelia','total', 'last_hora_solicitud', 'last_hora_ratificacion', 'last_sede_solicitud', 'last_sede_ratificacion',
+            'sedesVisibles', 'hoyPorEstatus', 'hoyEnLinea', 'proximos'));
     }
 
     public function create()
@@ -345,6 +304,7 @@ class RecepcionController extends Controller
                 'auxiliar'      => 0,
                 'tipo'          => $data["tipo"],
                 'lugar_auxiliar'=> "Recepción",
+                'origen'        => 'ventanilla',
                 'exepcion'      => $data["excepcion"],
                 'edad'          => $data["edad"],
                 'sexo'          => $data["sexo"],
@@ -561,72 +521,25 @@ class RecepcionController extends Controller
         $hora_actual  = date("H:i:s");
         $id_user = auth()->user()->id;
         $user = User::find($id_user);
-        $lista_solicitudes = [5,3919,65,2817,2664,2814,70,61];
-        $lista_ratificaciones = [4,6,9,32,28,2663,74,731,154,44,47];
-
         //Se actualizan los estatus
         $turno              = Recepcion::find($id);
         $IDauxiliar         = $turno["auxiliar"];
-        
-        $disponibles     = TurnoDisponible::where('fecha', $fecha_actual)->where('estatus', 'Disponible')->get();
-        $listado_ocupados   = array();
-        $listado_auxiliares = array();
-        $relacionEloquent = 'roles';
-        $usuariosauxiliares = User::whereHas($relacionEloquent, function ($query) {
-            return $query->where('name', '=', 'Auxiliar');
-        })
-        ->where('delegacion', $turno->delegacion)
-        ->get();
 
-        $listado_auxiliares = $usuariosauxiliares->pluck('id')->toArray();
-        if($turno->tipo == "Ratificación"){
-            $auxiliaresSede = array_intersect($listado_auxiliares,$lista_ratificaciones);
-        }
-        else{
-            $auxiliaresSede = array_intersect($listado_auxiliares,$lista_solicitudes);
-        }
-        $auxiliaresOcupados = Recepcion::where('delegacion',  $turno->delegacion)
-                ->where('fecha',  $turno->fecha)
-                ->where('hora', $turno->hora)
-                ->whereIn('auxiliar', $listado_auxiliares)
-                ->pluck('auxiliar')
-                ->toArray();
+        // Pasa el turno al primer módulo libre del catálogo a su hora; si no
+        // hay ninguno, se queda donde estaba.
+        $elegido = \App\Support\AsignadorModulos::elegir(
+            $turno->delegacion, $turno->tipo, $turno->fecha->format('Y-m-d'), $turno->getRawOriginal('hora')
+        );
+        $modulo    = $elegido ? $elegido->nombre  : $turno->lugar_auxiliar;
+        $id_aux    = $elegido ? $elegido->user_id : $turno->auxiliar;
+        $modulo_id = $elegido ? $elegido->id      : $turno->modulo_id;
 
-        $auxiliares = array_diff($auxiliaresSede, $auxiliaresOcupados);
-        
-        //validar si hay disponibles
-        if(!empty($auxiliares)){
-            $random = array_rand($auxiliares);
-            if($turno->delegacion == 'Morelia'){
-                $auxiliaresOcupados = Recepcion::where('delegacion',$turno->delegacion)->where('fecha', $turno->fecha)->where('hora', $turno->hora)->pluck('auxiliar')->toArray();
-                $disponibles = array_diff($auxiliares, $auxiliaresOcupados);
-                if($turno->hora === '13:00:00') $disponibles = array_diff($disponibles, [5]);
-                elseif($turno->hora=== '13:30:00') $disponibles = array_diff($disponibles, [209]);
-                if($disponibles){
-                    $random = array_rand($disponibles);
-                    $modulo = $this->asignarModulo($disponibles[$random]);
-                    $id_aux = $disponibles[$random];
-                }
-                else{
-                    $modulo = $turno->lugar_auxiliar;
-                    $id_aux = $turno->auxiliar;
-                }
-            }
-            else{
-                $modulo = $this->asignarModulo($auxiliares[$random]);
-                $id_aux = $auxiliares[$random];
-            }
-        }
-        else{
-            $modulo = $turno->lugar_auxiliar;
-            $id_aux = $turno->auxiliar;
-        }
-        
 
         $turno_update= array(
             'hora_fin'      =>  $hora_actual,
             'auxiliar'      =>  $id_aux,
-            'lugar_auxiliar'=>  $modulo
+            'lugar_auxiliar'=>  $modulo,
+            'modulo_id'     =>  $modulo_id,
         );
         $disponible_update= array(
             'estatus'       => 'Disponible'
@@ -641,45 +554,6 @@ class RecepcionController extends Controller
         return redirect()->route('turnos.listado');
     }
 
-    private function asignarModulo(int $aux){
-        switch($aux){
-            //Modulos de Morelia
-            case '5':       return 'Modulo 1'; //Sandra Rocio Varela Cortés (Solicitudes y asesorias)
-            case '3919':    return 'Modulo 2'; //Mónica Alejandra Pérez López (Solicitudes y asesorias)
-            case '65':      return 'Modulo 3'; // Lorena Lachino Barboza (Solicitudes y asesorias)
-            case '4':       return 'Modulo 4'; // Ana Luisa Soriano Virueta (Ratificaciones)
-            case '6':       return 'Modulo 5'; // Erandi Martinez barajas (Ratificaciones)
-            //case '3':       return 'Modulo 6'; // Yesenia Arteaga Vences (Cumplimientos)
-            case '9':       return 'Modulo 7'; // Luis Rico Tinoco (Ratificaciones)
-
-            //Modulos de Uruapan
-            case '2817':    return 'Modulo 1'; //Andrea Cristina Lagunas Toledo (Solicitudes y asesorias)
-            case '32':      return 'Modulo 2'; //Maria Guadalupe Mata Ponce  (Ratificaciones)
-            case '28':      return 'Modulo 3'; //Reyna Erendira Tejeda Diaz  (Ratificaciones)
-
-            //Modulos de Zamora
-            case '2664':    return 'Modulo 1'; //Yaritza Bravo Cortes (Solicitudes y asesorias)
-            case '2663':    return 'Modulo 2'; //Juan Jose Abundes Garcia (Solicitudes, Asesorias y Ratificaciones)
-            case '74':      return 'Modulo 3'; //Francisco Hernández Molina (Solicitudes, Asesorias y Ratificaciones)
-
-            //modulos de Lázaro Cárdenas
-            case '2814':    return 'Modulo 1'; //Alizon Yanine García Rosas (Solicitudes y asesorias)
-            case '731':     return 'Modulo 2'; //Judith Adriana De la Peña Carrillo (Ratificaciones) ->enlace
-            case '154':     return 'Modulo 3'; //Bertha Marisol Barriga Garcia (Solicitudes y asesorias)
-
-            //modulos de Sahuayo
-            case '70':      return 'Modulo 1'; //María Guadalupe Villanueva Macías (Solicitudes y asesorias)
-            case '44':      return 'Modulo 2'; //Ignacio de Jesus Degollado Nuñez (Solicitudes, Asesorias y Ratificaciones) ->enlace
-
-            //Modulois de Zitácuaro
-            case '61':      return 'Modulo 1'; //Mariela Zavala Blancas (Solicitudes y asesorias)
-            case '47':      return 'Modulo 2'; //Epifanio Gonzalez Vanegas (Solicitudes, Asesorias y Ratificaciones) ->enlace
-            default: break;
-
-        }
-        
-        return 'Modulo 0';
-    }
 
 
     public function misturnos(){
@@ -1230,49 +1104,28 @@ class RecepcionController extends Controller
     }
     public function confirmarAsistencia($id)
     {
-        try{
+        // La regla vive en App\Support\ValidadorCita, compartida con el
+        // escáner de recepción. Aquí sólo se traduce a la "bandera" que la
+        // vista recepcion.confirmacion ya sabía pintar.
+        try {
             $cita = Recepcion::findOrFail($id);
-            $bandera = '0';
-            
-            $horaLimite = $cita->hora->copy()->addMinutes(5)->format('H:i:s');
-            $fecha_hora = $cita->fecha->format('Y-m-d'). ' ' . $cita->hora->format('H:i:s');
-            $bandera = '0';
+            $fecha_hora = $cita->fecha->format('Y-m-d').' '.$cita->hora->format('H:i:s');
 
-            if($cita->estatus === 'expirada'){
-                $bandera = '3';
-            }
-            else{
-                if (now()->isSameDay($cita->fecha)) {
-                    $bandera = '1'; 
+            $bandera = match (\App\Support\ValidadorCita::validar($cita)['resultado']) {
+                'otro_dia'                => '0',
+                'confirmada', 'atendida'  => '1',
+                'ya_confirmada', 'pasada' => '2',
+                default                   => '3', // tarde, expirada
+            };
 
-                    if ($cita->estatus === 'confirmada') {
-                        $bandera = '2';
-                    }
-                    elseif (now()->format('H:i:s') > $horaLimite) {
-                        $cita->update(['estatus' => 'expirada']); 
-                        $bandera = '3';
-                        
-                    } elseif ($cita->estatus === 'pendiente') {
-                        $cita->update(['estatus' => 'confirmada']);
-                        
-                    } 
-                }
-                elseif (now()->startOfDay() > $cita->fecha->startOfDay()){
-                    $cita->update(['estatus' => 'expirada']); 
-                    $bandera = '3';
-                }
-
-            }
-            
             return view('recepcion.confirmacion', compact('cita', 'bandera', 'fecha_hora'));
         }
-        catch(\Throwable $e) {
+        catch (\Throwable $e) {
             $bandera = '4';
-            $cita =null;
-            $horaLimite = null;
+            $cita = null;
             $fecha_hora = null;
+
             return view('recepcion.confirmacion', compact('cita', 'bandera', 'fecha_hora'));
         }
-        
     }
 }

@@ -240,8 +240,6 @@ class HomeController extends Controller
         $excepcion = $data["excepcion"] ?? "No";
         $fecha_turno = $data["fecha_turno"];
         $hora_turno = $data["hora_turno"];
-        $lista_solicitudes = [5,3919,65,2817,2664,2814,70,61];
-        $lista_ratificaciones = [4,6,9,32,28,2663,74,731,154,44,47];
         $todas_direcciones = [
             'Morelia' => 'BLVD. GARCÍA DE LEÓN NO. 1575, COL. CHAPULTEPEC ORIENTE, C.P. 58260, MORELIA, MICHOACÁN',
             'Zitácuaro' => '5 DE MAYO NTE. 3, CENTRO, C.P. 61500, ZITÁCUARO, MICHOACÁN.',
@@ -280,99 +278,31 @@ class HomeController extends Controller
             $numero_consecutivo++;
         }
 
-        $listado_auxiliares = array();
-        $relacionEloquent = 'roles';
-        
-        
+        $modulo_id = null;
         if($data["excepcion"] === "Si"){
             $modulo = "Departamento de genero e igualdad";
             $id_aux = 13;
-            $direccion = $todas_direcciones[$sede];
         }
         else{
-            $usuariosauxiliares = User::whereHas($relacionEloquent, function ($query) {
-                return $query->where('name', '=', 'Auxiliar');
-            })
-            ->where('delegacion', $sede)
-            ->get();
-
-            $listado_auxiliares = $usuariosauxiliares->pluck('id')->toArray();
-            
-            if($tipo == "Ratificación"){
-                $auxiliaresSede = array_intersect($listado_auxiliares,$lista_ratificaciones);
+            // Quién atiende cada módulo vive en la tabla modulos
+            // (Administración → Módulos), no aquí.
+            $elegido = \App\Support\AsignadorModulos::elegir($sede, $tipo, $fecha_turno, $hora_turno);
+            if (!$elegido) {
+                return redirect()->route('citas')->with('error', 'No se ha podido completar tu cita. No se ha encontrado auxiliar disponible.');
             }
-            else{
-                $auxiliaresSede = array_intersect($listado_auxiliares,$lista_solicitudes);
-            }
-            $auxiliaresOcupados = Recepcion::where('delegacion', $sede)
-                ->where('fecha', $fecha_turno)
-                ->where('hora', $hora_turno)
-                ->whereIn('auxiliar', $listado_auxiliares)
-                ->pluck('auxiliar')
-                ->toArray();
-
-            $auxiliares = array_diff($auxiliaresSede, $auxiliaresOcupados);
-            
-            //validar si hay disponibles
-            if(!empty($auxiliares)){
-                $random = array_rand($auxiliares);
-            }
-            else{
-                $sedesEspeciales = ['Zamora', 'Sahuayo', 'Zitácuaro'];
-
-                if ($tipo !== "Ratificación" && in_array($sede, $sedesEspeciales)) {
-                    
-                    $ratificadoresSede = array_intersect($listado_auxiliares, $lista_ratificaciones);
-                   
-                    $auxiliaresOcupados = Recepcion::where('hora', $hora_turno)
-                        ->where('fecha', $fecha_turno)
-                        ->whereIn('auxiliar', $listado_auxiliares)
-                        ->pluck('auxiliar')
-                        ->toArray();
-
-                    
-                    $auxiliares = array_diff($ratificadoresSede, $auxiliaresOcupados);
-
-                    if (!empty($auxiliares)) {
-                        $random = array_rand($auxiliares);
-                    }
-                    else {
-                        return redirect()->route('citas')->with('error', 'No se ha podido completar tu cita. No se ha encontrado auxiliar disponible.'); 
-                    }
-                } else {
-                    return redirect()->route('citas')->with('error', 'No se ha podido completar tu cita. No se ha encontrado auxiliar disponible.'); 
-                }
-                
-            }
-
-            if($sede == 'Morelia'){
-                $auxiliaresOcupados = Recepcion::where('hora', $hora_turno)->where('fecha', $fecha_turno)->where('delegacion', $sede)->pluck('auxiliar')->toArray();
-                $disponibles = array_diff($auxiliares, $auxiliaresOcupados);
-                if($hora_turno === '13:00:00') $disponibles = array_diff($disponibles, [5]);
-                elseif($hora_turno === '13:30:00') $disponibles = array_diff($disponibles, [209]);
-                if(!empty($disponibles)){
-                    $random = array_rand($disponibles);
-                }
-                else{
-                    return redirect()->route('citas')->with('error', 'No se ha podido completar tu cita. No se ha encontrado auxiliar disponible.'); 
-                }
-                
-                $modulo = $this->asignarModulo($disponibles[$random]);
-                $id_aux=$disponibles[$random];
-            }
-            else{
-                $modulo = $this->asignarModulo($auxiliares[$random]);
-                $id_aux=$auxiliares[$random];
-            }
-            $direccion = $todas_direcciones[$sede];
+            $modulo    = $elegido->nombre;
+            $modulo_id = $elegido->id;
+            $id_aux    = $elegido->user_id;
         }
-        
+        $direccion = $todas_direcciones[$sede];
 
         $data_insertar= array(
             'consecutivo'   => $numero_consecutivo,
             'solicitante'   => $data["nombre"],
             'auxiliar'      => $id_aux,
             'lugar_auxiliar'=> $modulo,
+            'modulo_id'     => $modulo_id,
+            'origen'        => 'linea',
             'tipo'          => $tipo,
             'tipo_caso'     => $data["tipo_caso"],
             'fecha'         => $fecha_turno,
@@ -411,45 +341,6 @@ class HomeController extends Controller
         }
 
         return view('turnos_exito');
-    }
-    private function asignarModulo(int $aux){
-        switch($aux){
-            //Modulos de Morelia
-            case '5':       return 'Modulo 1'; //Sandra Rocio Varela Cortés (Solicitudes y asesorias)
-            case '3919':    return 'Modulo 2'; //Mónica Alejandra Pérez López (Solicitudes y asesorias)
-            case '65':      return 'Modulo 3'; // Lorena Lachino Barboza (Solicitudes y asesorias)
-            case '4':       return 'Modulo 4'; // Ana Luisa Soriano Virueta (Ratificaciones)
-            case '6':       return 'Modulo 5'; // Erandi Martinez barajas (Ratificaciones)
-            //case '3':       return 'Modulo 6'; // Yesenia Arteaga Vences (Cumplimientos)
-            case '9':       return 'Modulo 7'; // Luis Rico Tinoco (Ratificaciones)
-
-            //Modulos de Uruapan
-            case '2817':    return 'Modulo 1'; //Andrea Cristina Lagunas Toledo (Solicitudes y asesorias)
-            case '32':      return 'Modulo 2'; //Maria Guadalupe Mata Ponce  (Ratificaciones)
-            case '28':      return 'Modulo 3'; //Reyna Erendira Tejeda Diaz  (Ratificaciones)
-
-            //Modulos de Zamora
-            case '2664':    return 'Modulo 1'; //Yaritza Bravo Cortes (Solicitudes y asesorias)
-            case '2663':    return 'Modulo 2'; //Juan Jose Abundes Garcia (Solicitudes, Asesorias y Ratificaciones)
-            case '74':      return 'Modulo 3'; //Francisco Hernández Molina (Solicitudes, Asesorias y Ratificaciones)
-
-            //modulos de Lázaro Cárdenas
-            case '2814':    return 'Modulo 1'; //Alizon Yanine García Rosas (Solicitudes y asesorias)
-            case '731':     return 'Modulo 2'; //Judith Adriana De la Peña Carrillo (Ratificaciones) ->enlace
-            case '154':     return 'Modulo 3'; //Bertha Marisol Barriga Garcia (Solicitudes y asesorias)
-
-            //modulos de Sahuayo
-            case '70':      return 'Modulo 1'; //María Guadalupe Villanueva Macías (Solicitudes y asesorias)
-            case '44':      return 'Modulo 2'; //Ignacio de Jesus Degollado Nuñez (Solicitudes, Asesorias y Ratificaciones) ->enlace
-
-            //Modulois de Zitácuaro
-            case '61':      return 'Modulo 1'; //Mariela Zavala Blancas (Solicitudes y asesorias)
-            case '47':      return 'Modulo 2'; //Epifanio Gonzalez Vanegas (Solicitudes, Asesorias y Ratificaciones) ->enlace
-            default: break;
-
-        }
-        
-        return 'Modulo 0';
     }
 
     // password_cambiar() y contraseña_update() vivían aquí. Los reemplaza
