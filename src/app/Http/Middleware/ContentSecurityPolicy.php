@@ -35,7 +35,11 @@ class ContentSecurityPolicy
         
         // CORRECCIÓN CRÍTICA: Se eliminó la auto-referencia de la cabecera dentro del string 
         // y se adaptó al formato válido "Structured Headers" requerido por navegadores modernos.
-        $permissionsPolicy = "camera=(), " .
+        // La cámara se bloquea en todo el sistema salvo en el escáner de QR
+        // de recepción, que la necesita para leer los acuses.
+        $camara = $request->routeIs('recepcion.escaner') ? 'camera=(self), ' : 'camera=(), ';
+
+        $permissionsPolicy = $camara .
                              "microphone=(), " .
                              "geolocation=(self), " .
                              "fullscreen=(self), " .

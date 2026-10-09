@@ -42,11 +42,11 @@
 
         .tn-acciones {
             display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
             gap: 14px;
             margin-bottom: 18px;
         }
-        @media (max-width: 900px) { .tn-acciones { grid-template-columns: 1fr; } }
+
 
         .tn-accion {
             display: flex;
@@ -182,6 +182,15 @@
                             <span class="tn-accion__texto">{{ $totalHoy }} {{ $totalHoy === 1 ? 'turno' : 'turnos' }} agendados para hoy</span>
                         </span>
                     </a>
+                    @if (auth()->user()->hasAnyRole(['Super Usuario', ...\App\Support\Recepcion::ROLES]))
+                        <a class="tn-accion" href="{{ route('recepcion.escaner') }}">
+                            <span class="tn-accion__icono"><i class="bi bi-qr-code-scan" aria-hidden="true"></i></span>
+                            <span>
+                                <span class="tn-accion__titulo">Escanear cita</span>
+                                <span class="tn-accion__texto">Validar el QR del acuse al llegar</span>
+                            </span>
+                        </a>
+                    @endif
                     <a class="tn-accion" href="{{ route('turnos.todos') }}">
                         <span class="tn-accion__icono"><i class="bi bi-calendar3" aria-hidden="true"></i></span>
                         <span>
