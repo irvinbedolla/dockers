@@ -96,9 +96,17 @@ Route::get('/pantallaZamora',                       [HomeController::class, 'pan
 Route::get('/poder-crear',                          [PoderController::class, 'registro'])->name('poder-crear');
 Route::get('/poder-guardar',                        [PoderController::class, 'show'])->name('poder');
 Route::post('/poderes/publico',                     [PoderController::class, 'publico'])->name('poderes.publico');
-Route::get('/generarCita',                          [HomeController::class, 'citas'])->name('citas');
-Route::get('/generarCitaExito',                     [HomeController::class, 'citas_exito'])->name('citas_exito');
-Route::post('/turnos_guardar',                      [HomeController::class, 'turnos_publico'])->name('turnos_publico'); 
+// Cita en línea. Las vistas y controladores usan los nombres (citas,
+// citas_exito, turnos_publico), así que cambiar la dirección no toca nada más.
+Route::get('/generar-cita',                         [HomeController::class, 'citas'])->name('citas');
+Route::post('/generar-cita',                        [HomeController::class, 'turnos_publico'])->name('turnos_publico');
+Route::get('/generar-cita/exito',                   [HomeController::class, 'citas_exito'])->name('citas_exito');
+// Direcciones viejas. Las GET ya circulan en el portal, correos y carteles:
+// 301 a la nueva. El POST se conserva para quien tenga el formulario abierto
+// justo cuando se despliegue; se puede quitar después.
+Route::permanentRedirect('/generarCita',            '/generar-cita');
+Route::permanentRedirect('/generarCitaExito',       '/generar-cita');
+Route::post('/turnos_guardar',                      [HomeController::class, 'turnos_publico']);
 Route::get('citas',                                 [TurnosController::class, 'create_publico'])->name('create_cita');
 Route::post('/citas/store_publico',                 [TurnosController::class, 'store_publico'])->name('turnos.publico');
 Route::get('/validar_folio_abogado/{folio}',        [TurnosController::class, 'validarFolio'])->name('validar_folio_abogado');
