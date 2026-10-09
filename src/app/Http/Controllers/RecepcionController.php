@@ -46,9 +46,6 @@ class RecepcionController extends Controller
         $hora_fin =$hora_turno;
         $esExcepcion = $request->input('excepcion') === 'Si';
 
-        $lista_solicitudes = [5,209,65,2817,2664,2814,70,61];
-        $lista_ratificaciones = [4,6,9,32,28,2663,74,731,154,44,47];
-
         $todas_direcciones = [
             'Morelia' => 'BLVD. GARCÍA DE LEÓN NO. 1575, COL. CHAPULTEPEC ORIENTE, C.P. 58260, MORELIA, MICHOACÁN',
             'Zitácuaro' => '5 DE MAYO NTE. 3, CENTRO, C.P. 61500, ZITÁCUARO, MICHOACÁN.',
@@ -71,45 +68,20 @@ class RecepcionController extends Controller
         $prestacionSS = isset($data["prestacionSS"]) ? (is_array($data["prestacionSS"]) ? implode(',', $data["prestacionSS"]) : $data["prestacionSS"]) : null;
         $vulnerables  = isset($data["vulnerables"])  ? (is_array($data["vulnerables"])  ? implode(',', $data["vulnerables"])  : $data["vulnerables"])  : 'Ninguno';
         
+        $modulo_id = null;
         if($data["excepcion"] == "Si"){
             $modulo = "Departamento de genero e igualdad";
             $id_aux = 13;
         }
-        
         else{
-            $idAuxiliaresOcupados = Recepcion::where('hora', $hora_turno)->where('fecha', $fecha_asignada_str)->pluck('auxiliar')->toArray();
-
-            if($sede === 'Morelia'){
-                if($hora_turno === '13:00:00') $idAuxiliaresOcupados[] = 5;
-                if($hora_turno === '13:30:00') $idAuxiliaresOcupados[] = 209;
-            }
-            $queryAuxiliares = User::whereHas('roles', function ($q) {
-                $q->whereIn('name', ['Auxiliar', 'Orientador']);
-            })
-            ->where('delegacion', $sede)->where('estatus','Activo')
-            ->whereNotIn('id', $idAuxiliaresOcupados);
-
-            if($tipoTramite === 'Ratificación') $queryAuxiliares->whereIn('id', $lista_ratificaciones);
-            else                                $queryAuxiliares->whereIn('id', $lista_solicitudes);
-
-            $auxiliarAsignado = $queryAuxiliares->inRandomOrder()->first();
-
-            if (!$auxiliarAsignado && $tipoTramite !== 'Ratificación' && in_array($sede, ['Zamora', 'Sahuayo', 'Zitácuaro'])) {
-                $auxiliarAsignado = User::whereHas('roles', function ($q) {
-                        $q->whereIn('name', ['Auxiliar', 'Orientador']);
-                    })
-                    ->where('delegacion', $sede)
-                    ->whereNotIn('id', $idAuxiliaresOcupados)
-                    ->whereIn('id', $lista_ratificaciones) // Se le asigna a un auxiliar encargado de las ratificaciones
-                    ->inRandomOrder()
-                    ->first();
-            }
-            if (!$auxiliarAsignado) {
+            // Catálogo de módulos: Administración → Módulos.
+            $elegido = \App\Support\AsignadorModulos::elegir($sede, $tipoTramite, $fecha_asignada_str, $hora_turno);
+            if (!$elegido) {
                 return redirect()->back()->with('error', 'No se ha podido completar tu cita. No se ha encontrado auxiliar disponible.');
             }
-            $id_aux = $auxiliarAsignado->id;
-            $modulo = $this->asignarModulo($id_aux);
-            
+            $id_aux    = $elegido->user_id;
+            $modulo    = $elegido->nombre;
+            $modulo_id = $elegido->id;
         }
         $direccion = $todas_direcciones[$sede];
         
@@ -120,7 +92,7 @@ class RecepcionController extends Controller
 
             DB::transaction(function () use (
                 $sede, $fecha_asignada_str, $hora_turno, $hora_fin, $id_aux, 
-                $tipoTramite, $modulo, $data, $tipo_caso, $prestacionSS, 
+                $tipoTramite, $modulo, $modulo_id, $data, $tipo_caso, $prestacionSS, 
                 $vulnerables, &$numero_consecutivo, &$cita
             ) {
                 $ultimoTurno = Recepcion::where('delegacion', $sede) 
@@ -138,6 +110,8 @@ class RecepcionController extends Controller
                     'auxiliar'        => $id_aux,
                     'tipo'            => $tipoTramite,
                     'lugar_auxiliar'  => $modulo,
+                    'modulo_id'       => $modulo_id,
+                    'origen'          => 'ventanilla',
                     'exepcion'        => $data["excepcion"] ?? 'No',
                     'edad'            => $data["edad"] ?? null,
                     'sexo'            => $data["sexo"] ?? null,
@@ -221,13 +195,13 @@ class RecepcionController extends Controller
             ->selectRaw('estatus, COUNT(*) as total')
             ->groupBy('estatus')
             ->pluck('total', 'estatus');
-        $hoyEnLinea = (clone $hoy)->whereNotNull('correo')->where('correo', '<>', '')->count();
+        $hoyEnLinea = (clone $hoy)->where('origen', 'linea')->count();
         $proximos = (clone $hoy)
             ->where('estatus', 'pendiente')
             ->where('hora', '>=', date('H:i:s', strtotime('-30 minutes')))
             ->orderBy('hora')
             ->limit(6)
-            ->get(['id', 'consecutivo', 'solicitante', 'tipo', 'hora', 'lugar_auxiliar', 'correo', 'delegacion']);
+            ->get(['id', 'consecutivo', 'solicitante', 'tipo', 'hora', 'lugar_auxiliar', 'origen', 'delegacion']);
 
         return view('turnos.index',compact('auxiliares_morelia','total', 'last_hora_solicitud', 'last_hora_ratificacion', 'last_sede_solicitud', 'last_sede_ratificacion',
             'sedesVisibles', 'hoyPorEstatus', 'hoyEnLinea', 'proximos'));
@@ -330,6 +304,7 @@ class RecepcionController extends Controller
                 'auxiliar'      => 0,
                 'tipo'          => $data["tipo"],
                 'lugar_auxiliar'=> "Recepción",
+                'origen'        => 'ventanilla',
                 'exepcion'      => $data["excepcion"],
                 'edad'          => $data["edad"],
                 'sexo'          => $data["sexo"],
@@ -546,72 +521,25 @@ class RecepcionController extends Controller
         $hora_actual  = date("H:i:s");
         $id_user = auth()->user()->id;
         $user = User::find($id_user);
-        $lista_solicitudes = [5,209,3919,65,2817,2664,2814,70,61];
-        $lista_ratificaciones = [4,6,9,32,28,2663,74,731,154,44,47];
-
         //Se actualizan los estatus
         $turno              = Recepcion::find($id);
         $IDauxiliar         = $turno["auxiliar"];
-        
-        $disponibles     = TurnoDisponible::where('fecha', $fecha_actual)->where('estatus', 'Disponible')->get();
-        $listado_ocupados   = array();
-        $listado_auxiliares = array();
-        $relacionEloquent = 'roles';
-        $usuariosauxiliares = User::whereHas($relacionEloquent, function ($query) {
-            return $query->where('name', '=', 'Auxiliar');
-        })
-        ->where('delegacion', $turno->delegacion)
-        ->get();
 
-        $listado_auxiliares = $usuariosauxiliares->pluck('id')->toArray();
-        if($turno->tipo == "Ratificación"){
-            $auxiliaresSede = array_intersect($listado_auxiliares,$lista_ratificaciones);
-        }
-        else{
-            $auxiliaresSede = array_intersect($listado_auxiliares,$lista_solicitudes);
-        }
-        $auxiliaresOcupados = Recepcion::where('delegacion',  $turno->delegacion)
-                ->where('fecha',  $turno->fecha)
-                ->where('hora', $turno->hora)
-                ->whereIn('auxiliar', $listado_auxiliares)
-                ->pluck('auxiliar')
-                ->toArray();
+        // Pasa el turno al primer módulo libre del catálogo a su hora; si no
+        // hay ninguno, se queda donde estaba.
+        $elegido = \App\Support\AsignadorModulos::elegir(
+            $turno->delegacion, $turno->tipo, $turno->fecha->format('Y-m-d'), $turno->getRawOriginal('hora')
+        );
+        $modulo    = $elegido ? $elegido->nombre  : $turno->lugar_auxiliar;
+        $id_aux    = $elegido ? $elegido->user_id : $turno->auxiliar;
+        $modulo_id = $elegido ? $elegido->id      : $turno->modulo_id;
 
-        $auxiliares = array_diff($auxiliaresSede, $auxiliaresOcupados);
-        
-        //validar si hay disponibles
-        if(!empty($auxiliares)){
-            $random = array_rand($auxiliares);
-            if($turno->delegacion == 'Morelia'){
-                $auxiliaresOcupados = Recepcion::where('delegacion',$turno->delegacion)->where('fecha', $turno->fecha)->where('hora', $turno->hora)->pluck('auxiliar')->toArray();
-                $disponibles = array_diff($auxiliares, $auxiliaresOcupados);
-                if($turno->hora === '13:00:00') $disponibles = array_diff($disponibles, [5]);
-                elseif($turno->hora=== '13:30:00') $disponibles = array_diff($disponibles, [209]);
-                if($disponibles){
-                    $random = array_rand($disponibles);
-                    $modulo = $this->asignarModulo($disponibles[$random]);
-                    $id_aux = $disponibles[$random];
-                }
-                else{
-                    $modulo = $turno->lugar_auxiliar;
-                    $id_aux = $turno->auxiliar;
-                }
-            }
-            else{
-                $modulo = $this->asignarModulo($auxiliares[$random]);
-                $id_aux = $auxiliares[$random];
-            }
-        }
-        else{
-            $modulo = $turno->lugar_auxiliar;
-            $id_aux = $turno->auxiliar;
-        }
-        
 
         $turno_update= array(
             'hora_fin'      =>  $hora_actual,
             'auxiliar'      =>  $id_aux,
-            'lugar_auxiliar'=>  $modulo
+            'lugar_auxiliar'=>  $modulo,
+            'modulo_id'     =>  $modulo_id,
         );
         $disponible_update= array(
             'estatus'       => 'Disponible'
@@ -626,47 +554,6 @@ class RecepcionController extends Controller
         return redirect()->route('turnos.listado');
     }
 
-    private function asignarModulo(int $aux){
-        switch($aux){
-            //Modulos de Morelia
-            case '5':       return 'Modulo 1'; //Sandra Rocio Varela Cortés (Solicitudes y asesorias)
-            case '209':      return 'Modulo 2'; // Luis Alejandro Morán Rodríguez (Solicitudes y asesorias)
-            //case '3919':    return 'Modulo 2'; //Mónica Alejandra Pérez López (Solicitudes y asesorias)
-            case '65':      return 'Modulo 3'; // Lorena Lachino Barboza (Solicitudes y asesorias)
-            case '4':       return 'Modulo 4'; // Ana Luisa Soriano Virueta (Ratificaciones)
-            case '10':      return 'Modulo 5'; //Maria Del Rosario Valle Garcia (Ratificaciones)
-            //case '6':       return 'Modulo 5'; // Erandi Martinez barajas (Ratificaciones)
-            //case '3':       return 'Modulo 6'; // Yesenia Arteaga Vences (Cumplimientos)
-            //case '9':       return 'Modulo 7'; // Luis Rico Tinoco (Ratificaciones)
-
-            //Modulos de Uruapan
-            case '2817':    return 'Modulo 1'; //Andrea Cristina Lagunas Toledo (Solicitudes y asesorias)
-            case '32':      return 'Modulo 2'; //Maria Guadalupe Mata Ponce  (Ratificaciones)
-            case '28':      return 'Modulo 3'; //Reyna Erendira Tejeda Diaz  (Ratificaciones)
-
-            //Modulos de Zamora
-            case '2664':    return 'Modulo 1'; //Yaritza Bravo Cortes (Solicitudes y asesorias)
-            case '2663':    return 'Modulo 2'; //Juan Jose Abundes Garcia (Solicitudes, Asesorias y Ratificaciones)
-            case '74':      return 'Modulo 3'; //Francisco Hernández Molina (Solicitudes, Asesorias y Ratificaciones)
-
-            //modulos de Lázaro Cárdenas
-            case '2814':    return 'Modulo 1'; //Alizon Yanine García Rosas (Solicitudes y asesorias)
-            case '731':     return 'Modulo 2'; //Judith Adriana De la Peña Carrillo (Ratificaciones) ->enlace
-            case '154':     return 'Modulo 3'; //Bertha Marisol Barriga Garcia (Ratificaciones)
-
-            //modulos de Sahuayo
-            case '70':      return 'Modulo 1'; //María Guadalupe Villanueva Macías (Solicitudes y asesorias)
-            case '44':      return 'Modulo 2'; //Ignacio de Jesus Degollado Nuñez (Solicitudes, Asesorias y Ratificaciones) ->enlace
-
-            //Modulois de Zitácuaro
-            case '61':      return 'Modulo 1'; //Mariela Zavala Blancas (Solicitudes y asesorias)
-            case '47':      return 'Modulo 2'; //Epifanio Gonzalez Vanegas (Solicitudes, Asesorias y Ratificaciones) ->enlace
-            default: break;
-
-        }
-        
-        return 'Modulo 0';
-    }
 
 
     public function misturnos(){

@@ -5,7 +5,8 @@
     gris en todas partes.
 --}}
 <style>
-    .tn {
+    /* .modal también: Bootstrap mueve los diálogos fuera de .tn. */
+    .tn, .modal {
         --tn-verde:       #496163;
         --tn-verde-claro: #829A9C;
         --tn-dorado:      #CEA845;
@@ -68,14 +69,51 @@
     .tn-origen--ventanilla { background: var(--tn-fondo); color: var(--tn-suave); }
     .tn-origen--excepcion  { background: #F6E4EA; color: #8C1D40; }
 
+    /* Con colores fijos y no con var(--tn-*): los modales de Bootstrap se
+       pintan fuera de .tn y ahí esas variables no existen, así que el botón
+       quedaba blanco sobre blanco. Se usan las variables propias de .btn para
+       que hover, activo y deshabilitado salgan bien también. */
     .tn-boton-dorado {
-        background: var(--tn-dorado);
-        border-color: var(--tn-dorado);
-        color: #fff;
+        --bs-btn-color: #fff;
+        --bs-btn-bg: #CEA845;
+        --bs-btn-border-color: #CEA845;
+        --bs-btn-hover-color: #fff;
+        --bs-btn-hover-bg: #B8952F;
+        --bs-btn-hover-border-color: #B8952F;
+        --bs-btn-focus-shadow-rgb: 206, 168, 69;
+        --bs-btn-active-color: #fff;
+        --bs-btn-active-bg: #A6852A;
+        --bs-btn-active-border-color: #A6852A;
+        --bs-btn-disabled-color: #fff;
+        --bs-btn-disabled-bg: #CEA845;
+        --bs-btn-disabled-border-color: #CEA845;
+        --bs-btn-disabled-opacity: .55;
         font-weight: 600;
     }
-    .tn-boton-dorado:hover,
-    .tn-boton-dorado:focus { background: #B8952F; border-color: #B8952F; color: #fff; }
+
+    /* style.css pinta de blanco el fondo de todo .btn en hover, focus y
+       active (con borde transparente !important) y quita el contorno de
+       enfoque. Estos selectores le ganan en especificidad (0,5,0 contra
+       0,4,0) sin tocar la hoja global, que usan los demás botones. */
+    .btn.tn-boton-dorado:not(.btn-social):not(.btn-social-icon):focus {
+        background-color: #CEA845;
+        border-color: #CEA845 !important;
+        color: #fff;
+    }
+    .btn.tn-boton-dorado:not(.btn-social):not(.btn-social-icon):hover {
+        background-color: #B8952F;
+        border-color: #B8952F !important;
+        color: #fff;
+    }
+    .btn.tn-boton-dorado:not(.btn-social):not(.btn-social-icon):active {
+        background-color: #A6852A;
+        border-color: #A6852A !important;
+        color: #fff;
+    }
+    .btn.tn-boton-dorado:focus-visible {
+        outline: 2px solid #496163;
+        outline-offset: 2px;
+    }
 </style>
 <style>
     .tn .pagination .page-link { color: var(--tn-verde); }

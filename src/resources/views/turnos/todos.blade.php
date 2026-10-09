@@ -294,7 +294,7 @@
                                     @endif
 
                                     @php
-                                        $enLinea = filled($turno->correo);
+                                        $enLinea = $turno->origen === 'linea';
                                         $estatus = strtolower((string) $turno->estatus);
                                     @endphp
                                     <tr>
@@ -305,7 +305,7 @@
                                         </td>
                                         <td>
                                             <span class="tn-solicitante">{{ $turno->solicitante }}</span>
-                                            @if ($enLinea)
+                                            @if (filled($turno->correo))
                                                 <span class="tn-contacto">{{ $turno->correo }}@if($turno->telefono) · {{ $turno->telefono }}@endif</span>
                                             @endif
                                         </td>

@@ -50,10 +50,8 @@ class TurnosHistorialController extends Controller
         if (! empty($filtros['tipo'])) {
             $base->where('r.tipo', $filtros['tipo']);
         }
-        if (($filtros['origen'] ?? null) === 'linea') {
-            $base->whereNotNull('r.correo')->where('r.correo', '<>', '');
-        } elseif (($filtros['origen'] ?? null) === 'ventanilla') {
-            $base->where(fn ($q) => $q->whereNull('r.correo')->orWhere('r.correo', ''));
+        if (! empty($filtros['origen'])) {
+            $base->where('r.origen', $filtros['origen']);
         }
         if (! empty($filtros['q'])) {
             $texto = trim($filtros['q']);
@@ -87,7 +85,7 @@ class TurnosHistorialController extends Controller
             ->select([
                 'r.id', 'r.consecutivo', 'r.solicitante', 'r.tipo', 'r.fecha', 'r.hora',
                 'r.hora_fin', 'r.estatus', 'r.exepcion', 'r.lugar_auxiliar', 'r.delegacion',
-                'r.correo', 'r.telefono', 'u.name as auxiliar',
+                'r.correo', 'r.telefono', 'r.origen', 'u.name as auxiliar',
             ])
             ->paginate(self::POR_PAGINA)
             ->withQueryString();

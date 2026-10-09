@@ -11,12 +11,9 @@ use Illuminate\Support\Facades\DB;
 /**
  * Fuente de la agenda con las citas en línea de recepción.
  *
- * Qué es "en línea": un registro de la tabla recepcion que trae correo. El
- * formulario público lo exige y la captura en ventanilla no lo pide; en los
- * datos la separación es limpia -8,473 turnos de ventanilla sin correo y las
- * citas con correo empiezan el 18 de septiembre de 2026, cuando se abrió el
- * formulario-. Si algún día la ventanilla empieza a pedir correo, esta regla
- * deja de servir y hará falta una columna de origen explícita.
+ * Qué es "en línea": recepcion.origen = 'linea'. Antes se deducía de que
+ * hubiera correo, pero la ventanilla también lo pide; la columna existe
+ * desde la migración create_modulos_table.
  */
 class AgendaCitasController extends Controller
 {
@@ -57,8 +54,7 @@ class AgendaCitasController extends Controller
             ->leftJoin('users as u', 'u.id', '=', 'r.auxiliar')
             ->whereBetween('r.fecha', [$desde, $hasta])
             ->whereIn('r.delegacion', $sedes)
-            ->whereNotNull('r.correo')
-            ->where('r.correo', '<>', '')
+            ->where('r.origen', 'linea')
             ->orderBy('r.fecha')
             ->orderBy('r.hora')
             ->select([
