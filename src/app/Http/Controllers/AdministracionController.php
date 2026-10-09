@@ -367,6 +367,7 @@ class AdministracionController extends Controller{
             ->with('folio', $resultado);
     }
     public function cambiar_fecha(Request $request){
+        $this->validarMotivo($request);
         $data = $request->all();
         //$data['audiencia_id'], $data["fecha"],$data["hora"],
         $audienciaOld = Audiencias::findOrFail($data["id_audiencia"]);
@@ -374,7 +375,7 @@ class AdministracionController extends Controller{
         BitacoraAdministracionRecorder::actualizar('cambio_fecha_audiencia', $audienciaOld, [
                     'fecha' => $data["fecha"],
                     'hora'  => $data["hora"],
-                ], $NUE);
+                ], trim($data["motivo"]), $NUE);
         return redirect()->route('cambio_fecha_audiencia');
     }
 
@@ -495,6 +496,7 @@ class AdministracionController extends Controller{
     }
 
     public function cambiar_fecha_cumplimiento(Request $request){
+        $this->validarMotivo($request);
         $data = $request->all();
         $pagoOld = Pagos::where('id', $data["id_pago"])->first();
 
@@ -506,7 +508,7 @@ class AdministracionController extends Controller{
             BitacoraAdministracionRecorder::actualizar('cambio_fecha_cumplimiento', $pagoOld, [
                 'fecha' => $data["fecha"],
                 'hora'  => $data["hora"],
-            ], $this->nuePago($pagoOld));
+            ], trim($data["motivo"]), $this->nuePago($pagoOld));
         }
         return redirect()->route('cambio_fecha_cumplimiento');
     }
@@ -1214,10 +1216,26 @@ class AdministracionController extends Controller{
         }
     }
 
-    public function destroy_cumplimientoA($id){
+    public function destroy_cumplimientoA(Request $request, $id){
+        $this->validarMotivo($request);
         $pago = Pagos::findOrFail($id);
-        BitacoraAdministracionRecorder::actualizar('borrar_cumplimiento', $pago, ['tipo_pago'  => "Borrado"], $this->nuePago($pago));
+        BitacoraAdministracionRecorder::actualizar('borrar_cumplimiento', $pago, ['tipo_pago'  => "Borrado"], trim($request->motivo), $this->nuePago($pago));
         return back()->with('success', 'Cumplimeinto borrado correctamente.');
+    }
+
+    /**
+     * El motivo es obligatorio en las acciones que quedan en historial_administracion.
+     * Se valida también aquí para que no se pueda omitir saltándose la pantalla.
+     */
+    private function validarMotivo(Request $request): void
+    {
+        $request->validate(
+            ['motivo' => 'required|string|max:1000'],
+            [
+                'motivo.required' => 'El motivo es obligatorio.',
+                'motivo.max'      => 'El motivo no debe exceder 1000 caracteres.',
+            ]
+        );
     }
 
     /**

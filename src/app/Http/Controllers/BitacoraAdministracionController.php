@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\BitacoraAdministracion;
+use App\Models\HistorialAdministracion;
 use Illuminate\Http\Request;
 
 class BitacoraAdministracionController extends Controller
@@ -34,7 +34,7 @@ class BitacoraAdministracionController extends Controller
             'hasta.after_or_equal' => 'La fecha final no debe ser menor a la fecha de inicio.',
         ]);
 
-        $query = BitacoraAdministracion::where('tipo', $tipo)->orderByDesc('id');
+        $query = HistorialAdministracion::where('tipo', $tipo)->orderByDesc('id');
 
         if ($request->filled('nue')) {
             $query->where('NUE', 'like', '%' . trim($request->nue) . '%');
@@ -51,7 +51,7 @@ class BitacoraAdministracionController extends Controller
 
         $registros = $query->paginate(20)->withQueryString();
 
-        $usuarios = BitacoraAdministracion::where('tipo', $tipo)
+        $usuarios = HistorialAdministracion::where('tipo', $tipo)
             ->whereNotNull('user_id')
             ->select('user_id', 'user_nombre')
             ->distinct()
