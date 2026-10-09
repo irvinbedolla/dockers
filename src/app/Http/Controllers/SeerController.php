@@ -7812,37 +7812,28 @@ class SeerController extends Controller
             'Lázaro Cárdenas'  => 43,
             'Sahuayo'          => 26,
         ];*/
-        $delegacion = $solicitud->delegacion;
-        $delegado = null;
-        if($delegacion === 'Morelia' || $delegacion === 'Zitácuaro'){
-            $delegado = User::where('delegacion', 'Morelia')
-                ->whereHas('roles', function ($query) {
-                    $query->where('name', 'Delegado');
-                })
-                ->select('users.id', 'users.name', 'users.delegacion')
-                ->first();
+        $delegacion = trim($solicitud->delegacion);
+        $sedeRegional = $delegacion;
+
+        if (in_array($delegacion, ['Morelia', 'Zitácuaro', 'Zitacuaro'])) {
+            $sedeRegional = 'Morelia';
+        } elseif (in_array($delegacion, ['Uruapan', 'Lázaro Cárdenas', 'Lazaro Cardenas'])) {
+            $sedeRegional = 'Uruapan';
+        } else {
+            $sedeRegional = 'Zamora';
         }
-        elseif($delegacion === 'Uruapan' || $delegacion === 'Lázaro Cárdenas'){
-            $delegado = User::where('delegacion', 'Uruapan')
-                ->whereHas('roles', function ($query) {
-                    $query->where('name', 'Delegado');
-                })
-                ->select('users.id', 'users.name', 'users.delegacion')
-                ->first();
-        }
-        else{
-            $delegado = User::where('delegacion', 'Zamora')
-                ->whereHas('roles', function ($query) {
-                    $query->where('name', 'Delegado');
-                })
-                ->select('users.id', 'users.name', 'users.delegacion')
-                ->first();
-        }
+
+        $delegado = User::where('delegacion', $sedeRegional)
+            ->whereHas('roles', function ($query) {
+                $query->where('name', 'Delegado')->where('estatus','Activo');
+            })
+            ->select('users.id', 'users.name', 'users.delegacion')
+            ->first();
 
         if (!$delegado) {
             $delegado = User::where('delegacion', $delegacion)
                 ->whereHas('roles', function ($query) {
-                    $query->where('name', 'Delegado');
+                    $query->where('name', 'Delegado')->where('estatus','Activo');
                 })
                 ->select('users.id', 'users.name', 'users.delegacion')
                 ->first();
