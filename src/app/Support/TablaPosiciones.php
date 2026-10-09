@@ -17,7 +17,8 @@ use Illuminate\Support\Str;
  *                   liquidados porque el pago va rezagado y premiaría
  *                   convenios de meses anteriores.
  *   auxiliares    → solicitudes registradas (seer_general.user_id, que es
- *                   quien capturó la solicitud).
+ *                   quien capturó la solicitud). Incluye a los de rol
+ *                   Auxiliar y Orientador.
  *
  * Sólo entran cuentas activas y no de prueba. Las cuentas duplicadas -hay
  * gente con dos- se suman por nombre normalizado para que no aparezcan
@@ -109,7 +110,11 @@ class TablaPosiciones
     {
         // Se exige el rol para que la lista no se llene de gente de otras
         // áreas que capturó una solicitud suelta: en septiembre había un
-        // notificador y dos conciliadores con una cada uno.
+        // notificador y dos conciliadores con una cada uno. Los orientadores
+        // también capturan solicitudes, así que compiten aquí.
+        //
+        // El rol va en un EXISTS y no en un JOIN: con JOIN, quien tuviera
+        // ambos roles saldría dos veces por solicitud y contaría doble.
         return DB::select("
             SELECT u.id,
                    u.name,
@@ -119,9 +124,15 @@ class TablaPosiciones
                    NULL     AS resueltas
               FROM seer_general g
               JOIN users u ON u.id = g.user_id
-              JOIN model_has_roles mr ON mr.model_id = u.id AND mr.model_type = ?
-              JOIN roles r ON r.id = mr.role_id AND r.name = 'Auxiliar'
-             WHERE g.fecha >= ? AND g.fecha < ?
+             WHERE EXISTS (
+                    SELECT 1
+                      FROM model_has_roles mr
+                      JOIN roles r ON r.id = mr.role_id
+                     WHERE mr.model_id = u.id
+                       AND mr.model_type = ?
+                       AND r.name IN ('Auxiliar', 'Orientador')
+                   )
+               AND g.fecha >= ? AND g.fecha < ?
                AND u.estatus = 'Activo'
                AND u.email NOT LIKE '%temporal%'
                AND u.name  NOT LIKE '%temporal%'
