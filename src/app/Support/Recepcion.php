@@ -105,7 +105,15 @@ class Recepcion
 
         $sedes = [];
         foreach ($usuario->getRoleNames() as $rol) {
-            $sedes = array_merge($sedes, self::SEDES[$rol] ?? []);
+            $delRol = self::SEDES[$rol] ?? [];
+
+            // Recepción General atiende su propia sede (la de su cuenta). Sólo
+            // si la cuenta no es de una sede regional ve todas las regionales.
+            if ($rol === self::REGIONAL && in_array($usuario->delegacion, $delRol, true)) {
+                $delRol = [$usuario->delegacion];
+            }
+
+            $sedes = array_merge($sedes, $delRol);
         }
 
         return array_values(array_unique($sedes));
