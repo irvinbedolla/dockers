@@ -7,6 +7,7 @@ use App\Models\Modulo;
 use App\Models\Recepcion;
 use App\Models\User;
 use App\Support\AsignadorModulos;
+use App\Support\Especialidades;
 use App\Support\Recepcion as RecepcionRoles;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -28,7 +29,7 @@ class ModulosController extends Controller
 {
     /** Roles que pueden atender un módulo. */
     private const ROLES_PERSONAL = [
-        'Auxiliar', 'Orientador', 'Orientadores', 'Turnos', 'Enlace', 'Delegado', 'Excepcion',
+        'Auxiliar', 'Orientador', 'Orientadores', 'Cumplimientos', 'Turnos', 'Enlace', 'Delegado', 'Excepcion',
         RecepcionRoles::MORELIA_01, RecepcionRoles::MORELIA_02, RecepcionRoles::REGIONAL,
     ];
 
@@ -187,7 +188,7 @@ class ModulosController extends Controller
         if (! $modulo) {
             $modulo = Modulo::create($valores + ['delegacion' => $sede]);
 
-            return $this->volver($request, $sede)->with('success', "Se creó {$modulo->nombre} en {$sede}.");
+            return $this->volver($request, $sede)->with('success', "Se creó {$modulo->nombre} en {$sede}.".$this->avisoPermisos($modulo));
         }
 
         $personaAnterior = $modulo->user_id;
@@ -195,6 +196,7 @@ class ModulosController extends Controller
         $modulo->update($valores);
 
         $aviso = "Se guardó {$modulo->nombre}.";
+        $aviso .= $this->avisoPermisos($modulo);
 
         // Las citas que vienen y aún no se atienden siguen al módulo: si
         // cambió la persona o el nombre, se les actualiza.
@@ -295,5 +297,32 @@ class ModulosController extends Controller
             'fecha'  => $fecha ?? $request->input('fecha_vista'),
             'origen' => $request->input('origen_vista'),
         ]));
+    }
+
+    /**
+     * Trámites del módulo (incluido el respaldo) que su persona no puede
+     * atender con los permisos de su rol. Se avisa, no se bloquea: puede que
+     * primero se arme el módulo y después se ajuste la cuenta en Usuarios.
+     */
+    public static function tramitesSinPermiso(Modulo $modulo): array
+    {
+        if (! $modulo->persona) {
+            return [];
+        }
+
+        $tramites = array_unique(array_merge($modulo->tramites ?? [], $modulo->respaldo ?? []));
+
+        return array_values(array_filter($tramites, fn ($t) => ! Especialidades::puedeAtender($modulo->persona, $t)));
+    }
+
+    private function avisoPermisos(Modulo $modulo): string
+    {
+        $modulo->load('persona');
+        $faltan = self::tramitesSinPermiso($modulo);
+
+        return $faltan
+            ? ' Ojo: '.$modulo->persona->name.' no tiene permisos para '.implode(', ', $faltan)
+              .'; asígnale la especialidad en Usuarios o esas citas no las podrá atender.'
+            : '';
     }
 }

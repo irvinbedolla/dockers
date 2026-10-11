@@ -290,6 +290,11 @@
                                 @foreach ($modulo->tramites ?? [] as $t)<span class="md-chip">{{ $t }}</span>@endforeach
                                 @foreach ($modulo->respaldo ?? [] as $t)<span class="md-chip md-chip--respaldo" title="Sólo si los demás están ocupados">{{ $t }} · respaldo</span>@endforeach
                                 @if ($modulo->hora_comida)<span class="md-chip md-chip--comida"><i class="bi bi-cup-hot"></i> {{ substr($modulo->hora_comida, 0, 5) }}</span>@endif
+                                @foreach (\App\Http\Controllers\ModulosController::tramitesSinPermiso($modulo) as $t)
+                                    <span class="md-chip md-chip--inactivo" title="Su rol no tiene permisos para atender {{ $t }}. Asígnale la especialidad en Usuarios.">
+                                        <i class="bi bi-exclamation-triangle"></i> Sin permiso: {{ $t }}
+                                    </span>
+                                @endforeach
                             </div>
                         </header>
 

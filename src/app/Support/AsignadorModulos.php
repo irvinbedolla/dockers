@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\DB;
  */
 class AsignadorModulos
 {
-    public const TRAMITES = ['Solicitud', 'Asesoría', 'Ratificación'];
+    public const TRAMITES = ['Solicitud', 'Asesoría', 'Ratificación', 'Cumplimiento'];
 
     /** Módulos de una sede, ordenados, con su persona. */
     public static function deSede(string $sede, bool $soloActivos = false): Collection
