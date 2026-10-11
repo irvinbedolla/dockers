@@ -133,8 +133,12 @@
             {{ $cita->lugar_auxiliar }}
         </div>
 
+        @php
+            $fechaAcuse = \Illuminate\Support\Carbon::parse($cita->fecha ?? $fecha);
+            $mesesAcuse = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+        @endphp
         <div class="campo-fecha">
-            {{ $fecha }}
+            {{ $fechaAcuse->format('d') }}-{{ $mesesAcuse[$fechaAcuse->month - 1] }}-{{ $fechaAcuse->format('Y') }}
         </div>
 
         <div class="campo-horario">
