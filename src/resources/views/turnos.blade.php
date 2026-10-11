@@ -212,10 +212,35 @@
         }
         .aviso-denuncia__numero:hover,
         .aviso-denuncia__numero:focus { color: #A00D25; text-decoration: none; }
+        .aviso-denuncia__opcion {
+            margin-top: 2px;
+            font-size: 20px;
+            font-weight: 800;
+            color: #C8102E;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+        }
         .aviso-denuncia__dependencia {
             font-size: 14px;
             color: #5E6E6F;
         }
+        .aviso-buzon {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 14px;
+            padding: 10px 20px;
+            border-radius: 999px;
+            background: #E8730C;
+            color: #fff;
+            font-size: 16px;
+            font-weight: 700;
+            text-decoration: none;
+            box-shadow: 0 4px 12px rgba(232, 115, 12, .3);
+        }
+        .aviso-buzon:hover,
+        .aviso-buzon:focus { background: #C95F05; color: #fff; text-decoration: none; }
+        .aviso-buzon:focus-visible { outline: 3px solid #FFD3A8; outline-offset: 2px; }
 
         /* Loader */
         .loader {
@@ -608,8 +633,12 @@
                             {{-- Línea de denuncia. En celular el número se puede tocar para llamar. --}}
                             <div class="aviso-denuncia">
                                 <span class="aviso-denuncia__titulo">Centro de Atención Telefónica</span>
-                                <a class="aviso-denuncia__numero" href="tel:070" aria-label="Llamar al 070">070</a>
+                                <a class="aviso-denuncia__numero" href="tel:070" aria-label="Llamar al 070, opción 1">070</a>
+                                <span class="aviso-denuncia__opcion">Opción 1</span>
                                 <span class="aviso-denuncia__dependencia">Secretaría de Contraloría del Estado de Michoacán de Ocampo</span>
+                                <a class="aviso-buzon" href="https://intra.secoem.michoacan.gob.mx/denuncias" target="_blank" rel="noopener noreferrer">
+                                    <i class="bi bi-mailbox2" aria-hidden="true"></i> Denuncia en el Buzón Naranja
+                                </a>
                             </div>
                          
                     
