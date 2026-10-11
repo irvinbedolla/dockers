@@ -9,6 +9,7 @@ use App\Http\Controllers\PerfilController;
 use App\Http\Controllers\AgendaCitasController;
 use App\Http\Controllers\TurnosHistorialController;
 use App\Http\Controllers\ModulosController;
+use App\Http\Controllers\HorariosCitasController;
 use App\Http\Controllers\EscanerCitasController;
 use App\Http\Controllers\NotificacionesController;
 use App\Http\Middleware\SinRecepcion;
@@ -240,6 +241,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::post('administracion/modulos',                        [ModulosController::class, 'guardar'])->name('modulos.crear');
             Route::put('administracion/modulos/{modulo}',                [ModulosController::class, 'guardar'])->name('modulos.actualizar');
             Route::post('administracion/modulos/citas/{id}/reasignar',   [ModulosController::class, 'reasignar'])->name('modulos.reasignar')->whereNumber('id');
+            Route::get('administracion/horarios',                        [HorariosCitasController::class, 'index'])->name('horarios.index');
+            Route::put('administracion/horarios',                        [HorariosCitasController::class, 'actualizar'])->name('horarios.actualizar');
         });
         Route::get('administracion/sedes',                  [AdministracionController::class, 'configuracion_sedes'])->name('configuracion_sedes');
         Route::get('administracion/usuarios',               [AdministracionController::class, 'configuracion_usuarios'])->name('configuracion_usuarios');
