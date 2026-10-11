@@ -35,8 +35,9 @@ class HorarioCitas
     public const TOLERANCIA_RESERVA = 10;
 
     /**
-     * Valores con los que se siembra la tabla: los que estaban en el código
-     * al 11 de octubre de 2026, con la duración corregida para no encimarse.
+     * Valores de fábrica (los mismos que siembra la migración). Se usan si a
+     * una sede le falta su renglón. Todas las sedes atienden de 8:00 a 16:00
+     * con citas de 40 min (12 horarios, 8:00 a 15:20), excepción incluida.
      */
     public static function predeterminado(string $sede, string $grupo): array
     {
@@ -44,17 +45,17 @@ class HorarioCitas
 
         return match ($grupo) {
             'Excepción' => [
-                'hora_inicio' => '08:30:00', 'hora_fin' => '17:00:00', 'intervalo' => 75, 'duracion' => 75,
+                'hora_inicio' => '08:00:00', 'hora_fin' => '16:00:00', 'intervalo' => 40, 'duracion' => 40,
                 'citas_por_horario' => 1, 'horas_un_lugar' => null, 'limite_diario' => null,
             ],
             'Ratificación' => [
-                'hora_inicio' => '08:30:00', 'hora_fin' => '15:30:00', 'intervalo' => 50, 'duracion' => 50,
-                'citas_por_horario' => $morelia ? 2 : 1, 'horas_un_lugar' => $morelia ? ['13:30'] : null,
+                'hora_inicio' => '08:00:00', 'hora_fin' => '16:00:00', 'intervalo' => 40, 'duracion' => 40,
+                'citas_por_horario' => $morelia ? 2 : 1, 'horas_un_lugar' => $morelia ? ['13:20', '14:00'] : null,
                 'limite_diario' => 15,
             ],
             default => [
-                'hora_inicio' => '08:30:00', 'hora_fin' => '15:30:00', 'intervalo' => 50, 'duracion' => 40,
-                'citas_por_horario' => $morelia ? 3 : 1, 'horas_un_lugar' => $morelia ? ['13:30'] : null,
+                'hora_inicio' => '08:00:00', 'hora_fin' => '16:00:00', 'intervalo' => 40, 'duracion' => 40,
+                'citas_por_horario' => $morelia ? 3 : 1, 'horas_un_lugar' => $morelia ? ['13:20', '14:00'] : null,
                 'limite_diario' => 10,
             ],
         } + ['comida_inicio' => null, 'comida_minutos' => 30, 'activo' => true];
@@ -90,9 +91,10 @@ class HorarioCitas
     }
 
     /**
-     * Horas de inicio ('H:i:s') que se ofrecen en un día. El último horario
-     * debe empezar antes de hora_fin. Si hay comida, ninguna cita se encima
-     * con ella: la siguiente empieza al terminar la comida.
+     * Horas de inicio ('H:i:s') que se ofrecen en un día. hora_fin es el
+     * cierre: la última cita tiene que terminar a esa hora o antes. Si hay
+     * comida, ninguna cita se encima con ella: la siguiente empieza al
+     * terminar la comida.
      */
     public static function horarios(HorarioCita $c): array
     {
@@ -107,7 +109,7 @@ class HorarioCitas
         $comidaFin = $comidaIni !== null ? $comidaIni + max(0, (int) $c->comida_minutos) : null;
 
         $salida = [];
-        while ($t < $fin && count($salida) < 100) {
+        while ($t + $dur <= $fin && count($salida) < 100) {
             if ($comidaIni !== null && $t < $comidaFin && $t + $dur > $comidaIni) {
                 $t = $comidaFin;
                 continue;

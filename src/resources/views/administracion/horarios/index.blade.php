@@ -157,7 +157,7 @@
                                     <label for="fin-{{ $loop->index }}">Cierre</label>
                                     <input type="time" class="form-control" id="fin-{{ $loop->index }}" name="hora_fin"
                                            value="{{ $v('hora_fin', $hm($c->hora_fin)) }}" required data-campo="fin">
-                                    <div class="form-text">El último horario empieza antes de esta hora.</div>
+                                    <div class="form-text">La última cita termina a esta hora o antes.</div>
                                 </div>
                                 <div class="hc-campo">
                                     <label for="int-{{ $loop->index }}">Cada cuántos minutos</label>
@@ -276,7 +276,7 @@
                 if (!c.activo || !(c.intervalo >= 5) || c.inicio === null || c.fin === null) { return salida; }
                 var t = c.inicio, dur = Math.max(1, c.duracion || 1);
                 var comFin = c.comida !== null ? c.comida + Math.max(0, c.comidaMin || 0) : null;
-                while (t < c.fin && salida.length < 100) {
+                while (t + dur <= c.fin && salida.length < 100) {
                     if (c.comida !== null && t < comFin && t + dur > c.comida) { t = comFin; continue; }
                     salida.push(texto(t));
                     t += c.intervalo;
