@@ -134,7 +134,7 @@ class RecepcionController extends Controller
 
             $fechaFormateada = ucfirst(Carbon::parse($fecha_asignada_str)->isoFormat('dddd D [de] MMMM'));
 
-            return redirect()->back()->with('success', 'Turno de ' . $tipoTramite .' con folio ' . $cita->folio_cita . ' generado exitosamente para la sede ' . $sede . ' localizada en '. $direccion .' el día ' . $fechaFormateada . ' a las ' . substr($hora_turno, 0, 5) . ' horas.');
+            return redirect()->back()->with('cita_id', $cita->id)->with('success', 'Turno de ' . $tipoTramite .' con folio ' . $cita->folio_cita . ' generado exitosamente para la sede ' . $sede . ' localizada en '. $direccion .' el día ' . $fechaFormateada . ' a las ' . substr($hora_turno, 0, 5) . ' horas.');
         
         }
         catch (\Throwable $e) { 
