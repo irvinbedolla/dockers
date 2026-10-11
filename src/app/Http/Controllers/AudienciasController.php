@@ -44,7 +44,7 @@ class AudienciasController extends Controller
             ->join('seer_solicitante','seer_solicitante.id_solicitud','seer_general.id')
             ->select('audiencias.*','seer_general.NUE','seer_solicitante.nombre','users.name');
 
-        if($userRole[0] != "Super Usuario"){
+        if (! \App\Support\Supervision::veTodasLasSedes(auth()->user())) {
             if ($sedeFiltro != "Todos") {
                 $query->where('audiencias.delegacion', $sedeFiltro);
             }
@@ -309,7 +309,7 @@ class AudienciasController extends Controller
                 DB::raw($primerCitado),
             ]);
 
-        if (($userRole[0] ?? '') !== 'Super Usuario') {
+        if (! \App\Support\Supervision::veTodasLasSedes(auth()->user())) {
             $sedeFiltro !== 'Todos' && $sedeFiltro !== null
                 ? $query->where('seer_general.delegacion', $sedeFiltro)
                 : $query->whereIn('seer_general.delegacion', $sedesAconsultar);
@@ -377,7 +377,7 @@ class AudienciasController extends Controller
         $query = Turnos::whereBetween('turnos.fecha', [$fecha_inicio, $fecha_final])->leftjoin('users','users.id','turnos.id_conciliador')
         ->select('turnos.*','users.name');
 
-        if($userRole[0] != "Super Usuario"){
+        if (! \App\Support\Supervision::veTodasLasSedes(auth()->user())) {
             if ($sedeFiltro != "Todos") {
                 $query->where('turnos.delegacion', $sedeFiltro);
             }

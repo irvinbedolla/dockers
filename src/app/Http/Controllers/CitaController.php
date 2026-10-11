@@ -94,7 +94,8 @@ class CitaController extends Controller
             ->selectRaw("CONCAT(turnos.trabajador, ' ', turnos.primero_trabajador, ' ', turnos.segundo_trabajador) as nombre_completo");
 
         // 2. Aplicamos filtros de seguridad por ROL
-        if (!in_array($rol, ['Super Usuario', 'Administrador'])) {
+        // Super Usuario, Directivo y Administrador ven todas las sedes.
+        if (! \App\Support\Supervision::veTodasLasSedes($user, ['Administrador'])) {
             
             $delegacionesPermitidas = [$sede_usuario];
 
@@ -183,7 +184,8 @@ class CitaController extends Controller
         $query = Pagos::with(['pagoturnos', 'conciliadorUser'])
             ->where('tipo_pago', 'Audiencia');
 
-        if (!in_array($rol, ['Super Usuario', 'Administrador'])) {
+        // Super Usuario, Directivo y Administrador ven todas las sedes.
+        if (! \App\Support\Supervision::veTodasLasSedes($user, ['Administrador'])) {
             $delegacionesPermitidas = [$user->delegacion];
 
             if (in_array($rol, ['Conciliador', 'Delegado', 'Enlace'])) {
@@ -262,7 +264,8 @@ class CitaController extends Controller
         $query = Pagos::with(['pagoturnos', 'conciliadorUser'])
             ->where('tipo_pago', 'Conciliador');
 
-        if (!in_array($rol, ['Super Usuario', 'Administrador'])) {
+        // Super Usuario, Directivo y Administrador ven todas las sedes.
+        if (! \App\Support\Supervision::veTodasLasSedes($user, ['Administrador'])) {
             $delegacionesPermitidas = [$user->delegacion];
 
             if (in_array($rol, ['Conciliador', 'Delegado', 'Enlace'])) {

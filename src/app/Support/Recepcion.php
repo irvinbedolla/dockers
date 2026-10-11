@@ -28,7 +28,7 @@ class Recepcion
     public const ROLES = [self::MORELIA_01, self::MORELIA_02, self::REGIONAL];
 
     /** Ven las citas en línea de todas las sedes, además de su agenda normal. */
-    public const SUPERVISAN = ['Super Usuario', 'Administrador'];
+    public const SUPERVISAN = ['Super Usuario', 'Administrador', 'Directivo'];
 
     public const TODAS_LAS_SEDES = [
         'Morelia', 'Zitácuaro', 'Uruapan', 'Lázaro Cárdenas', 'Zamora', 'Sahuayo',

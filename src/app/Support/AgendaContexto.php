@@ -29,7 +29,7 @@ class AgendaContexto
     ];
 
     /** Ven todas las sedes y a todos los conciliadores. */
-    private const ROLES_SIN_LIMITE = ['Super Usuario', 'Administrador', 'Estadistica'];
+    private const ROLES_SIN_LIMITE = ['Super Usuario', 'Administrador', 'Estadistica', 'Directivo'];
 
     /** Ven su región y a los conciliadores de su delegación. */
     private const ROLES_DE_REGION = ['Delegado', 'Enlace'];
@@ -62,7 +62,7 @@ class AgendaContexto
             ];
         }
 
-        if (in_array($rol, self::ROLES_SIN_LIMITE, true)) {
+        if ($usuario->hasAnyRole(self::ROLES_SIN_LIMITE)) {
             return [
                 'sedes'         => self::TODAS_LAS_SEDES,
                 'conciliadores' => self::conciliadores(),
