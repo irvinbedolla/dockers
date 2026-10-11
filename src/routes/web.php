@@ -372,7 +372,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::post('/guardar_comparecencia_citado',                        [SeerController::class, 'guardar_comparecencia_citado'])->name('guardar_comparecencia_citado');
             Route::post('/incompentencia_audiencia',                            [SeerController::class, 'incopentencia_audiencia'])->name('incopentencia_audiencia');
             Route::post('/desistimiento_audiencia',                             [SeerController::class, 'desistimiento_audiencia'])->name('desistimiento_audiencia');
-            Route::get('/audieniecias/complimientos',                           [SeerController::class, 'audiencias_cumplimiento'])->name('audiencias.cumplimiento')->middleware('especialidad:cumplimientos_consultar');
+            Route::get('/audieniecias/complimientos',                           [SeerController::class, 'audiencias_cumplimiento'])->name('audiencias.cumplimiento_legacy')->middleware('especialidad:cumplimientos_consultar');
             Route::post('/audiencia/consulta/solictud',                         [SeerController::class, 'solicitudes_busqueda'])->name('solicitudes_busqueda');
             Route::get('/audiencias/vista_previa/{id_solicitud}',               [SeerController::class, 'vista_previa'])->name('vista_previa');
             Route::get('/audiencias/vista_previa_patronal/{id_solicitud}',      [SeerController::class, 'vista_previa_patronal'])->name('vista_previa_patronal');
@@ -458,7 +458,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/notificaciones/index',                 [NotificacionesController::class, 'porNotificar'])->name('notificaciones');
         Route::post('/notificaciones/asignar-lote',         [NotificacionesController::class, 'asignarLote'])->name('notificaciones.asignar_lote')
             ->middleware('permission:por_notificar_asignar');
-        Route::get('/notificaciones/busqueda',              [NotificacionesController::class, 'historial'])->name('notificaciones_consultar');
+        Route::get('/notificaciones/busqueda',              [NotificacionesController::class, 'historial'])->name('notificaciones_consultar_busqueda');
         Route::post('/notificaciones/resultado',            [SeerController::class, 'notificaciones_busqueda'])->name('notificaciones_busqueda');
         Route::get('/notificaciones/detalles/{id}',         [SeerController::class, 'seer_detalles'])->name('seer_detalles');
         Route::get('/seer/estatus/{id}',                    [SeerController::class, 'seer_estatus'])->name('seer.notificador');
@@ -590,7 +590,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/cumplimiento/incomparecencia/{id}',                [SeerController::class, 'PDFIncomparecenciaCumplimiento'])->name('PDFIncomparecenciaCumplimiento');
         Route::post('/cumplimiento/pagar/pena/audiencia',               [SeerController::class, 'cumplimiento_pagar_con_pena_audiencia'])->name('cumplimiento_pagar_pena_audiencia');
         Route::get('/notificaciones/consultar/{id}',                    [SeerController::class, 'mostrar_citados'])->name('editar_citado');
-        Route::get('/documentos/solicitante/identificacion/{id}',       [SeerController::class, 'ver_identificacion_solicitante'])->name('documento_identificacion_solicitante_ver')->middleware('signed');
+        Route::get('/documentos/solicitante/identificacion/{id}',       [SeerController::class, 'ver_identificacion_solicitante'])->name('documento_identificacion_solicitante_ver_legacy')->middleware('signed');
         Route::get('/ObtenerCitatorios/{id}',                           [SeerController::class, 'mostrar_citatorios']);
         Route::get('/Verpdfcasosprevistos/{id}',                        [RecepcionController::class, 'VerPDFCasosPrevistos'])->name('VerPDFCasosPrevistos');
         Route::get('/Verpdfcanalizacion/{id}',                          [RecepcionController::class, 'VerPDFCanalizacion'])->name('VerPDFCanalizacion');
@@ -715,7 +715,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     //Documentos
             Route::get('/INE_Solicitante/{id}',                         [SeerController::class, 'Ver_INE_Solicitante'])->name('PDF_INE_solicitante');
-            Route::get('/documentos/solicitante/identificacion/{id}',   [SeerController::class, 'ver_identificacion_solicitante'])->name('documento_identificacion_solicitante_ver')->middleware('signed');
+            Route::get('/documentos/solicitante/identificacion/{id}',   [SeerController::class, 'ver_identificacion_solicitante'])->name('documento_identificacion_solicitante_ver_legacy')->middleware('signed');
             Route::get('/VerDcocumentosRatificacion/{id}',              [TurnosController::class, 'VerDocumentosRatificacion'])->name('VerDocumentosRatificacion')->middleware('signed');
             Route::get('/VerDcocumentosRatificacionModal/{id}',         [TurnosController::class, 'VerDocumentosRatificacionModal'])->name('VerDocumentosRatificacionModal')->middleware('signed');
             Route::get('/documentos/ratificacion/{id}',                 [TurnosController::class, 'ver_documento_subido'])->name('documento_ratificacion_ver')->middleware('signed');
