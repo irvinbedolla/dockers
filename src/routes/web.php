@@ -10,6 +10,7 @@ use App\Http\Controllers\AgendaCitasController;
 use App\Http\Controllers\TurnosHistorialController;
 use App\Http\Controllers\ModulosController;
 use App\Http\Controllers\EscanerCitasController;
+use App\Http\Controllers\NotificacionesController;
 use App\Http\Middleware\SinRecepcion;
 use App\Support\Recepcion;
 use App\Http\Controllers\DashboardController;
@@ -449,20 +450,25 @@ Route::middleware(['auth', 'verified'])->group(function () {
      |-- (Estatus de entrega de citatorios, instructivos y levantamiento de razones de notificación)
      |*/
     Route::middleware(['role:Super Usuario|Notificador|Enlace|Estadistica|Directivo'])->group(function () {
-        Route::get('/notificaciones/index',                 [SeerController::class, 'notificaciones'])->name('notificaciones');
-        Route::get('/notificaciones/busqueda',              [SeerController::class, 'notificaciones_consultar'])->name('notificaciones_consultar');
+        // Rediseño del apartado: NotificacionesController (los nombres de ruta no cambian).
+        Route::get('/notificaciones/index',                 [NotificacionesController::class, 'porNotificar'])->name('notificaciones');
+        Route::post('/notificaciones/asignar-lote',         [NotificacionesController::class, 'asignarLote'])->name('notificaciones.asignar_lote')
+            ->middleware('permission:por_notificar_asignar');
+        Route::get('/notificaciones/busqueda',              [NotificacionesController::class, 'historial'])->name('notificaciones_consultar');
         Route::post('/notificaciones/resultado',            [SeerController::class, 'notificaciones_busqueda'])->name('notificaciones_busqueda');
         Route::get('/notificaciones/detalles/{id}',         [SeerController::class, 'seer_detalles'])->name('seer_detalles');
         Route::get('/seer/estatus/{id}',                    [SeerController::class, 'seer_estatus'])->name('seer.notificador');
         Route::post('/seer/updateNotificador',              [SeerController::class, 'update_notificador'])->name('seer.cambioEstatus');
-        Route::get('/notificador/mihistorial',              [SeerController::class, 'hitorialnotificacador'])->name('Historial_Notificacador');
+        Route::get('/notificador/mihistorial',              [NotificacionesController::class, 'misNotificaciones'])->name('Historial_Notificacador');
         Route::get('/notificador/historial',                [SeerController::class, 'todas_notificaciones'])->name('todas_notificaciones');
-        Route::get('/notificaciones/home',                 [SeerController::class, 'index_notificaciones'])->name('index_notificaciones');
+        Route::get('/notificaciones/home',                  [NotificacionesController::class, 'inicio'])->name('index_notificaciones');
+        // Quien escribe /notificaciones a mano llega al inicio del apartado en vez de a un 404.
+        Route::redirect('/notificaciones',                  '/notificaciones/home');
         //Enlace
         Route::get('/notificaciones/consultar/{id}',        [SeerController::class, 'mostrar_citados']);
         Route::post('/notificaciones/editar',               [SeerController::class, 'editar_citados'])->name('editar_citado_enlace');   
         Route::get('/notificaciones/consultar_citado/{id}', [SeerController::class, 'mostrar_citadoC'])->name('consultar_citado');
-        Route::get('/notificaciones/historial',             [SeerController::class, 'notificaciones_consultar'])->name('notificaciones_consultar');
+        Route::get('/notificaciones/historial',             [NotificacionesController::class, 'historial'])->name('notificaciones_consultar');
         Route::post('notificaciones/actualizar',            [SeerController::class, 'editar_citados'])->name('actualizar_enlace'); 
         Route::post('/seer/store_enlace/{id}',              [SeerController::class, 'store_enlace'])->name('seer.store_enlace');
         Route::post('/notificaciones/asignar_notificador',  [SeerController::class, 'asignar_notificador_busqueda'])->name('asignar_notificador_busqueda')->middleware('role:Enlace|Super Usuario');
