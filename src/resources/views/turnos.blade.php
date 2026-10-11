@@ -22,8 +22,6 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
     <!-- Libraries CSS -->
-    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/index.global.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/locales-all.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet"/>
     <link href="public/assets/css/iziToast.min.css" rel="stylesheet">
     <link href="public/assets/css/sweetalert.css" rel="stylesheet">
@@ -288,6 +286,238 @@
         }
 
     </style>
+    {{-- Formulario de cita en línea: pasos, ayudas y validación en pantalla. --}}
+    <style>
+        .gc-intro { color: #4A5859; font-size: 15px; margin: 0 0 18px; }
+        .gc-req { color: #C8102E; font-weight: 700; }
+        .gc-opcional { color: #8A9899; font-weight: 400; font-size: 13px; }
+
+        .gc-pasos {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 8px;
+            list-style: none;
+            padding: 0;
+            margin: 0 0 22px;
+            counter-reset: none;
+        }
+        .gc-pasos li {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            border-radius: 10px;
+            background: #EEF2F2;
+            color: #5E6E6F;
+            font-size: 13.5px;
+            font-weight: 600;
+            min-width: 0;
+        }
+        .gc-pasos__num {
+            flex: 0 0 auto;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            background: #fff;
+            color: var(--color-guinda);
+            font-size: 13px;
+            font-weight: 800;
+        }
+        .gc-pasos__texto { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .gc-pasos li.is-listo { background: #E3F4E8; color: #1E7B3C; }
+        .gc-pasos li.is-listo .gc-pasos__num { background: #1E7B3C; color: #fff; font-size: 0; }
+        .gc-pasos li.is-listo .gc-pasos__num::before { content: "\2713"; font-size: 14px; }
+        @media (max-width: 576px) {
+            .gc-pasos { gap: 4px; }
+            .gc-pasos li { flex-direction: column; gap: 4px; padding: 8px 4px; font-size: 11.5px; text-align: center; }
+        }
+
+        .gc-seccion {
+            border: 1px solid #E3E8E8;
+            border-radius: 12px;
+            padding: 18px 20px 20px;
+            margin: 0 0 18px;
+            background: #fff;
+        }
+        .gc-titulo {
+            float: none;
+            width: auto;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 0 0 14px;
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--color-guinda);
+        }
+        .gc-num {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            background: var(--color-guinda);
+            color: #fff;
+            font-size: 15px;
+        }
+        .gc-form .form-label { font-weight: 600; color: #2E3C3D; font-size: 14.5px; }
+        .gc-form .form-control,
+        .gc-form .form-select { min-height: 46px; font-size: 16px; }   /* 16px: el celular no hace zoom */
+        .gc-form .form-control:focus,
+        .gc-form .form-select:focus { border-color: var(--color-oro); box-shadow: 0 0 0 .2rem rgba(206, 168, 69, .25); }
+        .gc-mayus { text-transform: uppercase; }
+        .gc-mayus::placeholder { text-transform: none; }
+
+        .gc-ayuda-tramite.is-activa {
+            margin-top: 8px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            background: #FBF4E1;
+            color: #6B5310;
+            font-size: 13.5px;
+        }
+
+        .gc-oficina {
+            height: 100%;
+            min-height: 72px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: 10px;
+            border: 1px dashed #C9D3D3;
+            color: #8A9899;
+        }
+        .gc-oficina i { font-size: 24px; }
+        .gc-oficina__etiqueta { display: block; font-size: 12.5px; }
+        .gc-oficina__nombre { display: block; font-size: 17px; font-weight: 700; }
+        .gc-oficina.is-lista { border: 1px solid var(--color-guinda); background: #F2F6F6; color: var(--color-guinda); }
+
+        .gc-horario { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+        .gc-horario__boton { padding: 12px 22px; font-size: 16px; font-weight: 600; border-radius: 10px; }
+        .gc-horario__boton:disabled { opacity: .5; }
+        .gc-turno {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 4px;
+            padding: 12px 16px;
+            border-radius: 10px;
+            background: #E3F4E8;
+            color: #1E5E33;
+            font-size: 15px;
+        }
+        .gc-turno i { font-size: 24px; }
+        .gc-turno strong { display: block; font-size: 17px; }
+        .gc-error {
+            padding: 8px 12px;
+            border-radius: 8px;
+            background: #FBE7EA;
+            color: #A3162E;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .gc-aviso-cambio {
+            padding: 8px 12px;
+            border-radius: 8px;
+            background: #FBF4E1;
+            color: #6B5310;
+            font-size: 13.5px;
+        }
+
+        .gc-enviar { text-align: center; padding-top: 6px; }
+        .gc-enviar__boton { min-width: 260px; padding: 14px 28px; font-size: 18px; font-weight: 700; border-radius: 12px; }
+        .gc-enviar__nota { margin: 10px auto 0; max-width: 520px; color: #6C7A7B; font-size: 13.5px; }
+        @media (max-width: 576px) {
+            .gc-seccion { padding: 14px 14px 16px; }
+            .gc-enviar__boton { width: 100%; min-width: 0; }
+        }
+    </style>
+    {{-- Selector de día y hora. --}}
+    <style>
+        .hc-contexto { display: block; margin-top: 2px; font-size: 13px; color: rgba(255, 255, 255, .8); }
+        .hc-cuerpo { padding: 18px 20px; min-height: 380px; }
+
+        .hc-semana { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+        .hc-semana__texto { font-size: 16px; font-weight: 700; color: #2E3C3D; text-align: center; }
+        .hc-flecha {
+            width: 42px; height: 42px; border-radius: 50%;
+            border: 1px solid #DDE3E3; background: #fff; color: var(--color-guinda);
+            display: grid; place-items: center; font-size: 18px;
+        }
+        .hc-flecha:hover:not(:disabled) { background: #F2F6F6; }
+        .hc-flecha:disabled { opacity: .35; cursor: not-allowed; }
+
+        .hc-dias {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 8px;
+            margin-bottom: 18px;
+        }
+        .hc-dia {
+            display: flex; flex-direction: column; align-items: center; gap: 2px;
+            padding: 10px 4px;
+            border-radius: 12px;
+            border: 2px solid #E3E8E8;
+            background: #fff;
+            color: #2E3C3D;
+            line-height: 1.15;
+            transition: border-color .12s, background-color .12s;
+        }
+        .hc-dia__semana { font-size: 12.5px; text-transform: capitalize; color: #6C7A7B; }
+        .hc-dia__numero { font-size: 22px; font-weight: 800; }
+        .hc-dia__mes { font-size: 12px; text-transform: capitalize; color: #6C7A7B; }
+        .hc-dia__libres { margin-top: 4px; font-size: 11.5px; font-weight: 700; color: #1E7B3C; }
+        .hc-dia:hover:not(:disabled) { border-color: #9FC3A9; }
+        .hc-dia.is-activo { border-color: var(--color-guinda); background: var(--color-guinda); color: #fff; }
+        .hc-dia.is-activo .hc-dia__semana,
+        .hc-dia.is-activo .hc-dia__mes,
+        .hc-dia.is-activo .hc-dia__libres { color: rgba(255, 255, 255, .9); }
+        .hc-dia:disabled { background: #F5F7F7; color: #A6B1B2; cursor: not-allowed; }
+        .hc-dia:disabled .hc-dia__libres { color: #A6B1B2; font-weight: 600; }
+
+        .hc-grupo { margin-bottom: 14px; }
+        .hc-grupo__titulo { font-size: 13px; font-weight: 700; color: #6C7A7B; margin-bottom: 8px; text-transform: uppercase; letter-spacing: .05em; }
+        .hc-grupo__horas { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; }
+        .hc-hora {
+            padding: 11px 6px;
+            border-radius: 10px;
+            border: 2px solid #CDE5D4;
+            background: #F1FAF3;
+            color: #1E5E33;
+            font-size: 16px;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+        }
+        .hc-hora:hover { border-color: #1E7B3C; }
+        .hc-hora.is-elegida { border-color: var(--color-oro); background: var(--color-oro); color: #fff; box-shadow: 0 4px 12px rgba(206, 168, 69, .35); }
+        .hc-dia:focus-visible, .hc-hora:focus-visible, .hc-flecha:focus-visible { outline: 3px solid var(--color-oro); outline-offset: 2px; }
+
+        .hc-mensaje { padding: 36px 12px; text-align: center; color: #6C7A7B; }
+        .hc-mensaje i { display: block; font-size: 34px; margin-bottom: 8px; color: #A6B1B2; }
+        .hc-mensaje .btn { margin-top: 10px; }
+
+        .hc-pie { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; background: #F8F9FA; }
+        .hc-elegido { font-size: 14.5px; color: #6C7A7B; }
+        .hc-elegido strong { color: #2E3C3D; }
+        .hc-pie__botones { display: flex; gap: 8px; margin-left: auto; }
+
+        /* Celular: la ventana ocupa la pantalla, los días se deslizan y los botones quedan abajo a lo ancho. */
+        @media (max-width: 576px) {
+            .hc-dialogo { margin: 0; max-width: none; height: 100%; }
+            .hc-dialogo .modal-content { height: 100%; border-radius: 0; border: 0; }
+            .hc-cuerpo { padding: 14px; }
+            .hc-dias { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 4px; }
+            .hc-dia { flex: 0 0 76px; scroll-snap-align: start; }
+            .hc-grupo__horas { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+            .hc-pie { flex-direction: column; align-items: stretch; }
+            .hc-pie__botones { margin-left: 0; }
+            .hc-pie__botones .btn { flex: 1; padding: 12px; }
+            .hc-elegido { text-align: center; }
+        }
+    </style>
     @livewireStyles
 
     @yield('page_css')
@@ -305,7 +535,7 @@
             </span>
         </div>
     </nav>
-<body onload="validarcheckfolio()">
+<body>
     <main class="container mb-5">
         <div id="app">
             <section class="section">
@@ -322,152 +552,160 @@
                                 </div>
                             @endif
 
-                            <!--Se realiza el envío de datos con formulario de Laravel Collective-->
-                            <form class='needs-validation novalidate' id='form_roles' method='POST' action="{{route('turnos_publico')}}">
+                            {{--
+                                Formulario de cita en línea. Mismos campos y nombres que antes
+                                (HomeController::turnos_publico no cambió); sólo se reorganizó en
+                                cuatro pasos con ayudas, validación en pantalla y confirmación del
+                                correo, que es a donde llega el acuse.
+                            --}}
+                            <form class="needs-validation gc-form" novalidate id="form_roles" method="POST" action="{{ route('turnos_publico') }}">
                                 @csrf
-                                <div id="datos_formulario">
+                                <input type="hidden" name="orientacion" id="orientacion" value="No">
+                                <input type="hidden" name="excepcion" id="excepcion" value="No">
+                                <input type="hidden" name="delegacion" id="delegacion" value="">
+                                <input type="hidden" name="fecha_turno" id="fecha_turno" value="">
+                                <input type="hidden" name="hora_turno" id="hora_turno" value="">
 
-                                <!-- SECCIÓN 1: DATOS DEL TRABAJADOR -->
-                                <div class="section-title-banner mt-3">
-                                    <i class="bi bi-border-width me-2"></i>1. Datos Generales
-                                </div>
+                                <p class="gc-intro">
+                                    Llena los cuatro pasos. Lo marcado con <span class="gc-req">*</span> es obligatorio.
+                                    Al terminar te enviaremos a tu correo el <strong>acuse con código QR</strong> que debes presentar el día de tu cita.
+                                </p>
 
-                                <div class="row">
-                                    <div class="col-xs-12 col-sm-12 col-md-4">
-                                        <div class="form-group mb-3">
-                                            <label for="name">Selecciona el tipo de trámite que deseas realizar <span style="color:red;">(*)</span></label>
-                                            <select id="tipo" name="tipo" class="form-control" onchange="blockCalendar();" required>
-                                                <option value="">Seleccione</option>
+                                <ol class="gc-pasos" id="gcPasos" aria-label="Avance">
+                                    <li data-paso="1"><span class="gc-pasos__num">1</span><span class="gc-pasos__texto">Trámite</span></li>
+                                    <li data-paso="2"><span class="gc-pasos__num">2</span><span class="gc-pasos__texto">Tus datos</span></li>
+                                    <li data-paso="3"><span class="gc-pasos__num">3</span><span class="gc-pasos__texto">Tu caso</span></li>
+                                    <li data-paso="4"><span class="gc-pasos__num">4</span><span class="gc-pasos__texto">Día y hora</span></li>
+                                </ol>
+
+                                {{-- PASO 1 --}}
+                                <fieldset class="gc-seccion" data-paso="1">
+                                    <legend class="gc-titulo"><span class="gc-num">1</span> ¿Qué trámite necesitas?</legend>
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label" for="tipo">Tipo de trámite <span class="gc-req">*</span></label>
+                                            <select id="tipo" name="tipo" class="form-select" onchange="blockCalendar();" required>
+                                                <option value="">Elige una opción</option>
                                                 <option value="Asesoría">Asesoría</option>
-                                                <option value="Ratificación">Ratificación</option>
-                                                <option value="Solicitud">Solicitud</option>
+                                                <option value="Solicitud">Solicitud de conciliación</option>
+                                                <option value="Ratificación">Ratificación de convenio</option>
                                             </select>
-                                            <div class="invalid-feedback">
-                                                El tipo de solicitud es obligatoria.
+                                            <div class="form-text gc-ayuda-tramite" id="gcAyudaTramite">Elige una opción y te explicamos de qué se trata.</div>
+                                            <div class="invalid-feedback">Elige el tipo de trámite.</div>
+                                        </div>
+                                        <div class="col-md-6" style="display:none;" id="si_ratificacion">
+                                            <label class="form-label" for="folio_patronal">¿Ya tienes un folio de ratificación que te dio tu patrón?</label>
+                                            <select id="folio_patronal" class="form-select">
+                                                <option value="">Elige una opción</option>
+                                                <option value="si">Sí, ya tengo folio</option>
+                                                <option value="no">No tengo folio</option>
+                                            </select>
+                                            <div class="form-text">Si ya tienes folio, te llevaremos al formulario para ratificar con él.</div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label" for="municipio_citado">Municipio donde está tu trabajo (o la persona a la que vas a citar) <span class="gc-req">*</span></label>
+                                            <select id="municipio_citado" class="form-select" name="municipio_citado" required>
+                                                <option value="">Elige el municipio</option>
+                                                @foreach($municipios as $mun)
+                                                    <option value="{{ $mun['id'] }}" data-delegacion-id="{{ $mun['delegacion_id'] }}">{{ $mun['nombre'] }}</option>
+                                                @endforeach
+                                            </select>
+                                            <div class="invalid-feedback">Elige el municipio.</div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="gc-oficina" id="gcOficina">
+                                                <i class="bi bi-geo-alt-fill" aria-hidden="true"></i>
+                                                <div>
+                                                    <span class="gc-oficina__etiqueta">Oficina del CCL que te corresponde</span>
+                                                    <span id="modulo_delegacion" class="gc-oficina__nombre">Elige tu municipio</span>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="col-xs-12 col-sm-12 col-md-4" style="display:none;"  id="si_ratificacion">
-                                        <div class="form-group mb-3">
-                                            <label for="name">¿Cuenta con un folio patronal?</label>
-                                            <select id="folio_patronal" class="form-control" >
-                                                <option value="">Seleccione</option>
-                                                <option value="si">Sí</option>
-                                                <option value="no">No</option>
+                                </fieldset>
 
-                                            </select>
+                                {{-- PASO 2 --}}
+                                <fieldset class="gc-seccion" data-paso="2">
+                                    <legend class="gc-titulo"><span class="gc-num">2</span> Tus datos</legend>
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label" for="gcNombre">Nombre completo <span class="gc-req">*</span></label>
+                                            <input type="text" id="gcNombre" name="nombre" class="form-control gc-mayus" maxlength="100" autocomplete="name"
+                                                   placeholder="Nombre(s) y apellidos" oninput="this.value = this.value.toUpperCase();" required>
+                                            <div class="invalid-feedback">Escribe tu nombre completo.</div>
                                         </div>
-                                    </div>
-                                    <div class="col-xs-12 col-sm-12 col-md-4">
-                                        <div class="form-group mb-3">
-                                            <label for="name">Municipio donde se localiza la fuente de empleo/persona a citar <span style="color:red;">(*)</span></label>
-                                            <select id="municipio_citado" class="form-control" name="municipio_citado" required>
-                                                <option value="">Seleccione</option>
-                                                    @foreach($municipios as $mun)
-                                                        <option value="{{$mun['id']}}" data-delegacion-id="{{ $mun['delegacion_id'] }}">
-                                                        {{ $mun['nombre'] }}</option>
-                                                    @endforeach
-                                            </select>
-                                            <div class="invalid-feedback">
-                                                El campo municipio o alcaldía es obligatorio.
-                                            </div>
+                                        <div class="col-6 col-md-3">
+                                            <label class="form-label" for="gcEdad">Edad <span class="gc-req">*</span></label>
+                                            <input type="number" id="gcEdad" name="edad" class="form-control" inputmode="numeric" min="0" max="120" maxlength="3"
+                                                   oninput="if(this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);" required>
+                                            <div class="invalid-feedback">Escribe tu edad.</div>
                                         </div>
-                                    </div>
-
-                                    <div class="col-xs-12 col-sm-12 col-md-4">
-                                        <div class="form-group mb-3 ">
-                                            <span>Oficina del CCL a la que te corresponde acudir:</span><br>
-                                            <span id="modulo_delegacion" style="font-weight: bold;"></span>
-                                            <input type="hidden" name="delegacion" id="delegacion" value="">
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="section-title-banner mt-3">
-                                    <i class="bi bi-person-badge me-2"></i>2. Datos del Solicitante
-                                </div>   
-                                <div class="row">
-                                    <div class="col-xs-12 col-sm-12 col-md-4">
-                                        <div class="form-group mb-3">
-                                            <label for="name">Nombre del solicitante <span style="color:red;">(*)</span></label>
-                                            <input type="text" name="nombre" class="form-control" maxlength="100" style="text-transform: uppercase;" oninput="this.value = this.value.toUpperCase();" required> 
-                                            <div class="invalid-feedback">
-                                                El nombre es obligatorio.
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-xs-12 col-sm-12 col-md-2">
-                                        <div class="form-group mb-3">
-                                            <label for="name">Edad <span style="color:red;">(*)</span></label>
-                                            <input type="number" name="edad" class="form-control" maxlength="3" max="150" min="0" oninput="if(this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);" required> 
-                                            <div class="invalid-feedback">
-                                                El campo edad es obligatorio.
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-xs-12 col-sm-12 col-md-2">
-                                        <div class="form-group mb-3">
-                                            <label for="name">Sexo <span style="color:red;">(*)</span></label>
-                                            <select name="sexo" class="form-control" required>
-                                                <option value="">Seleccione</option>
+                                        <div class="col-6 col-md-3">
+                                            <label class="form-label" for="gcSexo">Sexo <span class="gc-req">*</span></label>
+                                            {{-- Los valores son los que acepta recepcion.sexo (H, M, NB, LGBTTTIQ).
+                                                 Antes había "Otros", que la base rechazaba y la cita no se guardaba. --}}
+                                            <select id="gcSexo" name="sexo" class="form-select" required>
+                                                <option value="">Elige</option>
                                                 <option value="H">Hombre</option>
                                                 <option value="M">Mujer</option>
-                                                <option value="NB">No Binarios</option>
-                                                <option value="Otros">Otros</option>
+                                                <option value="NB">No binario</option>
+                                                <option value="LGBTTTIQ">Otro (LGBTTTIQ+)</option>
                                             </select>
-                                            <div class="invalid-feedback">
-                                                El campo sexo es obligatorio.
-                                            </div>
+                                            <div class="invalid-feedback">Elige una opción.</div>
                                         </div>
-                                    </div>
-                                    <div class="col-xs-12 col-sm-12 col-md-4">
-                                        <div class="form-group mb-3">
-                                            <label for="name">Correo electrónico <span style="color:red;">(*)</span></label>
-                                            <input type="email" name="email" maxlength="50" class="form-control" required> 
-                                            <div class="invalid-feedback">
-                                                El email es obligatorio.
-                                            </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label" for="gcCorreo">Correo electrónico <span class="gc-req">*</span></label>
+                                            <input type="email" id="gcCorreo" name="email" class="form-control" maxlength="50" autocomplete="email"
+                                                   placeholder="nombre@correo.com" required>
+                                            <div class="form-text">Aquí te llegará tu acuse con el código QR.</div>
+                                            <div class="invalid-feedback">Escribe un correo válido.</div>
                                         </div>
-                                    </div>
-                                    <div class="col-xs-12 col-sm-12 col-md-4">
-                                        <div class="form-group mb-3">
-                                            <label for="name">Teléfono/Celular <span style="color:red;">(*)</span></label>
-                                            <input type="number" name="telefono" class="form-control" maxlength="10" oninput="if(this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);" required> 
-                                            <div class="invalid-feedback">
-                                                El teléfono es obligatorio.
-                                            </div>
+                                        <div class="col-md-6">
+                                            {{-- Sin name: sólo sirve para evitar errores de dedo; no se envía. --}}
+                                            <label class="form-label" for="gcCorreo2">Confirma tu correo <span class="gc-req">*</span></label>
+                                            <input type="email" id="gcCorreo2" class="form-control" maxlength="50" autocomplete="off"
+                                                   placeholder="Escríbelo otra vez" required>
+                                            <div class="invalid-feedback" id="gcCorreo2Error">Los correos no coinciden.</div>
                                         </div>
-                                    </div>
-                                      
-                                    <div class="col-xs-12 col-sm-12 col-md-4">
-                                        <div class="form-group mb-3">
-                                            <label for="name">¿Perteneces a alguno de estos grupos de atención prioritaria?<span style="color:red;">(*)</span></label>
-                                            <select name="vulnerables" class="form-control" required>
-                                                <option value="">Seleccione</option>
+                                        <div class="col-md-6">
+                                            <label class="form-label" for="gcTelefono">Teléfono o celular <span class="gc-req">*</span></label>
+                                            <input type="tel" id="gcTelefono" name="telefono" class="form-control" inputmode="numeric" autocomplete="tel-national"
+                                                   maxlength="10" pattern="[0-9]{10}" placeholder="10 dígitos"
+                                                   oninput="this.value = this.value.replace(/\D/g, '').slice(0, 10);" required>
+                                            <div class="invalid-feedback">Escribe los 10 dígitos de tu teléfono.</div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label" for="gcVulnerables">¿Perteneces a algún grupo de atención prioritaria? <span class="gc-req">*</span></label>
+                                            <select id="gcVulnerables" name="vulnerables" class="form-select" required>
+                                                <option value="">Elige una opción</option>
+                                                <option value="No aplica">No, a ninguno</option>
                                                 <option value="Menores de edad">Menores de edad</option>
                                                 <option value="Adultos mayores">Adultos mayores</option>
                                                 <option value="Personas con discapacidad">Personas con discapacidad</option>
                                                 <option value="Población indígena">Población indígena</option>
                                                 <option value="Personas Migrantes">Personas migrantes</option>
                                                 <option value="LGBTTTIQ">LGBTTTIQ+</option>
-                                                <option value="No aplica">A ninguno</option>
                                             </select>
-                                            <div class="invalid-feedback">
-                                                El campo es obligatorio.
-                                            </div>
+                                            <div class="form-text">Nos ayuda a darte la atención adecuada.</div>
+                                            <div class="invalid-feedback">Elige una opción.</div>
                                         </div>
                                     </div>
-                                    
-                                    <input type="hidden" name="orientacion" id="orientacion" value="No">
-                                    <input type="hidden" name="excepcion" id="excepcion" value="No">
-                                    
-                                    <div id="tipo_caso"  class="col-xs-12 col-sm-12 col-md-4">
-                                        <div class="form-group mb-3">
-                                            <label for="name">¿El motivo de tu solicitud se debe a alguno de los siguientes casos? <span style="color:red;">(*)</span></label>
-                                            <select name="tipo_caso" class="form-control" onchange="cambiaExcepcion(this); blockCalendar();" required>
-                                                <option value="">Seleccione</option>
-                                                <option value="Ninguno" style="font-weight: bold;">No, ninguno</option>
-                                                <optgroup label="Discriminación en el empleo y ocupación por:">
-                                                    <option value="Acoso u hostigamiento sexual">Acoso/Hostigamiento Sexual</option>
+                                </fieldset>
+
+                                {{-- PASO 3 --}}
+                                <fieldset class="gc-seccion" data-paso="3">
+                                    <legend class="gc-titulo"><span class="gc-num">3</span> Tu caso</legend>
+                                    <div class="row g-3">
+                                        <div class="col-12">
+                                            <label class="form-label" for="gcTipoCaso">
+                                                ¿Tu caso es por alguno de estos motivos? <span class="gc-req">*</span>
+                                                <button type="button" class="btn btn-link btn-sm p-0 ms-1 align-baseline" data-bs-toggle="modal" data-bs-target="#exampleModal">¿Por qué lo preguntamos?</button>
+                                            </label>
+                                            <select id="gcTipoCaso" name="tipo_caso" class="form-select" onchange="cambiaExcepcion(this); blockCalendar();" required>
+                                                <option value="">Elige una opción</option>
+                                                <option value="Ninguno" style="font-weight: bold;">No, ninguno de estos</option>
+                                                <optgroup label="Discriminación en el empleo por:">
+                                                    <option value="Acoso u hostigamiento sexual">Acoso u hostigamiento sexual</option>
                                                     <option value="Discriminación">Condición social</option>
                                                     <option value="Discriminación">Embarazo</option>
                                                     <option value="Discriminación">Raza</option>
@@ -476,68 +714,68 @@
                                                     <option value="Discriminación">Orientación sexual</option>
                                                     <option value="Discriminación">Origen étnico</option>
                                                 </optgroup>
-                                                    <option value="Designacion" style="font-weight: bold;">Designación de beneficiarios por Muerte</option>
+                                                <optgroup label="Designación de beneficiarios:">
+                                                    <option value="Designacion">Designación de beneficiarios por muerte</option>
+                                                </optgroup>
                                                 <optgroup label="Prestaciones de seguridad social por:">
                                                     <option value="Prestaciones">Accidentes de trabajo</option>
                                                     <option value="Prestaciones">Enfermedades</option>
-                                                    <option value="Prestaciones">Guarderias</option>
+                                                    <option value="Prestaciones">Guarderías</option>
                                                     <option value="Prestaciones">Invalidez</option>
                                                     <option value="Prestaciones">Maternidad</option>
                                                     <option value="Prestaciones">Riesgos de trabajo</option>
                                                     <option value="Prestaciones">Prestaciones en especie</option>
                                                     <option value="Prestaciones">Vida</option>
-                                                <optgroup label="Tutela de derechos fundamentales y libertades públicas, ambos de carácter laboral relacionados con:">
+                                                </optgroup>
+                                                <optgroup label="Derechos fundamentales y libertades laborales:">
                                                     <option value="Libertades_publicas">Libertad de asociación</option>
                                                     <option value="Libertades_publicas">Libertad sindical</option>
-                                                    <option value="Libertades_publicas">Reconocimiento efectivo de la negociacion colectiva</option>
+                                                    <option value="Libertades_publicas">Reconocimiento efectivo de la negociación colectiva</option>
                                                     <option value="Libertades_publicas">Trabajo infantil</option>
-                                                    <option value="Libertades_publicas">Trabajo laboral forzoso y obligatorio</option>
-                                                <optgroup label="Disputa de titularidad de:">
+                                                    <option value="Libertades_publicas">Trabajo forzoso u obligatorio</option>
+                                                </optgroup>
+                                                <optgroup label="Disputa de titularidad o estatutos sindicales:">
                                                     <option value="Titularidad">Contratos colectivos</option>
                                                     <option value="Titularidad">Contratos ley</option>
+                                                    <option value="Titularidad">Impugnación de los estatutos de los sindicatos o su modificación</option>
                                                 </optgroup>
-                                                    <option value="Titularidad" style="font-weight: bold;">Impugnación de los estatutos de los sindicatos o su modificación</option>
-                                                    
                                             </select>
-                                            <div class="invalid-feedback">
-                                                El campo es obligatorio.
-                                            </div>
+                                            <div class="form-text" id="gcAyudaCaso">Si no estás seguro, elige "No, ninguno de estos".</div>
+                                            <div class="invalid-feedback">Elige una opción.</div>
+                                        </div>
+                                        <div class="col-12">
+                                            <label class="form-label" for="gcConflicto">Cuéntanos brevemente qué pasó <span class="gc-opcional">(opcional)</span></label>
+                                            <textarea id="gcConflicto" name="conflicto" class="form-control gc-mayus" rows="3" maxlength="500"
+                                                      placeholder="Por ejemplo: me despidieron sin pagarme el finiquito…" oninput="this.value = this.value.toUpperCase();"></textarea>
+                                            <div class="form-text text-end"><span id="gcContador">0</span> / 500</div>
                                         </div>
                                     </div>
-                                    
-                                    <div class="col-xs-12 col-sm-12 col-md-12">
-                                        <div class="form-group mb-3">
-                                            <label for="name">Describe brevemente el motivo de tu solicitud (Máximo 500 caracteres): </label>
-                                            <textarea name="conflicto" class="form-control" style="text-transform: uppercase;" oninput="this.value = this.value.toUpperCase();" maxlength="500"></textarea>
-                                            <div class="invalid-feedback">
-                                                El campo es obligatorio.
-                                            </div>
+                                </fieldset>
+
+                                {{-- PASO 4 --}}
+                                <fieldset class="gc-seccion" data-paso="4">
+                                    <legend class="gc-titulo"><span class="gc-num">4</span> Elige día y hora</legend>
+                                    <div class="gc-horario">
+                                        <button type="button" id="botonCalendar" class="btn btn-guinda gc-horario__boton" data-bs-toggle="modal" data-bs-target="#calendarModal" disabled>
+                                            <i class="bi bi-calendar-week me-2" aria-hidden="true"></i><span id="gcTextoCalendario">Ver horarios disponibles</span>
+                                        </button>
+                                        <div class="form-text" id="gcAyudaCalendario">Primero elige el trámite y el municipio (paso 1).</div>
+                                        <div id="resumenTurno" class="gc-turno" style="display:none;" aria-live="polite"></div>
+                                        <div class="gc-error" id="gcErrorHorario" hidden>
+                                            <i class="bi bi-exclamation-circle" aria-hidden="true"></i> Elige el día y la hora de tu cita.
                                         </div>
                                     </div>
-                                    
-                                    <div class="col-md-4 d-flex align-items-end">
-                                
-                                        <input type="hidden" name="fecha_turno" id="fecha_turno" value="">
-                                        <input type="hidden" name="hora_turno" id="hora_turno" value="">
-                                        <button type="button" id="botonCalendar" class="btn btn-guinda w-100 py-2" data-bs-toggle="modal" data-bs-target="#calendarModal" disabled>
-                                            <i class="bi bi-calendar-week"></i> Seleccionar Fecha y Horario
-                                        </button>
-                                        <div id="resumenTurno" class="alert alert-info mt-2" style="display:none;"></div>
-                                    
-                                    </div>
-                                    <div class="text-center pt-3 border-top" style= "color:rgba(0, 0, 0, .4);">
-                                        <label for="name">Favor de presionar el boton de Guardar para agendar su cita </label>
-                                    </div>
-                                    <div class="text-center pt-3 ">
-                                        
-                                        <button id="btnGuardar" type="submit" class="btn btn-oro btn-lg px-5 me-2">
-                                            <i class="bi bi-box-arrow-down me-1"></i> Guardar Cita
-                                        </button>
-                                    
-                                    </div>
+                                </fieldset>
+
+                                <div class="gc-enviar">
+                                    <button id="btnGuardar" type="submit" class="btn btn-oro btn-lg gc-enviar__boton">
+                                        <i class="bi bi-check2-circle me-1" aria-hidden="true"></i> Agendar mi cita
+                                    </button>
+                                    <p class="gc-enviar__nota">
+                                        Revisa que tu correo esté bien escrito: ahí te llegará el acuse. El trámite es gratuito.
+                                    </p>
                                 </div>
                             </form>
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -548,15 +786,19 @@
                 <div class="modal-dialog" role="document">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h5 class="modal-title" id="exampleModalLabel">Posibles Casos</h5>
+                            <h5 class="modal-title" id="exampleModalLabel">¿Por qué te preguntamos esto?</h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <div class="modal-body">
-                            La Ley Federal del Trabajo en el articulo 685-Ter establece que no estas obligado a agotar la etapa conciliatoria en estos supuestos<br>
-                            -Discriminación<br>
-                            -Acoso u hostigamiento sexual<br>
-                            -Designación de beneficiarios<br>
-                            -Prestaciones de Seguridad Social
+                            <p>En estos casos la Ley Federal del Trabajo (artículo 685 Ter) <strong>no te obliga a pasar por la conciliación</strong>, y te atenderá personal especializado:</p>
+                            <ul class="mb-2">
+                                <li>Discriminación en el empleo, acoso u hostigamiento sexual.</li>
+                                <li>Designación de beneficiarios por muerte.</li>
+                                <li>Prestaciones de seguridad social.</li>
+                                <li>Libertad de asociación y sindical, negociación colectiva, trabajo infantil o forzoso.</li>
+                                <li>Disputas por contratos colectivos o estatutos sindicales.</li>
+                            </ul>
+                            <p class="mb-0">Si tu caso no es ninguno de estos o no estás seguro, elige <strong>"No, ninguno de estos"</strong>.</p>
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
@@ -565,42 +807,44 @@
                 </div>
             </div>
 
-            <div class="modal fade" id="calendarModal" tabindex="-1" aria-hidden="true">
-                <div class="modal-dialog modal-dialog-centered modal-xl">
+            {{--
+                Elegir día y hora. Antes era FullCalendar con vistas de semana/lista;
+                ahora es una tira de días con cuántos horarios libres tiene cada uno
+                y abajo sólo las horas libres de ese día. Mismos datos
+                (/api/obtenerTurnosDisponibles) y el mismo botón #confirmarTurno.
+            --}}
+            <div class="modal fade" id="calendarModal" tabindex="-1" aria-labelledby="hcTitulo" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg hc-dialogo">
                     <div class="modal-content">
-
-                        <div class="modal-header card-header-guinda py-2">
-                            <h5 class="modal-title text-white fs-6">
-                                <i class="bi bi-clock me-2"></i>
-                                Seleccionar Horario Disponible
-                            </h5>
-
-                            <button type="button"
-                                    class="btn-close btn-close-white"
-                                    data-bs-dismiss="modal"
-                                    aria-label="Close">
-                            </button>
+                        <div class="modal-header card-header-guinda py-3">
+                            <div>
+                                <h5 class="modal-title text-white mb-0" id="hcTitulo"><i class="bi bi-calendar-week me-2" aria-hidden="true"></i>Elige día y hora</h5>
+                                <span class="hc-contexto" id="hcContexto"></span>
+                            </div>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                         </div>
 
-                        <div class="modal-body">
-                            <div id="calendarTurno"></div>
+                        <div class="modal-body hc-cuerpo">
+                            <div class="hc-semana">
+                                <button type="button" class="hc-flecha" id="hcAnterior" aria-label="Semana anterior"><i class="bi bi-chevron-left"></i></button>
+                                <span class="hc-semana__texto" id="hcSemana" aria-live="polite"></span>
+                                <button type="button" class="hc-flecha" id="hcSiguiente" aria-label="Semana siguiente"><i class="bi bi-chevron-right"></i></button>
+                            </div>
+
+                            <div class="hc-dias" id="hcDias" role="tablist" aria-label="Días de la semana"></div>
+
+                            <div class="hc-horas" id="hcHoras" aria-live="polite"></div>
                         </div>
 
-                        <div class="modal-footer bg-light py-2">
-                            <button type="button"
-                                    class="btn btn-secondary btn-sm"
-                                    data-bs-dismiss="modal">
-                                Cancelar
-                            </button>
-
-                            <button type="button"
-                                    class="btn btn-primary btn-sm"
-                                    id="confirmarTurno"
-                                    disabled>
-                                Confirmar
-                            </button>
+                        <div class="modal-footer hc-pie">
+                            <div class="hc-elegido" id="hcElegido">Toca un horario para elegirlo.</div>
+                            <div class="hc-pie__botones">
+                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                <button type="button" class="btn btn-oro" id="confirmarTurno" disabled>
+                                    <i class="bi bi-check2 me-1" aria-hidden="true"></i>Confirmar horario
+                                </button>
+                            </div>
                         </div>
-
                     </div>
                 </div>
             </div>
@@ -764,11 +1008,25 @@
         }
 
         function limpiarTurnoSeleccionado() {
+            const habia = document.getElementById("fecha_turno").value;
             turnoSeleccionado = null;
             document.getElementById("fecha_turno").value = "";
             document.getElementById("hora_turno").value = "";
-            document.getElementById("resumenTurno").style.display = "none";
             document.getElementById("confirmarTurno").setAttribute("disabled", "disabled");
+
+            // Si ya había un horario, se avisa que hay que volver a elegirlo: cambió
+            // un dato (trámite, municipio o caso) que define qué horarios hay.
+            const resumen = document.getElementById("resumenTurno");
+            if (habia) {
+                resumen.className = 'gc-aviso-cambio';
+                resumen.textContent = 'Cambiaste un dato que define los horarios. Vuelve a elegir día y hora.';
+                resumen.style.display = "block";
+            } else if (resumen.className !== 'gc-aviso-cambio') {
+                resumen.style.display = "none";
+            }
+            const texto = document.getElementById('gcTextoCalendario');
+            if (texto) texto.textContent = 'Ver horarios disponibles';
+            if (window.gcActualizarPasos) window.gcActualizarPasos();
         }
 
         function pad(numero) {
@@ -783,120 +1041,203 @@
             return pad(fecha.getHours()) + ":" + pad(fecha.getMinutes()) + ":" + pad(fecha.getSeconds());
         }
 
-        let calendarTurno = null;
+        // ---------- Selector de día y hora ----------
+        // turnoSeleccionado conserva la forma { start: Date } que usan
+        // "Confirmar" y limpiarTurnoSeleccionado().
         let turnoSeleccionado = null;
 
-        document.getElementById("botonCalendar").addEventListener("click", function () {
-            if (calendarTurno) {
-                calendarTurno.destroy();
-                calendarTurno = null;
+        const hc = (function () {
+            const URL_HORARIOS = "{{ url('/api/obtenerTurnosDisponibles') }}";
+            const SEMANAS_A_BUSCAR = 8;        // al abrir, busca la primera semana con lugar
+            const el = {
+                semana: document.getElementById('hcSemana'),
+                anterior: document.getElementById('hcAnterior'),
+                siguiente: document.getElementById('hcSiguiente'),
+                dias: document.getElementById('hcDias'),
+                horas: document.getElementById('hcHoras'),
+                elegido: document.getElementById('hcElegido'),
+                contexto: document.getElementById('hcContexto'),
+                confirmar: document.getElementById('confirmarTurno')
+            };
+            let lunes = null;           // lunes de la semana que se ve
+            let lunesMinimo = null;     // no se puede ir antes de esta semana
+            let porDia = {};            // 'YYYY-MM-DD' -> ['09:20', ...] (sólo libres)
+            let diaActivo = null;
+            let peticion = 0;           // descarta respuestas viejas si se navega rápido
+
+            const ymd = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+            const lunesDe = d => { const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); const w = (x.getDay() + 6) % 7; x.setDate(x.getDate() - w); return x; };
+            const masDias = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+            const fmt = (d, o) => d.toLocaleDateString('es-MX', o);
+            const nodo = (tag, clase, texto) => { const n = document.createElement(tag); if (clase) n.className = clase; if (texto != null) n.textContent = texto; return n; };
+
+            function parametros() {
+                return {
+                    sede: document.getElementById('delegacion').value,
+                    tipo: document.querySelector('select[name="tipo"]').value,
+                    excepcion: document.getElementById('excepcion').value
+                };
             }
-            turnoSeleccionado = null;
-            document.getElementById("confirmarTurno").setAttribute("disabled", "disabled");
 
-            // Esperar a que la animación del modal termine antes de renderizar FullCalendar
-            setTimeout(function () {
-                const delegacion = document.getElementById('delegacion').value;
-                const tipo = document.querySelector('select[name="tipo"]').value;
-                const calendarEl = document.getElementById("calendarTurno");
-                const inputExcepcion = document.getElementById('excepcion');
-                const excepcion = inputExcepcion.value;
-                calendarTurno = new FullCalendar.Calendar(calendarEl, {
-
-                    // Vista inicial igual al primer calendario
-                    initialView: window.innerWidth <= 768 ? 'listWeek' : 'dayGridWeek',
-
-                    locale: 'es',
-                    firstDay: 1,
-
-                    // Botones del calendario
-                    headerToolbar: {
-                        left: 'prev,next today',
-                        center: 'title',
-                        right: 'dayGridWeek,listWeek,timeGridDay'
-                    },
-
-                    // No permitir fechas anteriores a hoy
-                    validRange: {
-                        start: new Date().toISOString().split('T')[0]
-                    },
-
-                    // Formato de hora
-                    eventTimeFormat: {
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    },
-
-                    // Obtener eventos
-                    events: function (fetchInfo, successCallback, failureCallback) {
-
-                        const params = new URLSearchParams({
-                            sede: delegacion,
-                            tipo: tipo,
-                            excepcion: excepcion,
-                            externo: 1,
-                            start: fetchInfo.startStr,
-                            end: fetchInfo.endStr
-                        });
-
-                        fetch("{{ url('/api/obtenerTurnosDisponibles') }}?" + params.toString())
-                            .then(response => response.json())
-                            .then(data => successCallback(data))
-                            .catch(error => {
-                                console.error(
-                                    'Error al cargar horarios disponibles:',
-                                    error
-                                );
-
-                                failureCallback(
-                                    'Error al cargar horarios disponibles'
-                                );
-                            });
-                    },
-
-                    // Seleccionar horario
-                    eventClick: function (info) {
-
-                        const estado = info.event.extendedProps.estado;
-
-                        if (estado !== 'disponible' && estado !== 'turnos') {
-                            alert('Este horario no está disponible. Por favor seleccione otro.');
-                            return;
-                        }
-
-                        document
-                            document.querySelectorAll('#calendarTurno .fc-event-selected')
-                            .forEach(evento => {
-                                evento.classList.remove('fc-event-selected');
-                            });
-
-                        info.el.classList.add('fc-event-selected');
-
-                        turnoSeleccionado = info.event;
-
-                        document
-                            .getElementById('confirmarTurno')
-                            .removeAttribute('disabled');
-                        
-                            
-                    },
-
-                    // Aplicar colores según estado
-                    eventDidMount: function (info) {
-                        const estado = info.event.extendedProps.estado;
-
-                        if (estado) {
-                            info.el.classList.add(`fc-event-${estado}`);
-                        }
-                    }
+            async function traerSemana(inicio) {
+                const p = parametros();
+                const q = new URLSearchParams({ sede: p.sede, tipo: p.tipo, excepcion: p.excepcion, externo: 1, start: ymd(inicio), end: ymd(masDias(inicio, 4)) });
+                const r = await fetch(URL_HORARIOS + '?' + q.toString(), { headers: { Accept: 'application/json' } });
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                const eventos = await r.json();
+                const dias = {};
+                for (let i = 0; i < 5; i++) dias[ymd(masDias(inicio, i))] = [];
+                eventos.forEach(function (e) {
+                    const estado = e.extendedProps && e.extendedProps.estado;
+                    if (estado !== 'disponible' && estado !== 'turnos') return;
+                    const [f, h] = String(e.start).split('T');
+                    if (dias[f]) dias[f].push(h.slice(0, 5));
                 });
+                Object.keys(dias).forEach(k => dias[k].sort());
+                return dias;
+            }
 
+            function mensaje(icono, texto, accion) {
+                el.horas.textContent = '';
+                const m = nodo('div', 'hc-mensaje');
+                m.appendChild(nodo('i', 'bi ' + icono));
+                m.appendChild(nodo('div', null, texto));
+                if (accion) {
+                    const b = nodo('button', 'btn btn-outline-secondary btn-sm', accion.texto);
+                    b.type = 'button';
+                    b.addEventListener('click', accion.fn);
+                    m.appendChild(b);
+                }
+                el.horas.appendChild(m);
+            }
 
-                calendarTurno.render();
-                setTimeout(function () {
-                    if (calendarTurno) calendarTurno.updateSize();
-                }, 100);
-            }, 400);
+            function pintarSemana() {
+                const viernes = masDias(lunes, 4);
+                const mismoMes = lunes.getMonth() === viernes.getMonth();
+                el.semana.textContent = mismoMes
+                    ? lunes.getDate() + ' al ' + viernes.getDate() + ' de ' + fmt(viernes, { month: 'long', year: 'numeric' })
+                    : fmt(lunes, { day: 'numeric', month: 'short' }) + ' al ' + fmt(viernes, { day: 'numeric', month: 'short', year: 'numeric' });
+                el.anterior.disabled = lunes <= lunesMinimo;
+
+                el.dias.textContent = '';
+                Object.keys(porDia).forEach(function (f) {
+                    const d = new Date(f + 'T00:00:00');
+                    const libres = porDia[f].length;
+                    const b = nodo('button', 'hc-dia' + (f === diaActivo ? ' is-activo' : ''));
+                    b.type = 'button';
+                    b.setAttribute('role', 'tab');
+                    b.setAttribute('aria-selected', f === diaActivo ? 'true' : 'false');
+                    b.disabled = libres === 0;
+                    b.appendChild(nodo('span', 'hc-dia__semana', fmt(d, { weekday: 'short' }).replace('.', '')));
+                    b.appendChild(nodo('span', 'hc-dia__numero', String(d.getDate())));
+                    b.appendChild(nodo('span', 'hc-dia__mes', fmt(d, { month: 'short' }).replace('.', '')));
+                    b.appendChild(nodo('span', 'hc-dia__libres', libres ? (libres === 1 ? '1 horario' : libres + ' horarios') : 'Sin lugar'));
+                    b.setAttribute('aria-label', fmt(d, { weekday: 'long', day: 'numeric', month: 'long' }) + ', ' + (libres ? libres + ' horarios libres' : 'sin horarios'));
+                    b.addEventListener('click', function () { diaActivo = f; pintarSemana(); pintarHoras(); });
+                    el.dias.appendChild(b);
+                });
+                const activo = el.dias.querySelector('.is-activo');
+                if (activo && activo.scrollIntoView) activo.scrollIntoView({ block: 'nearest', inline: 'center' });
+            }
+
+            function pintarHoras() {
+                if (!diaActivo) {
+                    mensaje('bi-calendar-x', 'No hay horarios libres esta semana.', { texto: 'Ver la semana siguiente', fn: () => irA(masDias(lunes, 7)) });
+                    return;
+                }
+                el.horas.textContent = '';
+                const horas = porDia[diaActivo];
+                const grupos = [['Mañana', horas.filter(h => h < '13:00')], ['Tarde', horas.filter(h => h >= '13:00')]];
+                grupos.forEach(function ([titulo, lista]) {
+                    if (!lista.length) return;
+                    const g = nodo('div', 'hc-grupo');
+                    g.appendChild(nodo('div', 'hc-grupo__titulo', titulo));
+                    const cont = nodo('div', 'hc-grupo__horas');
+                    lista.forEach(function (h) {
+                        const b = nodo('button', 'hc-hora', h);
+                        b.type = 'button';
+                        const elegido = turnoSeleccionado && ymd(turnoSeleccionado.start) === diaActivo && formatoHoraLocal(turnoSeleccionado.start).slice(0, 5) === h;
+                        if (elegido) b.classList.add('is-elegida');
+                        b.setAttribute('aria-pressed', elegido ? 'true' : 'false');
+                        b.addEventListener('click', function () { elegir(diaActivo, h); });
+                        cont.appendChild(b);
+                    });
+                    g.appendChild(cont);
+                    el.horas.appendChild(g);
+                });
+            }
+
+            function elegir(fecha, hora) {
+                turnoSeleccionado = { start: new Date(fecha + 'T' + hora + ':00') };
+                const d = turnoSeleccionado.start;
+                const texto = fmt(d, { weekday: 'long', day: 'numeric', month: 'long' }).replace(',', '');
+                el.elegido.textContent = '';
+                el.elegido.appendChild(document.createTextNode('Elegiste: '));
+                el.elegido.appendChild(nodo('strong', null, texto.charAt(0).toUpperCase() + texto.slice(1) + ' · ' + hora + ' h'));
+                el.confirmar.removeAttribute('disabled');
+                pintarHoras();
+            }
+
+            async function irA(inicio, buscarHaciaAdelante, diaPreferido) {
+                const mia = ++peticion;
+                lunes = inicio;
+                diaActivo = null;
+                el.dias.textContent = '';
+                el.semana.textContent = 'Buscando horarios…';
+                mensaje('bi-hourglass-split', 'Buscando horarios disponibles…');
+                try {
+                    let intentos = buscarHaciaAdelante ? SEMANAS_A_BUSCAR : 1;
+                    let dias = await traerSemana(lunes);
+                    while (--intentos > 0 && !Object.values(dias).some(h => h.length)) {
+                        lunes = masDias(lunes, 7);
+                        dias = await traerSemana(lunes);
+                        if (mia !== peticion) return;
+                    }
+                    if (mia !== peticion) return;
+                    porDia = dias;
+                    diaActivo = (diaPreferido && porDia[diaPreferido] && porDia[diaPreferido].length)
+                        ? diaPreferido
+                        : (Object.keys(porDia).find(f => porDia[f].length) || null);
+                    pintarSemana();
+                    pintarHoras();
+                } catch (e) {
+                    if (mia !== peticion) return;
+                    el.semana.textContent = '';
+                    mensaje('bi-wifi-off', 'No pudimos cargar los horarios. Revisa tu conexión.', { texto: 'Intentar de nuevo', fn: () => irA(lunes) });
+                }
+            }
+
+            el.anterior.addEventListener('click', () => irA(masDias(lunes, -7)));
+            el.siguiente.addEventListener('click', () => irA(masDias(lunes, 7)));
+
+            return {
+                abrir: function () {
+                    turnoSeleccionado = null;
+                    el.confirmar.setAttribute('disabled', 'disabled');
+                    el.elegido.textContent = 'Toca un horario para elegirlo.';
+                    const p = parametros();
+                    const tipoTexto = document.querySelector('select[name="tipo"]').selectedOptions[0];
+                    el.contexto.textContent = 'Oficina ' + p.sede + ' · ' + (tipoTexto ? tipoTexto.textContent.trim() : p.tipo);
+                    // Sábado o domingo: la primera semana útil es la siguiente.
+                    const hoy = new Date();
+                    lunesMinimo = lunesDe(hoy.getDay() === 0 || hoy.getDay() === 6 ? masDias(hoy, 2) : hoy);
+
+                    // Si ya había un horario confirmado, se abre en ese día y con esa hora marcada.
+                    const f = document.getElementById('fecha_turno').value;
+                    const h = (document.getElementById('hora_turno').value || '').slice(0, 5);
+                    if (f && h) {
+                        elegir(f, h);
+                        const semana = lunesDe(new Date(f + 'T00:00:00'));
+                        irA(semana < lunesMinimo ? lunesMinimo : semana, false, f);
+                    } else {
+                        irA(lunesMinimo, true);
+                    }
+                }
+            };
+        })();
+
+        document.getElementById("botonCalendar").addEventListener("click", function () {
+            hc.abrir();
         });
 
         document.getElementById("confirmarTurno").addEventListener("click", function () {
@@ -910,22 +1251,48 @@
             document.getElementById("hora_turno").value = formatoHoraLocal(inicio);
 
             const resumen = document.getElementById("resumenTurno");
-            resumen.textContent = "Turno seleccionado: " + formatoFechaLocal(inicio) + " a las " + pad(inicio.getHours()) + ":" + pad(inicio.getMinutes());
-            resumen.style.display = "block";
+            const dia = inicio.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).replace(',', '');
+            resumen.textContent = '';
+            const icono = document.createElement('i');
+            icono.className = 'bi bi-calendar-check-fill';
+            const texto = document.createElement('div');
+            const fuerte = document.createElement('strong');
+            fuerte.textContent = dia.charAt(0).toUpperCase() + dia.slice(1) + ' · ' + pad(inicio.getHours()) + ':' + pad(inicio.getMinutes()) + ' h';
+            texto.appendChild(fuerte);
+            texto.appendChild(document.createTextNode('Se apartará cuando presiones "Agendar mi cita". Si quieres otro, vuelve a abrir los horarios.'));
+            resumen.appendChild(icono);
+            resumen.appendChild(texto);
+            resumen.style.display = "flex";
+            document.getElementById('gcTextoCalendario').textContent = 'Cambiar día u hora';
+            document.getElementById('gcErrorHorario').hidden = true;
+            if (window.gcActualizarPasos) window.gcActualizarPasos();
 
             bootstrap.Modal.getOrCreateInstance(document.getElementById('calendarModal')).hide();
         });
 
         document.getElementById("form_roles").addEventListener("submit", function (e) {
-            const fecha = document.getElementById("fecha_turno").value;
-            const hora = document.getElementById("hora_turno").value;
+            const form = this;
             const btn = document.getElementById('btnGuardar');
-            btn.disabled = true;
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Guardando...';
-            if (!fecha || !hora) {
+            if (window.gcValidarCorreos) window.gcValidarCorreos();
+
+            const sinHorario = !document.getElementById("fecha_turno").value || !document.getElementById("hora_turno").value;
+            document.getElementById('gcErrorHorario').hidden = !sinHorario;
+
+            if (!form.checkValidity() || sinHorario) {
                 e.preventDefault();
-                alert("Debes seleccionar la fecha y el horario del turno antes de guardar.");
+                e.stopPropagation();
+                form.classList.add('was-validated');
+                // Lleva a la persona al primer dato que falta.
+                const primero = form.querySelector(':invalid:not(fieldset)') || (sinHorario ? document.getElementById('botonCalendar') : null);
+                if (primero) {
+                    primero.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    setTimeout(function () { try { primero.focus({ preventScroll: true }); } catch (err) {} }, 350);
+                }
+                return;
             }
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Agendando tu cita…';
         });
 
         //Dependiendo del Municipio seleccionado muestra la delegación y oficina de apoyo que le corresponde
@@ -992,6 +1359,110 @@
             });
 
         });
+    </script>
+    {{-- Ayudas del formulario: explicación del trámite, oficina, avance por pasos,
+         confirmación del correo, contador del motivo y horario que caduca si
+         cambia algo que lo determina. --}}
+    <script>
+    (function () {
+        'use strict';
+        var form = document.getElementById('form_roles');
+        if (!form) return;
+
+        var AYUDA_TRAMITE = {
+            'Asesoría':     'Te orientamos sobre tus derechos laborales y qué puedes hacer en tu caso.',
+            'Solicitud':    'Inicias la conciliación: citamos a tu patrón (o a la otra parte) para buscar un acuerdo sin ir a juicio.',
+            'Ratificación': 'Ya tienen un acuerdo (por ejemplo, un finiquito) y vienen a firmarlo ante el Centro para que tenga validez.'
+        };
+
+        var tipo = document.getElementById('tipo');
+        var ayudaTramite = document.getElementById('gcAyudaTramite');
+        var municipio = document.getElementById('municipio_citado');
+        var oficina = document.getElementById('gcOficina');
+        var oficinaNombre = document.getElementById('modulo_delegacion');
+        var delegacion = document.getElementById('delegacion');
+        var tipoCaso = document.getElementById('gcTipoCaso');
+        var ayudaCaso = document.getElementById('gcAyudaCaso');
+        var correo = document.getElementById('gcCorreo');
+        var correo2 = document.getElementById('gcCorreo2');
+        var conflicto = document.getElementById('gcConflicto');
+        var contador = document.getElementById('gcContador');
+        var ayudaCal = document.getElementById('gcAyudaCalendario');
+        var fecha = document.getElementById('fecha_turno');
+        var hora = document.getElementById('hora_turno');
+        var resumen = document.getElementById('resumenTurno');
+
+        // Paso 1
+        function pintarTramite() {
+            var t = AYUDA_TRAMITE[tipo.value];
+            ayudaTramite.textContent = t || 'Elige una opción y te explicamos de qué se trata.';
+            ayudaTramite.classList.toggle('is-activa', !!t);
+        }
+        function pintarOficina() {
+            // El listener original pone la sede en el campo oculto; aquí sólo se refleja.
+            var lista = !!delegacion.value && !!municipio.value;
+            oficina.classList.toggle('is-lista', lista);
+            if (!lista) oficinaNombre.textContent = 'Elige tu municipio';
+        }
+
+        // Paso 3
+        function pintarCaso() {
+            if (!tipoCaso.value) {
+                ayudaCaso.textContent = 'Si no estás seguro, elige "No, ninguno de estos".';
+            } else if (tipoCaso.value === 'Ninguno') {
+                ayudaCaso.textContent = 'Tu cita será con un auxiliar de conciliación.';
+            } else {
+                ayudaCaso.textContent = 'Por tu caso te atenderá personal especializado. Los horarios disponibles pueden ser distintos.';
+            }
+        }
+        function contar() { contador.textContent = conflicto.value.length; }
+
+        // Correo
+        function validarCorreos() {
+            var distinto = correo2.value && correo.value.trim().toLowerCase() !== correo2.value.trim().toLowerCase();
+            correo2.setCustomValidity(distinto ? 'Los correos no coinciden.' : '');
+        }
+        window.gcValidarCorreos = validarCorreos;
+
+        function pintarCalendario() {
+            var listo = !!tipo.value && !!delegacion.value;
+            ayudaCal.textContent = listo
+                ? 'Los horarios en verde están libres. Toca uno y luego "Confirmar".'
+                : 'Primero elige el trámite y el municipio (paso 1).';
+        }
+
+        // Avance por pasos
+        function pasoCompleto(n) {
+            if (n === 4) return !!fecha.value && !!hora.value;
+            var campos = form.querySelectorAll('fieldset[data-paso="' + n + '"] [required]');
+            return Array.prototype.every.call(campos, function (c) { return c.checkValidity(); });
+        }
+        function actualizarPasos() {
+            document.querySelectorAll('#gcPasos li').forEach(function (li) {
+                li.classList.toggle('is-listo', pasoCompleto(parseInt(li.getAttribute('data-paso'), 10)));
+            });
+        }
+        window.gcActualizarPasos = actualizarPasos;
+
+        // Restaura la clase del resumen cuando se confirma un horario nuevo.
+        var confirmar = document.getElementById('confirmarTurno');
+        if (confirmar) confirmar.addEventListener('click', function () { resumen.className = 'gc-turno'; }, true);
+
+        tipo.addEventListener('change', function () { pintarTramite(); pintarCalendario(); });
+        municipio.addEventListener('change', function () {
+            // Si se regresa a "Elige el municipio", la sede anterior no debe quedarse.
+            if (!municipio.value) { delegacion.value = ''; blockCalendar(); }
+            setTimeout(function () { pintarOficina(); pintarCalendario(); }, 0);
+        });
+        tipoCaso.addEventListener('change', pintarCaso);
+        correo.addEventListener('input', validarCorreos);
+        correo2.addEventListener('input', validarCorreos);
+        conflicto.addEventListener('input', contar);
+        form.addEventListener('input', actualizarPasos);
+        form.addEventListener('change', actualizarPasos);
+
+        pintarTramite(); pintarOficina(); pintarCaso(); contar(); pintarCalendario(); actualizarPasos();
+    })();
     </script>
 @section('scripts')
     <script src="{{ asset('assets/js/validaciones-ratificacion.js') }}"></script> 
