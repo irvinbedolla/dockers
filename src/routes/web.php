@@ -294,6 +294,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/usuarios/edit/{id}',               [UsuarioController::class, 'edit'])->name('usuarios.edit');
         Route::patch('/usuarios/update/{post}',         [UsuarioController::class, 'update'])->name('usuarios.update');
         Route::delete('/usuarios/destroy/{id}',         [UsuarioController::class, 'destroy'])->name('usuarios.destroy');
+        Route::patch('/usuarios/{id}/password',         [UsuarioController::class, 'cambiarPassword'])->name('usuarios.password')->whereNumber('id');
 
         Route::get('/roles/index',                      [RolController::class, 'index'])->name('roles');
         Route::get('/roles/create',                     [RolController::class, 'create'])->name('roles.create');
