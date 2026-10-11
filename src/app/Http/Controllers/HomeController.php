@@ -315,17 +315,14 @@ class HomeController extends Controller
             'observaciones' => $data["conflicto"]
         );
     
-            $recepcion=Recepcion::create($data_insertar);
+            // En transacción: si el INSERT falla, también se deshace el folio
+            // que se apartó en folios_citas y no quedan números saltados.
+            $recepcion = DB::transaction(fn () => Recepcion::create($data_insertar));
             $fecha=$recepcion->fecha->format('Y-m-d');
             $hora=$recepcion->hora->format('H:i');
             $pdfCitas = $this->verDocumentoCita($recepcion->id);
-            $variables = [
-                'Nombre'           => $data["nombre"],
-                'email'            => $data["email"],
-                'NumFolio'         => $recepcion->folio_cita,
-                'tipo'             => $tipo
-            ];
-            Mail::to($data["email"])->send(new SolicitudMail($pdfCitas, $variables));
+            // Correo con diseño institucional y el acuse adjunto (emails.cita_agendada).
+            Mail::to($data["email"])->send(new \App\Mail\CitaAgendadaMail($pdfCitas, $recepcion));
             return redirect()->route('citas_exito')->with(['success' => true,'id'=>$recepcion->id,'folio' => $recepcion->folio_cita,'fecha' => $fecha,'hora' => $hora,'delegacion' => $recepcion->delegacion, 'modulo' => $recepcion->lugar_auxiliar, 'direccion' => $direccion]);
         
         

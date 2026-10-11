@@ -1,23 +1,14 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="utf-8">
-    <title>Tu cita cambió de módulo</title>
-</head>
-<body style="font-family: Arial, Helvetica, sans-serif; color: #2E3C3D; line-height: 1.5;">
-    <h2 style="color: #496163;">Hola, {{ $cita->solicitante }}</h2>
-    <p>
-        Tu cita de <strong>{{ $cita->tipo }}</strong> con folio
-        <strong>{{ $cita->folio_cita }}</strong>
-        sigue el <strong>{{ \Illuminate\Support\Str::ucfirst($cita->fecha->locale('es')->isoFormat('dddd D [de] MMMM')) }}</strong>
-        a las <strong>{{ $cita->hora->format('H:i') }}</strong> en la sede {{ $cita->delegacion }}.
-    </p>
-    <p>
-        Lo único que cambió es el módulo donde te atenderán:
-        @if ($moduloAnterior)<span style="text-decoration: line-through; color: #8A9899;">{{ $moduloAnterior }}</span> →@endif
-        <strong>{{ $cita->lugar_auxiliar }}</strong>.
-    </p>
-    <p>Te adjuntamos tu acuse actualizado. Preséntalo el día de tu cita.</p>
-    <p style="color: #8A9899; font-size: 13px;">Centro de Conciliación Laboral del Estado de Michoacán</p>
-</body>
-</html>
+{{-- Aviso de cambio de módulo con el acuse actualizado. Datos: $d y $moduloAnterior. --}}
+@extends('emails.layouts.ccl')
+
+@section('titulo', 'Tu cita cambió de módulo · Folio '.$d['folio'])
+@section('preheader', 'Tu cita sigue el '.$d['fechaLarga'].' a las '.$d['hora'].' h. Sólo cambió el módulo: ahora es '.$d['modulo'].'.')
+@section('hero_titulo', 'Tu cita cambió de módulo')
+@section('hero_texto')
+    Hola, {{ $d['nombre'] }}. Tu cita <strong style="color:#FFFFFF;">sigue el mismo día y a la misma hora</strong>; sólo cambió el módulo donde te atenderán.
+@endsection
+
+@section('contenido')
+    @include('emails.partials._cita_detalle', ['moduloAnterior' => $moduloAnterior])
+    <tr><td style="padding:0 0 8px; font-size:0; line-height:0;">&nbsp;</td></tr>
+@endsection
