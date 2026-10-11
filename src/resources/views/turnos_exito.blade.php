@@ -201,7 +201,7 @@
 
         .cx-boleto {
             display: grid;
-            grid-template-columns: 170px minmax(0, 1fr);
+            grid-template-columns: 210px minmax(0, 1fr);
             background: #fff;
             border-radius: 16px;
             box-shadow: 0 6px 24px rgba(46, 60, 61, .1);
@@ -214,7 +214,7 @@
             border-right: 3px dashed rgba(255, 255, 255, .45);
         }
         .cx-boleto__folio .cx-etiqueta { color: rgba(255, 255, 255, .8); }
-        .cx-folio { font-size: 34px; font-weight: 800; letter-spacing: .04em; font-variant-numeric: tabular-nums; }
+        .cx-folio { font-size: 25px; font-weight: 800; letter-spacing: .03em; font-variant-numeric: tabular-nums; white-space: nowrap; }
         .cx-boleto__datos {
             display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 16px 20px; padding: 20px 22px;
@@ -252,7 +252,7 @@
         @media (max-width: 576px) {
             .cx-boleto { grid-template-columns: 1fr; }
             .cx-boleto__folio { flex-direction: row; gap: 12px; border-right: 0; border-bottom: 3px dashed rgba(255, 255, 255, .45); padding: 14px; }
-            .cx-folio { font-size: 28px; }
+            .cx-folio { font-size: 24px; }
             .cx-boleto__datos { grid-template-columns: 1fr; padding: 18px; }
             .cx-acciones .cx-btn { flex: 1 1 100%; justify-content: center; }
         }
@@ -297,7 +297,11 @@
         $diaSemana = $fechaCita ? Str::ucfirst($fechaCita->locale('es')->isoFormat('dddd')) : '';
         $fechaLarga = $fechaCita ? $fechaCita->locale('es')->isoFormat('D [de] MMMM [de] YYYY') : session('fecha');
         $hora = session('hora');
-        $folio = str_pad((string) session('folio'), 5, '0', STR_PAD_LEFT);
+        $folio = (string) session('folio');
+        // Folio nuevo (MOR-S26-0142) tal cual; uno numérico viejo, con ceros.
+        if (ctype_digit($folio)) {
+            $folio = str_pad($folio, 5, '0', STR_PAD_LEFT);
+        }
         $direccion = session('direccion');
         // La dirección viene en mayúsculas; se pasa a formato normal cuidando abreviaturas y preposiciones.
         $direccionLegible = $direccion

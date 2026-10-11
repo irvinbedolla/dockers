@@ -32,7 +32,7 @@
                                     <tbody>
                                         @foreach($recepciones as $recepcion)
                                             <tr>
-                                                <td>{{ str_pad($recepcion->consecutivo, 5, '0', STR_PAD_LEFT) }}</td>
+                                                <td>{{ \App\Support\FolioCita::mostrar($recepcion) }}</td>
                                                 <td>{{$recepcion->hora->format('H:i')}}</td>
                                                 <td>{{$recepcion->solicitante}}</td>
                                                 <td>{{$recepcion->tipo_caso}}</td>

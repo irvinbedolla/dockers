@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\FolioCita;
 use App\Support\Recepcion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -57,6 +58,12 @@ class TurnosHistorialController extends Controller
             $texto = trim($filtros['q']);
             $base->where(function ($q) use ($texto) {
                 $q->where('r.solicitante', 'like', '%'.$texto.'%');
+                if ($folio = FolioCita::normalizar($texto)) {
+                    $q->orWhere('r.codigo', $folio);
+                } elseif (preg_match('/^[A-Za-z]{3}-[A-Za-z0-9-]*$/', $texto)) {
+                    // Parte del folio, p. ej. "MOR-S26": todas las de ese prefijo.
+                    $q->orWhere('r.codigo', 'like', strtoupper($texto).'%');
+                }
                 if (ctype_digit($texto)) {
                     $q->orWhere('r.consecutivo', (int) $texto);
                 }
@@ -83,7 +90,7 @@ class TurnosHistorialController extends Controller
 
         $turnos = $consulta
             ->select([
-                'r.id', 'r.consecutivo', 'r.solicitante', 'r.tipo', 'r.fecha', 'r.hora',
+                'r.id', 'r.consecutivo', 'r.codigo', 'r.solicitante', 'r.tipo', 'r.fecha', 'r.hora',
                 'r.hora_fin', 'r.estatus', 'r.exepcion', 'r.lugar_auxiliar', 'r.delegacion',
                 'r.correo', 'r.telefono', 'r.origen', 'u.name as auxiliar',
             ])

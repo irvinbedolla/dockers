@@ -208,7 +208,7 @@
                         <label for="esCodigo">¿No lee? Escribe el folio o usa el lector</label>
                         <div class="input-group">
                             <input type="text" class="form-control" id="esCodigo" maxlength="500"
-                                   placeholder="Folio, por ejemplo 00012" inputmode="numeric">
+                                   placeholder="Folio, por ejemplo MOR-S26-0142" autocapitalize="characters">
                             <button class="btn btn-outline-secondary" type="submit">Validar</button>
                         </div>
                     </form>

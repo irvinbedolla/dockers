@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Recepcion as Cita;
+use App\Support\FolioCita;
 use App\Support\Recepcion;
 use App\Support\ValidadorCita;
 use Illuminate\Http\JsonResponse;
@@ -46,8 +47,8 @@ class EscanerCitasController extends Controller
             return response()->json([
                 'resultado' => 'no_encontrada',
                 'titulo'    => 'No se encontró la cita',
-                'mensaje'   => ctype_digit($codigo)
-                    ? "No hay una cita con el folio {$codigo} en ".$this->textoSedes($sedes).'.'
+                'mensaje'   => ctype_digit($codigo) || FolioCita::normalizar($codigo)
+                    ? 'No hay una cita con el folio '.(FolioCita::normalizar($codigo) ?? $codigo).' en '.$this->textoSedes($sedes).'.'
                     : 'El código no es un QR de cita de SICONCILIO.',
             ]);
         }
@@ -86,8 +87,13 @@ class EscanerCitasController extends Controller
             return Cita::find((int) $m[1]);
         }
 
+        // Folio nuevo: MOR-S26-0142 (también sin guiones o en minúsculas).
+        if ($folio = FolioCita::normalizar($codigo)) {
+            return Cita::where('codigo', $folio)->first();
+        }
+
         if (ctype_digit($codigo)) {
-            // El folio se repite entre sedes y con los años: se busca en las
+            // Folio anterior al cambio: se repite entre sedes y con los años: se busca en las
             // sedes de quien escanea, primero la de hoy y si no la más reciente.
             return Cita::where('consecutivo', (int) $codigo)
                 ->whereIn('delegacion', $sedes)
@@ -151,7 +157,7 @@ class EscanerCitasController extends Controller
             : null;
 
         return [
-            'folio'       => str_pad($cita->consecutivo, 5, '0', STR_PAD_LEFT),
+            'folio'       => $cita->folio_cita,
             'solicitante' => $cita->solicitante,
             'tipo'        => $cita->tipo,
             'fecha'       => Str::ucfirst($cita->fecha->locale('es')->isoFormat('ddd D MMM YYYY')),

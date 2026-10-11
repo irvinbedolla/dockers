@@ -26,7 +26,7 @@
                                     <tbody>
                                         @foreach($misturnos as $turnos)
                                             <tr>
-                                                <td class="text-center">{{str_pad($turnos->consecutivo, 5, '0', STR_PAD_LEFT)}}</td>
+                                                <td class="text-center">{{ \App\Support\FolioCita::mostrar($turnos) }}</td>
                                                 <td class="text-center">{{$turnos->hora->format('H:i')}}</td>
                                                 <td class="text-center">@if($turnos->exepcion === 'Si')Caso de excepcion/@endif{{$turnos->tipo}}</td>
                                                 <td class="text-center">{{$turnos->solicitante}}</td>

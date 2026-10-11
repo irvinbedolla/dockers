@@ -8,7 +8,7 @@
     <h2 style="color: #496163;">Hola, {{ $cita->solicitante }}</h2>
     <p>
         Tu cita de <strong>{{ $cita->tipo }}</strong> con folio
-        <strong>{{ str_pad($cita->consecutivo, 5, '0', STR_PAD_LEFT) }}</strong>
+        <strong>{{ $cita->folio_cita }}</strong>
         sigue el <strong>{{ \Illuminate\Support\Str::ucfirst($cita->fecha->locale('es')->isoFormat('dddd D [de] MMMM')) }}</strong>
         a las <strong>{{ $cita->hora->format('H:i') }}</strong> en la sede {{ $cita->delegacion }}.
     </p>

@@ -62,7 +62,7 @@ class ModulosController extends Controller
             ->where('r.fecha', $fecha)
             ->orderBy('r.hora')
             ->get([
-                'r.id', 'r.consecutivo', 'r.solicitante', 'r.tipo', 'r.fecha', 'r.hora', 'r.hora_fin',
+                'r.id', 'r.consecutivo', 'r.codigo', 'r.solicitante', 'r.tipo', 'r.fecha', 'r.hora', 'r.hora_fin',
                 'r.estatus', 'r.exepcion', 'r.lugar_auxiliar', 'r.modulo_id', 'r.auxiliar', 'r.origen',
                 'r.correo', 'r.telefono', 'r.edad', 'r.sexo', 'r.vulnerables', 'r.tipo_caso',
                 'r.conflicto', 'r.observaciones', 'r.created_at', 'mu.nombre as municipio',
@@ -119,7 +119,7 @@ class ModulosController extends Controller
                     'recibe'   => $m->recibe($c->tipo) || $m->recibeDeRespaldo($c->tipo),
                     'estado'   => $estado,
                     'choque'   => $estado === 'ocupado'
-                        ? str_pad($choque->consecutivo, 5, '0', STR_PAD_LEFT).' · '.$choque->solicitante
+                        ? \App\Support\FolioCita::mostrar($choque).' · '.$choque->solicitante
                         : null,
                 ];
             })->values();
@@ -242,7 +242,7 @@ class ModulosController extends Controller
 
         if (! $error && ($choque = AsignadorModulos::choque($destino, $fecha, $hora, $cita->id))) {
             $error = "{$destino->nombre} ya tiene a las ".substr($hora, 0, 5).' la cita '
-                .str_pad($choque->consecutivo, 5, '0', STR_PAD_LEFT)." de {$choque->solicitante}.";
+                .\App\Support\FolioCita::mostrar($choque)." de {$choque->solicitante}.";
         }
 
         if ($error) {
@@ -260,7 +260,7 @@ class ModulosController extends Controller
             'cita' => $cita->id, 'de' => $antes, 'a' => $destino->nombre, 'por' => $request->user()->id,
         ]);
 
-        $aviso = 'La cita '.str_pad($cita->consecutivo, 5, '0', STR_PAD_LEFT)
+        $aviso = 'La cita '.$cita->folio_cita
             ." pasó de {$antes} a {$destino->nombre} ({$destino->persona->name}).";
 
         // En línea: se le reenvía el acuse con el módulo nuevo.

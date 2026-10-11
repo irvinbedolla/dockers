@@ -327,11 +327,11 @@ class HomeController extends Controller
             $variables = [
                 'Nombre'           => $data["nombre"],
                 'email'            => $data["email"],
-                'NumFolio'         => $numero_consecutivo,
+                'NumFolio'         => $recepcion->folio_cita,
                 'tipo'             => $tipo
             ];
             Mail::to($data["email"])->send(new SolicitudMail($pdfCitas, $variables));
-            return redirect()->route('citas_exito')->with(['success' => true,'id'=>$recepcion->id,'folio' => $recepcion->consecutivo,'fecha' => $fecha,'hora' => $hora,'delegacion' => $recepcion->delegacion, 'modulo' => $recepcion->lugar_auxiliar, 'direccion' => $direccion]);
+            return redirect()->route('citas_exito')->with(['success' => true,'id'=>$recepcion->id,'folio' => $recepcion->folio_cita,'fecha' => $fecha,'hora' => $hora,'delegacion' => $recepcion->delegacion, 'modulo' => $recepcion->lugar_auxiliar, 'direccion' => $direccion]);
         
         
     }

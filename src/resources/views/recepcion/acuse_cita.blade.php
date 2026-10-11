@@ -51,12 +51,13 @@
             text-align: center;
         }
 
+        /* Celda del folio en el membrete: de 155px a 260px. */
         .campo-folio {
             position: absolute;
             top: 390px;
-            left: 170px;
-            width: 80px;
-            font-size: 13px;
+            left: 157px;
+            width: 101px;
+            font-size: 12px;
             font-weight: bold;
             text-align: center;
         }
@@ -79,12 +80,13 @@
             text-align: center;
         }
 
+        /* Celda de la fecha: de 467px a 566px. */
         .campo-fecha {
             position: absolute;
             top: 390px;
-            left: 480px;
-            width: 80px;
-            font-size: 14px;
+            left: 469px;
+            width: 95px;
+            font-size: 13px;
             text-align: center;
         }
 
@@ -122,7 +124,7 @@
         </div>
 
         <div class="campo-folio">
-            {{ str_pad($cita->consecutivo, 5, '0', STR_PAD_LEFT) }}
+            {{ $cita->folio_cita }}
         </div>
 
         <div class="campo-tramite">

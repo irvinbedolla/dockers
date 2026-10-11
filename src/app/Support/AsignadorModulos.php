@@ -80,6 +80,6 @@ class AsignadorModulos
                     $q->orWhere('auxiliar', $modulo->user_id);
                 }
             })
-            ->first(['id', 'consecutivo', 'solicitante', 'hora', 'delegacion']);
+            ->first(['id', 'consecutivo', 'codigo', 'solicitante', 'hora', 'delegacion']);
     }
 }
