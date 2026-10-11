@@ -15,9 +15,14 @@
         | roles  : roles que ven el ítem
         | id     : opcional, id del <a> (lo usa menu.js para el badge)
         | badge  : opcional, id del <span> del contador
+        | especialidad : opcional, permiso que necesita quien entra SÓLO como
+        |          Auxiliar (ver App\Support\Especialidades). Así el de
+        |          ratificaciones no ve Solicitudes ni el de solicitudes ve
+        |          Ratificaciones; los demás roles de la lista no cambian.
         */
 
         $userRoles = auth()->user()->getRoleNames()->all();
+        $soloAuxiliar = \App\Support\Especialidades::soloAuxiliar(auth()->user());
 
         // Los tres roles de recepción. Sus nombres viven en un solo lugar
         // (App\Support\Recepcion) para que el menú y las rutas no se separen.
@@ -27,7 +32,7 @@
             // 'roles' => '*' significa que lo ve cualquiera que haya entrado.
             ['route' => 'inicio',                     'label' => 'Inicio',                  'icon' => 'bi bi-house-door',          'roles' => '*'],
             ['route' => 'configuracion',              'label' => 'Administración',          'icon' => 'bi bi-lock-fill',           'roles' => ['Super Usuario', 'Delegado', 'Enlace']],
-            ['route' => 'agenda',                     'label' => 'Agenda',                  'icon' => 'bi bi-calendar-week',       'roles' => ['Super Usuario', 'Administrador', 'Auxiliar', 'Orientadores', 'Conciliador', 'Notificador', 'Delegado', 'Excepcion',  'Cumplimientos', 'Directivo','Turnos', ...$recepcion]],
+            ['route' => 'agenda',                     'label' => 'Agenda',                  'icon' => 'bi bi-calendar-week',       'roles' => ['Super Usuario', 'Administrador', 'Auxiliar', 'Orientador', 'Conciliador', 'Notificador', 'Delegado', 'Excepcion',  'Cumplimientos', 'Directivo','Turnos', ...$recepcion]],
             ['route' => 'todas_notificaciones',       'label' => 'Búsqueda Notificaciones', 'icon' => 'bi bi-search',              'roles' => ['Super Usuario', 'Administrador','Directivo', 'Delegado']],
             ['route' => 'capacitaciones',             'label' => 'Capacitaciones',          'icon' => 'bi bi-backpack4-fill',      'roles' => ['Capacitacion Admin']],
             ['route' => 'subir_doc_masivo',           'label' => 'Carga Masiva',            'icon' => 'bi bi-bank',                'roles' => []],
@@ -51,14 +56,14 @@
             //['route' => 'seer',                       'label' => 'Por Notificar',           'icon' => 'bi bi-envelope-paper',      'roles' => ['Notificador']],
             ['url'   => '#',                          'label' => 'Reporte',                 'icon' => 'bi bi-clipboard-data-fill', 'roles' => ['Excepcion']],
             
-            ['route' => 'solicitudes_index',          'label' => 'Solicitudes',             'icon' => 'bi bi-file-earmark-text-fill', 'roles' => ['Super Usuario', 'Administrador', 'Orientador', 'Auxiliar', 'Conciliador',  'Cumplimientos', 'Directivo','Excepcion', 'Delegado']],
+            ['route' => 'solicitudes_index',          'label' => 'Solicitudes',             'icon' => 'bi bi-file-earmark-text-fill', 'roles' => ['Super Usuario', 'Administrador', 'Orientador', 'Auxiliar', 'Conciliador',  'Cumplimientos', 'Directivo','Excepcion', 'Delegado'], 'especialidad' => 'solicitudes_revisar'],
             ['route' => 'solicitudes_pendientes',     'label' => 'Solicitudes',             'icon' => 'bi bi-file-earmark-text-fill', 'roles' => ['Administrador Solicitante']],
-            ['route' => 'index_ratificacion',         'label' => 'Ratificaciones',          'icon' => 'bi bi-bank',                'roles' => ['Super Usuario', 'Administrador', 'Auxiliar', 'Excepcion','Directivo', 'Delegado', 'Conciliador']],
+            ['route' => 'index_ratificacion',         'label' => 'Ratificaciones',          'icon' => 'bi bi-bank',                'roles' => ['Super Usuario', 'Administrador', 'Auxiliar', 'Excepcion','Directivo', 'Delegado', 'Conciliador'], 'especialidad' => 'ratificaciones_consultar'],
             ['route' => 'Ratificacion',               'label' => 'Ratificaciones',          'icon' => 'bi bi-bank',                'roles' => ['Administrador Solicitante']],
-            ['route' => 'audiencias.cumplimiento',    'label' => 'Cumplimientos',           'icon' => 'bi bi-cash-coin',           'roles' => ['Super Usuario', 'Auxiliar', 'Cumplimientos', 'Directivo', 'Delegado', 'Orientador']],
+            ['route' => 'audiencias.cumplimiento',    'label' => 'Cumplimientos',           'icon' => 'bi bi-cash-coin',           'roles' => ['Super Usuario', 'Auxiliar', 'Cumplimientos', 'Directivo', 'Delegado', 'Orientador'], 'especialidad' => 'cumplimientos_consultar'],
             ['route' => 'todas_audiencias',           'label' => 'Audiencias',              'icon' => 'bi bi-people-fill',         'roles' => ['Super Usuario', 'Administrador', 'Conciliador', 'Directivo','Excepcion', 'Delegado']],
             ['route' => 'index_notificaciones',       'label' => 'Notificaciones',          'icon' => 'bi bi-envelope',            'roles' => ['Super Usuario', 'Enlace', 'Directivo','Excepcion','Notificador', 'Delegado']],
-            ['route' => 'create_asesoria',            'label' => 'Asesorías',               'icon' => 'bi bi-person-check-fill',   'roles' => ['Super Usuario', 'Orientador', 'Delegado']],
+            ['route' => 'create_asesoria',            'label' => 'Asesorías',               'icon' => 'bi bi-person-check-fill',   'roles' => ['Super Usuario', 'Orientador', 'Delegado', 'Auxiliar'], 'especialidad' => 'asesoria_crear'],
             ['route' => 'seer.estadistica',           'label' => 'Estadísticas',            'icon' => 'bi bi-clipboard-data-fill', 'roles' => ['Super Usuario', 'Auxiliar', 'Orientador', 'Administrador', 'Enlace', 'Estadistica', 'Directivo', 'Notificador', 'Delegado','Excepcion', 'Cumplimientos']],
             ['route' => 'reportes_conciliador',       'label' => 'Estadísticas',            'icon' => 'bi bi-clipboard-data-fill', 'roles' => ['Conciliador']],
             ['route' => 'misestadisticas',            'label' => 'Estadísticas',            'icon' => 'bi bi-clipboard-data-fill', 'roles' => ['Cumplimientos']],
@@ -83,6 +88,11 @@
             $visible = $item['roles'] === '*'
                 ? true
                 : (bool) array_intersect($item['roles'], $userRoles);
+
+            // Quien entra sólo como Auxiliar ve lo de su especialidad.
+            if ($visible && $soloAuxiliar && isset($item['especialidad'])) {
+                $visible = auth()->user()->can($item['especialidad']);
+            }
 
             // Si la ruta no existe, se omite en lugar de reventar toda la página.
             $destino = null;

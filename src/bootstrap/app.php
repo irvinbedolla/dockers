@@ -50,6 +50,9 @@ $app->booted(function () use ($app) {
 
     // 2. Registrar el alias para tu nueva Content Security Policy (CSP)
     $router->aliasMiddleware('csp', \App\Http\Middleware\ContentSecurityPolicy::class);
+
+    // Limita a cada Auxiliar a las pantallas de su especialidad.
+    $router->aliasMiddleware('especialidad', \App\Http\Middleware\EspecialidadAuxiliar::class);
     
     // 3. Forzar la inyección global del Middleware CSP al grupo de rutas 'web'
     $router->pushMiddlewareToGroup('web', \App\Http\Middleware\ContentSecurityPolicy::class);

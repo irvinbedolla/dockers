@@ -2055,9 +2055,8 @@ class TurnosController extends Controller
         $id = auth()->user()->id;
         $user = User::find($id);
 
-        $auxiliares = User::whereHas('roles', function ($query) {
-            return $query->where('name', '=', 'Auxiliar');
-        })
+        // Sólo los auxiliares con esta especialidad (App\Support\Especialidades).
+        $auxiliares = User::role('Auxiliar')->permission('ratificaciones_crear')
         ->where('delegacion', $user["delegacion"])
         ->get();
         $notificadores = User::whereHas('roles', function ($query) {
