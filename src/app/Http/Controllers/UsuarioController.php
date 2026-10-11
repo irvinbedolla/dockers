@@ -63,8 +63,8 @@ class UsuarioController extends Controller
     {
         return view('usuarios.crear', [
             'user'      => new User(),
-            'roles'     => $this->rolesAsignables(),
-            'rolActual' => null,
+            'roles'         => $this->rolesAsignables(),
+            'rolesActuales' => [],
             'soyYo'     => false,
             'sedes'    => self::SEDES,
             'sistemas' => self::SISTEMAS,
@@ -84,7 +84,8 @@ class UsuarioController extends Controller
             'email'       => ['required', 'email', 'max:60', 'unique:users,email'],
             'curp'        => ['nullable', 'regex:/^[A-Z]{4}\d{6}[HMX][A-Z]{5}[A-Z0-9]\d$/', 'unique:users,profile_photo_path'],
             'sexo'        => ['nullable', 'in:H,M,NC'],
-            'roles'       => ['required', Rule::in($this->rolesAsignables())],
+            'roles'       => ['required', 'array', 'min:1'],
+            'roles.*'     => [Rule::in($this->rolesAsignables())],
             'delegacion'  => ['required', Rule::in(self::SEDES)],
             'type'        => ['required', Rule::in(array_keys(self::SISTEMAS))],
             'password'    => ['required', 'string', 'min:8', 'max:72', 'same:confirm-password'],
@@ -114,13 +115,13 @@ class UsuarioController extends Controller
                 'foto_perfil'        => $foto,
             ]);
             $user->forceFill(['estatus' => $request->boolean('activo', true) ? 'Activo' : 'Inactivo'])->save();
-            $user->assignRole($datos['roles']);
+            $user->syncRoles($this->conRolBase($datos['roles']));
 
             return $user;
         });
 
         return redirect()->route('usuarios')
-            ->with('success', "Se creó la cuenta de {$user->name} ({$datos['roles']}, {$user->delegacion}).");
+            ->with('success', "Se creó la cuenta de {$user->name} (".implode(', ', $this->conRolBase($datos['roles'])).", {$user->delegacion}).");
     }
 
     public function show($id)
@@ -147,15 +148,15 @@ class UsuarioController extends Controller
         $user = User::with('roles:id,name')->findOrFail($id);
         $this->autorizar($user);
 
-        $rolActual = $user->roles->pluck('name')->first();
+        $rolesActuales = $user->roles->pluck('name')->all();
         // Si tiene un rol que no aparece en la lista (p. ej. Solicitante), se
-        // conserva como opción para no cambiárselo sin querer.
-        $roles = collect($this->rolesAsignables())->when($rolActual, fn ($c) => $c->push($rolActual))->unique()->sort()->values()->all();
+        // conserva como opción para no quitárselo sin querer.
+        $roles = collect($this->rolesAsignables())->merge($rolesActuales)->unique()->sort()->values()->all();
 
         return view('usuarios.editar', [
             'user'      => $user,
             'roles'     => $roles,
-            'rolActual' => $rolActual,
+            'rolesActuales' => $rolesActuales,
             'sedes'     => self::SEDES,
             'sistemas'  => self::SISTEMAS,
             'soyYo'     => (int) $user->id === (int) auth()->id(),
@@ -181,7 +182,8 @@ class UsuarioController extends Controller
             'email'       => ['required', 'email', 'max:60', Rule::unique('users', 'email')->ignore($user->id)],
             'curp'        => ['nullable', 'regex:/^[A-Z]{4}\d{6}[HMX][A-Z]{5}[A-Z0-9]\d$/', Rule::unique('users', 'profile_photo_path')->ignore($user->id)],
             'sexo'        => ['nullable', 'in:H,M,NC'],
-            'roles'       => ['required', Rule::in($permitidos)],
+            'roles'       => ['required', 'array', 'min:1'],
+            'roles.*'     => [Rule::in($permitidos)],
             'delegacion'  => ['required', Rule::in(self::SEDES)],
             'type'        => ['required', Rule::in(array_keys(self::SISTEMAS))],
             'password'    => ['nullable', 'string', 'min:8', 'max:72', 'same:confirm-password'],
@@ -194,7 +196,7 @@ class UsuarioController extends Controller
             return back()->withInput($request->except('password', 'confirm-password'))
                 ->withErrors(['activo' => 'No puedes desactivar tu propia cuenta.']);
         }
-        if ($soyYo && $user->hasRole('Super Usuario') && $datos['roles'] !== 'Super Usuario') {
+        if ($soyYo && $user->hasRole('Super Usuario') && ! in_array('Super Usuario', $datos['roles'], true)) {
             return back()->withInput($request->except('password', 'confirm-password'))
                 ->withErrors(['roles' => 'No puedes quitarte el rol de Super Usuario a ti mismo.']);
         }
@@ -241,10 +243,24 @@ class UsuarioController extends Controller
             }
             // syncRoles quita sólo los roles de este modelo y limpia la caché
             // de permisos (el DELETE a mano borraba por model_id sin tipo).
-            $user->syncRoles([$datos['roles']]);
+            $user->syncRoles($this->conRolBase($datos['roles']));
         });
 
         return redirect()->route('usuarios')->with('success', "Se guardaron los cambios de {$user->name}.");
+    }
+
+    /**
+     * Una especialidad de Auxiliar no sirve sola: lleva el rol base
+     * "Auxiliar", que es el que el resto del sistema busca por nombre.
+     */
+    private function conRolBase(array $roles): array
+    {
+        $roles = array_values(array_unique($roles));
+        if (array_intersect($roles, \App\Support\Especialidades::ROLES) && ! in_array(\App\Support\Especialidades::BASE, $roles, true)) {
+            $roles[] = \App\Support\Especialidades::BASE;
+        }
+
+        return $roles;
     }
 
     /** Cambio rápido de contraseña desde el listado (modal). */
@@ -307,8 +323,9 @@ class UsuarioController extends Controller
             'email.max'           => 'El correo no puede pasar de 60 caracteres.',
             'curp.regex'          => 'La CURP no tiene un formato válido (18 caracteres).',
             'curp.unique'         => 'Ya existe una cuenta con esa CURP.',
-            'roles.required'      => 'Elige el rol.',
-            'roles.in'            => 'No puedes asignar ese rol.',
+            'roles.required'      => 'Elige al menos un rol.',
+            'roles.min'           => 'Elige al menos un rol.',
+            'roles.*.in'          => 'No puedes asignar ese rol.',
             'delegacion.required' => 'Elige la sede.',
             'type.required'       => 'Elige a qué sistema entra.',
             'password.required'   => 'Escribe una contraseña.',

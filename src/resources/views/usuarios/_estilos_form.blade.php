@@ -19,4 +19,14 @@
         .uf-meta { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; color: var(--tn-tenue); margin-top: 2px; }
         .uf-meta strong { color: var(--tn-suave); font-weight: 600; }
         @media (max-width: 576px) { .uf-seccion__ayuda { margin-left: 0; } .uf-pie .btn { flex: 1 1 100%; } }
+        .uf-roles { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 12px; }
+        .uf-roles.is-invalid .uf-roles__grupo { border-color: #DC3545; }
+        .uf-roles__grupo { border: 1px solid var(--tn-borde); border-radius: 10px; padding: 10px 14px 8px; margin: 0; }
+        .uf-roles__grupo legend { float: none; width: auto; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--tn-tenue); padding: 0 6px; margin: 0; }
+        .uf-roles__lista { columns: 2; column-gap: 16px; }
+        .uf-roles__lista .form-check { break-inside: avoid; }
+        .uf-roles__ayuda { font-size: 12px; color: var(--tn-tenue); margin: 2px 0 6px; }
+        .uf-roles__aviso { font-size: 12px; color: #8A6A12; background: #FBF4E1; border-radius: 6px; padding: 4px 8px; margin-top: 6px; }
+        .uf .form-check-label { font-weight: 500; color: var(--tn-tinta); font-size: 13.5px; }
+        @media (max-width: 768px) { .uf-roles { grid-template-columns: 1fr; } .uf-roles__lista { columns: 1; } }
     </style>

@@ -1,6 +1,6 @@
 {{--
     Campos del alta y de la edición de usuarios (crear.blade.php y
-    editar.blade.php). Espera: $user (nuevo o existente), $roles, $rolActual,
+    editar.blade.php). Espera: $user (nuevo o existente), $roles, $rolesActuales,
     $sedes, $sistemas y $soyYo. La CURP vive en users.profile_photo_path.
 --}}
 @php
@@ -64,15 +64,53 @@
     <h5 class="uf-seccion__titulo"><span class="uf-seccion__num">2</span> Acceso</h5>
     <p class="uf-seccion__ayuda">El rol decide qué menús y permisos tiene; la sede, qué información ve.</p>
     <div class="row g-3">
-        <div class="col-md-6">
-            <label for="roles">Rol <span class="req">*</span></label>
-            <select name="roles" id="roles" class="form-select {{ $campo('roles') }}" required>
-                <option value="">Elige un rol</option>
-                @foreach ($roles as $rol)
-                    <option value="{{ $rol }}" @selected(old('roles', $rolActual) === $rol)>{{ $rol }}</option>
-                @endforeach
-            </select>
-            <div class="invalid-feedback">@error('roles'){{ $message }}@else Elige el rol.@enderror</div>
+        <div class="col-12">
+            <label>Roles <span class="req">*</span></label>
+            @php
+                $marcados = (array) old('roles', $rolesActuales);
+                $esp = \App\Support\Especialidades::class;
+                $familiaAux = array_merge([$esp::BASE], $esp::ROLES);
+                $otros = array_values(array_diff($roles, $familiaAux));
+            @endphp
+            <div class="uf-roles {{ $errors->has('roles') || $errors->has('roles.*') ? 'is-invalid' : '' }}" id="ufRoles">
+                @if (in_array($esp::BASE, $roles, true))
+                    <fieldset class="uf-roles__grupo">
+                        <legend>Auxiliar de Conciliador</legend>
+                        <p class="uf-roles__ayuda">Marca lo que atiende. Cada especialidad incluye el rol Auxiliar.</p>
+                        @foreach ($esp::ROLES as $rol)
+                            @if (in_array($rol, $roles, true))
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="roles[]" value="{{ $rol }}" id="rol-{{ \Illuminate\Support\Str::slug($rol) }}"
+                                           data-especialidad @checked(in_array($rol, $marcados, true))>
+                                    <label class="form-check-label" for="rol-{{ \Illuminate\Support\Str::slug($rol) }}">{{ $esp::ETIQUETAS[$rol] }}</label>
+                                </div>
+                            @endif
+                        @endforeach
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="roles[]" value="{{ $esp::BASE }}" id="rol-auxiliar"
+                                   data-auxiliar-base @checked(in_array($esp::BASE, $marcados, true))>
+                            <label class="form-check-label" for="rol-auxiliar">Auxiliar (base)</label>
+                        </div>
+                        <div class="uf-roles__aviso" id="ufAvisoAuxiliar" hidden>Sin especialidad sólo podrá consultar: no verá Solicitudes, Ratificaciones ni Cumplimientos.</div>
+                    </fieldset>
+                @endif
+                <fieldset class="uf-roles__grupo">
+                    <legend>Otros roles</legend>
+                    <div class="uf-roles__lista">
+                        @foreach ($otros as $rol)
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="roles[]" value="{{ $rol }}" id="rol-{{ \Illuminate\Support\Str::slug($rol) }}"
+                                       @checked(in_array($rol, $marcados, true))>
+                                <label class="form-check-label" for="rol-{{ \Illuminate\Support\Str::slug($rol) }}">{{ $rol }}</label>
+                            </div>
+                        @endforeach
+                    </div>
+                </fieldset>
+            </div>
+            <div class="invalid-feedback d-block" @if (! $errors->has('roles') && ! $errors->has('roles.*')) hidden @endif id="ufRolesError">
+                {{ $errors->first('roles') ?: $errors->first('roles.*') ?: 'Elige al menos un rol.' }}
+            </div>
+            <div class="form-text">Puede tener varios: por ejemplo, Recepción General y Auxiliar de Solicitudes en una sede chica.</div>
         </div>
         <div class="col-md-6">
             <label for="delegacion">Sede <span class="req">*</span></label>
@@ -163,6 +201,38 @@
         conf.addEventListener('input', revisarConfirmacion);
 
         curp.addEventListener('input', function () { curp.value = curp.value.toUpperCase().replace(/\s/g, ''); });
+
+        // Roles: una especialidad marca el Auxiliar base; quitar el base
+        // quita las especialidades. Al menos un rol para poder guardar.
+        var cajaRoles = document.getElementById('ufRoles');
+        var base = cajaRoles.querySelector('[data-auxiliar-base]');
+        var especialidades = Array.prototype.slice.call(cajaRoles.querySelectorAll('[data-especialidad]'));
+        var avisoAux = document.getElementById('ufAvisoAuxiliar');
+        var errorRoles = document.getElementById('ufRolesError');
+        function revisarRoles() {
+            var alguna = especialidades.some(function (c) { return c.checked; });
+            if (base) { avisoAux.hidden = !(base.checked && !alguna); }
+            var hay = cajaRoles.querySelectorAll('input[name="roles[]"]:checked').length > 0;
+            cajaRoles.classList.toggle('is-invalid', !hay && cajaRoles.dataset.tocado === '1');
+            errorRoles.hidden = hay || cajaRoles.dataset.tocado !== '1';
+            return hay;
+        }
+        especialidades.forEach(function (c) {
+            c.addEventListener('change', function () { if (c.checked && base) { base.checked = true; } cajaRoles.dataset.tocado = '1'; revisarRoles(); });
+        });
+        if (base) {
+            base.addEventListener('change', function () {
+                if (!base.checked) { especialidades.forEach(function (c) { c.checked = false; }); }
+                cajaRoles.dataset.tocado = '1'; revisarRoles();
+            });
+        }
+        cajaRoles.addEventListener('change', function () { cajaRoles.dataset.tocado = '1'; revisarRoles(); });
+        var formulario = cajaRoles.closest('form');
+        formulario.addEventListener('submit', function (e) {
+            cajaRoles.dataset.tocado = '1';
+            if (!revisarRoles()) { e.preventDefault(); e.stopImmediatePropagation(); cajaRoles.scrollIntoView({ block: 'center' }); }
+        }, true);
+        revisarRoles();
 
         document.getElementById('verPassword').addEventListener('click', function () {
             var ver = pass.type === 'password';
