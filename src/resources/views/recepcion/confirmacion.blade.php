@@ -74,13 +74,13 @@
                     <div class="card-body p-4"> 
                         @if($bandera === '1')
                             <div class="alert alert-success text-center mb-4 border-0 shadow-sm" role="alert" style="background-color: #d4edda; color: #155724;">
-                                <i class="bi bi-bookmark-check"></i> ¡Asistencia de folio: <strong>#{{ $cita->consecutivo }}</strong> confirmada!
+                                <i class="bi bi-bookmark-check"></i> ¡Asistencia de folio: <strong>{{ \App\Support\FolioCita::mostrar($cita) }}</strong> confirmada!
                             </div>
 
                             <h5 class="text-guinda border-bottom pb-2 mb-3">Detalles de la Cita</h5>
                             
                             <div class="px-3" style="font-size: 1.05rem; line-height: 1.8;">
-                                <p class="mb-2"><strong>Folio:</strong> #{{ $cita->consecutivo }}</p>
+                                <p class="mb-2"><strong>Folio:</strong> {{ \App\Support\FolioCita::mostrar($cita) }}</p>
                                 <p class="mb-2"><strong>Nombre:</strong> {{ $cita->solicitante }}</p>
                                 <p class="mb-2"><strong>Fecha y Hora:</strong> {{ $fecha_hora }}</p>
                                 <p class="mb-2"><strong>Estado: </strong>{{ mb_strtoupper($cita->estatus, 'UTF-8') }}</p>

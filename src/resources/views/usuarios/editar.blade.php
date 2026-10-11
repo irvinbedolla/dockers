@@ -1,164 +1,84 @@
 @extends('layouts.app')
-@section('title', 'Editar Usuario')
+@section('title', 'Editar usuario')
+
+{{--
+    Edición de personal. Guarda UsuarioController@update. Comparte campos con
+    el alta (usuarios._formulario). La contraseña es opcional aquí.
+--}}
+
+@php
+    use App\Support\FechaLegible;
+    use Illuminate\Support\Str;
+
+    $bonito = Str::title(mb_strtolower(preg_replace('/\s+/', ' ', trim((string) $user->name))));
+    $partes = preg_split('/\s+/', trim((string) $user->name));
+    $iniciales = mb_strtoupper(mb_substr($partes[0] ?? '', 0, 1).mb_substr($partes[1] ?? '', 0, 1));
+@endphp
+
+@section('page_css')
+    @include('turnos._estilos')
+    @include('usuarios._estilos_form')
+@endsection
 
 @section('content')
-    <section class="section">
-        <div class="section-header">
-            <h3 class="page__heading">Editar Usuario</h3>
-        </div>
-        <div class="section-body">
-            <div class="row">
-                <div class="col-lg-12">
-                    <div class="card">
-                        <div class="card-body">
-                            <h3 class="text-center">Editar Usuario</h3>
-                            
-                            <!--Se realiza la validación de campos para ver si dejó alguno vacío-->
-                            @if ($errors->any())
-                                {{-- alert-dark sobre el fondo claro de la tarjeta pasaba
-                                     desapercibida, y el boton de cerrar era de Bootstrap 4
-                                     (class="close", data-dismiss), muerto en Bootstrap 5. --}}
-                                <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                                    <strong>¡Revise los campos!</strong>
-                                    <ul class="mb-0">
-                                        @foreach ($errors->all() as $error)
-                                            <li>{{ $error }}</li>
-                                        @endforeach
-                                    </ul>
-                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
-                                </div>
-
+    <section class="section tn">
+        <div class="section-header mb-3">
+            <div class="w-100">
+                <a href="{{ route('usuarios') }}" class="text-decoration-none small" style="color: var(--tn-verde-claro);">
+                    <i class="bi bi-arrow-left"></i> Usuarios
+                </a>
+                <div class="uf-cabeza mt-1">
+                    @if ($user->tieneFotoDePerfil())
+                        <img class="uf-cabeza__foto" src="{{ $user->avatar_url }}" alt="" width="56" height="56">
+                    @else
+                        <span class="uf-cabeza__foto uf-cabeza__letras" aria-hidden="true">{{ $iniciales }}</span>
+                    @endif
+                    <div>
+                        <h3 class="page__heading mb-0">{{ $bonito }} @if ($soyYo)<small class="text-muted" style="font-size: 14px;">(tú)</small>@endif</h3>
+                        <div class="uf-meta">
+                            <span><strong>Estado:</strong> {{ $user->estatus }}</span>
+                            <span><strong>Último acceso:</strong> {{ FechaLegible::conHora($user->last_login_at, 'Nunca ha entrado') }}</span>
+                            @if ($user->created_at)
+                                <span><strong>Alta:</strong> {{ $user->created_at->locale('es')->isoFormat('D MMM YYYY') }}</span>
                             @endif
-
-                            <!--Se realiza el envío de datos con formulario de Laravel Collective-->
-                            <form class='needs-validation novalidate' method='POST' action="{{route('usuarios.update', $user->id)}}" id="form_usuarios" enctype="multipart/form-data">
-                                <input type="hidden" name="_method" value="PATCH">
-                                @csrf
-                                <div class="row">
-                                    <div class="col-xs-12 col-sm-12 col-md-12">
-                                        <div class="form-group">
-                                            <label for="name">Nombre</label>
-                                            <input type="text" name="name" class="form-control" value="{{ $user->name }}" required>
-                                        </div>
-                                    </div>
-                                    <div class="invalid-feedback">
-                                        El nombre es obligatorio.
-                                    </div>
-
-                                    <div class="col-xs-12 col-sm-12 col-md-12">
-                                        <div class="form-group">
-                                            <label for="email">Email</label>
-                                            <input type="text" name="email" class="form-control" value="{{ $user->email }}" required>
-                                        </div>
-                                    </div>
-                                    <div class="invalid-feedback">
-                                        El Email es obligatorio.
-                                    </div>
-
-                                    <div class="col-xs-12 col-sm-12 col-md-12">
-                                        <div class="form-group">
-                                            <label for="password">Password</label>
-                                            <input type="password" name="password" class="form-control">
-                                        </div>
-                                    </div>
-                                    <div class="invalid-feedback">
-                                        La contraseña es obligatoria.
-                                    </div>
-
-                                    <div class="col-xs-12 col-sm-12 col-md-12">
-                                        <div class="form-group">
-                                            <label for="confirm-password">Confirmar Password</label>
-                                            <input type="password" name="confirm-password" class="form-control">
-                                        </div>
-                                    </div>
-                                    <div class="invalid-feedback">
-                                        La contraseña es obligatoria.
-                                    </div>
-
-                                    <div class="col-xs-12 col-sm-12 col-md-12">
-                                        <div class="form-group">
-                                            <label for="name">Roles</label>
-                                            <select name="roles" class="form-control">
-                                                @foreach($roles as $rol)
-                                                    <option value="{{ $rol }}" {{ $userRole == $rol ? "selected" : '' }} >{{ $rol }}</option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div class="invalid-feedback">
-                                        Debes seleccionar un Rol.
-                                    </div>
-
-                                    <div class="col-xs-12 col-sm-12 col-md-6">
-                                        <div class="form-group">
-                                            <label for="name">Delegacion</label>
-                                            <select name="delegacion" class="form-control">
-                                                <option value="Morelia" {{ $user["delegacion"] == 'Morelia' ? "selected" : '' }}>Morelia</option>
-                                                <option value="Zitácuaro" {{ $user["delegacion"] == 'Zitácuaro' ? "selected" : '' }}>Zitácuaro</option>
-                                                <option value="Uruapan" {{ $user['delegacion'] == 'Uruapan' ? "selected" : '' }}>Uruapan</option>
-                                                <option value="Lázaro Cárdenas" {{ $user["delegacion"] == 'Lázaro Cárdenas' ? "selected" : '' }}>Lázaro Cárdenas</option>
-                                                <option value="Zamora"  {{ $user['delegacion'] == 'Zamora' ? "selected" : '' }}>Zamora</option>
-                                                <option value="Sahuayo" {{ $user["delegacion"] == 'Sahuayo' ? "selected" : '' }}>Sahuayo</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div class="invalid-feedback">
-                                        La delegacion es obligatoria.
-                                    </div>
-
-                                    <div class="col-xs-12 col-sm-12 col-md-6">
-                                        <div class="form-group">
-                                            <label for="name">Tipo</label>
-                                            <select name="type" class="form-control">
-                                                <option value="Seer" {{ $user["type"] == 'Seer' ? "selected" : '' }}>Seer</option>
-                                                <option value="Si concilio" {{ $user["type"] == 'Si concilio' ? "selected" : '' }}>Si concilio</option>
-                                                <option value="Ambos" {{ $user["type"] == 'Ambos' ? "selected" : '' }}>Ambos</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div class="invalid-feedback">
-                                        El tipo es obligatorio.
-                                    </div>
-
-                                    <div class="col-xs-12 col-sm-12 col-md-6">
-                                        <div class="form-group">
-                                            <label for="sexo">Sexo</label>
-                                            <select name="sexo" id="sexo" class="form-control">
-                                                <option value="">Sin especificar</option>
-                                                <option value="H" @selected($user->sexo === 'H')>Hombre</option>
-                                                <option value="M" @selected($user->sexo === 'M')>Mujer</option>
-                                                <option value="NC" @selected($user->sexo === 'NC')>Prefiere no decirlo</option>
-                                            </select>
-                                            <small class="text-muted">
-                                                Se usa para escribir bien el saludo del Inicio: "Buenas tardes, Conciliadora".
-                                            </small>
-                                        </div>
-                                    </div>
-
-                                    @include('usuarios._campo_foto')
-
-                                    <div class="col-xs-12 col-sm-12 col-md-12">
-                                        <button type="submit" class="btn btn-primary" style="background-color: #496163">Guardar</button>
-                                    </div>
-                                    
-                                </div>
-                            </form>     
                         </div>
                     </div>
                 </div>
             </div>
         </div>
+
+        <div class="section-body uf">
+            @if ($errors->any())
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <strong>Revisa los campos marcados.</strong>
+                    <ul class="mb-0 mt-1">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+                </div>
+            @endif
+
+            <form class="needs-validation" novalidate id="form_usuarios" method="POST"
+                  action="{{ route('usuarios.update', $user->id) }}" enctype="multipart/form-data" autocomplete="off">
+                @csrf
+                @method('PATCH')
+
+                @include('usuarios._formulario')
+
+                <div class="uf-pie">
+                    <a href="{{ route('usuarios') }}" class="btn btn-outline-secondary">Cancelar</a>
+                    <button type="submit" class="btn tn-boton-dorado"><i class="bi bi-check2 me-1"></i> Guardar cambios</button>
+                </div>
+            </form>
+        </div>
     </section>
 @endsection
 
 @push('body_end')
-<div id="menu_carga" style ="display: none;">
+<div id="nuevo_usuario" style="display: none;">
     <div>.</div>
     <div class="loader"></div>
 </div>
 @endpush
 
-
 @section('scripts')
-    <script src="../../public/js/usuarios/usuarios.js"></script>
+    <script src="{{ asset('assets/js/usuarios/usuarios.js') }}?v=2"></script>
 @endsection

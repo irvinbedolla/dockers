@@ -255,17 +255,12 @@ class HomeController extends Controller
             return redirect()->route('citas')->with('error', 'No se ha podido completar tu cita. El correo ya ha sido registrado en los últimos 30 días.'); 
         }
         //El horario seleccionado en el calendario ya no debe estar ocupado ni caer en un día/horario inhábil
-        if (!(new RecepcionController())->turnoSlotDisponible($sede, $tipo, $fecha_turno, $hora_turno, $excepcion)) {
+        if (!(new RecepcionController())->turnoSlotDisponible($sede, $tipo, $fecha_turno, $hora_turno, $excepcion, true)) {
             return back()->withInput()->with('error', 'El horario seleccionado ya no está disponible. Por favor selecciona otro.');
         }
 
-        if ($excepcion === 'Si') {
-            $hora_fin = date("H:i:s", strtotime($hora_turno . " +75 minutes"));
-        } elseif ($tipo === 'Solicitud' || $tipo === 'Asesoria') {
-            $hora_fin = date("H:i:s", strtotime($hora_turno . " +40 minutes"));
-        } else {
-            $hora_fin = date("H:i:s", strtotime($hora_turno . " +60 minutes"));
-        }
+        // Cuánto dura la cita: Administración → Horarios de citas.
+        $hora_fin = \App\Support\HorarioCitas::horaFin($sede, $tipo, $excepcion === 'Si', $hora_turno);
 
         $numero_consecutivo = 0;
         $consecutivo  = Recepcion::latest('id')->where('delegacion', $sede)->first();
@@ -327,11 +322,11 @@ class HomeController extends Controller
             $variables = [
                 'Nombre'           => $data["nombre"],
                 'email'            => $data["email"],
-                'NumFolio'         => $numero_consecutivo,
+                'NumFolio'         => $recepcion->folio_cita,
                 'tipo'             => $tipo
             ];
             Mail::to($data["email"])->send(new SolicitudMail($pdfCitas, $variables));
-            return redirect()->route('citas_exito')->with(['success' => true,'id'=>$recepcion->id,'folio' => $recepcion->consecutivo,'fecha' => $fecha,'hora' => $hora,'delegacion' => $recepcion->delegacion, 'modulo' => $recepcion->lugar_auxiliar, 'direccion' => $direccion]);
+            return redirect()->route('citas_exito')->with(['success' => true,'id'=>$recepcion->id,'folio' => $recepcion->folio_cita,'fecha' => $fecha,'hora' => $hora,'delegacion' => $recepcion->delegacion, 'modulo' => $recepcion->lugar_auxiliar, 'direccion' => $direccion]);
         
         
     }

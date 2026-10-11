@@ -3,7 +3,7 @@
     $estatus  = strtolower((string) $cita->estatus);
     $enLinea  = $cita->origen === 'linea';
     $movible  = $cita->exepcion !== 'Si' && in_array($estatus, ['pendiente', 'confirmada'], true) && $cita->fecha >= $hoy;
-    $folio    = str_pad($cita->consecutivo, 5, '0', STR_PAD_LEFT);
+    $folio    = \App\Support\FolioCita::mostrar($cita);
     $hora     = substr($cita->hora, 0, 5);
 @endphp
 <li class="md-cita">

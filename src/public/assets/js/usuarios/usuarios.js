@@ -29,3 +29,12 @@ function crear_usuario() {
 function editar_usuario() {
     $('#nuevo_usuario').show();
 }
+
+// Contraseña aleatoria de 12 caracteres para el alta, la edición y el
+// cambio rápido. Sin letras que se confunden al dictarla (l, 1, O, 0, I).
+window.siconcilioClave = function () {
+    var letras = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+    var bytes = new Uint32Array(12);
+    window.crypto.getRandomValues(bytes);
+    return Array.prototype.map.call(bytes, function (n) { return letras[n % letras.length]; }).join('');
+};

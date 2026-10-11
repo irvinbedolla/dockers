@@ -36,7 +36,7 @@
                                         <tbody class="contenidobusqueda">
                                             @foreach($turnos as $turno)
                                                 <tr>
-                                                    <td class="text-center fw-bold">{{ str_pad($turno->consecutivo, 5, '0', STR_PAD_LEFT) }}</td>
+                                                    <td class="text-center fw-bold">{{ \App\Support\FolioCita::mostrar($turno) }}</td>
                                                     <td>{{ $turno->solicitante }}</td>
                                                     <td>{{ $turno->tipo }}</td>
                                                     <td>{{ $turno->hora }}</td>

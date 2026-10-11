@@ -1060,6 +1060,10 @@ class AdministracionController extends Controller{
 
         $user = User::findOrFail($id);
 
+        if ($user->hasRole('Super Usuario') && ! auth()->user()->hasRole('Super Usuario')) {
+            return back()->with('error', 'Sólo un Super Usuario puede activar o desactivar a otro Super Usuario.');
+        }
+
         // Nadie se desactiva a sí mismo: el siguiente request lo dejaría
         // fuera y no habría manera de volver a entrar a deshacerlo.
         if ((int) $user->id === (int) auth()->id() && $request->input('estatus') === 'Inactivo') {

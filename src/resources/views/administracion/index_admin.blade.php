@@ -22,6 +22,13 @@
             'roles'  => ['Super Usuario'],
         ],
         [
+            'ruta'   => 'horarios.index',
+            'icono'  => 'bi-clock-history',
+            'titulo' => 'Horarios de citas',
+            'texto'  => 'Intervalos, cupo por horario y límite diario por sede.',
+            'roles'  => ['Super Usuario'],
+        ],
+        [
             'ruta'   => 'configuracion_sedes',
             'icono'  => 'bi-calendar-x',
             'titulo' => 'Días inhábiles',

@@ -13,6 +13,7 @@ use App\Models\Turnos;
 use App\Models\TurnoDisponible;
 use Carbon\Carbon;
 use App\Models\DiasInhabiles;
+use App\Support\HorarioCitas;
 use App\Models\SeerCasosExcepcion;
 use App\Models\SeerChatR;
 use App\Models\Estados;
@@ -55,8 +56,7 @@ class RecepcionController extends Controller
             'Lázaro Cárdenas' => 'PARACHO NO. 26, COL. 600 CASAS, C.P. 60950, LÁZARO CÁRDENAS, MICHOACÁN.',
         ];
 
-        $minutosDuracion = $esExcepcion ? 75 : ($tipoTramite === 'Solicitud' ? 40 : 60);
-        $hora_fin = Carbon::parse($hora_turno)->addMinutes($minutosDuracion)->format('H:i:s');
+        $hora_fin = HorarioCitas::horaFin($sede, $tipoTramite, $esExcepcion, $hora_turno);
 
         // El horario seleccionado en el calendario ya no debe estar ocupado ni caer en un día/horario inhábil
         if (!$this->turnoSlotDisponible($sede, $tipoTramite, $fecha_asignada_str, $hora_turno, $data["excepcion"] ?? null)) {
@@ -134,7 +134,7 @@ class RecepcionController extends Controller
 
             $fechaFormateada = ucfirst(Carbon::parse($fecha_asignada_str)->isoFormat('dddd D [de] MMMM'));
 
-            return redirect()->back()->with('success', 'Turno de ' . $tipoTramite .' con folio ' . $numero_consecutivo. ' generado exitosamente para la sede ' . $sede . ' localizada en '. $direccion .' el día ' . $fechaFormateada . ' a las ' . substr($hora_turno, 0, 5) . ' horas.');
+            return redirect()->back()->with('success', 'Turno de ' . $tipoTramite .' con folio ' . $cita->folio_cita . ' generado exitosamente para la sede ' . $sede . ' localizada en '. $direccion .' el día ' . $fechaFormateada . ' a las ' . substr($hora_turno, 0, 5) . ' horas.');
         
         }
         catch (\Throwable $e) { 
@@ -784,20 +784,11 @@ class RecepcionController extends Controller
         return view('turnos.crear', compact('estados','municipios'));
     }
 
-    // Duración del slot (minutos) y hora de cierre de jornada según el tipo de trámite y si es caso de excepción.
-    private function configuracionHorarioTurno($tipo, $excepcion, $sede){
-        if ($excepcion === 'Si') {
-            return ['intervalo' => 75, 'fin' => ['hour' => 17, 'minute' => 00],'comida' => ['hour' => 14, 'minute' => 0]];
-        }
-        
-        if ($tipo === 'Ratificación') {
-            return ['intervalo' => 50, 'fin' => ['hour' => 15, 'minute' => 30],'comida' => ['hour' => 16, 'minute' => 30]];
-        }
-
-        return ['intervalo' => 50, 'fin' => ['hour' => 15, 'minute' => 30],'comida' => ['hour' => 16, 'minute' => 30]]; //cambio fin a las 16:50
-        
-    }
-
+    /**
+     * Horarios del calendario de citas (formulario público y ventanilla).
+     * Intervalo, cierre, cupo por horario y límite diario salen de la tabla
+     * horarios_citas: Administración → Horarios de citas.
+     */
     public function obtenerTurnosDisponibles(Request $request){
         $request->validate([
             'sede' => 'required|string',
@@ -806,16 +797,15 @@ class RecepcionController extends Controller
 
         $sede = $request->input('sede');
         $tipo = $request->input('tipo');
-        $excepcion = $request->input('excepcion');
-        $bandera = $request->input('externo', false);
-        
+        $esExcepcion = $request->input('excepcion') === 'Si';
+        $publico = $request->input('externo', false) == '1';
 
         $fecha_inicio_str = substr($request->input('start', now()->format('Y-m-d')), 0, 10);
         $fecha_fin_str = substr($request->input('end', now()->addDays(60)->format('Y-m-d')), 0, 10);
 
-        $config = $this->configuracionHorarioTurno($tipo, $excepcion, $sede);
-        
-        
+        $config   = HorarioCitas::config($sede, $tipo, $esExcepcion);
+        $horarios = HorarioCitas::horarios($config);
+
         $inhabiles = DiasInhabiles::where('centro', $sede)
             ->whereNull('user_id')
             ->where(function ($query) use ($fecha_inicio_str, $fecha_fin_str) {
@@ -824,34 +814,26 @@ class RecepcionController extends Controller
             })
             ->get();
 
-        $esExcepcion = $excepcion === 'Si';
-        $maxEmpalme = $esExcepcion ? 1 : ($sede === 'Morelia' ? ($tipo === 'Ratificación' ? 2 : 3) : 1);
-
-        $ocupadosQuery = Recepcion::whereBetween('fecha', [$fecha_inicio_str, $fecha_fin_str])->where('estatus', '!=', 'expirada');
-        if ($esExcepcion) {
-            $ocupadosQuery->where('exepcion', 'Si'); 
-        } else {
-            if($tipo == "Ratificación"){
-                $ocupadosQuery->where('tipo', $tipo)->where('delegacion', $sede);
-            } else {
-                $ocupadosQuery->whereIn('tipo', ['Solicitud', 'Asesoría'])->where('delegacion', $sede);
-            }
-        }
-        $ocupados = $ocupadosQuery->get(['fecha', 'hora']);
+        $ocupados = HorarioCitas::citasQueOcupan($sede, $tipo, $esExcepcion)
+            ->whereBetween('fecha', [$fecha_inicio_str, $fecha_fin_str])
+            ->get(['fecha', 'hora']);
 
         $ocupadosCount = [];
+        $porDia = [];
         foreach ($ocupados as $turno) {
-            $fechaTurno = \Carbon\Carbon::parse($turno->fecha)->format('Y-m-d');
-            $horaTurno = \Carbon\Carbon::parse($turno->hora)->format('H:i:s');
-            $key = $fechaTurno . 'T' . $horaTurno;
+            $fechaTurno = Carbon::parse($turno->fecha)->format('Y-m-d');
+            $key = $fechaTurno . 'T' . Carbon::parse($turno->hora)->format('H:i:s');
             $ocupadosCount[$key] = ($ocupadosCount[$key] ?? 0) + 1;
+            $porDia[$fechaTurno] = ($porDia[$fechaTurno] ?? 0) + 1;
         }
+
+        // El límite diario sólo aplica al formulario público.
+        $limite = ($publico && ! $esExcepcion) ? $config->limite_diario : null;
 
         $ahora = now();
         $eventos = [];
         $fecha = (new \DateTime($fecha_inicio_str))->setTime(0, 0, 0);
         $fin = (new \DateTime($fecha_fin_str))->setTime(0, 0, 0);
-        $horas_ocupadas = ['13:00:00', '13:30:00', '14:00:00'];
 
         $colores = [
             'ocupado' => '#DA0909', 'inhabil' => '#3B78DB',
@@ -865,73 +847,41 @@ class RecepcionController extends Controller
 
         while ($fecha <= $fin) {
             if ((int) $fecha->format('N') < 6) { // Saltar fines de semana
-                $lleno = false;
-                if($bandera == '1'){
-                    $ocupados_dia = Recepcion::where('fecha', $fecha)->where('tipo', $tipo)->where('delegacion', $sede)->count();
-                    if(($ocupados_dia >= 30 && $tipo === 'Solicitud' && $sede ==='Morelia') || ($ocupados_dia >= 10 && $tipo === 'Solicitud') || ($ocupados_dia >= 15 && $tipo === 'Ratificación')){
-                        $lleno= true;
-                    }
-                }
-                $slot = (clone $fecha)->setTime(8, 30, 0);
-                
-                $finJornada = (clone $fecha)->setTime($config['fin']['hour'], $config['fin']['minute'], 0);
-                $hora_comida = (clone $fecha)->setTime($config['comida']['hour'], $config['comida']['minute'], 0);
-                while ($slot < $finJornada) {
-                    $slotStart = $slot->format('Y-m-d\TH:i:s');
+                $dia = $fecha->format('Y-m-d');
+                $lleno = $limite !== null && ($porDia[$dia] ?? 0) >= $limite;
+
+                foreach ($horarios as $hora) {
+                    $slotStart = $dia . 'T' . $hora;
 
                     $esInhabil = false;
-                    $esNoInhabil = false;
-                    foreach ($inhabiles as $dia) {
-                        $inicioInhabil = $dia->fecha_inicio . 'T' . ($dia->horario_inicio ?? '00:00:00');
-                        $finInhabil = $dia->fecha_final . 'T' . ($dia->horario_final ?? '23:59:59');
+                    foreach ($inhabiles as $diaInhabil) {
+                        $inicioInhabil = $diaInhabil->fecha_inicio . 'T' . ($diaInhabil->horario_inicio ?? '00:00:00');
+                        $finInhabil = $diaInhabil->fecha_final . 'T' . ($diaInhabil->horario_final ?? '23:59:59');
                         if ($slotStart >= $inicioInhabil && $slotStart <= $finInhabil) {
-                            if ($dia->descripcion === 'No inhabil') {
-                                $esNoInhabil = true;
-                            } else {
-                                $esInhabil = true;
-                            }
+                            $esInhabil = true; // "No inhabil" también bloquea, como antes
                             break;
                         }
                     }
-                    $hora_actual = $slot->format('H:i:s');
+
                     $cantidadOcupados = $ocupadosCount[$slotStart] ?? 0;
-                    $tolerancia = Carbon::parse($slot)->addMinutes(10);
-                    if($lleno && !$esExcepcion){
+                    $tolerancia = Carbon::parse($slotStart)->addMinutes(HorarioCitas::TOLERANCIA_RESERVA);
+
+                    if ($lleno || $esInhabil || $ahora > $tolerancia) {
                         $estado = 'expirado';
-                    }
-                    elseif ($esInhabil || $esNoInhabil || $ahora > $tolerancia  || $slot == $hora_comida ) {
-                        $estado = 'expirado';
-                    }
-                    elseif ($cantidadOcupados >= $maxEmpalme) {
-                        // Bloquea inmediatamente si se alcanzó el límite (1 para excepciones)
+                    } elseif ($cantidadOcupados >= HorarioCitas::capacidad($config, $hora)) {
                         $estado = 'ocupado';
-                    }
-                    elseif ($cantidadOcupados > 0 && $cantidadOcupados < $maxEmpalme) {
-                        if(!$esExcepcion && in_array($hora_actual, $horas_ocupadas)){
-                            $estado = 'ocupado';
-                        } else {
-                            $estado = 'turnos'; 
-                        }
-                    }
-                    
-                    else {
+                    } elseif ($cantidadOcupados > 0) {
+                        $estado = 'turnos';
+                    } else {
                         $estado = 'disponible';
                     }
 
-                    $titulo = $estado === 'turnos' ? "Disponible" : $titulos[$estado];
-
                     $eventos[] = [
-                        'title' => $titulo,
+                        'title' => $estado === 'turnos' ? 'Disponible' : $titulos[$estado],
                         'start' => $slotStart,
                         'color' => $colores[$estado],
                         'extendedProps' => ['estado' => $estado],
                     ];
-                    if($slot == $hora_comida){
-                        $slot->modify("+30 minutes");
-                    }
-                    else{
-                        $slot->modify("+{$config['intervalo']} minutes");
-                    }
                 }
             }
             $fecha->modify('+1 day');
@@ -940,20 +890,28 @@ class RecepcionController extends Controller
         return response()->json($eventos);
     }
 
-    public function turnoSlotDisponible($sede, $tipo, $fecha, $hora, $excepcion){
-        // El calendario de excepción no admite empalmes. Fuera de excepción, solo la sede Morelia admite empalmar varias citas en un mismo slot.
+    /**
+     * Revisión final antes de guardar: que la hora sea uno de los horarios
+     * configurados, que quede cupo, que no sea inhábil y, en el formulario
+     * público, que el día no haya llegado a su límite.
+     */
+    public function turnoSlotDisponible($sede, $tipo, $fecha, $hora, $excepcion, bool $publico = false){
         $esExcepcion = $excepcion === 'Si';
-        $maxEmpalme = $esExcepcion ? 1 : ($sede === 'Morelia' ? ($tipo === 'Ratificación' ? 2 : 3) : 1);
-                            
-        $cantidadQuery = Recepcion::where('fecha', $fecha)->where('hora', $hora);
-        if ($esExcepcion) {
-            //Si es excepción bloquea el slot sin importar el tipo de trámite o la sede
-            $cantidadQuery->where('exepcion', 'Si');
-        } else {
-            $cantidadQuery->where('tipo', $tipo)->where('delegacion', $sede);
+        $config = HorarioCitas::config($sede, $tipo, $esExcepcion);
+        $hora = HorarioCitas::normalizarHora((string) $hora);
+
+        if (! in_array($hora, HorarioCitas::horarios($config), true)) {
+            return false;
         }
 
-        if ($cantidadQuery->count() >= $maxEmpalme) {
+        $delDia = HorarioCitas::citasQueOcupan($sede, $tipo, $esExcepcion)->where('fecha', $fecha);
+
+        if ((clone $delDia)->where('hora', $hora)->count() >= HorarioCitas::capacidad($config, $hora)) {
+            return false;
+        }
+
+        if ($publico && ! $esExcepcion && $config->limite_diario !== null
+            && (clone $delDia)->count() >= $config->limite_diario) {
             return false;
         }
 

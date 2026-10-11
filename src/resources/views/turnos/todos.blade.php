@@ -120,7 +120,7 @@
             color: var(--tn-verde);
             padding-block: 8px;
         }
-        .tn-folio { font-weight: 700; font-variant-numeric: tabular-nums; }
+        .tn-folio { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
         .tn-hora { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
         .tn-hora small { display: block; font-weight: 400; color: var(--tn-tenue); }
         .tn-solicitante { font-weight: 600; }
@@ -298,7 +298,7 @@
                                         $estatus = strtolower((string) $turno->estatus);
                                     @endphp
                                     <tr>
-                                        <td class="text-center tn-folio">{{ str_pad($turno->consecutivo, 5, '0', STR_PAD_LEFT) }}</td>
+                                        <td class="text-center tn-folio">{{ \App\Support\FolioCita::mostrar($turno) }}</td>
                                         <td class="tn-hora">
                                             {{ substr($turno->hora, 0, 5) }}
                                             @if ($turno->hora_fin)<small>a {{ substr($turno->hora_fin, 0, 5) }}</small>@endif
