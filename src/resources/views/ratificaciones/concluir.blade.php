@@ -563,12 +563,8 @@
             $('#totalPendiente').text( "$" + formatoMoneda(totalPendiente));
             if (totalPendiente != 0) {
                 $('#totalPendiente').css("color", "red");
-                document.getElementById("guardar").style.visibility = "hidden";
-                document.getElementById("previa").style.visibility = "hidden";
             } else {
                 $('#totalPendiente').css("color", "green");
-                document.getElementById("guardar").style.visibility = "visible";
-                document.getElementById("previa").style.visibility = "visible";
             }
 
         }
