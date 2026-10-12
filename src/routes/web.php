@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\Route;
 
 use App\Http\Controllers\PDFController;
 use App\Http\Controllers\InicioController;
+use App\Http\Controllers\EstadisticasController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\RolController;
 use App\Http\Controllers\UsuarioController;
@@ -178,6 +179,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Pantalla de Inicio: deslindada del resto para poder colgarle después
     // datos y notificaciones por rol.
     Route::get('/inicio',                               [InicioController::class, 'index'])->name('inicio');
+    // Panel de estadísticas: mapa, gráficas y descarga de reportes.
+    Route::get('/estadisticas',                         [EstadisticasController::class, 'index'])->name('estadisticas.index')
+        ->middleware('role:Super Usuario|Estadistica|Directivo');
     // Panel Común de entrada
     Route::get('/agenda',                               [DashboardController::class, 'index'])->name('agenda');
     // Descarga la agenda del rango visible del calendario, una hoja por
