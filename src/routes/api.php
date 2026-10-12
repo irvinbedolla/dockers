@@ -13,6 +13,10 @@ use App\Http\Controllers\TurnosController;
 use App\Http\Controllers\RecepcionController;
 use App\Http\Controllers\AdministracionController;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Api\EstadisticaController;
+use App\Http\Middleware\VerifyApiKey;
+
+
 
 /*
 |--------------------------------------------------------------------------
@@ -49,6 +53,9 @@ Route::get('/dias-inhabiles-centro',[SeerController::class, 'diasInhabilesCentro
 Route::get('/obtenerTurnosDisponibles', [RecepcionController::class, 'obtenerTurnosDisponibles']);
 Route::get('/obtenerAudienciasConciliador', [AdministracionController::class, 'obtenerAudienciasConciliador']);
 Route::get('/obtenerCumplimientosAdmin', [AdministracionController::class, 'obtenerCumplimientosAdmin']);
+Route::middleware('api.key')->group(function () {
+    Route::get('/estadisticas/inicio', [EstadisticaController::class, 'inicio']);
+});
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
