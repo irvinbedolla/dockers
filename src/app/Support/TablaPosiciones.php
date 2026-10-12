@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
- * Tabla de posiciones del mes: conciliadores y auxiliares.
+ * Tabla de posiciones del mes: conciliadores, auxiliares y orientadores.
  *
  * Cada grupo se mide con lo que de verdad hace:
  *
@@ -18,13 +18,18 @@ use Illuminate\Support\Str;
  *                   convenios de meses anteriores.
  *   auxiliares    → solicitudes registradas (seer_general.user_id, que es
  *                   quien capturó la solicitud).
+ *   orientadores  → lo mismo que los auxiliares: en la práctica son quienes
+ *                   capturan la solicitud tras orientar a la persona. Las
+ *                   asesorías (seer_asesorias) casi no se registran y no
+ *                   servirían para medir a nadie.
  *
  * Quiénes aparecen (aunque lleven 0 en el mes):
  *   conciliadores → todas las cuentas activas con rol Conciliador.
  *   auxiliares    → los Auxiliares de Conciliador: quien atiende un módulo
  *                   activo (Administración → Módulos) con rol Auxiliar y SIN
- *                   rol Orientador. Los orientadores también atienden módulo
- *                   pero no compiten en esta tabla.
+ *                   rol Orientador.
+ *   orientadores  → quien atiende un módulo activo con rol Orientador. El
+ *                   módulo deja fuera la cuenta genérica "orientador".
  *
  * Sólo entran cuentas activas y no de prueba. Las cuentas duplicadas -hay
  * gente con dos- se suman por nombre normalizado para que no aparezcan
@@ -52,7 +57,7 @@ class TablaPosiciones
         $inicio = Carbon::now()->startOfMonth();
 
         return Cache::remember(
-            'inicio.tabla_posiciones.v2.'.$inicio->format('Y-m'),
+            'inicio.tabla_posiciones.v3.'.$inicio->format('Y-m'),
             now()->addMinutes(self::MINUTOS_CACHE),
             fn () => self::calcular($inicio)
         );
@@ -60,7 +65,7 @@ class TablaPosiciones
 
     public static function olvidar(): void
     {
-        Cache::forget('inicio.tabla_posiciones.v2.'.Carbon::now()->format('Y-m'));
+        Cache::forget('inicio.tabla_posiciones.v3.'.Carbon::now()->format('Y-m'));
     }
 
     private static function calcular(Carbon $inicio): array
@@ -80,6 +85,12 @@ class TablaPosiciones
                 'titulo'  => 'Auxiliares',
                 'unidad'  => 'solicitudes',
                 'gente'   => self::ordenar(self::auxiliares($desde, $hasta)),
+            ],
+            [
+                'clave'   => 'orientadores',
+                'titulo'  => 'Orientadores',
+                'unidad'  => 'solicitudes',
+                'gente'   => self::ordenar(self::orientadores($desde, $hasta)),
             ],
         ];
 
@@ -164,6 +175,38 @@ class TablaPosiciones
                      WHERE mr.model_id = u.id AND mr.model_type = ? AND r.name = 'Orientador'
                    )
         ", [$desde, $hasta, \App\Models\User::class, \App\Models\User::class]);
+    }
+
+    private static function orientadores(string $desde, string $hasta): array
+    {
+        // Misma medida que los auxiliares; la lista sale de los módulos
+        // activos atendidos por alguien con rol Orientador.
+        return DB::select("
+            SELECT u.id,
+                   u.name,
+                   u.delegacion,
+                   u.foto_perfil,
+                   COALESCE(s.valor, 0) AS valor,
+                   NULL                 AS resueltas
+              FROM users u
+              LEFT JOIN (
+                    SELECT g.user_id, COUNT(*) AS valor
+                      FROM seer_general g
+                     WHERE g.fecha >= ? AND g.fecha < ?
+                     GROUP BY g.user_id
+                   ) s ON s.user_id = u.id
+             WHERE u.estatus = 'Activo'
+               AND u.email NOT LIKE '%temporal%'
+               AND u.name  NOT LIKE '%temporal%'
+               AND u.name  NOT LIKE '%prueba%'
+               AND EXISTS (SELECT 1 FROM modulos m WHERE m.user_id = u.id AND m.activo = 1)
+               AND EXISTS (
+                    SELECT 1
+                      FROM model_has_roles mr
+                      JOIN roles r ON r.id = mr.role_id
+                     WHERE mr.model_id = u.id AND mr.model_type = ? AND r.name = 'Orientador'
+                   )
+        ", [$desde, $hasta, \App\Models\User::class]);
     }
 
     /**
