@@ -98,9 +98,10 @@
                                                 <label for="name">Sede</label>
                                                 <select class="form-control" name="sede" required>
                                                     <option value="">Seleccione</option>
-                                                    @if($userRole == "Super Usuario" || $userRole == "Estadisticas")
+                                                    {{-- Los mismos roles que en SeerController::estadistica reciben todas las sedes. --}}
+                                                    @if($user->hasAnyRole(['Super Usuario', 'Administrador', 'Estadistica', 'Directivo']))
                                                         <option value="Todos">Todos</option>
-                                                    @elseif($userRole == "Delegado" || $userRole == "Enlace")
+                                                    @elseif($user->hasAnyRole(['Delegado', 'Enlace']))
                                                         <option value="TodosDelegado">Todos</option>
                                                     @endif
                                                     @foreach($estadisticas as $aSport)

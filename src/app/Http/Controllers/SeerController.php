@@ -849,7 +849,9 @@ class SeerController extends Controller
         $usuariosnotificadores = collect();
         $estadisticas = collect();
 
-        if (in_array($userRole, ["Super Usuario", "Administrador", "Estadistica", "Directivo"])) {
+        // hasAnyRole y no sólo el primer rol: con varios roles, el orden en
+        // que salían decidía qué sedes veía la persona.
+        if ($user->hasAnyRole(["Super Usuario", "Administrador", "Estadistica", "Directivo"])) {
             $todosUsuarios = User::with('roles')->get();
             
             $usuariosconciliadores = $todosUsuarios->filter(fn($u) => $u->hasRole('Conciliador'));
@@ -858,7 +860,7 @@ class SeerController extends Controller
             
             $estadisticas = Sedes::all();
 
-        } elseif (in_array($userRole, ["Enlace", "Delegado", "Notificador"])) {
+        } elseif ($user->hasAnyRole(["Enlace", "Delegado", "Notificador"])) {
             // 1. Buscamos la sede principal y sus oficinas de apoyo
             $sedePrincipal = Sedes::where('nombre', $delegacionUser)->first();
             
@@ -880,7 +882,7 @@ class SeerController extends Controller
                 $usuariosauxiliares = $usuariosBase->filter(fn($u) => $u->hasRole('Auxiliar'));
                 $usuariosnotificadores = $usuariosBase->filter(fn($u) => $u->hasRole('Notificador'));
             }
-        } else if (in_array($userRole, ["Auxiliar", "Orientador"])) {
+        } else if ($user->hasAnyRole(["Auxiliar", "Orientador"])) {
             $estadisticas = Sedes::where('nombre', $delegacionUser)->get();
         }
 
