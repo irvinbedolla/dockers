@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\PDFController;
 use App\Http\Controllers\InicioController;
 use App\Http\Controllers\EstadisticasController;
+use App\Http\Controllers\PantallaEsperaController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\RolController;
 use App\Http\Controllers\UsuarioController;
@@ -96,6 +97,12 @@ Route::post('/chat/crearUno/',                      [Controller::class, 'storeUn
 Route::get('/pantallaMorelia',                      [HomeController::class, 'pantallaMorelia']);
 Route::get('/pantallaUruapan',                      [HomeController::class, 'pantallaUruapan']);
 Route::get('/pantallaZamora',                       [HomeController::class, 'pantallaZamora']);
+// Pantallas nuevas de sala de espera (con guion). Las de arriba se retiran con el tiempo.
+Route::get('/pantalla-{sede}',                      [PantallaEsperaController::class, 'mostrar'])
+    ->where('sede', implode('|', array_keys(\App\Support\PantallaEspera::SEDES)))->name('pantalla.espera');
+Route::get('/pantalla-{sede}/datos',                [PantallaEsperaController::class, 'datos'])
+    ->where('sede', implode('|', array_keys(\App\Support\PantallaEspera::SEDES)))->name('pantalla.datos')
+    ->middleware('throttle:60,1');
 
 // Creación de Poderes y Citas por el Público
 Route::get('/poder-crear',                          [PoderController::class, 'registro'])->name('poder-crear');
