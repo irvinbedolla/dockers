@@ -25,14 +25,16 @@ class Especialidades
     public const SOLICITUDES    = 'Auxiliar Solicitudes';
     public const RATIFICACIONES = 'Auxiliar Ratificaciones';
     public const CUMPLIMIENTOS  = 'Auxiliar Cumplimientos';
+    public const PODERES        = 'Auxiliar Poderes';
 
-    public const ROLES = [self::SOLICITUDES, self::RATIFICACIONES, self::CUMPLIMIENTOS];
+    public const ROLES = [self::SOLICITUDES, self::RATIFICACIONES, self::CUMPLIMIENTOS, self::PODERES];
 
     /** Etiqueta corta para chips y listas. */
     public const ETIQUETAS = [
         self::SOLICITUDES    => 'Solicitudes y asesorías',
         self::RATIFICACIONES => 'Ratificaciones',
         self::CUMPLIMIENTOS  => 'Cumplimientos',
+        self::PODERES        => 'Poderes',
     ];
 
     /** Trámite de módulo → especialidad que lo atiende. */
@@ -41,6 +43,7 @@ class Especialidades
         'Asesoría'     => self::SOLICITUDES,
         'Ratificación' => self::RATIFICACIONES,
         'Cumplimiento' => self::CUMPLIMIENTOS,
+        'Poder'        => self::PODERES,
     ];
 
     /** Permiso que hace falta para atender cada trámite de un módulo. */
@@ -49,6 +52,8 @@ class Especialidades
         'Asesoría'     => 'asesoria_crear',
         'Ratificación' => 'ratificaciones_crear',
         'Cumplimiento' => 'cumplimientos_consultar',
+        'Poder'        => 'poderes_crear',
+        
     ];
 
     /** ¿Esta persona tiene los permisos para atender el trámite? */
