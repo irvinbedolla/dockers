@@ -2,18 +2,17 @@
 
 namespace App\Http\Controllers;
 
-use App\Mail\CitaReasignadaMail;
 use App\Models\Modulo;
 use App\Models\Recepcion;
 use App\Models\User;
 use App\Support\AsignadorModulos;
 use App\Support\Especialidades;
+use App\Support\ReasignacionCita;
 use App\Support\Recepcion as RecepcionRoles;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rule;
 
 /**
@@ -34,7 +33,7 @@ class ModulosController extends Controller
     ];
 
     /** Estatus en los que una cita todavía se puede mover. */
-    private const MOVIBLES = ['pendiente', 'confirmada'];
+    private const MOVIBLES = ReasignacionCita::MOVIBLES;
 
     public function index(Request $request)
     {
@@ -82,49 +81,7 @@ class ModulosController extends Controller
 
         // Para el diálogo de reasignar: a cada cita movible, cómo está cada
         // módulo a su hora. El servidor lo vuelve a validar al guardar.
-        $ocupacion = [];
-        foreach ($delDia as $c) {
-            if ($c->estatus === 'expirada') {
-                continue;
-            }
-            $h = substr($c->hora, 0, 5);
-            if ($c->modulo_clave) {
-                $ocupacion[$h]['m'.$c->modulo_clave] = $c;
-            }
-            if ($c->auxiliar) {
-                $ocupacion[$h]['u'.$c->auxiliar] = $c;
-            }
-        }
-
-        $opciones = [];
-        foreach ($citas as $c) {
-            if (! $this->movible($c, $hoy)) {
-                continue;
-            }
-            $h = substr($c->hora, 0, 5);
-            $opciones[$c->id] = $modulos->map(function (Modulo $m) use ($c, $h, $ocupacion) {
-                $choque = $ocupacion[$h]['m'.$m->id] ?? ($m->user_id ? ($ocupacion[$h]['u'.$m->user_id] ?? null) : null);
-
-                $estado = match (true) {
-                    $m->id == $c->modulo_clave                  => 'actual',
-                    ! AsignadorModulos::atendible($m)           => $m->activo ? 'sin_persona' : 'inactivo',
-                    $m->enComida($c->hora)                      => 'comida',
-                    $choque !== null && $choque->id != $c->id   => 'ocupado',
-                    default                                     => 'libre',
-                };
-
-                return [
-                    'id'       => $m->id,
-                    'nombre'   => $m->nombre,
-                    'persona'  => optional($m->persona)->name,
-                    'recibe'   => $m->recibe($c->tipo) || $m->recibeDeRespaldo($c->tipo),
-                    'estado'   => $estado,
-                    'choque'   => $estado === 'ocupado'
-                        ? \App\Support\FolioCita::mostrar($choque).' · '.$choque->solicitante
-                        : null,
-                ];
-            })->values();
-        }
+        $opciones = ReasignacionCita::opcionesDelDia($modulos, $delDia, $citas, $hoy);
 
         $personal = User::whereHas('roles', fn ($q) => $q->whereIn('name', self::ROLES_PERSONAL))
             ->where('estatus', 'Activo')
@@ -225,69 +182,15 @@ class ModulosController extends Controller
     {
         $datos = $request->validate(['modulo_id' => ['required', 'integer', 'exists:modulos,id']]);
 
-        $cita    = Recepcion::findOrFail($id);
-        $destino = Modulo::with('persona')->findOrFail($datos['modulo_id']);
-        $fecha   = $cita->fecha->format('Y-m-d');
-        $hora    = $cita->getRawOriginal('hora');
-        $hoy     = Carbon::today()->toDateString();
+        $cita      = Recepcion::findOrFail($id);
+        $resultado = ReasignacionCita::mover($cita, Modulo::findOrFail($datos['modulo_id']), $request->user()->id);
 
-        $error = match (true) {
-            $cita->exepcion === 'Si'                          => 'Los casos de excepción no se reasignan desde aquí.',
-            ! in_array($cita->estatus, self::MOVIBLES, true)  => 'Sólo se pueden mover citas pendientes o confirmadas.',
-            $fecha < $hoy                                     => 'La cita ya pasó.',
-            $destino->delegacion !== $cita->delegacion        => 'El módulo es de otra sede.',
-            $destino->id == $cita->modulo_id                  => 'La cita ya está en ese módulo.',
-            ! AsignadorModulos::atendible($destino)           => "{$destino->nombre} está inactivo o no tiene persona asignada.",
-            $destino->enComida($hora)                         => "{$destino->nombre} está en su hora de comida a las ".substr($hora, 0, 5).'.',
-            default                                           => null,
-        };
-
-        if (! $error && ($choque = AsignadorModulos::choque($destino, $fecha, $hora, $cita->id))) {
-            $error = "{$destino->nombre} ya tiene a las ".substr($hora, 0, 5).' la cita '
-                .\App\Support\FolioCita::mostrar($choque)." de {$choque->solicitante}.";
+        $respuesta = $this->volver($request, $cita->delegacion, $cita->fecha->format('Y-m-d'));
+        foreach (array_filter($resultado) as $tipo => $mensaje) {
+            $respuesta->with($tipo, $mensaje);
         }
 
-        if ($error) {
-            return $this->volver($request, $cita->delegacion, $fecha)->with('error', $error);
-        }
-
-        $antes = $cita->lugar_auxiliar;
-        $cita->update([
-            'modulo_id'      => $destino->id,
-            'lugar_auxiliar' => $destino->nombre,
-            'auxiliar'       => $destino->user_id,
-        ]);
-
-        Log::info('Cita reasignada de módulo', [
-            'cita' => $cita->id, 'de' => $antes, 'a' => $destino->nombre, 'por' => $request->user()->id,
-        ]);
-
-        $aviso = 'La cita '.$cita->folio_cita
-            ." pasó de {$antes} a {$destino->nombre} ({$destino->persona->name}).";
-
-        // En línea: se le reenvía el acuse con el módulo nuevo.
-        if ($cita->origen === 'linea' && filter_var($cita->correo, FILTER_VALIDATE_EMAIL)) {
-            try {
-                $pdf = app(HomeController::class)->verDocumentoCita($cita->id);
-                Mail::to($cita->correo)->send(new CitaReasignadaMail($pdf, $cita->fresh(), $antes));
-                $aviso .= " Se le envió el acuse actualizado a {$cita->correo}.";
-            } catch (\Throwable $e) {
-                Log::warning('No se pudo enviar el acuse de reasignación', ['cita' => $cita->id, 'error' => $e->getMessage()]);
-
-                return $this->volver($request, $cita->delegacion, $fecha)
-                    ->with('success', $aviso)
-                    ->with('error', 'El cambio se guardó, pero no se pudo enviar el correo. Avísale por teléfono.');
-            }
-        }
-
-        return $this->volver($request, $cita->delegacion, $fecha)->with('success', $aviso);
-    }
-
-    private function movible(object $cita, string $hoy): bool
-    {
-        return $cita->exepcion !== 'Si'
-            && in_array($cita->estatus, self::MOVIBLES, true)
-            && $cita->fecha >= $hoy;
+        return $respuesta;
     }
 
     private function volver(Request $request, string $sede, ?string $fecha = null)
