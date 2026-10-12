@@ -21,6 +21,7 @@ use App\Http\Controllers\PDFController;
 use App\Http\Controllers\InicioController;
 use App\Http\Controllers\EstadisticasController;
 use App\Http\Controllers\PantallaEsperaController;
+use App\Http\Controllers\ReasignarTurnoController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\RolController;
 use App\Http\Controllers\UsuarioController;
@@ -436,6 +437,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/turnos/turnos',             [RecepcionController::class, 'turnos'])->name('turnos.listado');
         // Todos los turnos con filtro por día, sede, tipo, origen y estatus.
         Route::get('/turnos/todos',              TurnosHistorialController::class)->name('turnos.todos')->middleware('permission:turnos_ver');
+        Route::post('/turnos/{id}/reasignar',    ReasignarTurnoController::class)->name('turnos.reasignar')->whereNumber('id')->middleware('permission:turnos_asignar');
         Route::get('/turnos/activo/{id}',        [RecepcionController::class, 'activo'])->name('turnos.activo');
         Route::get('/turnos/noactivo/{id}',      [RecepcionController::class, 'noactivo'])->name('turnos.noactivo');
         Route::get('/turnos/cambiar/{id}',       [RecepcionController::class, 'cambiar'])->name('cambiar');

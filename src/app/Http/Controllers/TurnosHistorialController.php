@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Support\FolioCita;
+use App\Support\ReasignacionCita;
 use App\Support\Recepcion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -93,6 +94,7 @@ class TurnosHistorialController extends Controller
                 'r.id', 'r.consecutivo', 'r.codigo', 'r.solicitante', 'r.tipo', 'r.fecha', 'r.hora',
                 'r.hora_fin', 'r.estatus', 'r.exepcion', 'r.lugar_auxiliar', 'r.delegacion',
                 'r.correo', 'r.telefono', 'r.origen', 'u.name as auxiliar',
+                'r.modulo_id', 'r.auxiliar as auxiliar_id',
             ])
             ->paginate(self::POR_PAGINA)
             ->withQueryString();
@@ -100,7 +102,18 @@ class TurnosHistorialController extends Controller
         $hoy   = Carbon::today()->toDateString();
         $fecha = $filtros['fecha'] ?? null;
 
+        // Diálogo "Reasignar módulo": sólo para las citas de esta página que
+        // se pueden mover, y sólo si quien ve tiene el permiso.
+        $opciones = $request->user()->can('turnos_asignar')
+            ? ReasignacionCita::opciones($turnos->getCollection()->map(fn ($t) => (object) [
+                'id' => $t->id, 'delegacion' => $t->delegacion, 'fecha' => $t->fecha, 'hora' => $t->hora,
+                'tipo' => $t->tipo, 'estatus' => strtolower((string) $t->estatus), 'exepcion' => $t->exepcion,
+                'modulo_id' => $t->modulo_id, 'lugar_auxiliar' => $t->lugar_auxiliar, 'auxiliar' => $t->auxiliar_id,
+            ]), $hoy)
+            : [];
+
         return view('turnos.todos', [
+            'opciones'        => $opciones,
             'turnos'          => $turnos,
             'filtros'         => $filtros,
             'fecha'           => $fecha,

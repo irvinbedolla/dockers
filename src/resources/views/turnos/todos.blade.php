@@ -103,8 +103,17 @@
         .tn-encabezado-dia span { font-size: 13px; color: var(--tn-tenue); }
 
         .tn-tabla { margin: 0; }
-        .tn-tabla thead th {
+        /* Con .tn delante para ganarle a .table:not(.table-sm) thead th de style.css,
+           que pintaba la cabecera gris claro (el texto blanco no se veía) y metía
+           padding de 25px por lado, lo que partía los nombres en muchos renglones. */
+        .tn .table.tn-tabla > :not(caption) > * > th,
+        .tn .table.tn-tabla > :not(caption) > * > td {
+            padding: 10px 12px;
+            height: auto;
+        }
+        .tn .table.tn-tabla thead th {
             background: #354647;
+            --bs-table-bg: #354647;
             color: #fff !important;
             font-size: 12px;
             font-weight: 600;
@@ -113,6 +122,11 @@
             border: 0;
         }
         .tn-tabla td { vertical-align: middle; font-size: 13.5px; color: var(--tn-tinta); }
+        .btn.tn-boton-verde { background: var(--tn-verde); border-color: var(--tn-verde); color: #fff; font-weight: 600; }
+        .btn.tn-boton-verde:not(.btn-social):not(.btn-social-icon):hover,
+        .btn.tn-boton-verde:not(.btn-social):not(.btn-social-icon):focus { background: #354647; border-color: #354647 !important; color: #fff; }
+        .tn-tabla .tn-solicitante { min-width: 180px; }
+        .tn-tabla .tn-contacto { overflow-wrap: anywhere; }
         .tn-tabla .tn-fila-dia td {
             background: var(--tn-fondo);
             font-size: 12.5px;
@@ -165,6 +179,21 @@
         </div>
 
         <div class="section-body">
+            @foreach (['success' => 'success', 'error' => 'danger'] as $clave => $color)
+                @if (session($clave))
+                    <div class="alert alert-{{ $color }} alert-dismissible fade show" role="alert">
+                        {{ session($clave) }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+                    </div>
+                @endif
+            @endforeach
+            @if ($errors->any())
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    {{ $errors->first() }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+                </div>
+            @endif
+
             {{-- Filtros. GET: la URL guarda la vista y se puede compartir. --}}
             <form method="GET" action="{{ route('turnos.todos') }}" class="tn-tarjeta" id="tnFiltros">
                 @if ($estatusActivo)
@@ -331,15 +360,17 @@
                                             <a class="btn btn-outline-secondary btn-sm" href="{{ route('citas.documento', $turno->id) }}" target="_blank" rel="noopener" title="Acuse de la cita">
                                                 <i class="bi bi-file-pdf"></i> Acuse
                                             </a>
-                                            {{-- Asignar sólo el mismo día, igual que en "Turnos de hoy":
-                                                 la asignación mira quién está disponible hoy. --}}
-                                            @can('turnos_asignar')
-                                                @if ($estatus === 'pendiente' && $turno->exepcion === 'No' && $turno->fecha === $hoy)
-                                                    <a class="btn btn-sm text-white ms-1" style="background: var(--tn-verde);" href="{{ route('cambiar', $turno->id) }}" onclick="disponibles();">
-                                                        <i class="bi bi-person-check"></i> Asignar
-                                                    </a>
-                                                @endif
-                                            @endcan
+                                            {{-- Reasignar módulo: mismo diálogo y reglas que Administración → Módulos
+                                                 (pendiente o confirmada, hoy o después, sin excepción). Las opciones
+                                                 sólo vienen para las citas que se pueden mover y si hay permiso. --}}
+                                            @if (isset($opciones[$turno->id]))
+                                                <button type="button" class="btn btn-sm tn-boton-verde ms-1"
+                                                        data-bs-toggle="modal" data-bs-target="#mdModalReasignar"
+                                                        data-cita="{{ $turno->id }}" data-tipo="{{ $turno->tipo }}" data-linea="{{ $enLinea ? 1 : 0 }}"
+                                                        data-resumen="{{ \App\Support\FolioCita::mostrar($turno) }} · {{ $turno->solicitante }} · {{ $turno->tipo }} a las {{ substr($turno->hora, 0, 5) }}">
+                                                    <i class="bi bi-arrow-left-right"></i> {{ $turno->modulo_id || $turno->lugar_auxiliar ? 'Reasignar' : 'Asignar' }}
+                                                </button>
+                                            @endif
                                         </td>
                                     </tr>
                                 @endforeach
@@ -355,6 +386,11 @@
             </div>
         </div>
     </section>
+
+    @include('turnos._modal_reasignar', [
+        'opciones'     => $opciones,
+        'urlReasignar' => route('turnos.reasignar', ['id' => '__ID__']),
+    ])
 @endsection
 
 @push('body_end')
