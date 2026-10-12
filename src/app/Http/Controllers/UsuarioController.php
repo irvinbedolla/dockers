@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Support\FotoPerfil;
+use App\Support\TablaPosiciones;
 use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -119,6 +120,9 @@ class UsuarioController extends Controller
 
             return $user;
         });
+
+        // Roles y estatus deciden quién sale en la tabla de posiciones.
+        TablaPosiciones::olvidar();
 
         return redirect()->route('usuarios')
             ->with('success', "Se creó la cuenta de {$user->name} (".implode(', ', $this->conRolBase($datos['roles'])).", {$user->delegacion}).");
@@ -246,6 +250,8 @@ class UsuarioController extends Controller
             $user->syncRoles($this->conRolBase($datos['roles']));
         });
 
+        TablaPosiciones::olvidar();
+
         return redirect()->route('usuarios')->with('success', "Se guardaron los cambios de {$user->name}.");
     }
 
@@ -308,6 +314,7 @@ class UsuarioController extends Controller
         FotoPerfil::borrar($user->foto_perfil);
         $user->syncRoles([]);
         $user->delete();
+        TablaPosiciones::olvidar();
 
         return redirect()->route('usuarios')->with('success', "Se eliminó la cuenta de {$nombre}.");
     }

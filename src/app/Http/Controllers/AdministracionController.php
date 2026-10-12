@@ -1072,6 +1072,7 @@ class AdministracionController extends Controller{
 
         $user->estatus = $request->input('estatus');
         $user->save();
+        \App\Support\TablaPosiciones::olvidar();
 
         $verbo = $user->estatus === 'Activo' ? 'activada' : 'desactivada';
 

@@ -14,6 +14,9 @@
     silueta genérica: en una tabla de posiciones la silueta repetida borra la
     diferencia entre las personas, que es justo lo que la tarjeta muestra.
 
+    Están todos los conciliadores y auxiliares, aunque lleven 0 en el mes. Se
+    ven los primeros cinco; el resto se despliega con "Ver todos".
+
     Espera $posiciones, de App\Support\TablaPosiciones::resumen().
 --}}
 
@@ -64,9 +67,12 @@
                     </div>
 
                     @if ($resto)
-                        <ol class="tp-resto">
+                        @php $visibles = \App\Support\TablaPosiciones::VISIBLES - 1; @endphp
+                        <ol class="tp-resto" id="tp-resto-{{ $grupo['clave'] }}">
                             @foreach ($resto as $persona)
-                                <li class="tp-fila" title="{{ $persona['nombre'] }} · {{ $persona['sede'] }} · {{ number_format($persona['valor']) }} {{ $grupo['unidad'] }}">
+                                <li class="tp-fila {{ $loop->index >= $visibles ? 'tp-fila--extra' : '' }} {{ $persona['valor'] === 0 ? 'tp-fila--cero' : '' }}"
+                                    @if ($loop->index >= $visibles) hidden @endif
+                                    title="{{ $persona['nombre'] }} · {{ $persona['sede'] }} · {{ number_format($persona['valor']) }} {{ $grupo['unidad'] }}">
                                     <span class="tp-puesto">{{ $persona['puesto'] }}</span>
                                     <span class="tp-avatar">
                                         @if ($persona['foto'])
@@ -80,6 +86,13 @@
                                 </li>
                             @endforeach
                         </ol>
+                        @if (count($resto) > $visibles)
+                            <button type="button" class="tp-mas" aria-expanded="false" aria-controls="tp-resto-{{ $grupo['clave'] }}"
+                                    data-mas="Ver todos ({{ count($grupo['gente']) }})" data-menos="Ver menos">
+                                <span>Ver todos ({{ count($grupo['gente']) }})</span>
+                                <i class="bi bi-chevron-down" aria-hidden="true"></i>
+                            </button>
+                        @endif
                     @endif
                 @endif
             </section>
@@ -239,4 +252,44 @@
     }
 
     .tp-vacio { font-size: 12.5px; color: #8A9899; margin: 0; }
+
+    .tp-fila[hidden] { display: none; }
+
+    /* Quien va en 0 este mes: se lista, pero apagado. */
+    .tp-fila--cero .tp-valor,
+    .tp-fila--cero .tp-nombre { color: #A2AFAF; }
+
+    .tp-mas {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        width: 100%;
+        margin-top: 6px;
+        padding: 6px 10px;
+        border: 1px dashed #D5DEDE;
+        border-radius: 8px;
+        background: transparent;
+        color: #496163;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+    }
+    .tp-mas:hover { background: #F5F8F8; border-style: solid; }
+    .tp-mas i { transition: transform .2s; }
+    .tp-mas[aria-expanded="true"] i { transform: rotate(180deg); }
 </style>
+
+<script>
+    // "Ver todos" / "Ver menos" de cada grupo de la tabla de posiciones.
+    // La bandera evita registrarlo dos veces si la tarjeta se incluye más de una.
+    if (!window.tpVerTodos) window.tpVerTodos = true, document.addEventListener('click', function (e) {
+        var boton = e.target.closest('.tp-mas');
+        if (!boton) { return; }
+        var lista = document.getElementById(boton.getAttribute('aria-controls'));
+        var abrir = boton.getAttribute('aria-expanded') !== 'true';
+        lista.querySelectorAll('.tp-fila--extra').forEach(function (li) { li.hidden = !abrir; });
+        boton.setAttribute('aria-expanded', abrir ? 'true' : 'false');
+        boton.querySelector('span').textContent = boton.getAttribute(abrir ? 'data-menos' : 'data-mas');
+    });
+</script>

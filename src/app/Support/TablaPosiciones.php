@@ -17,8 +17,14 @@ use Illuminate\Support\Str;
  *                   liquidados porque el pago va rezagado y premiaría
  *                   convenios de meses anteriores.
  *   auxiliares    → solicitudes registradas (seer_general.user_id, que es
- *                   quien capturó la solicitud). Incluye a los de rol
- *                   Auxiliar y Orientador.
+ *                   quien capturó la solicitud).
+ *
+ * Quiénes aparecen (aunque lleven 0 en el mes):
+ *   conciliadores → todas las cuentas activas con rol Conciliador.
+ *   auxiliares    → los Auxiliares de Conciliador: quien atiende un módulo
+ *                   activo (Administración → Módulos) con rol Auxiliar y SIN
+ *                   rol Orientador. Los orientadores también atienden módulo
+ *                   pero no compiten en esta tabla.
  *
  * Sólo entran cuentas activas y no de prueba. Las cuentas duplicadas -hay
  * gente con dos- se suman por nombre normalizado para que no aparezcan
@@ -30,8 +36,8 @@ use Illuminate\Support\Str;
  */
 class TablaPosiciones
 {
-    /** Cuántos se listan por grupo, contando al primer lugar. */
-    private const CUANTOS = 5;
+    /** Cuántos se ven antes del botón "Ver todos", contando al primer lugar. */
+    public const VISIBLES = 5;
 
     /** Son datos del mes en curso: se mueven durante el día. */
     private const MINUTOS_CACHE = 15;
@@ -46,7 +52,7 @@ class TablaPosiciones
         $inicio = Carbon::now()->startOfMonth();
 
         return Cache::remember(
-            'inicio.tabla_posiciones.'.$inicio->format('Y-m'),
+            'inicio.tabla_posiciones.v2.'.$inicio->format('Y-m'),
             now()->addMinutes(self::MINUTOS_CACHE),
             fn () => self::calcular($inicio)
         );
@@ -54,7 +60,7 @@ class TablaPosiciones
 
     public static function olvidar(): void
     {
-        Cache::forget('inicio.tabla_posiciones.'.Carbon::now()->format('Y-m'));
+        Cache::forget('inicio.tabla_posiciones.v2.'.Carbon::now()->format('Y-m'));
     }
 
     private static function calcular(Carbon $inicio): array
@@ -86,58 +92,78 @@ class TablaPosiciones
 
     private static function conciliadores(string $desde, string $hasta): array
     {
+        // Parte de la lista de conciliadores (todos, aunque no tengan
+        // audiencias en el mes) y le pega sus números con LEFT JOIN.
         return DB::select("
             SELECT u.id,
                    u.name,
                    u.delegacion,
                    u.foto_perfil,
-                   SUM(sc.estatus_conciliacion = 'Conciliacion') AS valor,
-                   SUM(sc.estatus_conciliacion IN ('Conciliacion', 'No conciliacion')) AS resueltas
-              FROM seer_conciliadores sc
-              LEFT JOIN audiencias   a ON a.id = sc.audiencia_id
-              LEFT JOIN seer_general g ON g.id = sc.id_solicitud
-              JOIN users u ON u.id = COALESCE(NULLIF(a.id_conciliador, 0), NULLIF(g.conciliador_id, 0))
-             WHERE sc.fecha >= ? AND sc.fecha < ?
-               AND u.estatus = 'Activo'
+                   COALESCE(s.valor, 0)     AS valor,
+                   COALESCE(s.resueltas, 0) AS resueltas
+              FROM users u
+              LEFT JOIN (
+                    SELECT COALESCE(NULLIF(a.id_conciliador, 0), NULLIF(g.conciliador_id, 0)) AS user_id,
+                           SUM(sc.estatus_conciliacion = 'Conciliacion') AS valor,
+                           SUM(sc.estatus_conciliacion IN ('Conciliacion', 'No conciliacion')) AS resueltas
+                      FROM seer_conciliadores sc
+                      LEFT JOIN audiencias   a ON a.id = sc.audiencia_id
+                      LEFT JOIN seer_general g ON g.id = sc.id_solicitud
+                     WHERE sc.fecha >= ? AND sc.fecha < ?
+                     GROUP BY 1
+                   ) s ON s.user_id = u.id
+             WHERE u.estatus = 'Activo'
                AND u.email NOT LIKE '%temporal%'
                AND u.name  NOT LIKE '%temporal%'
-             GROUP BY u.id, u.name, u.delegacion, u.foto_perfil
-            HAVING valor > 0
-        ", [$desde, $hasta]);
-    }
-
-    private static function auxiliares(string $desde, string $hasta): array
-    {
-        // Se exige el rol para que la lista no se llene de gente de otras
-        // áreas que capturó una solicitud suelta: en septiembre había un
-        // notificador y dos conciliadores con una cada uno. Los orientadores
-        // también capturan solicitudes, así que compiten aquí.
-        //
-        // El rol va en un EXISTS y no en un JOIN: con JOIN, quien tuviera
-        // ambos roles saldría dos veces por solicitud y contaría doble.
-        return DB::select("
-            SELECT u.id,
-                   u.name,
-                   u.delegacion,
-                   u.foto_perfil,
-                   COUNT(*) AS valor,
-                   NULL     AS resueltas
-              FROM seer_general g
-              JOIN users u ON u.id = g.user_id
-             WHERE EXISTS (
+               AND u.name  NOT LIKE '%prueba%'
+               AND EXISTS (
                     SELECT 1
                       FROM model_has_roles mr
                       JOIN roles r ON r.id = mr.role_id
                      WHERE mr.model_id = u.id
                        AND mr.model_type = ?
-                       AND r.name IN ('Auxiliar', 'Orientador')
+                       AND r.name = 'Conciliador'
                    )
-               AND g.fecha >= ? AND g.fecha < ?
-               AND u.estatus = 'Activo'
+        ", [$desde, $hasta, \App\Models\User::class]);
+    }
+
+    private static function auxiliares(string $desde, string $hasta): array
+    {
+        // La lista sale del catálogo de módulos: quien atiende uno activo,
+        // con rol Auxiliar y sin rol Orientador. Así aparecen todos, aunque
+        // lleven 0 en el mes, y no se cuelan cuentas genéricas ni gente de
+        // otras áreas que capturó una solicitud suelta.
+        return DB::select("
+            SELECT u.id,
+                   u.name,
+                   u.delegacion,
+                   u.foto_perfil,
+                   COALESCE(s.valor, 0) AS valor,
+                   NULL                 AS resueltas
+              FROM users u
+              LEFT JOIN (
+                    SELECT g.user_id, COUNT(*) AS valor
+                      FROM seer_general g
+                     WHERE g.fecha >= ? AND g.fecha < ?
+                     GROUP BY g.user_id
+                   ) s ON s.user_id = u.id
+             WHERE u.estatus = 'Activo'
                AND u.email NOT LIKE '%temporal%'
                AND u.name  NOT LIKE '%temporal%'
-             GROUP BY u.id, u.name, u.delegacion, u.foto_perfil
-        ", [\App\Models\User::class, $desde, $hasta]);
+               AND EXISTS (SELECT 1 FROM modulos m WHERE m.user_id = u.id AND m.activo = 1)
+               AND EXISTS (
+                    SELECT 1
+                      FROM model_has_roles mr
+                      JOIN roles r ON r.id = mr.role_id
+                     WHERE mr.model_id = u.id AND mr.model_type = ? AND r.name = 'Auxiliar'
+                   )
+               AND NOT EXISTS (
+                    SELECT 1
+                      FROM model_has_roles mr
+                      JOIN roles r ON r.id = mr.role_id
+                     WHERE mr.model_id = u.id AND mr.model_type = ? AND r.name = 'Orientador'
+                   )
+        ", [$desde, $hasta, \App\Models\User::class, \App\Models\User::class]);
     }
 
     /**
@@ -188,8 +214,6 @@ class TablaPosiciones
         $gente = array_values($porNombre);
 
         usort($gente, fn ($a, $b) => [$b['valor'], $a['nombre']] <=> [$a['valor'], $b['nombre']]);
-
-        $gente = array_slice($gente, 0, self::CUANTOS);
 
         $puesto   = 0;
         $anterior = null;
