@@ -1,12 +1,13 @@
 {{--
-    Tarjeta: tabla de posiciones del mes, conciliadores y auxiliares.
+    Tarjeta: tabla de posiciones del mes, conciliadores, auxiliares y
+    orientadores. Va debajo de las tarjetas de cifras, a todo lo ancho.
 
-    Los dos grupos se ven a la vez, no en pastillas: son competencias
+    Los tres grupos se ven a la vez, en columnas, no en pastillas: son competencias
     distintas y ninguna es "la otra vista" de la primera. Cada una abre con su
     primer lugar en grande -foto, sede y el dato que lo puso ahí- y sigue con
     los demás en renglones compactos.
 
-    Aquí no hay barras. Son dos escalas que no se comparan entre sí -convenios
+    Aquí no hay barras. Son escalas que no se comparan entre sí -convenios
     contra solicitudes- y el número es el dato; una barra sólo invitaría a
     medir a un conciliador contra un auxiliar, que no significa nada.
 
@@ -14,7 +15,8 @@
     silueta genérica: en una tabla de posiciones la silueta repetida borra la
     diferencia entre las personas, que es justo lo que la tarjeta muestra.
 
-    Están todos los conciliadores y auxiliares, aunque lleven 0 en el mes. Se
+    Están todos los conciliadores, auxiliares y orientadores, aunque lleven 0
+    en el mes. Se
     ven los primeros cinco; el resto se despliega con "Ver todos".
 
     Espera $posiciones, de App\Support\TablaPosiciones::resumen().
@@ -28,6 +30,7 @@
     @if (! $posiciones['hayDatos'])
         <p class="tp-vacio">Todavía no hay movimientos este mes.</p>
     @else
+        <div class="tp-grupos">
         @foreach ($posiciones['grupos'] as $grupo)
             <section class="tp-grupo">
                 <h4 class="tp-grupo__titulo">{{ $grupo['titulo'] }}</h4>
@@ -97,11 +100,24 @@
                 @endif
             </section>
         @endforeach
+        </div>
     @endif
 </div>
 
 <style>
     .tp-mes { text-transform: none; letter-spacing: 0; color: #5E6E6F; }
+
+    /* La tarjeta se mide a sí misma: el menú lateral cambia el ancho
+       disponible sin que cambie la pantalla. */
+    .inicio-tarjeta.tp {
+        container: posiciones / inline-size;
+        margin-bottom: 18px;
+    }
+    .tp-grupos {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        align-items: start;
+    }
 
     .tp-grupo + .tp-grupo {
         margin-top: 16px;
@@ -278,6 +294,60 @@
     .tp-mas:hover { background: #F5F8F8; border-style: solid; }
     .tp-mas i { transition: transform .2s; }
     .tp-mas[aria-expanded="true"] i { transform: rotate(180deg); }
+
+    /* --- tres columnas ---
+       Con espacio, los grupos van lado a lado separados por una línea
+       vertical en vez de la horizontal de cuando se apilan. */
+    @container posiciones (min-width: 760px) {
+        .tp-grupos { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .tp-grupo { padding: 0 20px; }
+        .tp-grupo:first-child { padding-left: 0; }
+        .tp-grupo:last-child { padding-right: 0; }
+        .tp-grupo + .tp-grupo {
+            margin-top: 0;
+            padding-top: 0;
+            border-top: 0;
+            border-left: 1px solid #EDF1F1;
+        }
+    }
+
+    /* Columnas angostas (menos de ~300px): el primer lugar deja de ser una
+       línea de tres columnas, porque el nombre se partía en cuatro renglones
+       y la cifra se le encimaba. Avatar y nombre arriba, la cifra abajo. */
+    @container posiciones (min-width: 760px) and (max-width: 1000px) {
+        .tp-lider {
+            grid-template-columns: auto 1fr;
+            grid-template-areas: "foto texto" "valor valor";
+            gap: 8px 9px;
+            padding: 9px 10px;
+        }
+        .tp-lider > .tp-avatar--grande { grid-area: foto; }
+        .tp-lider__texto { grid-area: texto; }
+        .tp-lider__valor {
+            grid-area: valor;
+            display: flex;
+            align-items: baseline;
+            gap: 5px;
+            font-size: 20px;
+            text-align: left;
+        }
+        .tp-lider__valor small { margin-top: 0; }
+        .tp-avatar--grande { width: 40px; height: 40px; }
+        .tp-avatar--grande .tp-iniciales { font-size: 14px; }
+        .tp-grupo { padding: 0 13px; }
+        .tp-fila { gap: 7px; padding: 4px 8px; }
+    }
+
+    /* Sin soporte de @container se decide por la pantalla. */
+    @supports not (container-type: inline-size) {
+        @media (min-width: 900px) {
+            .tp-grupos { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+            .tp-grupo { padding: 0 20px; }
+            .tp-grupo:first-child { padding-left: 0; }
+            .tp-grupo:last-child { padding-right: 0; }
+            .tp-grupo + .tp-grupo { margin-top: 0; padding-top: 0; border-top: 0; border-left: 1px solid #EDF1F1; }
+        }
+    }
 </style>
 
 <script>

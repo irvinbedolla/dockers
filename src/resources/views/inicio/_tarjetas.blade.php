@@ -4,19 +4,20 @@
     Vive aparte del saludo y de la bifurcación por rol porque la ven todos:
     Directivo, Conciliador, Auxiliar y demás.
 
-    Para sumar una tarjeta basta con un @include más abajo, pero la rejilla ya
-    no se acomoda sola: son cuatro columnas fijas. Si se agrega una quinta hay
-    que decidir aquí si la fila pasa a cinco o si arranca una segunda fila.
+    Arriba van las tres tarjetas de cifras en tres columnas fijas; abajo, la
+    tabla de posiciones a todo lo ancho, con sus tres grupos lado a lado.
+    Para sumar otra tarjeta de cifras hay que decidir aquí si la fila pasa a
+    cuatro columnas o si arranca una segunda fila.
 --}}
 
 <style>
     .inicio-tarjetas {
         display: grid;
-        /* Cuatro columnas fijas y no auto-fill. Con auto-fill, en cuanto la
-           fila dejaba de dar para cuatro se iban a tres y la cuarta caía sola
-           en el renglón de abajo, que es justo lo que no se quiere. Así las
-           cuatro se angostan juntas y siempre se ven de un vistazo. */
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        /* Tres columnas fijas y no auto-fill. Con auto-fill, en cuanto la
+           fila dejaba de dar para tres la última caía sola en el renglón de
+           abajo, que es justo lo que no se quiere. Así se angostan juntas y
+           siempre se ven de un vistazo. */
+        grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 18px;
         margin-bottom: 18px;
         align-items: start;
@@ -24,16 +25,13 @@
            apretarse según el ancho que de verdad les tocó. El viewport no
            sirve para eso: el menú lateral se colapsa de 250px a 78px sin que
            la pantalla cambie de tamaño, y son 172px que cambian el reparto. */
-        container-type: inline-size;
+        container: tarjetas / inline-size;
     }
 
-    /* 1024px es el corte que ya usa el layout para esconder el menú lateral.
-       De ahí para abajo es tableta: dos y dos. */
-    @media (max-width: 1024px) {
-        .inicio-tarjetas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    }
-
-    @media (max-width: 575.98px) {
+    /* Tres tarjetas no se reparten bien en dos columnas (quedaría una sola
+       abajo), así que de tres pasan directo a una. Con 900px de pantalla y
+       el menú escondido cada tarjeta aún mide unos 270px. */
+    @media (max-width: 899.98px) {
         .inicio-tarjetas { grid-template-columns: 1fr; }
     }
 
@@ -60,19 +58,19 @@
     /* ---------------------------------------------------------------------
        Modo apretado.
 
-       En cuatro columnas, una fila de 1254px deja tarjetas de 300px, y de ahí
+       En tres columnas, una fila de 936px deja tarjetas de 300px, y de ahí
        para abajo las rejillas internas -96px de nombre, 52px de valor y la
-       barra en medio- dejan de caber y la barra se queda sin espacio. En una
-       pantalla de 1366px con el menú abierto la tarjeta mide 250px, así que
-       este caso es la norma en las máquinas del Centro, no la excepción.
+       barra en medio- dejan de caber y la barra se queda sin espacio.
 
        Las reglas viven aquí y no en cada tarjeta porque el disparador es el
        ancho de la fila, que es cosa de la fila. Va envuelto en el media query
-       porque el umbral sólo tiene sentido mientras sean cuatro columnas: en
-       tableta la misma fila de 1000px da tarjetas de 490px.
+       porque el umbral sólo tiene sentido mientras sean tres columnas.
+
+       La tabla de posiciones ya no está en esta fila: se acomoda sola en
+       _tarjeta_posiciones según su propio ancho.
        --------------------------------------------------------------------- */
-    @media (min-width: 1025px) {
-        @container (max-width: 1254px) {
+    @media (min-width: 900px) {
+        @container tarjetas (max-width: 936px) {
             .inicio-tarjeta { padding: 16px 13px; }
             .inicio-tarjeta__titulo { font-size: 10.5px; letter-spacing: .05em; margin-bottom: 11px; }
 
@@ -94,39 +92,6 @@
             .ms-persona { gap: 6px; font-size: 11px; }
             .ms-gente { padding-left: 8px; }
             .ms-ayuda, .cv-nota, .tc-nota { font-size: 10.5px; }
-
-            /* El primer lugar deja de ser una línea de tres columnas: a este
-               ancho el nombre se partía en cuatro renglones y la cifra se le
-               encimaba. Avatar y nombre arriba, la cifra abajo con todo el
-               ancho para ella. */
-            .tp-lider {
-                grid-template-columns: auto 1fr;
-                grid-template-areas: "foto texto" "valor valor";
-                gap: 8px 9px;
-                padding: 9px 10px;
-            }
-            .tp-lider > .tp-avatar--grande { grid-area: foto; }
-            .tp-lider__texto { grid-area: texto; }
-            .tp-lider__valor {
-                grid-area: valor;
-                display: flex;
-                align-items: baseline;
-                gap: 5px;
-                font-size: 20px;
-                text-align: left;
-            }
-            .tp-lider__valor small { margin-top: 0; }
-
-            .tp-lider__nombre { font-size: 12.5px; }
-            .tp-lider__pie { font-size: 10.5px; }
-            .tp-avatar--grande { width: 40px; height: 40px; }
-            .tp-avatar--grande .tp-iniciales { font-size: 14px; }
-            .tp-medalla { min-width: 17px; height: 17px; line-height: 17px; font-size: 10px; }
-
-            .tp-grupo__titulo { font-size: 10px; margin-bottom: 8px; }
-            .tp-fila { grid-template-columns: 13px auto 1fr auto; gap: 7px; padding: 4px 8px; }
-            .tp-nombre { font-size: 11.5px; }
-            .tp-valor { font-size: 12px; min-width: 24px; }
         }
     }
 
@@ -134,7 +99,7 @@
        algo más apretado de lo necesario cuando el menú está colapsado, que es
        el precio de no poder medir la fila. */
     @supports not (container-type: inline-size) {
-        @media (min-width: 1025px) and (max-width: 1563px) {
+        @media (min-width: 900px) and (max-width: 1245px) {
             .inicio-tarjeta { padding: 16px 13px; }
             .inicio-tarjeta__titulo { font-size: 10.5px; letter-spacing: .05em; margin-bottom: 11px; }
 
@@ -156,39 +121,6 @@
             .ms-persona { gap: 6px; font-size: 11px; }
             .ms-gente { padding-left: 8px; }
             .ms-ayuda, .cv-nota, .tc-nota { font-size: 10.5px; }
-
-            /* El primer lugar deja de ser una línea de tres columnas: a este
-               ancho el nombre se partía en cuatro renglones y la cifra se le
-               encimaba. Avatar y nombre arriba, la cifra abajo con todo el
-               ancho para ella. */
-            .tp-lider {
-                grid-template-columns: auto 1fr;
-                grid-template-areas: "foto texto" "valor valor";
-                gap: 8px 9px;
-                padding: 9px 10px;
-            }
-            .tp-lider > .tp-avatar--grande { grid-area: foto; }
-            .tp-lider__texto { grid-area: texto; }
-            .tp-lider__valor {
-                grid-area: valor;
-                display: flex;
-                align-items: baseline;
-                gap: 5px;
-                font-size: 20px;
-                text-align: left;
-            }
-            .tp-lider__valor small { margin-top: 0; }
-
-            .tp-lider__nombre { font-size: 12.5px; }
-            .tp-lider__pie { font-size: 10.5px; }
-            .tp-avatar--grande { width: 40px; height: 40px; }
-            .tp-avatar--grande .tp-iniciales { font-size: 14px; }
-            .tp-medalla { min-width: 17px; height: 17px; line-height: 17px; font-size: 10px; }
-
-            .tp-grupo__titulo { font-size: 10px; margin-bottom: 8px; }
-            .tp-fila { grid-template-columns: 13px auto 1fr auto; gap: 7px; padding: 4px 8px; }
-            .tp-nombre { font-size: 11.5px; }
-            .tp-valor { font-size: 12px; min-width: 24px; }
         }
     }
 </style>
@@ -197,7 +129,8 @@
     @include('inicio._tarjeta_convenios')
     @include('inicio._tarjeta_mes')
     @include('inicio._tarjeta_tasa')
-
-    {{-- La tabla de posiciones va al final: cierra la fila por la derecha. --}}
-    @include('inicio._tarjeta_posiciones')
 </div>
+
+{{-- Abajo y a todo lo ancho: tres grupos que necesitan espacio para verse
+     lado a lado. --}}
+@include('inicio._tarjeta_posiciones')
