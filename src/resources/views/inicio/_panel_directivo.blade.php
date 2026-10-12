@@ -1,6 +1,6 @@
 {{--
-    Panel del rol Directivo: sin calendario. Muestra totales del sistema y su
-    desglose por sede. $resumen viene de InicioController::resumenDirectivo(),
+    Panel del rol Directivo (también en /estadisticas): sin calendario. Muestra totales del sistema y su
+    desglose por sede. $resumen viene de App\Support\ResumenSedes::totales(),
     con la forma ['solicitudes'|'audiencias'|'ratificaciones' => ['total' => int, 'porSede' => [sede => int]]].
 --}}
 <style>
