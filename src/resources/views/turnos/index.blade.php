@@ -82,6 +82,16 @@
         .tn-accion--principal:hover { color: #fff; border-color: var(--tn-verde); }
         .tn-accion--principal .tn-accion__icono { background: var(--tn-dorado); color: #fff; }
         .tn-accion__titulo { display: block; font-size: 15.5px; font-weight: 700; }
+        /* Pantalla de espera con varias sedes: una pastilla por sede. */
+        .tn-accion--pantallas:hover { transform: none; }
+        .tn-pantallas { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+        .tn-pantallas a {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 3px 10px; border-radius: 999px;
+            border: 1px solid var(--tn-borde); background: #F5F7F7;
+            color: var(--tn-verde); font-size: 12px; font-weight: 700; text-decoration: none;
+        }
+        .tn-pantallas a:hover { background: var(--tn-verde); border-color: var(--tn-verde); color: #fff; }
         .tn-accion__texto { display: block; font-size: 12.5px; opacity: .75; }
 
         .tn-cuerpo {
@@ -198,6 +208,34 @@
                             <span class="tn-accion__texto">Consulta cualquier día y filtra</span>
                         </span>
                     </a>
+
+                    {{-- Pantalla de sala de espera de la(s) sede(s) que ve esta persona. Abre en otra pestaña para mandarla a la tele. --}}
+                    @php
+                        $pantallas = collect($sedesVisibles)
+                            ->mapWithKeys(fn ($s) => [$s => \App\Support\PantallaEspera::slug($s)])
+                            ->filter();
+                    @endphp
+                    @if ($pantallas->count() === 1)
+                        <a class="tn-accion" href="{{ route('pantalla.espera', $pantallas->first()) }}" target="_blank" rel="noopener">
+                            <span class="tn-accion__icono"><i class="bi bi-display" aria-hidden="true"></i></span>
+                            <span>
+                                <span class="tn-accion__titulo">Pantalla de espera <i class="bi bi-box-arrow-up-right" style="font-size:12px" aria-hidden="true"></i></span>
+                                <span class="tn-accion__texto">Turnos de {{ $pantallas->keys()->first() }} para la sala</span>
+                            </span>
+                        </a>
+                    @elseif ($pantallas->count() > 1)
+                        <div class="tn-accion tn-accion--pantallas">
+                            <span class="tn-accion__icono"><i class="bi bi-display" aria-hidden="true"></i></span>
+                            <span>
+                                <span class="tn-accion__titulo">Pantallas de espera</span>
+                                <span class="tn-pantallas">
+                                    @foreach ($pantallas as $nombreSede => $slugSede)
+                                        <a href="{{ route('pantalla.espera', $slugSede) }}" target="_blank" rel="noopener" title="Abrir la pantalla de {{ $nombreSede }} en otra pestaña">{{ $nombreSede }}</a>
+                                    @endforeach
+                                </span>
+                            </span>
+                        </div>
+                    @endif
                 </div>
 
                 <div class="tn-cuerpo">
