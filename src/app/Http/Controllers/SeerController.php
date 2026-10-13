@@ -15710,9 +15710,10 @@ class SeerController extends Controller
 
     public function todas_solicitudes(Request $request) {
         $user = auth()->user();
-        $userRole = $user->roles->first()?->name; 
+        $roles = $user->roles->pluck('name');
         $isAudiencia = 'No';
-
+        $jerarquiaRoles = ['Delegado', 'Enlace', 'Conciliador', 'Excepcion', 'Auxiliar'];
+        $userRole = collect($jerarquiaRoles)->first(fn($rol) => $roles->contains($rol)) ?? $roles->first();
         // 1. Iniciamos el Query base optimizado con Eager Loading selectivo
         $query = SeerPerGeneral::with('solicitante:id,id_solicitud,nombre,telefono1')
             ->where('estatus', '!=', 'Pendiente')
