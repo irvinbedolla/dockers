@@ -15639,8 +15639,9 @@ class SeerController extends Controller
     public function todas_ratificaciones(Request $request) {
         $user = auth()->user();
         // Obtenemos el nombre del rol principal directamente
-        $userRole = $user->roles->first()?->name; 
-
+        $roles = $user->roles->pluck('name');
+        $jerarquiaRoles = ['Delegado', 'Enlace', 'Conciliador', 'Excepcion', 'Auxiliar'];
+        $userRole = collect($jerarquiaRoles)->first(fn($rol) => $roles->contains($rol)) ?? $roles->first();
         // 1. Iniciamos la consulta base seleccionando columnas específicas si es posible
         $query = Turnos::where('tipo', 'Ratificación')
             ->where(function($q) {
