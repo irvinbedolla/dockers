@@ -250,10 +250,10 @@ class HomeController extends Controller
         ];
         
         $fecha_inicio = Carbon::parse($fecha_turno)->subDays(30)->format('Y-m-d');
-        $correo = Recepcion::where('correo', $data['email'])->whereBetween('fecha', [$fecha_inicio, $fecha_turno])->exists();
-        if($correo){
+        //$correo = Recepcion::where('correo', $data['email'])->whereBetween('fecha', [$fecha_inicio, $fecha_turno])->exists();
+        /*if($correo){
             return redirect()->route('citas')->with('error', 'No se ha podido completar tu cita. El correo ya ha sido registrado en los últimos 30 días.'); 
-        }
+        }*/
         //El horario seleccionado en el calendario ya no debe estar ocupado ni caer en un día/horario inhábil
         if (!(new RecepcionController())->turnoSlotDisponible($sede, $tipo, $fecha_turno, $hora_turno, $excepcion, true)) {
             return back()->withInput()->with('error', 'El horario seleccionado ya no está disponible. Por favor selecciona otro.');
