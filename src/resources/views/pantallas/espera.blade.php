@@ -288,7 +288,7 @@
         <img class="pe-logo" src="{{ asset('assets/images/Logo pantalla.png') }}" alt="SíConcilio">
         <span class="pe-separador" aria-hidden="true"></span>
         <div>
-            <div class="pe-sede">Sede {{ $sede }}</div>
+            <div class="pe-sede">Sede {{ $sede }}@if (! empty($pruebas)) <span style="font-size:1.4rem;background:#FBF4E1;color:#7A5D10;border-radius:99rem;padding:.2rem 1rem;vertical-align:middle;">MODO PRUEBAS</span>@endif</div>
             <div class="pe-centro">Centro de Conciliación Laboral del Estado de Michoacán</div>
         </div>
         <div class="pe-reloj" aria-live="off">

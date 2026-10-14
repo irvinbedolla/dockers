@@ -71,17 +71,23 @@ class PantallaEspera
         return $slug === false ? null : $slug;
     }
 
-    public static function datos(string $sede): array
+    /**
+     * $conPruebas: incluye las citas de prueba del flujo nuevo (FlujoCita).
+     * La pantalla real nunca las muestra; /pantalla-morelia?pruebas=1 sí.
+     */
+    public static function datos(string $sede, bool $conPruebas = false): array
     {
         return Cache::remember(
-            'pantalla_espera.'.self::slug($sede),
+            'pantalla_espera.'.self::slug($sede).($conPruebas ? '.pruebas' : ''),
             self::SEGUNDOS_CACHE,
-            fn () => self::calcular($sede, now())
+            fn () => self::calcular($sede, now(), $conPruebas)
         );
     }
 
-    public static function calcular(string $sede, Carbon $ahora): array
+    public static function calcular(string $sede, Carbon $ahora, bool $conPruebas = false): array
     {
+        $sinPruebas = ! $conPruebas && FlujoCita::migrado();
+
         $hoy        = $ahora->toDateString();
         $horaAhora  = $ahora->format('H:i:s');
         $tolerancia = $ahora->copy()->subMinutes(ValidadorCita::TOLERANCIA_MINUTOS)->format('H:i:s');
@@ -95,6 +101,7 @@ class PantallaEspera
             ->leftJoin('modulos as m', 'm.id', '=', 'r.modulo_id')
             ->where('r.fecha', $hoy)
             ->where('r.delegacion', $sede)
+            ->when($sinPruebas, fn ($q) => $q->where('r.es_prueba', 0))
             ->where(function ($q) use ($tolerancia, $limiteConf) {
                 $q->where(fn ($p) => $p->where('r.estatus', 'pendiente')->where('r.hora', '>=', $tolerancia))
                   ->orWhere(fn ($c) => $c->where('r.estatus', 'confirmada')->where('r.hora', '>=', $limiteConf));
@@ -190,11 +197,13 @@ class PantallaEspera
         $atendidos = DB::table('recepcion')
             ->where('fecha', $hoy)
             ->where('delegacion', $sede)
+            ->when($sinPruebas, fn ($q) => $q->where('es_prueba', 0))
             ->where('estatus', 'atendido')
             ->count();
 
         return [
             'sede'          => $sede,
+            'pruebas'       => $conPruebas,
             'generado'      => $ahora->toIso8601String(),
             'modulos'       => $tablero,
             'proximas'      => $proximas,

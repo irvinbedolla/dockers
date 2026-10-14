@@ -347,6 +347,9 @@
                                             @else
                                                 <span class="tn-origen tn-origen--ventanilla">Ventanilla</span>
                                             @endif
+                                            @if (! empty($turno->es_prueba))
+                                                <span class="tn-origen" style="background:#FBF4E1;color:#7A5D10;">Prueba</span>
+                                            @endif
                                         </td>
                                         <td>
                                             {{ $turno->auxiliar ? \Illuminate\Support\Str::title(mb_strtolower($turno->auxiliar)) : 'Pendiente' }}
