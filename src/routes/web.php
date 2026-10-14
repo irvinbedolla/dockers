@@ -187,6 +187,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Pantalla de Inicio: deslindada del resto para poder colgarle después
     // datos y notificaciones por rol.
     Route::get('/inicio',                               [InicioController::class, 'index'])->name('inicio');
+    // Flujo nuevo cita → solicitud (fase 1): lo que tiene hoy mi módulo. Lo cuida App\Support\FlujoCita.
+    Route::get('/mi-modulo',                            [App\Http\Controllers\MiModuloController::class, 'index'])->name('mi_modulo');
+    Route::get('/mi-modulo/datos',                      [App\Http\Controllers\MiModuloController::class, 'datos'])->name('mi_modulo.datos');
     // Panel de estadísticas: mapa, gráficas y descarga de reportes.
     Route::get('/estadisticas',                         [EstadisticasController::class, 'index'])->name('estadisticas.index')
         ->middleware('role:Super Usuario|Estadistica|Directivo');
@@ -255,6 +258,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::post('administracion/modulos/citas/{id}/reasignar',   [ModulosController::class, 'reasignar'])->name('modulos.reasignar')->whereNumber('id');
             Route::get('administracion/horarios',                        [HorariosCitasController::class, 'index'])->name('horarios.index');
             Route::put('administracion/horarios',                        [HorariosCitasController::class, 'actualizar'])->name('horarios.actualizar');
+            // Interruptor del flujo nuevo cita en línea → solicitud (App\Support\FlujoCita).
+            Route::get('administracion/flujo-citas',                     [App\Http\Controllers\FlujoCitaController::class, 'index'])->name('flujo_cita.index');
+            Route::put('administracion/flujo-citas',                     [App\Http\Controllers\FlujoCitaController::class, 'guardar'])->name('flujo_cita.guardar');
         });
         Route::get('administracion/sedes',                  [AdministracionController::class, 'configuracion_sedes'])->name('configuracion_sedes');
         Route::get('administracion/usuarios',               [AdministracionController::class, 'configuracion_usuarios'])->name('configuracion_usuarios');
