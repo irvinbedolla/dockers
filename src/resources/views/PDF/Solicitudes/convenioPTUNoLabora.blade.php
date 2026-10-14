@@ -12,13 +12,18 @@
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
         <style>
             @page {
-                margin: 0px 0px;
+                /* dompdf sólo repite en TODAS las páginas el margen de @page; un
+                   padding/margin en body o main se aplica una sola vez, al inicio
+                   del documento. Por eso desde la segunda página el texto se subía
+                   encima del encabezado del membrete. Igual que convenioPTU y
+                   citatorio: el espacio se reserva aquí y el membrete se recorre. */
+                margin: 140px 50px 80px 40px;
             }
             body{
-                padding-top: 95px;
+                padding-top: 0;
             }
             main{
-                margin: 50px 50px 50px 40px; /*Para colocar el texto*/
+                margin: 0; /* los márgenes van en @page */
             }
             header {
                 position: fixed;
@@ -43,14 +48,15 @@
                 font-family: sans-serif;
                 font-size: 12px;
                 text-align: justify;
-                margin-top: 50px;
+                margin-top: 0;
             }
             .fondo-membrete {
+                /* Cubre la hoja completa, incluidos los márgenes de @page. */
                 position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
+                top: -140px;
+                left: -40px;
+                width: 21cm;
+                height: 29.7cm;
                 z-index: -1;
             }
             .sangria {
