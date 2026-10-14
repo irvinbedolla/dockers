@@ -38,6 +38,12 @@ class RecepcionController extends Controller
             return redirect()->back()->with('error', 'Es necesario seleccionar la fecha y el horario del turno en el calendario.');
         }
 
+        // CURP y domicilio del flujo nuevo (sólo si el formulario los pidió).
+        [$camposFlujo, $errorFlujo] = \App\Support\FlujoCita::camposDeCita($request);
+        if ($errorFlujo) {
+            return back()->withInput()->with('error', $errorFlujo);
+        }
+
         $data = $request->all();
         $sede = $data["delegacion"];
         $tipoTramite = $data["tipo"];
@@ -93,7 +99,7 @@ class RecepcionController extends Controller
             DB::transaction(function () use (
                 $sede, $fecha_asignada_str, $hora_turno, $hora_fin, $id_aux, 
                 $tipoTramite, $modulo, $modulo_id, $data, $tipo_caso, $prestacionSS, 
-                $vulnerables, &$numero_consecutivo, &$cita
+                $vulnerables, $camposFlujo, &$numero_consecutivo, &$cita
             ) {
                 $ultimoTurno = Recepcion::where('delegacion', $sede) 
                     ->lockForUpdate()
@@ -134,7 +140,7 @@ class RecepcionController extends Controller
                     'telefono'        => $data["telefono"],
                     'correo'          => $data["correo"],
                     'municipio'       => $data["municipio_solicitante"],
-                ]);
+                ] + $camposFlujo);
             }); 
 
             $fechaFormateada = ucfirst(Carbon::parse($fecha_asignada_str)->isoFormat('dddd D [de] MMMM'));

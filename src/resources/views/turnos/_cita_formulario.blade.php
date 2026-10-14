@@ -150,6 +150,10 @@
                                             <div class="form-text">Nos ayuda a darte la atención adecuada.</div>
                                             <div class="invalid-feedback">Elige una opción.</div>
                                         </div>
+                                        {{-- CURP y domicilio para el prellenado (flujo nuevo, App\Support\FlujoCita). --}}
+                                        @if (\App\Support\FlujoCita::camposExtra($ventanilla))
+                                            @include('turnos._campos_flujo')
+                                        @endif
                                     </div>
                                 </fieldset>
 

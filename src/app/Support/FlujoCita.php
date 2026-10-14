@@ -100,6 +100,78 @@ class FlujoCita
         return array_values(array_map('intval', is_array($ids) ? $ids : []));
     }
 
+    /**
+     * ¿El formulario de cita pide CURP y domicilio (para el prellenado)?
+     *   activo  → siempre.
+     *   pruebas → en /generar-cita sólo con ?pruebas=1; en ventanilla sólo
+     *             a un Super Usuario. La operación real no cambia.
+     */
+    public static function camposExtra(bool $ventanilla): bool
+    {
+        if (! self::migrado()) {
+            return false;
+        }
+
+        return match (self::estado()) {
+            self::ACTIVO  => true,
+            self::PRUEBAS => $ventanilla
+                ? (auth()->check() && auth()->user()->hasRole('Super Usuario'))
+                : request()->boolean('pruebas'),
+            default       => false,
+        };
+    }
+
+    /**
+     * CURP y domicilio del formulario de cita, validados, listos para
+     * Recepcion::create. Con el flujo activo son obligatorios; en pruebas,
+     * sólo si el formulario los traía (camposExtra).
+     *
+     * @return array{0: array, 1: ?string} [columnas, error]
+     */
+    public static function camposDeCita(\Illuminate\Http\Request $request): array
+    {
+        if (! self::migrado()) {
+            return [[], null];
+        }
+
+        // Con el banderazo (activo) son obligatorios aunque el formulario no
+        // los traiga (p. ej. una página abierta desde antes de activarlo: se
+        // regresa con el aviso y ya muestra los campos). En pruebas, sólo si
+        // el formulario los pidió.
+        if (! $request->has('curp') && self::estado() !== self::ACTIVO) {
+            return [[], null];
+        }
+
+        $curp = Curp::normalizar($request->input('curp'));
+        if ($curp === '') {
+            return [[], 'Escribe la CURP y el domicilio: ahora son obligatorios para agendar.'];
+        }
+        if ($error = Curp::error($curp)) {
+            return [[], $error];
+        }
+
+        $domicilio = [
+            'calle'    => trim((string) $request->input('domicilio_calle')),
+            'num_ext'  => trim((string) $request->input('domicilio_numero')),
+            'num_int'  => trim((string) $request->input('domicilio_interior')),
+            'colonia'  => trim((string) $request->input('domicilio_colonia')),
+            'cp'       => preg_replace('/\D/', '', (string) $request->input('domicilio_cp')),
+        ];
+        if ($domicilio['calle'] === '' || $domicilio['num_ext'] === '' || $domicilio['colonia'] === '') {
+            return [[], 'Escribe la calle, el número y la colonia del domicilio.'];
+        }
+        if (strlen($domicilio['cp']) !== 5) {
+            return [[], 'El código postal debe tener 5 dígitos.'];
+        }
+
+        $domicilio = array_map(fn ($v) => mb_substr(mb_strtoupper($v), 0, 60), $domicilio);
+
+        return [[
+            'curp'      => $curp,
+            'domicilio' => json_encode($domicilio, JSON_UNESCAPED_UNICODE),
+        ], null];
+    }
+
     /** Minutos antes de la hora de la cita en que se avisa al auxiliar (fase 3). */
     public static function minutosAviso(): int
     {

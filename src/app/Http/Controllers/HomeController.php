@@ -234,6 +234,12 @@ class HomeController extends Controller
             return back()->withInput()->with('error', 'Es necesario seleccionar la fecha y el horario del turno en el calendario.');
         }
         
+        // CURP y domicilio del flujo nuevo (sólo si el formulario los pidió).
+        [$camposFlujo, $errorFlujo] = \App\Support\FlujoCita::camposDeCita($request);
+        if ($errorFlujo) {
+            return back()->withInput()->with('error', $errorFlujo);
+        }
+
         $data = $request->all();
         $sede = $data["delegacion"];
         $tipo = $data["tipo"];
@@ -313,7 +319,7 @@ class HomeController extends Controller
             'correo'        => $data["email"],
             'telefono'      => $data["telefono"],
             'observaciones' => $data["conflicto"]
-        );
+        ) + $camposFlujo;
     
             // En transacción: si el INSERT falla, también se deshace el folio
             // que se apartó en folios_citas y no quedan números saltados.
