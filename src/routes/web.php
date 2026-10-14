@@ -48,6 +48,7 @@ use App\Http\Controllers\IncidenciasBusquedaController;
 use App\Http\Controllers\AsistenciaController;
 use App\Http\Controllers\RetrocesoHistorialController;
 use App\Http\Controllers\BitacoraAdministracionController;
+use App\Http\Controllers\HistorialEdicionController;
 
 
 /*
@@ -286,6 +287,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/administracion/historial/{tipo}',      [BitacoraAdministracionController::class, 'index'])->name('administracion_historial')
             ->where('tipo', 'borrar_cumplimiento|cambio_fecha_audiencia|cambio_fecha_cumplimiento')
             ->middleware('role:Super Usuario');
+
+        // Historial de ediciones guardadas desde "Revisar audiencia": solo Super Usuario
+        Route::get('/administracion/historial-ediciones',      [HistorialEdicionController::class, 'index'])->name('historial_ediciones')->middleware('role:Super Usuario');
+        Route::get('/administracion/historial-ediciones/{id}', [HistorialEdicionController::class, 'show'])->name('historial_ediciones_detalle')->middleware('role:Super Usuario');
     });
 
     /*
