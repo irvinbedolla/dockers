@@ -54,6 +54,8 @@
         .mm-faltan { font-weight: 700; white-space: nowrap; }
         .mm-faltan.is-pronto { color: #7A5D10; }
         .mm-nota { font-size: 12px; color: var(--tn-tenue); margin-top: 10px; }
+        .mm-iniciar { margin-top: 14px; }
+        .mm-iniciar .btn { font-weight: 700; }
         @media (max-width: 900px) { .mm-par { grid-template-columns: 1fr; } }
     </style>
 @endsection
@@ -72,6 +74,9 @@
                 @if ($estado === 'pruebas')
                     <span class="mm-chip mm-chip--pruebas"><i class="bi bi-cone-striped"></i> Modo pruebas</span>
                 @endif
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="mmPermiso" hidden>
+                    <i class="bi bi-bell"></i> Activar avisos del navegador
+                </button>
                 <span class="small" style="color: var(--tn-tenue);" id="mmActualizado"></span>
             </div>
         </div>
@@ -107,7 +112,7 @@
                         </table>
                     </div>
                     @if (auth()->user()->hasRole('Super Usuario'))
-                        <p class="mm-nota mb-0">Fase 1 (sólo consulta). Siguen: prellenado de la solicitud, aviso con sonido {{ \App\Support\FlujoCita::minutosAviso() }} min antes y botones Llamar / Atender conectados a la pantalla.</p>
+                        <p class="mm-nota mb-0">Prellenado y aviso {{ \App\Support\FlujoCita::minutosAviso() }} min antes activos para las citas del flujo nuevo. Sigue: botones Llamar / Atender conectados a la pantalla.</p>
                     @endif
                 </div>
             @endif
@@ -120,6 +125,8 @@
 <script>
 (function () {
     var URL = @json($urlDatos);
+    var URL_PRELLENAR = @json(route('mi_modulo.prellenar', ['id' => '__ID__']));
+    var TOKEN = @json(csrf_token());
     var datos = @json($datos);
 
     function esc(t) {
@@ -138,6 +145,13 @@
         if (c.minutos === 0) { return 'ahora'; }
         return 'hace ' + (-c.minutos) + ' min';
     }
+    // Fase 2: abre la captura de siempre con los datos de la cita.
+    function iniciar(c) {
+        if (!c.flujoNuevo || c.tipo !== 'Solicitud' || (c.estatus !== 'pendiente' && c.estatus !== 'confirmada')) { return ''; }
+        return '<form method="POST" class="mm-iniciar" action="' + esc(URL_PRELLENAR.replace('__ID__', c.id)) + '">' +
+            '<input type="hidden" name="_token" value="' + esc(TOKEN) + '">' +
+            '<button type="submit" class="btn tn-boton-dorado"><i class="bi bi-magic me-1"></i> Preparar solicitud con estos datos</button></form>';
+    }
     function ficha(c, etiqueta, conCuenta) {
         if (!c) {
             return '<p class="mm-turno__etiqueta">' + etiqueta + '</p><div class="mm-vacio">' +
@@ -154,7 +168,7 @@
             '<dl class="mm-datos">' +
                 dato('Edad', c.edad) + dato('Municipio', c.municipio) + dato('Teléfono', c.telefono) + dato('Correo', c.correo) +
                 dato('Caso', c.caso) + dato('Motivo', c.motivo) + dato('Grupo vulnerable', c.vulnerables) +
-            '</dl>';
+            '</dl>' + iniciar(c);
     }
     function pintar() {
         document.getElementById('mmActual').innerHTML = ficha(datos.actual, 'Ahora', false);
@@ -183,6 +197,15 @@
     }
     pintar();
     setInterval(actualizar, 20000);
+
+    // Fase 3: las notificaciones del sistema operativo piden permiso con un clic.
+    var permiso = document.getElementById('mmPermiso');
+    if ('Notification' in window && Notification.permission === 'default') {
+        permiso.hidden = false;
+        permiso.addEventListener('click', function () {
+            Notification.requestPermission().then(function () { permiso.hidden = true; });
+        });
+    }
 })();
 </script>
 @endif

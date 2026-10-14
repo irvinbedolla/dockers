@@ -725,6 +725,12 @@
          carga, modales sueltos). Antes se escribían fuera de @section y Blade
          los emitía ANTES del <!DOCTYPE>, lo que dejaba el documento en quirks
          mode y el <head> vacío. --}}
+    {{-- Flujo nuevo cita → solicitud (fase 3): aviso "prepárate" al auxiliar. Lo decide el interruptor. --}}
+    @auth
+        @if (\App\Http\Controllers\MiModuloController::puedeVer(auth()->user()))
+            @include('mi_modulo._avisos')
+        @endif
+    @endauth
     @stack('body_end')
 
 </body>

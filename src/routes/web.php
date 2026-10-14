@@ -190,6 +190,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Flujo nuevo cita → solicitud (fase 1): lo que tiene hoy mi módulo. Lo cuida App\Support\FlujoCita.
     Route::get('/mi-modulo',                            [App\Http\Controllers\MiModuloController::class, 'index'])->name('mi_modulo');
     Route::get('/mi-modulo/datos',                      [App\Http\Controllers\MiModuloController::class, 'datos'])->name('mi_modulo.datos');
+    Route::get('/mi-modulo/avisos',                     [App\Http\Controllers\MiModuloController::class, 'avisos'])->name('mi_modulo.avisos');
+    Route::post('/mi-modulo/citas/{id}/solicitud',      [App\Http\Controllers\MiModuloController::class, 'prellenar'])->name('mi_modulo.prellenar')->whereNumber('id');
+    Route::post('/mi-modulo/prellenado/descartar',      [App\Http\Controllers\MiModuloController::class, 'descartar'])->name('mi_modulo.descartar');
     // Panel de estadísticas: mapa, gráficas y descarga de reportes.
     Route::get('/estadisticas',                         [EstadisticasController::class, 'index'])->name('estadisticas.index')
         ->middleware('role:Super Usuario|Estadistica|Directivo');

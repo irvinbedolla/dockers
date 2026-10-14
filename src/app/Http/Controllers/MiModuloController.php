@@ -59,6 +59,85 @@ class MiModuloController extends Controller
         return response()->json($this->armar($modulo))->header('Cache-Control', 'no-store');
     }
 
+    /**
+     * Fase 2: "Iniciar solicitud" con los datos de la cita. Guarda el
+     * prellenado en la sesión y manda a la captura de siempre.
+     */
+    public function prellenar(Request $request, int $id)
+    {
+        abort_unless(self::puedeVer($request->user()), 403);
+
+        $cita = \App\Models\Recepcion::findOrFail($id);
+
+        abort_unless($this->esDeSusModulos($request->user(), $cita), 403);
+        abort_unless(FlujoCita::aplicaA($cita), 403, 'El flujo nuevo no aplica a esta cita.');
+        abort_unless($cita->tipo === 'Solicitud', 422, 'Sólo las citas de solicitud se prellenan.');
+
+        \App\Support\PrellenadoCita::preparar($cita);
+
+        // Se marca el inicio de la atención si aún no lo tenía (lo usa la fase 4).
+        if (! $cita->atencion_inicio_at) {
+            $cita->forceFill(['atencion_inicio_at' => now()])->save();
+        }
+
+        return redirect()->route('solicitud');
+    }
+
+    public function descartar(Request $request)
+    {
+        \App\Support\PrellenadoCita::descartar();
+
+        return back()->with('success', 'Se quitó el prellenado; captura la solicitud como siempre.');
+    }
+
+    /**
+     * Fase 3: citas de sus módulos que llegan en los próximos N minutos
+     * (Administración → Flujo de citas). Lo consulta el aviso que va en todas
+     * las pantallas (mi_modulo/_avisos). Un Super Usuario sin módulo recibe
+     * los de las citas de prueba de todas las sedes, para poder probar.
+     */
+    public function avisos(Request $request)
+    {
+        $usuario = $request->user();
+        abort_unless(self::puedeVer($usuario), 403);
+
+        $ahora    = now();
+        $minutos  = FlujoCita::minutosAviso();
+        $propios  = self::propios($usuario)->pluck('id');
+        $soloSU   = $propios->isEmpty() && $usuario->hasRole('Super Usuario');
+
+        $citas = DB::table('recepcion as r')
+            ->join('modulos as m', 'm.id', '=', 'r.modulo_id')
+            ->where('r.fecha', $ahora->toDateString())
+            ->whereIn('r.estatus', ['pendiente', 'confirmada'])
+            ->whereBetween('r.hora', [$ahora->format('H:i:s'), $ahora->copy()->addMinutes($minutos)->format('H:i:s')])
+            ->when($soloSU, fn ($q) => $q->where('r.es_prueba', 1), fn ($q) => $q->whereIn('r.modulo_id', $propios))
+            ->orderBy('r.hora')
+            ->get(['r.id', 'r.codigo', 'r.consecutivo', 'r.hora', 'r.tipo', 'r.estatus', 'r.es_prueba', 'r.solicitante', 'm.nombre as modulo', 'm.delegacion'])
+            ->filter(fn ($c) => FlujoCita::aplicaA($c))
+            ->map(fn ($c) => [
+                'id'        => $c->id,
+                'folio'     => FolioCita::mostrar($c),
+                'hora'      => substr($c->hora, 0, 5),
+                'minutos'   => max(0, (int) floor($ahora->diffInSeconds(Carbon::parse($ahora->toDateString().' '.$c->hora), false) / 60)),
+                'tipo'      => $c->tipo,
+                'persona'   => PantallaEspera::nombreCorto($c->solicitante),
+                'modulo'    => preg_replace('/^m[oó]dulo\b/i', 'Módulo', $c->modulo).' · '.$c->delegacion,
+                'enSala'    => $c->estatus === 'confirmada',
+                'prueba'    => (bool) $c->es_prueba,
+                'iniciar'   => $c->tipo === 'Solicitud' ? route('mi_modulo.prellenar', $c->id) : null,
+            ])
+            ->values();
+
+        return response()->json(['avisos' => $citas, 'minutos' => $minutos])->header('Cache-Control', 'no-store');
+    }
+
+    private function esDeSusModulos(User $usuario, object $cita): bool
+    {
+        return $usuario->hasRole('Super Usuario')
+            || self::propios($usuario)->pluck('id')->contains((int) $cita->modulo_id);
+    }
+
     /** Módulos activos que atiende la persona. */
     private static function propios(User $usuario): Collection
     {
