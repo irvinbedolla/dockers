@@ -17093,6 +17093,8 @@ class SeerController extends Controller
                // 1. Guardar SeerPerGeneral inicial
                 $general = SeerPerGeneral::crearConGuia($solicitudData);
                 $id = $general->id;
+                // Flujo nuevo: si se empezó desde "Mi módulo", se liga con su cita.
+                \App\Support\PrellenadoCita::ligar($general);
 
                 $consecutivo = $general->consecutivo;
                 $delegacion = $general->delegacion;
