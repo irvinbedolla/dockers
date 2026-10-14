@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\Audiencias;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -34,6 +35,14 @@ class AgendaAudiencias
 
     /** Segundos que se espera el candado antes de rendirse. */
     private const ESPERA = 20;
+
+    /**
+     * Días antes y después de la fecha de la audiencia que cuentan como
+     * "carga" al repartir. Dos semanas a cada lado: lo bastante para que se
+     * note quién va más lleno, sin que unas vacaciones de hace un mes le
+     * echen encima todo lo nuevo al regresar.
+     */
+    public const VENTANA_CARGA = 14;
 
     public static function oficina(?string $sede): string
     {
@@ -97,6 +106,59 @@ class AgendaAudiencias
         } finally {
             DB::select('SELECT RELEASE_LOCK(?)', [$nombre]);
         }
+    }
+
+    /**
+     * Audiencias que ya tiene cada conciliador alrededor de $fecha
+     * (± VENTANA_CARGA días), de todas sus sedes: quien atiende sede y
+     * subsede carga con las dos.
+     *
+     * @param  int[]  $conciliadores
+     * @return array<int, int> id => audiencias
+     */
+    public static function cargas(array $conciliadores, string $fecha): array
+    {
+        $dia = Carbon::parse($fecha);
+
+        $conteo = Audiencias::query()
+            ->whereIn('id_conciliador', $conciliadores)
+            ->whereBetween('fecha', [
+                $dia->copy()->subDays(self::VENTANA_CARGA)->toDateString(),
+                $dia->copy()->addDays(self::VENTANA_CARGA)->toDateString(),
+            ])
+            ->whereNotIn('estatus', self::LIBERAN)
+            ->groupBy('id_conciliador')
+            ->selectRaw('id_conciliador, COUNT(*) AS total')
+            ->pluck('total', 'id_conciliador');
+
+        $cargas = [];
+        foreach ($conciliadores as $id) {
+            $cargas[(int) $id] = (int) ($conteo[$id] ?? 0);
+        }
+
+        return $cargas;
+    }
+
+    /**
+     * De los conciliadores libres en un horario, el que va menos cargado.
+     * Antes se elegía al azar entre todos los libres, sin ver cuántas
+     * audiencias llevaba cada uno; ahora el azar sólo desempata.
+     *
+     * @param  int[]  $libres
+     */
+    public static function menosCargado(array $libres, string $fecha): int
+    {
+        $libres = array_values(array_unique(array_map('intval', $libres)));
+
+        if (count($libres) === 1) {
+            return $libres[0];
+        }
+
+        $cargas  = self::cargas($libres, $fecha);
+        $minima  = min($cargas);
+        $empate  = array_keys(array_filter($cargas, fn ($n) => $n === $minima));
+
+        return $empate[array_rand($empate)];
     }
 
     /** "9:00", "09:00" o "09:00:00" → "09:00:00". */

@@ -8393,7 +8393,8 @@ class SeerController extends Controller
                         $fecha_str,
                         $h,
                         ucfirst($fecha_revisar->isoFormat('dddd D [de] MMMM')),
-                        $posibles_conciliadores[array_rand($posibles_conciliadores)],
+                        // Entre los libres, el que va menos cargado esas semanas (el azar sólo desempata).
+                        \App\Support\AgendaAudiencias::menosCargado($posibles_conciliadores, $fecha_str),
                         "Fecha encontrada correctamente."
                     ];
                 }
