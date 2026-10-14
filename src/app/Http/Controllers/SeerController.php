@@ -9584,24 +9584,8 @@ class SeerController extends Controller
     }
 
     private function convertirNumerosALetras($valor) {
-        $numberToWords = new NumberToWords();
-        $numberTransformer = $numberToWords->getNumberTransformer('es'); 
-
-        //$parteEntera = floor($valor);
-        $partes = explode('.', $valor);
-
-        $parteEntera = $partes[0];
-
-         if(count($partes) > 1){
-            $parteDecimal = $partes[1];
-        } else {
-            $parteDecimal = 0;
-        }
-
-        $letras = strtoupper($numberTransformer->toWords($parteEntera)); 
-        $parteDecimal = round($parteDecimal);
-        $centavos = str_pad($parteDecimal, 2, '0', STR_PAD_LEFT); 
-        return "{$letras} PESOS {$centavos}/100";
+        // Ver App\Support\MontoEnLetras: redondea a centavos antes de pasar a letra.
+        return \App\Support\MontoEnLetras::texto($valor);
     }
 
     //PDF Acuse de solicitud
