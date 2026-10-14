@@ -12,7 +12,7 @@ class Recepcion extends Model
     protected $table = 'recepcion';
     protected $primaryKey = 'id';
     protected $fillable = ['consecutivo','codigo','fecha','hora','hora_fin','auxiliar','solicitante','tipo','lugar_auxiliar','estatus','delegacion','exepcion','edad','sexo','vulnerables','conflicto','tipo_caso','prestacionSS','orientacion','tarjeta','folio','resultado','INS', 'telefono', 'correo', 'estado','municipio', 'observaciones', 'modulo_id', 'origen',
-        'es_prueba', 'curp', 'domicilio', 'llamado_at', 'atencion_inicio_at'];
+        'es_prueba', 'curp', 'domicilio', 'llamado_at', 'atencion_inicio_at', 'atencion_fin_at'];
 
     protected $casts = [
         'fecha' => 'date',
@@ -20,6 +20,7 @@ class Recepcion extends Model
         'es_prueba' => 'boolean',
         'llamado_at' => 'datetime',
         'atencion_inicio_at' => 'datetime',
+        'atencion_fin_at' => 'datetime',
     ];
 
     public const ESTADOS = ['pendiente', 'atendida', 'no atendida'];

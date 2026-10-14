@@ -38,6 +38,14 @@ class FlujoCita
         return $listo ??= \Illuminate\Support\Facades\Schema::hasColumn('recepcion', 'es_prueba');
     }
 
+    /** Fase 4: ¿ya corrió la migración de recepcion.atencion_fin_at? */
+    public static function conFinAtencion(): bool
+    {
+        static $listo = null;
+
+        return $listo ??= self::migrado() && \Illuminate\Support\Facades\Schema::hasColumn('recepcion', 'atencion_fin_at');
+    }
+
     public static function estado(): string
     {
         $estado = (string) Ajuste::valor('flujo_cita.estado', self::APAGADO);
