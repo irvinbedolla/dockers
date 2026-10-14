@@ -187,6 +187,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Pantalla de Inicio: deslindada del resto para poder colgarle después
     // datos y notificaciones por rol.
     Route::get('/inicio',                               [InicioController::class, 'index'])->name('inicio');
+    // Flujo nuevo cita → solicitud (fase 1): lo que tiene hoy mi módulo. Lo cuida App\Support\FlujoCita.
+    Route::get('/mi-modulo',                            [App\Http\Controllers\MiModuloController::class, 'index'])->name('mi_modulo');
+    Route::get('/mi-modulo/datos',                      [App\Http\Controllers\MiModuloController::class, 'datos'])->name('mi_modulo.datos');
+    Route::get('/mi-modulo/avisos',                     [App\Http\Controllers\MiModuloController::class, 'avisos'])->name('mi_modulo.avisos');
+    Route::post('/mi-modulo/citas/{id}/solicitud',      [App\Http\Controllers\MiModuloController::class, 'prellenar'])->name('mi_modulo.prellenar')->whereNumber('id');
+    Route::post('/mi-modulo/prellenado/descartar',      [App\Http\Controllers\MiModuloController::class, 'descartar'])->name('mi_modulo.descartar');
+    // Fase 4: Llamar / Iniciar atención / Terminar / No se presentó (mueven la pantalla de espera).
+    Route::post('/mi-modulo/citas/{id}/{accion}',       [App\Http\Controllers\MiModuloController::class, 'accion'])->name('mi_modulo.accion')
+        ->whereNumber('id')->whereIn('accion', App\Http\Controllers\MiModuloController::ACCIONES)->middleware('throttle:60,1');
     // Panel de estadísticas: mapa, gráficas y descarga de reportes.
     Route::get('/estadisticas',                         [EstadisticasController::class, 'index'])->name('estadisticas.index')
         ->middleware('role:Super Usuario|Estadistica|Directivo');
@@ -255,6 +264,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::post('administracion/modulos/citas/{id}/reasignar',   [ModulosController::class, 'reasignar'])->name('modulos.reasignar')->whereNumber('id');
             Route::get('administracion/horarios',                        [HorariosCitasController::class, 'index'])->name('horarios.index');
             Route::put('administracion/horarios',                        [HorariosCitasController::class, 'actualizar'])->name('horarios.actualizar');
+            // Interruptor del flujo nuevo cita en línea → solicitud (App\Support\FlujoCita).
+            Route::get('administracion/flujo-citas',                     [App\Http\Controllers\FlujoCitaController::class, 'index'])->name('flujo_cita.index');
+            Route::put('administracion/flujo-citas',                     [App\Http\Controllers\FlujoCitaController::class, 'guardar'])->name('flujo_cita.guardar');
         });
         Route::get('administracion/sedes',                  [AdministracionController::class, 'configuracion_sedes'])->name('configuracion_sedes');
         Route::get('administracion/usuarios',               [AdministracionController::class, 'configuracion_usuarios'])->name('configuracion_usuarios');

@@ -150,6 +150,10 @@
                                             <div class="form-text">Nos ayuda a darte la atención adecuada.</div>
                                             <div class="invalid-feedback">Elige una opción.</div>
                                         </div>
+                                        {{-- CURP y domicilio para el prellenado (flujo nuevo, App\Support\FlujoCita). --}}
+                                        @if (\App\Support\FlujoCita::camposExtra($ventanilla))
+                                            @include('turnos._campos_flujo')
+                                        @endif
                                     </div>
                                 </fieldset>
 
@@ -227,6 +231,19 @@
                                         </div>
                                     </div>
                                 </fieldset>
+
+                                {{-- Cita de prueba del flujo nuevo (App\Support\FlujoCita): sólo
+                                     Super Usuario y sólo mientras el flujo no esté apagado. --}}
+                                @if ($ventanilla && auth()->check() && auth()->user()->hasRole('Super Usuario')
+                                     && \App\Support\FlujoCita::migrado() && ! \App\Support\FlujoCita::apagado())
+                                    <div class="form-check mb-3" style="background:#FBF4E1;border-radius:8px;padding:10px 12px 10px 36px;">
+                                        <input class="form-check-input" type="checkbox" name="es_prueba" value="1" id="gcEsPrueba">
+                                        <label class="form-check-label" for="gcEsPrueba" style="font-weight:600;color:#7A5D10;">
+                                            Cita de prueba del flujo nuevo
+                                            <span class="d-block small fw-normal">No aparece en la pantalla de espera ni en los conteos; se borra con <code>php artisan citas:limpiar-pruebas</code>.</span>
+                                        </label>
+                                    </div>
+                                @endif
 
                                 <div class="gc-enviar">
                                     <button id="btnGuardar" type="submit" class="btn btn-oro btn-lg gc-enviar__boton">

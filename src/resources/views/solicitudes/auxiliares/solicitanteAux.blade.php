@@ -76,7 +76,9 @@
                                         <h3 class="text-center" style="color:black">Datos del Solicitante</h3>
                                     </div>    
                                     <!--Se realiza el envío de datos con formulario de Laravel Collective-->
-                                    <form id="frmSolicitante" class="needs-validation" novalidate method="POST" action="{{route('guardaSolicitanteA')}}" enctype='multipart/form-data'>
+                                    {{-- Flujo nuevo: datos de la cita (App\Support\PrellenadoCita). --}}
+@include('solicitudes.auxiliares._prellenado')
+<form id="frmSolicitante" class="needs-validation" novalidate method="POST" action="{{route('guardaSolicitanteA')}}" enctype='multipart/form-data'>
                                         @csrf
                                         <input type="hidden" name="id" value="{{$id}}">
                                         <input type="hidden" name="draft_id" value="{{ $draftId }}">

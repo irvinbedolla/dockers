@@ -15,6 +15,7 @@
         | roles  : roles que ven el ítem
         | id     : opcional, id del <a> (lo usa menu.js para el badge)
         | badge  : opcional, id del <span> del contador
+        | si     : opcional, closure que también debe dar true (interruptores).
         | especialidad : opcional, permiso que necesita quien entra SÓLO como
         |          Auxiliar (ver App\Support\Especialidades). Así el de
         |          ratificaciones no ve Solicitudes ni el de solicitudes ve
@@ -31,6 +32,9 @@
         $menu = [
             // 'roles' => '*' significa que lo ve cualquiera que haya entrado.
             ['route' => 'inicio',                     'label' => 'Inicio',                  'icon' => 'bi bi-house-door',          'roles' => '*'],
+            // Flujo nuevo cita → solicitud: sólo si el interruptor lo habilita para esta persona.
+            ['route' => 'mi_modulo',                  'label' => 'Mi módulo',               'icon' => 'bi bi-person-workspace',    'roles' => '*',
+                'si' => fn () => \App\Http\Controllers\MiModuloController::puedeVer(auth()->user())],
             ['route' => 'configuracion',              'label' => 'Administración',          'icon' => 'bi bi-lock-fill',           'roles' => ['Super Usuario', 'Delegado', 'Enlace']],
             ['route' => 'agenda',                     'label' => 'Agenda',                  'icon' => 'bi bi-calendar-week',       'roles' => ['Super Usuario', 'Administrador', 'Auxiliar', 'Orientador', 'Conciliador', 'Notificador', 'Delegado', 'Excepcion',  'Cumplimientos', 'Directivo','Turnos', ...$recepcion]],
             ['route' => 'todas_notificaciones',       'label' => 'Búsqueda Notificaciones', 'icon' => 'bi bi-search',              'roles' => ['Super Usuario', 'Administrador','Directivo', 'Delegado']],
@@ -93,6 +97,11 @@
             // Quien entra sólo como Auxiliar ve lo de su especialidad.
             if ($visible && $soloAuxiliar && isset($item['especialidad'])) {
                 $visible = auth()->user()->can($item['especialidad']);
+            }
+
+            // Condición extra opcional ('si' => closure), p. ej. el interruptor del flujo de citas.
+            if ($visible && isset($item['si'])) {
+                $visible = (bool) ($item['si'])();
             }
 
             // Si la ruta no existe, se omite en lugar de reventar toda la página.

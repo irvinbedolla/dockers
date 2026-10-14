@@ -29,6 +29,13 @@
             'roles'  => ['Super Usuario'],
         ],
         [
+            'ruta'   => 'flujo_cita.index',
+            'icono'  => 'bi-toggles',
+            'titulo' => 'Flujo de citas en línea',
+            'texto'  => 'Interruptor del flujo nuevo, pruebas y auxiliares piloto.',
+            'roles'  => ['Super Usuario'],
+        ],
+        [
             'ruta'   => 'configuracion_sedes',
             'icono'  => 'bi-calendar-x',
             'titulo' => 'Días inhábiles',

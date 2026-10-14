@@ -1,7 +1,8 @@
 {{--
     Campos del alta y de la edición de usuarios (crear.blade.php y
     editar.blade.php). Espera: $user (nuevo o existente), $roles, $rolesActuales,
-    $sedes, $sistemas y $soyYo. La CURP vive en users.profile_photo_path.
+    $agenda (PermisosConciliador::resumen), $sedes, $sistemas y $soyYo.
+    La CURP vive en users.profile_photo_path.
 --}}
 @php
     $esNuevo = ! $user->exists;
@@ -149,6 +150,71 @@
     </div>
 </div>
 
+{{-- Agenda del conciliador: sólo se ve con el rol Conciliador marcado. Sin
+     ella el reparto automático nunca le asigna audiencias. --}}
+@php
+    $agendaTipo   = old('conciliador_tipo', $agenda['tipo']);
+    $agendaDias   = (array) old('conciliador_dias', $agenda['dias']);
+    $agendaInicio = old('conciliador_inicio', $agenda['inicio']);
+    $agendaFin    = old('conciliador_fin', $agenda['fin']);
+    $subsedes     = ['Morelia' => 'Zitácuaro', 'Uruapan' => 'Lázaro Cárdenas', 'Zamora' => 'Sahuayo'];
+@endphp
+<div class="tn-tarjeta uf-seccion" id="ufAgenda" @if (! in_array('Conciliador', (array) old('roles', $rolesActuales), true)) hidden @endif>
+    <h5 class="uf-seccion__titulo"><span class="uf-seccion__num"><i class="bi bi-calendar-week"></i></span> Audiencias del conciliador</h5>
+    <p class="uf-seccion__ayuda">
+        Con esto el sistema le reparte audiencias en automático al confirmar solicitudes.
+        @if (! $agenda['existe'] && ! $esNuevo)
+            <strong style="color:#8A6A12;">Todavía no tiene agenda: hoy no recibe audiencias.</strong>
+        @endif
+    </p>
+    <div class="row g-3">
+        <div class="col-12">
+            <label>Qué audiencias recibe <span class="req">*</span></label>
+            <div class="uf-opciones">
+                @foreach (\App\Models\PermisosConciliador::TIPOS as $valor => $etiqueta)
+                    <label class="uf-opcion">
+                        <input class="form-check-input" type="radio" name="conciliador_tipo" value="{{ $valor }}" @checked($agendaTipo === $valor)>
+                        <span>
+                            <span class="uf-opcion__titulo">{{ $etiqueta }}</span>
+                            <span class="uf-opcion__texto" data-texto-tipo="{{ $valor }}">
+                                @switch($valor)
+                                    @case('Precencial') De su sede, en sala. @break
+                                    @case('Virtual') De la subsede (<span data-subsede>Zitácuaro, Lázaro Cárdenas o Sahuayo</span>). @break
+                                    @default De su sede y de la subsede. También ve los cumplimientos de la subsede.
+                                @endswitch
+                            </span>
+                        </span>
+                    </label>
+                @endforeach
+            </div>
+            @error('conciliador_tipo')<div class="text-danger small">{{ $message }}</div>@enderror
+        </div>
+        <div class="col-md-7">
+            <label>Días <span class="req">*</span></label>
+            <div class="uf-dias">
+                @foreach (\App\Models\PermisosConciliador::DIAS as $dia => $corto)
+                    <input type="checkbox" class="btn-check" name="conciliador_dias[]" value="{{ $dia }}" id="dia-{{ $dia }}" autocomplete="off" @checked(in_array($dia, $agendaDias, true))>
+                    <label class="btn uf-dia" for="dia-{{ $dia }}">{{ $corto }}</label>
+                @endforeach
+            </div>
+            @error('conciliador_dias')<div class="text-danger small">{{ $message }}</div>@enderror
+        </div>
+        <div class="col-6 col-md-auto">
+            <label for="conciliador_inicio">Desde <span class="req">*</span></label>
+            <input type="time" class="form-control {{ $campo('conciliador_inicio') }}" id="conciliador_inicio" name="conciliador_inicio" value="{{ $agendaInicio }}" step="60">
+            <div class="invalid-feedback">{{ $errors->first('conciliador_inicio') }}</div>
+        </div>
+        <div class="col-6 col-md-auto">
+            <label for="conciliador_fin">Hasta <span class="req">*</span></label>
+            <input type="time" class="form-control {{ $campo('conciliador_fin') }}" id="conciliador_fin" name="conciliador_fin" value="{{ $agendaFin }}" step="60">
+            <div class="invalid-feedback">{{ $errors->first('conciliador_fin') }}</div>
+        </div>
+        <div class="col-12">
+            <div class="form-text mt-0">Las vacaciones y permisos de un día se bloquean en Administración → bloqueo de conciliadores; aquí va su horario normal.</div>
+        </div>
+    </div>
+</div>
+
 {{-- 3. Contraseña --}}
 <div class="tn-tarjeta uf-seccion">
     <h5 class="uf-seccion__titulo"><span class="uf-seccion__num">3</span> Contraseña</h5>
@@ -233,6 +299,25 @@
             if (!revisarRoles()) { e.preventDefault(); e.stopImmediatePropagation(); cajaRoles.scrollIntoView({ block: 'center' }); }
         }, true);
         revisarRoles();
+
+        // Agenda del conciliador: aparece al marcar el rol y nombra la
+        // subsede según la sede elegida.
+        var agenda = document.getElementById('ufAgenda');
+        var rolConciliador = cajaRoles.querySelector('input[name="roles[]"][value="Conciliador"]');
+        var sede = document.getElementById('delegacion');
+        var SUBSEDES = @json($subsedes);
+        function revisarAgenda() {
+            if (!agenda) { return; }
+            agenda.hidden = !(rolConciliador && rolConciliador.checked);
+            var sub = SUBSEDES[sede.value];
+            agenda.querySelectorAll('[data-subsede]').forEach(function (s) {
+                s.textContent = sub || 'Zitácuaro, Lázaro Cárdenas o Sahuayo';
+            });
+            // Las subsedes no tienen subsede propia: su conciliador vive en la sede principal.
+        }
+        if (rolConciliador) { rolConciliador.addEventListener('change', revisarAgenda); }
+        if (sede) { sede.addEventListener('change', revisarAgenda); }
+        revisarAgenda();
 
         document.getElementById('verPassword').addEventListener('click', function () {
             var ver = pass.type === 'password';

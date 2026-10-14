@@ -5498,6 +5498,19 @@ class SeerController extends Controller
     }
 
     public function solicitud_confirmar(Request $request) {
+        // Revisar el horario libre y guardar la audiencia tiene que ser un solo
+        // paso por oficina; si no, dos confirmaciones al mismo tiempo toman el
+        // mismo horario del mismo conciliador (AgendaAudiencias).
+        $sede = SeerPerGeneral::whereKey($request->input('id'))->value('delegacion');
+
+        try {
+            return \App\Support\AgendaAudiencias::conBloqueo($sede, fn () => $this->confirmarSolicitudConCandado($request));
+        } catch (\App\Support\AgendaOcupadaException $e) {
+            return back()->withErrors($e->getMessage());
+        }
+    }
+
+    private function confirmarSolicitudConCandado(Request $request) {
         // 1. Validación rápida inicial usando exists() indexado
         $id_solicitud = $request->input('id');
         if (Audiencias::where('id_solicitud', $id_solicitud)->exists()) {
@@ -7532,6 +7545,29 @@ class SeerController extends Controller
     }
 
     public function reagendar_audiencia(Request $request){
+        // El conciliador escribe fecha y hora: antes se guardaban sin revisar
+        // y así se encimaban audiencias. Revisar y guardar va con candado.
+        $previa = Audiencias::where('id_solicitud', $request->input('id'))->orderByDesc('id')->first();
+        $conciliador = (int) ($previa->id_conciliador ?? auth()->id());
+        $sede = \App\Models\User::whereKey($conciliador)->value('delegacion') ?? ($previa->delegacion ?? null);
+
+        try {
+            return \App\Support\AgendaAudiencias::conBloqueo($sede, function () use ($request, $previa, $conciliador) {
+                if ($request->filled(['fecha', 'hora'])
+                    && ($choque = \App\Support\AgendaAudiencias::choque($conciliador, $request->input('fecha'), $request->input('hora'), $previa->id ?? null))) {
+                    // Las vistas de audiencia no pintan $errors; el layout sí muestra session('error').
+                    $aviso = \App\Support\AgendaAudiencias::mensajeChoque($choque);
+                    return back()->withInput()->with('error', $aviso)->withErrors($aviso);
+                }
+
+                return $this->reagendar_audienciaConCandado($request);
+            });
+        } catch (\App\Support\AgendaOcupadaException $e) {
+            return back()->withInput()->with('error', $e->getMessage())->withErrors($e->getMessage());
+        }
+    }
+
+    private function reagendar_audienciaConCandado(Request $request){
         $data = $request->all();
         $user = auth()->user();
         $fecha_actual = date('y-m-d');
@@ -7634,6 +7670,29 @@ class SeerController extends Controller
     }
 
     public function reagendar_audiencia_parte3(Request $request){
+        // El conciliador escribe fecha y hora: antes se guardaban sin revisar
+        // y así se encimaban audiencias. Revisar y guardar va con candado.
+        $previa = Audiencias::where('id_solicitud', $request->input('id'))->orderByDesc('id')->first();
+        $conciliador = (int) ($previa->id_conciliador ?? auth()->id());
+        $sede = \App\Models\User::whereKey($conciliador)->value('delegacion') ?? ($previa->delegacion ?? null);
+
+        try {
+            return \App\Support\AgendaAudiencias::conBloqueo($sede, function () use ($request, $previa, $conciliador) {
+                if ($request->filled(['fecha', 'hora'])
+                    && ($choque = \App\Support\AgendaAudiencias::choque($conciliador, $request->input('fecha'), $request->input('hora'), $previa->id ?? null))) {
+                    // Las vistas de audiencia no pintan $errors; el layout sí muestra session('error').
+                    $aviso = \App\Support\AgendaAudiencias::mensajeChoque($choque);
+                    return back()->withInput()->with('error', $aviso)->withErrors($aviso);
+                }
+
+                return $this->reagendar_audiencia_parte3ConCandado($request);
+            });
+        } catch (\App\Support\AgendaOcupadaException $e) {
+            return back()->withInput()->with('error', $e->getMessage())->withErrors($e->getMessage());
+        }
+    }
+
+    private function reagendar_audiencia_parte3ConCandado(Request $request){
         $data = $request->all();
         $user = auth()->user();
         $fecha_actual = date('y-m-d');
@@ -8321,10 +8380,7 @@ class SeerController extends Controller
 
                     if (!$bloqueo_conciliador) {
                         // Validar que el conciliador no tenga audiencia ocupada en ese horario
-                        $ocupado = Audiencias::where('fecha', $fecha_str)
-                            ->where('hora', $h)
-                            ->where('id_conciliador', $c->id)
-                            ->exists();
+                        $ocupado = \App\Support\AgendaAudiencias::ocupado($c->id, $fecha_str, $h);
 
                         if (!$ocupado) {
                             $posibles_conciliadores[] = $c->id;
@@ -8337,7 +8393,8 @@ class SeerController extends Controller
                         $fecha_str,
                         $h,
                         ucfirst($fecha_revisar->isoFormat('dddd D [de] MMMM')),
-                        $posibles_conciliadores[array_rand($posibles_conciliadores)],
+                        // Entre los libres, el que va menos cargado esas semanas (el azar sólo desempata).
+                        \App\Support\AgendaAudiencias::menosCargado($posibles_conciliadores, $fecha_str),
                         "Fecha encontrada correctamente."
                     ];
                 }
@@ -9527,24 +9584,8 @@ class SeerController extends Controller
     }
 
     private function convertirNumerosALetras($valor) {
-        $numberToWords = new NumberToWords();
-        $numberTransformer = $numberToWords->getNumberTransformer('es'); 
-
-        //$parteEntera = floor($valor);
-        $partes = explode('.', $valor);
-
-        $parteEntera = $partes[0];
-
-         if(count($partes) > 1){
-            $parteDecimal = $partes[1];
-        } else {
-            $parteDecimal = 0;
-        }
-
-        $letras = strtoupper($numberTransformer->toWords($parteEntera)); 
-        $parteDecimal = round($parteDecimal);
-        $centavos = str_pad($parteDecimal, 2, '0', STR_PAD_LEFT); 
-        return "{$letras} PESOS {$centavos}/100";
+        // Ver App\Support\MontoEnLetras: redondea a centavos antes de pasar a letra.
+        return \App\Support\MontoEnLetras::texto($valor);
     }
 
     //PDF Acuse de solicitud
@@ -17052,6 +17093,8 @@ class SeerController extends Controller
                // 1. Guardar SeerPerGeneral inicial
                 $general = SeerPerGeneral::crearConGuia($solicitudData);
                 $id = $general->id;
+                // Flujo nuevo: si se empezó desde "Mi módulo", se liga con su cita.
+                \App\Support\PrellenadoCita::ligar($general);
 
                 $consecutivo = $general->consecutivo;
                 $delegacion = $general->delegacion;

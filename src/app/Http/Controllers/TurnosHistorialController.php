@@ -95,6 +95,8 @@ class TurnosHistorialController extends Controller
                 'r.hora_fin', 'r.estatus', 'r.exepcion', 'r.lugar_auxiliar', 'r.delegacion',
                 'r.correo', 'r.telefono', 'r.origen', 'u.name as auxiliar',
                 'r.modulo_id', 'r.auxiliar as auxiliar_id',
+                // Citas de prueba del flujo nuevo (columna de la fase 0).
+                ...(\App\Support\FlujoCita::migrado() ? ['r.es_prueba'] : []),
             ])
             ->paginate(self::POR_PAGINA)
             ->withQueryString();

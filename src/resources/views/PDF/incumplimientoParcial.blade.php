@@ -95,7 +95,7 @@
                             </tr>
                             <tr>
                                 <td><b>Salario diario: </b></td>
-                                <td>${{ $salario_diario }} M.N</td>
+                                <td>${{ number_format((float) $salario_diario, 2) }} M.N</td>
                             </tr>
                     </table>
                 </div><br><br><br><br><br>
@@ -127,7 +127,7 @@
                             <tr>   
                                 <td>{{ $pagos->fecha }} </td>
                                 <td>{{ $pagos->hora }} </td>
-                                <td>${{ $pagos->monto }} M.N</td>
+                                <td>${{ number_format((float) $pagos->monto, 2) }} M.N</td>
                                 <td>{{ $pagos->descripcion }}</td>
                             </tr>
                     </table>

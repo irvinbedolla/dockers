@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\FlujoCita;
 use App\Support\PantallaEspera;
+use Illuminate\Http\Request;
 
 /**
  * Pantallas de sala de espera por sede: /pantalla-morelia, /pantalla-uruapan…
@@ -13,24 +15,32 @@ use App\Support\PantallaEspera;
  */
 class PantallaEsperaController extends Controller
 {
-    public function mostrar(string $sede)
+    public function mostrar(Request $request, string $sede)
     {
         $nombre = PantallaEspera::sede($sede) ?? abort(404);
+        $pruebas = $this->conPruebas($request);
 
         return view('pantallas.espera', [
             'sede'     => $nombre,
             'slug'     => $sede,
-            'datos'    => PantallaEspera::datos($nombre),
-            'urlDatos' => route('pantalla.datos', $sede),
+            'pruebas'  => $pruebas,
+            'datos'    => PantallaEspera::datos($nombre, $pruebas),
+            'urlDatos' => route('pantalla.datos', $pruebas ? [$sede, 'pruebas' => 1] : $sede),
         ]);
     }
 
-    public function datos(string $sede)
+    public function datos(Request $request, string $sede)
     {
         $nombre = PantallaEspera::sede($sede) ?? abort(404);
 
         return response()
-            ->json(PantallaEspera::datos($nombre))
+            ->json(PantallaEspera::datos($nombre, $this->conPruebas($request)))
             ->header('Cache-Control', 'no-store');
+    }
+
+    /** ?pruebas=1 sólo cuenta mientras el flujo nuevo no esté apagado. */
+    private function conPruebas(Request $request): bool
+    {
+        return $request->boolean('pruebas') && FlujoCita::migrado() && ! FlujoCita::apagado();
     }
 }
