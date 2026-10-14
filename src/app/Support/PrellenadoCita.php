@@ -15,7 +15,8 @@ use Illuminate\Support\Facades\DB;
  *               formulario del trabajador (no cambia el formulario: sólo le
  *               pone valores; el auxiliar revisa y corrige).
  *   ligar()     Al guardar la solicitud (guardar_solicitudAux) la liga con la
- *               cita (seer_general.recepcion_id) y limpia la sesión.
+ *               cita (seer_general.recepcion_id), da la cita por atendida
+ *               (fase 4: se quita de la pantalla) y limpia la sesión.
  *
  * No se crea nada en la base hasta que el auxiliar termina la solicitud como
  * siempre, así que no se gastan NUE ni se mueven estadísticas.
@@ -64,6 +65,19 @@ class PrellenadoCita
 
         DB::table('seer_general')->where('id', $solicitud->id)->update(['recepcion_id' => $p['cita_id']]);
         self::descartar();
+
+        // La solicitud ya quedó: la cita termina aquí aunque no piquen "Terminar".
+        $cita = Recepcion::find($p['cita_id']);
+        if ($cita && in_array($cita->estatus, ['pendiente', 'confirmada'], true)) {
+            $ahora = now();
+            $cita->forceFill(array_filter([
+                'estatus'            => 'atendido',
+                'llamado_at'         => $cita->llamado_at ? null : $ahora,
+                'atencion_inicio_at' => $cita->atencion_inicio_at ? null : $ahora,
+                'atencion_fin_at'    => FlujoCita::conFinAtencion() ? $ahora : null,
+            ]))->save();
+            PantallaEspera::olvidar((string) $cita->delegacion);
+        }
     }
 
     /** Campo del formulario del trabajador (solicitanteAux) => valor. */
