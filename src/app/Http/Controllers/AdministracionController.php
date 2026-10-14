@@ -36,6 +36,8 @@ use App\Models\Audiencias;
 use App\Models\SeerSolicitante;
 use App\Models\SeerCitados;
 use App\Models\PermisosConciliador;
+use App\Support\AgendaAudiencias;
+use App\Support\AgendaOcupadaException;
 use App\Services\RetrocesoRecorder;
 use App\Services\BitacoraAdministracionRecorder;
 use Carbon\CarbonPeriod;
@@ -372,11 +374,27 @@ class AdministracionController extends Controller{
         //$data['audiencia_id'], $data["fecha"],$data["hora"],
         $audienciaOld = Audiencias::findOrFail($data["id_audiencia"]);
         $NUE = SeerPerGeneral::where('id', $audienciaOld->id_solicitud)->value('NUE');
-        BitacoraAdministracionRecorder::actualizar('cambio_fecha_audiencia', $audienciaOld, [
-                    'fecha' => $data["fecha"],
-                    'hora'  => $data["hora"],
-                ], trim($data["motivo"]), $NUE);
-        return redirect()->route('cambio_fecha_audiencia');
+        $sede = User::whereKey($audienciaOld->id_conciliador)->value('delegacion') ?? $audienciaOld->delegacion;
+
+        // Antes se movía sin revisar y el conciliador podía quedar con dos
+        // audiencias a la misma hora. Revisar y guardar va con candado.
+        try {
+            return AgendaAudiencias::conBloqueo($sede, function () use ($audienciaOld, $data, $NUE) {
+                $choque = AgendaAudiencias::choque((int) $audienciaOld->id_conciliador, $data["fecha"], $data["hora"], $audienciaOld->id);
+                if ($choque) {
+                    return back()->withInput()->withErrors(AgendaAudiencias::mensajeChoque($choque));
+                }
+
+                BitacoraAdministracionRecorder::actualizar('cambio_fecha_audiencia', $audienciaOld, [
+                            'fecha' => $data["fecha"],
+                            'hora'  => $data["hora"],
+                        ], trim($data["motivo"]), $NUE);
+
+                return redirect()->route('cambio_fecha_audiencia');
+            });
+        } catch (AgendaOcupadaException $e) {
+            return back()->withInput()->withErrors($e->getMessage());
+        }
     }
 
     private function prefijosDelegacionRatificacion(): array
