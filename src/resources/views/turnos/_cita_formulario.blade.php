@@ -53,8 +53,17 @@
                                             <div class="invalid-feedback">Elige el tipo de trámite.</div>
                                         </div>
                                         @unless ($ventanilla)
+                                        <div class="col-md-6" style="display:none;" id="calidad">
+                                            <label class="form-label" for="folio_patronal">Acudes en calidad de: </label>
+                                            <select id="puesto" class="form-select">
+                                                <option value="">Elige una opción</option>
+                                                <option value="trabajador">Trabajador</option>
+                                                <option value="empleador">Empleador</option>
+                                            </select>
+                                            
+                                        </div>
                                         <div class="col-md-6" style="display:none;" id="si_ratificacion">
-                                            <label class="form-label" for="folio_patronal">¿Ya tienes un folio de ratificación que te dio tu patrón?</label>
+                                            <label class="form-label" for="folio_patronal">¿Ya tienes un folio de representante patronal?</label>
                                             <select id="folio_patronal" class="form-select">
                                                 <option value="">Elige una opción</option>
                                                 <option value="si">Sí, ya tengo folio</option>

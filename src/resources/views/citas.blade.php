@@ -182,6 +182,7 @@
                         <form class="needs-validation" novalidate method="POST" action="{{ route('turnos.publico') }}" enctype="multipart/form-data" id="formRatificacion">
                             @csrf
                             <!-- Folio Interno -->
+                            <input type="hidden" id="origen" name="origen" value="{{ $origen }}">
                             <div class="row g-3 mb-4 align-items-end">
                                 <div class="col-12 col-md-8">
                                     <div class="p-3 bg-light rounded border">
@@ -795,12 +796,30 @@
                     },
                     events: function(fetchInfo, successCallback, failureCallback) {
                         const sede = document.getElementById('sede').value;
+                        const origen = document.getElementById('origen').value;
                         $.ajax({
-                            url: 'api/obtenerEventos',
+                            url: "{{ url('/api/obtenerEventos') }}",
                             method: 'GET',
-                            data: { sede: sede, start: fetchInfo.startStr, end: fetchInfo.endStr },
-                            success: function(data) { successCallback(data); },
-                            error: function() { failureCallback('Error al cargar eventos'); }
+                            dataType: 'json',
+                            data: {
+                                sede: sede,
+                                start: fetchInfo.startStr,
+                                end: fetchInfo.endStr,
+                                origen: origen
+                            },
+                            success: function(data) {
+                                console.log('Eventos recibidos:', data);
+                                successCallback(data);
+                            },
+                            error: function(xhr, status, error) {
+                                console.error('Error al cargar eventos:', {
+                                    status: xhr.status,
+                                    error: error,
+                                    response: xhr.responseText
+                                });
+
+                                failureCallback(error);
+                            }
                         });
                     },
                     eventClick: function(info) {
