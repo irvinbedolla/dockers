@@ -584,6 +584,10 @@ function calContenidoEvento(info) {
         linea.appendChild(etiqueta);
 
         linea.appendChild(document.createTextNode(par[1] || 'N/A'));
+        // Ratificaciones: el registro patronal se ve de un vistazo.
+        if (par[0] === 'Registro') {
+            linea.classList.add(par[1] === 'Validado' ? 'evt-registro--si' : 'evt-registro--no');
+        }
         tarjeta.appendChild(linea);
     });
 
@@ -712,6 +716,8 @@ function calModalCita(info) {
     if (!cuerpo) {
         return;
     }
+    const tituloModal = document.getElementById('tituloEvento');
+    if (tituloModal) { tituloModal.textContent = 'Detalles de la cita en línea'; }
 
     const estatus = {
         pendiente:  'Sin confirmar',
@@ -774,6 +780,109 @@ function calModalCita(info) {
     bootstrap.Modal.getOrCreateInstance(document.getElementById('evento')).show();
 }
 
+// Texto seguro para el detalle (se arma con template strings) y con un
+// letrero en lugar de "null" cuando el dato viene vacio.
+function calTexto(valor, siVacio) {
+    const texto = (valor === null || valor === undefined) ? '' : String(valor).trim();
+    if (texto === '' || texto.toLowerCase() === 'null') {
+        return siVacio || '';
+    }
+    return texto.replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+}
+
+// -----------------------------------------------------------------------------
+// Detalle de un evento (modal #evento).
+//
+// Antes cada tipo pintaba renglones sueltos "Etiqueta: valor" y los vacios
+// salian como "null". Ahora todos usan el mismo armado: cabecera con el tipo,
+// el nombre principal, estatus en color y la fecha (el tipo va en el titulo
+// del modal); luego secciones con
+// etiqueta/valor; y abajo las acciones. Todo valor pasa por calTexto.
+// -----------------------------------------------------------------------------
+
+// Registro patronal de una ratificacion (tabla abogados, el folio es su
+// idAbogado). Guia para la recepcion: solo "existe" si ya esta validado.
+function calFilasRegistro(props) {
+    const r = props.registro_patronal;
+    const filas = [];
+
+    if (!r) {
+        filas.push(['Estado', '<span class="cal-registro cal-registro--no"><i class="bi bi-x-circle"></i> No existe registro aún</span>']);
+        filas.push(['Folio', '<span class="cal-det__vacio">No existe aún</span>']);
+        return filas;
+    }
+
+    if (r.validado) {
+        filas.push(['Estado', '<span class="cal-registro cal-registro--si"><i class="bi bi-check-circle"></i> Registro validado</span>']);
+        filas.push(['Folio', '<strong>' + calTexto(r.folio) + '</strong>']);
+        if (r.representante) {
+            filas.push(['Representante', calTexto(r.representante)]);
+        } else if (r.patron) {
+            filas.push(['Comparece', calTexto(r.patron) + ' <span class="cal-det__vacio">(sin representante)</span>']);
+        }
+        if (r.vigencia) {
+            filas.push(['Vigente al', calTexto(r.vigencia)]);
+        }
+    } else {
+        filas.push(['Estado', '<span class="cal-registro cal-registro--no"><i class="bi bi-x-circle"></i> No existe registro aún</span>']);
+        filas.push(['Folio', calTexto(r.folio) + ' <span class="cal-det__vacio">(capturado, pendiente de validar)</span>']);
+    }
+    return filas;
+}
+
+function calFechaLarga(info, props) {
+    const inicio = info.event.start;
+    let fecha = inicio
+        ? inicio.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+        : calTexto(props.fecha);
+    fecha = fecha.charAt(0).toUpperCase() + fecha.slice(1);
+    const hora = calTexto(props.hora).slice(0, 5);
+    return fecha + (hora ? ' · ' + hora + ' h' : '');
+}
+
+function calMonto(valor) {
+    const n = Number(valor);
+    if (valor === null || valor === undefined || valor === '' || isNaN(n)) {
+        return calTexto(valor, '<span class="cal-det__vacio">Sin monto</span>');
+    }
+    return n.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
+}
+
+// d = { tipo, titulo, sub, estatus, color, fecha, secciones: [{titulo, filas: [[etiqueta, html]]}], accion: {href, texto} }
+function calArmarDetalle(d) {
+    const vacio = '<span class="cal-det__vacio">Sin dato</span>';
+    let html = '<div class="cal-det">';
+
+    html += '<div class="cal-det__cabeza">' +
+        '<h4 class="cal-det__titulo">' + calTexto(d.titulo, 'Sin nombre') + '</h4>' +
+        (d.sub ? '<div class="cal-det__sub">' + d.sub + '</div>' : '') +
+        '<div class="cal-det__meta">' +
+            (d.estatus ? '<span class="cal-det__estatus" style="--cal-color:' + (/^#[0-9a-f]{3,8}$/i.test(d.color || '') ? d.color : '#829A9C') + '">' + calTexto(d.estatus) + '</span>' : '') +
+            '<span class="cal-det__fecha"><i class="bi bi-calendar-event"></i> ' + d.fecha + '</span>' +
+        '</div>' +
+    '</div>';
+
+    (d.secciones || []).forEach(function (sec) {
+        const filas = (sec.filas || []).filter(function (f) { return f; });
+        if (!filas.length) { return; }
+        html += '<section class="cal-det__seccion">' +
+            '<h5 class="cal-det__seccion-titulo">' + sec.titulo + '</h5><dl class="cal-det__lista">';
+        filas.forEach(function (f) {
+            html += '<dt>' + f[0] + '</dt><dd>' + (f[1] === '' || f[1] === null || f[1] === undefined ? vacio : f[1]) + '</dd>';
+        });
+        html += '</dl></section>';
+    });
+
+    html += '<div class="modal-footer cal-det__pie">' +
+        '<button type="button" class="btn btn-light" data-bs-dismiss="modal">Cerrar</button>' +
+        (d.accion ? '<a href="' + d.accion.href + '" class="btn btn-info cal-det__accion">' + d.accion.texto + ' <i class="bi bi-arrow-right"></i></a>' : '') +
+    '</div></div>';
+
+    return html;
+}
+
 function handleEventClick(info, calendarType) {
     if (calendarType === 'citasLinea') {
         calModalCita(info);
@@ -781,117 +890,101 @@ function handleEventClick(info, calendarType) {
     }
 
     const props = info.event.extendedProps;
-    let modalContent = '';
+    const t = calTexto;
+    const id = encodeURIComponent(info.event.id);
+    const tipoUrl = encodeURIComponent(props.tipo === undefined ? '' : props.tipo);
+    const fecha = calFechaLarga(info, props);
+    let d = null;
 
-    if (calendarType === 'pagos') {
-        modalContent = `
-            <strong>NUE:</strong> ${props.nue}<br>
-            <strong>Descripción:</strong> ${props.descripcion}<br>
-            <strong>Fecha:</strong> ${props.fecha}<br>
-            <strong>Hora:</strong> ${props.hora}<br>
-            <strong>Conciliador:</strong> ${props.conciliador}<br>
-            <strong>Trabajador:</strong> ${props.trabajador}<br>
-            <strong>Patronal:</strong> ${props.empresa}<br>
-            <strong>Estatus:</strong> ${props.estatus}<br>
-            <strong>Monto:</strong> ${props.monto}<br>
-            <strong>Observaciones:</strong> ${props.observaciones}<br>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-                <a href="cumplimiento/consulta/${info.event.id}/${props.tipo}" class="btn btn-info">Ver Cumplimiento</a>
-            </div>
-        `;
+    if (calendarType === 'pagos' || calendarType === 'conciliador' || calendarType === 'citas') {
+        d = {
+            tipo: calendarType === 'citas' ? 'Cumplimiento de ratificación' : 'Cumplimiento',
+            titulo: props.nue,
+            sub: t(props.descripcion),
+            estatus: props.estatus, color: props.color, fecha: fecha,
+            secciones: [
+                { titulo: 'Partes', filas: [
+                    calendarType === 'citas' ? null : ['Trabajador', t(props.trabajador)],
+                    calendarType === 'citas' ? null : ['Patrón', t(props.empresa)],
+                    ['Conciliador', t(props.conciliador)]
+                ] },
+                { titulo: 'Pago', filas: [
+                    ['Monto', calMonto(props.monto)],
+                    ['Observaciones', t(props.observaciones, '<span class="cal-det__vacio">No tiene observaciones</span>')]
+                ] }
+            ],
+            accion: { href: 'cumplimiento/consulta/' + id + '/' + tipoUrl, texto: calendarType === 'pagos' ? 'Ver cumplimiento' : 'Ver detalle' }
+        };
     }
-    else if (calendarType === 'conciliador') {
-        modalContent = `
-            <strong>NUE:</strong> ${props.nue}<br>
-            <strong>Descripción:</strong> ${props.descripcion}<br>
-            <strong>Fecha:</strong> ${props.fecha}<br>
-            <strong>Hora:</strong> ${props.hora}<br>
-            <strong>Conciliador:</strong> ${props.conciliador}<br>
-            <strong>Trabajador:</strong> ${props.trabajador}<br>
-            <strong>Patronal:</strong> ${props.empresa}<br>
-            <strong>Estatus:</strong> ${props.estatus}<br>
-            <strong>Monto:</strong> ${props.monto}<br>
-            <strong>Observaciones:</strong> ${props.observaciones}<br>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-                <a href="cumplimiento/consulta/${info.event.id}/${props.tipo}" class="btn btn-info">Ver detalle</a>
-            </div>
-        `;
-    } else if (calendarType === 'audiencias') {
-        const audienciaId = props.audiencia_id ?? info.event.id;
-        const idSolicitud = props.id_solicitud;
-        modalContent = `
-            <strong>NUE:</strong> ${info.event.title}<br>
-            <strong>Conciliador:</strong> ${props.conciliador}<br>
-            <strong>Fecha:</strong> ${props.fecha}<br>
-            <strong>Hora:</strong> ${props.hora}<br>
-            <strong>Estatus:</strong> ${props.estatus}<br>
-            <strong>Delegación:</strong> ${props.delegacion}<br>
-            <strong>Sala:</strong> ${props.sala}<br>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-                ${ props.estatus === 'Pendiente' ? 
-                `<a href="solicitud/iniciar/${idSolicitud}?audiencia_id=${audienciaId}" class="btn btn-info">Ir a Audiencia</a>` 
-                : '' 
-                }
-            </div>
-        `;
+    else if (calendarType === 'audiencias') {
+        const audienciaId = encodeURIComponent(props.audiencia_id ?? info.event.id);
+        d = {
+            tipo: 'Audiencia',
+            titulo: info.event.title,
+            estatus: props.estatus, color: props.color, fecha: fecha,
+            secciones: [
+                { titulo: 'Audiencia', filas: [
+                    ['Conciliador', t(props.conciliador)],
+                    ['Sede', t(props.delegacion)],
+                    ['Sala', t(props.sala)]
+                ] }
+            ],
+            accion: props.estatus === 'Pendiente'
+                ? { href: 'solicitud/iniciar/' + encodeURIComponent(props.id_solicitud) + '?audiencia_id=' + audienciaId, texto: 'Ir a la audiencia' }
+                : null
+        };
     }
     else if (calendarType === 'ratificaciones') {
-        modalContent = `
-            <strong>Citado:</strong> ${info.event.title}<br>
-            <strong>Solicitante:</strong> ${props.solicitante}<br>
-            <strong>Fecha:</strong> ${props.fecha}<br>
-            <strong>Hora:</strong> ${props.hora}<br>
-            <strong>Estatus:</strong> ${props.estatus}<br>
-            <strong>Delegación:</strong> ${props.delegacion}<br>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-                <a href="cumplimiento/consulta/${info.event.id}/${props.tipo}" class="btn btn-info">Ver detalle</a>
-            </div>
-        `;
+        // En una ratificacion solicita la empresa; el citado es el trabajador.
+        d = {
+            tipo: 'Ratificación',
+            titulo: props.solicitante || info.event.title,
+            sub: 'Folio de ratificación ' + t(props.folio_audiencia),
+            estatus: props.estatus, color: props.color, fecha: fecha,
+            secciones: [
+                { titulo: 'Partes', filas: [
+                    ['Solicitante', t(props.solicitante || info.event.title)],
+                    ['Citado', t(props.citado)],
+                    ['Conciliador', t(props.conciliador, '<span class="cal-det__vacio">Sin asignar</span>')],
+                    ['Sede', t(props.delegacion)]
+                ] },
+                { titulo: 'Registro patronal', filas: calFilasRegistro(props) }
+            ],
+            accion: { href: 'cumplimiento/consulta/' + id + '/' + tipoUrl, texto: 'Ver detalle' }
+        };
     }
     else if (calendarType === 'solicitudes') {
-        modalContent = `
-            <strong>NUE:</strong> ${props.nue}<br>
-            <strong>Solicitante:</strong> ${props.solicitante}<br>
-            <strong>Citado:</strong> ${props.citado}<br>
-            <strong>Conciliador:</strong> ${props.conciliador}<br>
-            <strong>Fecha:</strong> ${props.fecha}<br>
-            <strong>Estatus:</strong> ${props.estatus}<br>
-            <strong>Delegacion:</strong> ${props.delegacion}<br>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-                <a href="solicitud/iniciar/${props.id_solicitud}" class="btn btn-info">Ver solicitud</a>
-            </div>
-        `;
-    }
-    else if (calendarType === 'citas') {
-        modalContent = `
-            <strong>NUE:</strong> ${props.nue}<br>
-            <strong>Descripción:</strong> ${props.descripcion}<br>
-            <strong>Fecha:</strong> ${props.fecha}<br>
-            <strong>Hora:</strong> ${props.hora}<br>
-            <strong>Conciliador:</strong> ${props.conciliador}<br>
-            <strong>Estatus:</strong> ${props.estatus}<br>
-            <strong>Monto:</strong> ${props.monto}<br>
-            <strong>Observaciones:</strong> ${props.observaciones}<br>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-                <a href="cumplimiento/consulta/${info.event.id}/${props.tipo}" class="btn btn-info">Ver detalle</a>
-            </div>
-        `;
+        d = {
+            tipo: 'Solicitud',
+            titulo: props.nue,
+            estatus: props.estatus, color: props.color, fecha: fecha,
+            secciones: [
+                { titulo: 'Partes', filas: [
+                    ['Solicitante', t(props.solicitante)],
+                    ['Citado', t(props.citado)],
+                    ['Conciliador', t(props.conciliador, '<span class="cal-det__vacio">Sin asignar</span>')],
+                    ['Sede', t(props.delegacion)]
+                ] }
+            ],
+            accion: { href: 'solicitud/iniciar/' + encodeURIComponent(props.id_solicitud), texto: 'Ver solicitud' }
+        };
     }
 
-    // Bootstrap 5 quitó la API de plugins por jQuery: $('#evento').modal('show')
-    // dejó de existir al pasar esta pantalla de Bootstrap 4 a 5.3.
-    document.querySelector('#evento .modal-body').innerHTML = modalContent;
+    if (!d) {
+        return;
+    }
 
     // Recepcion ve el evento pero no entra a la audiencia ni al cumplimiento.
     if (typeof CAL_ES_RECEPCION !== 'undefined' && CAL_ES_RECEPCION) {
-        document.querySelectorAll('#evento .modal-body .modal-footer a.btn-info').forEach(function (a) { a.remove(); });
+        d.accion = null;
     }
+
+    const titulo = document.getElementById('tituloEvento');
+    if (titulo) { titulo.textContent = 'Detalles de ' + d.tipo.toLowerCase(); }
+
+    // Bootstrap 5 quitó la API de plugins por jQuery: $('#evento').modal('show')
+    // dejó de existir al pasar esta pantalla de Bootstrap 4 a 5.3.
+    document.querySelector('#evento .modal-body').innerHTML = calArmarDetalle(d);
     bootstrap.Modal.getOrCreateInstance(document.getElementById('evento')).show();
 }
 

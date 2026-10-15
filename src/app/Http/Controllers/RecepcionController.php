@@ -34,6 +34,11 @@ class RecepcionController extends Controller
         if (!$request->has('tipo') || empty($request->input('tipo'))) {
             return redirect()->back()->with('error', 'Es necesario seleccionar el Tipo de Trámite.');
         }
+        // Cada recepción agenda sólo sus trámites (App\Support\Recepcion::CREA).
+        $tramitesPermitidos = \App\Support\Recepcion::tramitesQuePuedeCrear(auth()->user());
+        if (! in_array($request->input('tipo'), $tramitesPermitidos, true)) {
+            return redirect()->back()->withInput()->with('error', 'Tu cuenta sólo puede agendar: '.implode(', ', $tramitesPermitidos).'.');
+        }
         if (!$request->filled('fecha_turno') || !$request->filled('hora_turno')) {
             return redirect()->back()->with('error', 'Es necesario seleccionar la fecha y el horario del turno en el calendario.');
         }
@@ -200,7 +205,9 @@ class RecepcionController extends Controller
         $sedesVisibles = \App\Support\Recepcion::sedesVisibles($user);
         $hoy = DB::table('recepcion')
             ->whereIn('delegacion', $sedesVisibles ?: ['__ninguna__'])
-            ->where('fecha', $fecha_actual);
+            ->where('fecha', $fecha_actual)
+            // Morelia 02 sólo ve ratificaciones y cumplimientos.
+            ->when(\App\Support\Recepcion::tramitesVisibles($user), fn ($q, $tramites) => $q->whereIn('tipo', $tramites));
 
         $hoyPorEstatus = (clone $hoy)
             ->selectRaw('estatus, COUNT(*) as total')

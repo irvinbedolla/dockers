@@ -480,6 +480,18 @@
                 
                 if (tipoSeleccionado === 'Ratificación') {
 
+                    $('#calidad').fadeIn();
+                } else {
+
+                    $('#calidad').fadeOut();
+                    $('#puesto').val(''); 
+                }
+            });
+            $('#puesto').on('change', function() {
+                var tipoSeleccionado = $(this).val();
+                
+                if (tipoSeleccionado === 'empleador') {
+
                     $('#si_ratificacion').fadeIn();
                 } else {
 
@@ -493,7 +505,7 @@
                 var tieneFolio = $(this).val();
                 
                 if (tieneFolio === 'si') {
-                    window.location.href = '{{ route('create_cita') }}'; 
+                    window.location.href = '{{ route('create_cita', ['origen' => 'externo']) }}';
                 }
             });
 

@@ -3,9 +3,11 @@
 {{--
     /estadisticas (EstadisticasController). Arriba, la descarga de reportes:
     es el mismo formulario de /seer/estadistica, con el mismo destino
-    (seer.mostar) y los mismos nombres de campo, sólo reacomodado. Abajo, el
-    mapa de sedes y las gráficas del Inicio del Directivo, incluidos desde sus
-    parciales para no mantener dos copias. Aquí se irán sumando gráficas.
+    (seer.mostar) y los mismos nombres de campo, sólo reacomodado. Luego las
+    cifras del mes (convenios pagados, montos y tasa de conciliación) que
+    antes iban en el Inicio, y abajo el mapa de sedes y las gráficas del
+    Inicio del Directivo, incluidos desde sus parciales para no mantener dos
+    copias. Aquí se irán sumando gráficas.
 
     Cada reporte se ofrece sólo con los formatos que de verdad genera
     SeerController::mostrar_reporte (p. ej. INEGI siempre sale en Excel) y
@@ -224,6 +226,11 @@
                 </form>
                 @endif
             </div>
+
+            {{-- ===================== Cifras del mes ===================== --}}
+            {{-- Antes iban en el Inicio de todos los roles. --}}
+            <h3 class="tn-titulo-seccion es-seccion">Cifras del mes</h3>
+            @include('inicio._tarjetas')
 
             {{-- ===================== Mapa y gráficas ===================== --}}
             <h3 class="tn-titulo-seccion es-seccion">Sedes · totales acumulados</h3>

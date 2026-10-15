@@ -230,7 +230,7 @@
                         <label for="tnTipo">Trámite</label>
                         <select id="tnTipo" name="tipo" class="form-select">
                             <option value="">Todos</option>
-                            @foreach (\App\Http\Controllers\TurnosHistorialController::TIPOS as $t)
+                            @foreach (\App\Support\Recepcion::tramitesVisibles(auth()->user()) ?? \App\Http\Controllers\TurnosHistorialController::TIPOS as $t)
                                 <option value="{{ $t }}" @selected(($filtros['tipo'] ?? '') === $t)>{{ $t }}</option>
                             @endforeach
                         </select>

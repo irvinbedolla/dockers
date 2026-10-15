@@ -120,7 +120,7 @@ Route::get('/generar-cita/exito',                   [HomeController::class, 'cit
 Route::permanentRedirect('/generarCita',            '/generar-cita');
 Route::permanentRedirect('/generarCitaExito',       '/generar-cita');
 Route::post('/turnos_guardar',                      [HomeController::class, 'turnos_publico']);
-Route::get('citas',                                 [TurnosController::class, 'create_publico'])->name('create_cita');
+Route::get('citas/{origen}',                                 [TurnosController::class, 'create_publico'])->name('create_cita');
 Route::post('/citas/store_publico',                 [TurnosController::class, 'store_publico'])->name('turnos.publico');
 Route::get('/validar_folio_abogado/{folio}',        [TurnosController::class, 'validarFolio'])->name('validar_folio_abogado');
 Route::get('AgendaRatificacion',                    [TurnosController::class, 'create_ratiMultiple'])->name('create_cita-12');

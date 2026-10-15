@@ -23,7 +23,7 @@
                                 @can('ratificaciones_crear')
                                     <div class="col-xs-4 col-sm-4 col-md-4">
                                         <div align="center">
-                                            <a href="{{ route('create_cita') }}" class="btn btn-primary" target="_blank" style="width: 100%">Nueva Ratificación</a>
+                                            <a href="{{ route('create_cita', ['origen' => 'interno']) }}" class="btn btn-primary" target="_blank" style="width: 100%">Nueva Ratificación</a>
                                         </div>
                                     </div>
                                 @endcan
