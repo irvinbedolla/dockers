@@ -33,9 +33,6 @@ class AccesosRecepcion
         Recepcion::REGIONAL   => ['Solicitud', 'Asesoría', 'Ratificación', 'Cumplimiento'],
     ];
 
-    /** Lo que el formulario de turno de ventanilla sabe crear. */
-    private const SE_CREAN = ['Solicitud', 'Asesoría', 'Ratificación'];
-
     /** Además de los turnos, Morelia 02 recibe las audiencias y cumplimientos de su agenda. */
     private const AGENDA = [Recepcion::MORELIA_02];
 
@@ -113,7 +110,7 @@ class AccesosRecepcion
             'crear' => array_map(fn ($t) => [
                 'etiqueta' => $t,
                 'url'      => route('nueva_cita', ['tipo' => $t]),
-            ], array_values(array_intersect($tramites, self::SE_CREAN))),
+            ], Recepcion::tramitesQuePuedeCrear($usuario)),
             'hoy' => [
                 'total'    => array_sum(array_column($desglose, 'total')),
                 'desglose' => $desglose,

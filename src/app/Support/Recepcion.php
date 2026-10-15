@@ -34,6 +34,20 @@ class Recepcion
         'Morelia', 'Zitácuaro', 'Uruapan', 'Lázaro Cárdenas', 'Zamora', 'Sahuayo',
     ];
 
+    /** Trámites que se agendan como turno de ventanilla (turnos/nuevo). */
+    public const TRAMITES_TURNO = ['Solicitud', 'Asesoría', 'Ratificación'];
+
+    /**
+     * Qué trámite puede agendar cada recepción en ventanilla: Morelia 01
+     * solicitudes y asesorías, Morelia 02 ratificaciones de convenio y la
+     * General todo.
+     */
+    private const CREA = [
+        self::MORELIA_01 => ['Solicitud', 'Asesoría'],
+        self::MORELIA_02 => ['Ratificación'],
+        self::REGIONAL   => self::TRAMITES_TURNO,
+    ];
+
     /** Lo que necesitan las pantallas de turnos; ahí sólo se revisan estos. */
     public const PERMISOS = ['turnos_ver', 'turnos_crear', 'turnos_asignar', 'turnos_revisar'];
 
@@ -84,6 +98,30 @@ class Recepcion
     public static function es(?User $usuario): bool
     {
         return $usuario !== null && $usuario->hasAnyRole(self::ROLES);
+    }
+
+    /**
+     * Trámites que esta persona puede agendar como turno de ventanilla. Sólo
+     * se acota a quien únicamente tiene roles de recepción (misma regla que
+     * SinRecepcion); Super Usuario, Auxiliar, Turnos y demás agendan todos.
+     *
+     * @return array<int, string>
+     */
+    public static function tramitesQuePuedeCrear(?User $usuario): array
+    {
+        if ($usuario === null) {
+            return [];
+        }
+        if (! self::es($usuario) || $usuario->getRoleNames()->diff(self::ROLES)->isNotEmpty()) {
+            return self::TRAMITES_TURNO;
+        }
+
+        $tramites = [];
+        foreach ($usuario->getRoleNames() as $rol) {
+            $tramites = array_merge($tramites, self::CREA[$rol] ?? []);
+        }
+
+        return array_values(array_intersect(self::TRAMITES_TURNO, $tramites));
     }
 
     /** ¿Ve la pestaña "Citas en línea"? Recepción y quienes la supervisan. */
