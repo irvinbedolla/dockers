@@ -34,6 +34,10 @@ use NumberToWords\NumberToWords; // para convertir números(cantidades) a letras
 use DateTime;
 use Illuminate\Support\Facades\Log;
 use App\Services\RetrocesoRecorder;
+use Illuminate\Support\Facades\Mail;
+use App\Support\HorarioCitas;
+use SimpleSoftwareIO\QrCode\Facades\QrCode;
+use Barryvdh\DomPDF\PDF;
 
 class TurnosController extends Controller 
 {
@@ -657,6 +661,7 @@ class TurnosController extends Controller
                 $telefono = $representante["numero_representante"];
                 $curp   = $representante["curp_representante"];
             }
+            $nombre_completo = $representante["nombres_patronal"]. ' '.$representante["primer_apellido_patronal"]. ' '.$representante["segundo_apellido_patronal"];
             $data_insertar= array(
                 'consecutivo'       => $numero_consecutivo,    
                 'empresa'           => $representante["nombres_patronal"],
@@ -713,6 +718,7 @@ class TurnosController extends Controller
             
         }
         else{
+            $nombre_completo = $data["empresa"] . ' '. $data["primero_empresa"] . ' ' . $data["segundo_empresa"];
             $data_insertar= array(
                 'consecutivo'               => $numero_consecutivo,    
                 'empresa'                   => $data["empresa"],
@@ -807,9 +813,49 @@ class TurnosController extends Controller
         }
 
         unset($data_insertar['ine'], $data_insertar['representacion'], $data_insertar['documentoidentificacion']);
+
+        $elegido = \App\Support\AsignadorModulos::elegir($data['sede'], 'Ratificación', $data["fecha"], $data["hora"]);
+        if (!$elegido) {
+            return redirect()->back()->with('error', 'No se ha podido completar tu cita. No se ha encontrado auxiliar disponible.');
+        }
+        $id_aux    = $elegido->user_id;
+        $modulo    = $elegido->nombre;
+        $modulo_id = $elegido->id;
+        $hora_fin = HorarioCitas::horaFin($data['sede'], 'Ratificación', 0, $data['hora']); //el 0 representa que no es caso de excepcion
+
+            $direccion = HorarioCitas::DIRECCIONES_SEDES[$data['sede']];
+
+            $data_recepcion= array(
+                'consecutivo'   => $numero_consecutivo,
+                'solicitante'   => $nombre_completo,
+                'auxiliar'      => $id_aux,
+                'lugar_auxiliar'=> $modulo,
+                'modulo_id'     => $modulo_id,
+                'origen'        => 'linea',
+                'tipo'          => 'Ratificación',
+                'fecha'         => $data['fecha'],
+                'hora'          => $data['hora'],
+                'hora_fin'      => $hora_fin,
+                'delegacion'    => $data['sede'],
+                'estatus'       => "pendiente",
+                'exepcion'      => 'No',
+                'municipio'     => $data["municipio_rat"],
+                'correo'        => $email ,
+                'telefono'      => $telefono,
+            );
+    
+            // En transacción: si el INSERT falla, también se deshace el folio
+            // que se apartó en folios_citas y no quedan números saltados.
+            $recepcion = DB::transaction(fn () => Recepcion::create($data_recepcion));
+            $fecha=$recepcion->fecha->format('Y-m-d');
+            $hora=$recepcion->hora->format('H:i');
+            $pdfCitas = $this->verDocumentoCita($recepcion->id);
+            // Correo con diseño institucional y el acuse adjunto (emails.cita_agendada).
+          
+
         $turno = Turnos::create($data_insertar);
         $id_turno = $turno->id;
-
+        $turno->update(['recepcion_id' => $recepcion->id]);
         //Documentos si cargaron el folio
         if(isset($data["folio"])){
             $representante  = Poder::find($data["folio"]);
@@ -890,6 +936,8 @@ class TurnosController extends Controller
         }
         
         */
+        Mail::to($email)->send(new \App\Mail\CitaAgendadaMail($pdfCitas, $recepcion));
+        return redirect()->route('citas_exito')->with(['success' => true,'id'=>$recepcion->id,'folio' => $recepcion->folio_cita,'fecha' => $fecha,'hora' => $hora,'delegacion' => $recepcion->delegacion, 'modulo' => $recepcion->lugar_auxiliar, 'direccion' => $direccion]);
         return back()->with('success', 'Debes ingresar a '. 
         ' http://siconcilio.cclmichoacan.gob.mx/ en el apartado de buzón electrónico.'  ); 
     }
@@ -1016,12 +1064,14 @@ class TurnosController extends Controller
 
         while ($fecha <= $fin) {
             if ($fecha->format('N') < 6) { 
-                $slotEndDt = new \DateTime($fecha->format('Y-m-d') . ' 15:30:00');
-                if($fecha->format('Y-m-d') >= '2026-11-01'){
+                
+                if($fecha->format('Y-m-d') >= '2026-10-19'){
+                    $slotEndDt = new \DateTime($fecha->format('Y-m-d') . ' 15:00:00');
                     $slotDt = new \DateTime($fecha->format('Y-m-d') . ' 08:30:00');
-                    $slotComida = new \DateTime($fecha->format('Y-m-d') . ' 17:00:00');
+                    $slotComida = $sede === 'Morelia' ? new \DateTime($fecha->format('Y-m-d') . ' 13:30:00') : new \DateTime($fecha->format('Y-m-d') . ' 17:40:00');
                 }
                 else{
+                    $slotEndDt = new \DateTime($fecha->format('Y-m-d') . ' 15:30:00');
                     $slotDt = new \DateTime($fecha->format('Y-m-d') . ' 09:00:00');
                     $slotComida = new \DateTime($fecha->format('Y-m-d') . ' 13:00:00');
                 }
@@ -1109,11 +1159,11 @@ class TurnosController extends Controller
                             ];
                         }
 
-                        if($slotDt->format('H:i') === '13:00' ){
+                        if($slotDt->format('H:i') === $slotComida->format('H:i') ){
                             $slotDt->modify('+30 minutes');
                         }
                         else{
-                            if($fecha->format('Y-m-d') >= '2026-11-01'){
+                            if($fecha->format('Y-m-d') >= '2026-10-19'){
                                 $slotDt->modify('+50 minutes');
                             }
                             else{
@@ -3479,6 +3529,36 @@ class TurnosController extends Controller
         }
 
         return $pagos;
+    }
+    public function verDocumentoCita($id)
+    {
+        $cita = Recepcion::findOrFail($id);
+        $fecha = $cita->fecha->format('Y-m-d');
+        $hora = $cita->hora->format('H:i');
+        $todas_direcciones = [
+            'Morelia' => 'BLVD. GARCÍA DE LEÓN NO. 1575, COL. CHAPULTEPEC ORIENTE, C.P. 58260, MORELIA, MICHOACÁN',
+            'Zitácuaro' => '5 DE MAYO NTE. 3, CENTRO, C.P. 61500, ZITÁCUARO, MICHOACÁN.',
+            'Zamora' => 'JUSTO SIERRA NO. 290, COL. JARDINES DE CATEDRAL, C.P. 59670, ZAMORA DE HIDALGO, MICHOACÁN.',
+            'Sahuayo' => 'AV. UNIVERSIDAD SUR NO. 3000, SEGUNDO PISO, EDIFICIO CENTRAL, COL. LOMAS DE UNIVERSIDAD, C.P. 59103, SAHUAYO DE MORELOS, MICHOACÁN.',
+            'Uruapan' => 'NUEVO PARICUTÍN NO. 308, COL. SAN RAFAEL, C.P. 60136, URUAPAN, MICHOACÁN.',
+            'Lázaro Cárdenas' => 'PARACHO NO. 26, COL. 600 CASAS, C.P. 60950, LÁZARO CÁRDENAS, MICHOACÁN.',
+        ];
+        $direccion = $todas_direcciones[$cita->delegacion];
+        // Se genera la URL absoluta que abrirá el teléfono al escanear
+        $urlConfirmacion = route('citas.confirmar', $cita->id);
+
+        // Se crea el QR apuntando a esa URL específica
+        $qrCode = QrCode::size(200)->color(94, 119, 122)->generate($urlConfirmacion);
+        $html = view('recepcion.acuse_cita', compact('cita', 'qrCode', 'direccion','fecha','hora'))->render();
+        
+        $pdf = \PDF::loadHTML($html)
+            ->setPaper('a4', 'portrait')
+            ->setOption('isHtml5ParserEnabled', true)
+            ->setOption('isPhpEnabled', true); 
+
+        $nombreArchivo = 'Confirmacion_cita' .'.pdf';
+        return $pdf; 
+
     }
     
 

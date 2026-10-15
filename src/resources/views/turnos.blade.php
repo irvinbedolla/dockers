@@ -480,6 +480,18 @@
                 
                 if (tipoSeleccionado === 'Ratificación') {
 
+                    $('#calidad').fadeIn();
+                } else {
+
+                    $('#calidad').fadeOut();
+                    $('#puesto').val(''); 
+                }
+            });
+            $('#puesto').on('change', function() {
+                var tipoSeleccionado = $(this).val();
+                
+                if (tipoSeleccionado === 'empleador') {
+
                     $('#si_ratificacion').fadeIn();
                 } else {
 
