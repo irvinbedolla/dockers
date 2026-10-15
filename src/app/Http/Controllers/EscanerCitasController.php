@@ -62,6 +62,16 @@ class EscanerCitasController extends Controller
             ]);
         }
 
+        // Morelia 02 no recibe solicitudes ni asesorías: no las valida.
+        $tramites = Recepcion::tramitesVisibles($request->user());
+        if ($tramites !== null && ! in_array($cita->tipo, $tramites, true)) {
+            return response()->json([
+                'resultado' => 'otra_sede',
+                'titulo'    => 'Cita de otra recepción',
+                'mensaje'   => "Esta cita es de {$cita->tipo}: pásala a la recepción que la atiende. No se modificó.",
+            ]);
+        }
+
         $antes = $cita->estatus;
         ['resultado' => $resultado, 'cambio' => $cambio] = ValidadorCita::validar($cita);
 

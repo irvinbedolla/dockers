@@ -55,6 +55,8 @@ class AgendaCitasController extends Controller
             ->whereBetween('r.fecha', [$desde, $hasta])
             ->whereIn('r.delegacion', $sedes)
             ->where('r.origen', 'linea')
+            // Morelia 02 sólo ve las de ratificación (Recepcion::tramitesVisibles).
+            ->when(Recepcion::tramitesVisibles($usuario), fn ($q, $tramites) => $q->whereIn('r.tipo', $tramites))
             ->orderBy('r.fecha')
             ->orderBy('r.hora')
             ->select([

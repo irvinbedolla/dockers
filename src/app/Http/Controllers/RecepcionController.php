@@ -205,7 +205,9 @@ class RecepcionController extends Controller
         $sedesVisibles = \App\Support\Recepcion::sedesVisibles($user);
         $hoy = DB::table('recepcion')
             ->whereIn('delegacion', $sedesVisibles ?: ['__ninguna__'])
-            ->where('fecha', $fecha_actual);
+            ->where('fecha', $fecha_actual)
+            // Morelia 02 sólo ve ratificaciones y cumplimientos.
+            ->when(\App\Support\Recepcion::tramitesVisibles($user), fn ($q, $tramites) => $q->whereIn('tipo', $tramites));
 
         $hoyPorEstatus = (clone $hoy)
             ->selectRaw('estatus, COUNT(*) as total')

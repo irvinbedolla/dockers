@@ -27,11 +27,13 @@ class TurnosHistorialController extends Controller
     public function __invoke(Request $request)
     {
         $sedesPermitidas = Recepcion::sedesVisibles($request->user());
+        // Morelia 02 sólo ve ratificaciones y cumplimientos; los demás, todo.
+        $tiposPermitidos = Recepcion::tramitesVisibles($request->user()) ?? self::TIPOS;
 
         $filtros = $request->validate([
             'fecha'   => ['nullable', 'date_format:Y-m-d'],
             'sede'    => ['nullable', Rule::in($sedesPermitidas)],
-            'tipo'    => ['nullable', Rule::in(self::TIPOS)],
+            'tipo'    => ['nullable', Rule::in($tiposPermitidos)],
             'estatus' => ['nullable', Rule::in(self::ESTATUS)],
             'origen'  => ['nullable', Rule::in(['linea', 'ventanilla'])],
             'q'       => ['nullable', 'string', 'max:100'],
@@ -44,7 +46,8 @@ class TurnosHistorialController extends Controller
         // aunque en ese momento se esté viendo sólo uno.
         $base = DB::table('recepcion as r')
             ->leftJoin('users as u', 'u.id', '=', 'r.auxiliar')
-            ->whereIn('r.delegacion', $sedes === [] ? ['__ninguna__'] : $sedes);
+            ->whereIn('r.delegacion', $sedes === [] ? ['__ninguna__'] : $sedes)
+            ->when($tiposPermitidos !== self::TIPOS, fn ($q) => $q->whereIn('r.tipo', $tiposPermitidos));
 
         if (! empty($filtros['fecha'])) {
             $base->where('r.fecha', $filtros['fecha']);

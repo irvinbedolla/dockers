@@ -48,6 +48,15 @@ class Recepcion
         self::REGIONAL   => self::TRAMITES_TURNO,
     ];
 
+    /**
+     * Trámites (recepcion.tipo) que ve cada recepción en citas y turnos. Las
+     * que no aparecen aquí ven todos. Morelia 02 sólo atiende ratificaciones
+     * (y los cumplimientos), así que no ve solicitudes ni asesorías.
+     */
+    private const VE = [
+        self::MORELIA_02 => ['Ratificación', 'Cumplimiento'],
+    ];
+
     /** Lo que necesitan las pantallas de turnos; ahí sólo se revisan estos. */
     public const PERMISOS = ['turnos_ver', 'turnos_crear', 'turnos_asignar', 'turnos_revisar'];
 
@@ -122,6 +131,31 @@ class Recepcion
         }
 
         return array_values(array_intersect(self::TRAMITES_TURNO, $tramites));
+    }
+
+    /**
+     * Trámites de recepcion (citas en línea y turnos) que puede ver esta
+     * persona; null = todos. Igual que tramitesQuePuedeCrear, sólo se acota a
+     * quien únicamente tiene roles de recepción, y si alguno de sus roles ve
+     * todo (Morelia 01, General) gana ese.
+     *
+     * @return array<int, string>|null
+     */
+    public static function tramitesVisibles(?User $usuario): ?array
+    {
+        if ($usuario === null || ! self::es($usuario) || $usuario->getRoleNames()->diff(self::ROLES)->isNotEmpty()) {
+            return null;
+        }
+
+        $tramites = [];
+        foreach ($usuario->getRoleNames() as $rol) {
+            if (! array_key_exists($rol, self::VE)) {
+                return null;
+            }
+            $tramites = array_merge($tramites, self::VE[$rol]);
+        }
+
+        return array_values(array_unique($tramites));
     }
 
     /** ¿Ve la pestaña "Citas en línea"? Recepción y quienes la supervisan. */
