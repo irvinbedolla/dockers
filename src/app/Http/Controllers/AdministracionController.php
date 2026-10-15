@@ -298,14 +298,35 @@ class AdministracionController extends Controller{
             ->all();
     }
 
-    public function cambio_audiencia(){
+    /**
+     * Cambio de fecha en audiencia: tabla con todas las audiencias (filtros y
+     * vistas en App\Support\ListadoAudiencias), el buscador por NUE de
+     * siempre y el historial.
+     */
+    public function cambio_audiencia(Request $request){
         $delegaciones = $this->prefijosDelegacion();
+        $nombresPermitidos = $this->nombresSedesPermitidas(auth()->user());
 
-        if ($nombresPermitidos = $this->nombresSedesPermitidas(auth()->user())) {
+        if ($nombresPermitidos) {
             $delegaciones = array_filter($delegaciones, fn($nombre) => in_array($nombre, $nombresPermitidos, true));
         }
 
-        return view('administracion.index_audiencia', compact('delegaciones'));
+        $filtros = \App\Support\ListadoAudiencias::filtros($request->query());
+        // Un Delegado no puede pedir por URL una sede que no es suya.
+        if ($filtros['sede'] !== '' && ! in_array($filtros['sede'], $delegaciones, true)) {
+            $filtros['sede'] = '';
+        }
+
+        [$audiencias, $conteos] = \App\Support\ListadoAudiencias::listar($filtros, $nombresPermitidos);
+
+        return view('administracion.index_audiencia', [
+            'delegaciones'   => $delegaciones,
+            'filtros'        => $filtros,
+            'audiencias'     => $audiencias,
+            'conteos'        => $conteos,
+            'conciliadores'  => \App\Support\ListadoAudiencias::conciliadores($nombresPermitidos),
+            'puedeEmpalmar'  => auth()->user()->hasRole('Super Usuario'),
+        ]);
     }
     public function fecha_audiencia_buscar(Request $request)
     {
@@ -342,7 +363,8 @@ class AdministracionController extends Controller{
             $citado = SeerCitados::where('id_solicitud', $solicitud->id)->first();
             $conciliador = User::where('id', $audiencia->id_conciliador)->pluck('name')->first();
         }
-        catch (\Exception $e) {
+        catch (\Throwable $e) {
+            // Sin solicitud o sin audiencia: $solicitud/$audiencia llegan null.
             return back()->withErrors("No se encontró ninguna audiencia con el NUE {$nue}.");
         }
 
@@ -359,7 +381,7 @@ class AdministracionController extends Controller{
             'delegacion'  => $solicitud->delegacion,
             'estatus'     => $audiencia->estatus,
             'solicitante'  => $solicitante,
-            'citados'     => trim($citado->nombre . ' ' . $citado->primer_apellido . ' ' . $citado->segundo_apellido),
+            'citados'     => $citado ? trim($citado->nombre . ' ' . $citado->primer_apellido . ' ' . $citado->segundo_apellido) : '',
             'conciliador'   => $conciliador,
             'id_conciliador' => $audiencia->id_conciliador,
         ];
@@ -376,11 +398,14 @@ class AdministracionController extends Controller{
         $NUE = SeerPerGeneral::where('id', $audienciaOld->id_solicitud)->value('NUE');
         $sede = User::whereKey($audienciaOld->id_conciliador)->value('delegacion') ?? $audienciaOld->delegacion;
 
-        // Antes se movía sin revisar y el conciliador podía quedar con dos
-        // audiencias a la misma hora. Revisar y guardar va con candado.
+        // Se revisa que el conciliador no quede con dos audiencias a la misma
+        // hora, salvo que quien mueve sea Super Usuario (puede empalmar las de
+        // todos). Revisar y guardar va con candado.
+        $libre = AgendaAudiencias::puedeEmpalmar(auth()->user(), (int) $audienciaOld->id_conciliador);
+
         try {
-            return AgendaAudiencias::conBloqueo($sede, function () use ($audienciaOld, $data, $NUE) {
-                $choque = AgendaAudiencias::choque((int) $audienciaOld->id_conciliador, $data["fecha"], $data["hora"], $audienciaOld->id);
+            return AgendaAudiencias::conBloqueo($sede, function () use ($audienciaOld, $data, $NUE, $libre) {
+                $choque = $libre ? null : AgendaAudiencias::choque((int) $audienciaOld->id_conciliador, $data["fecha"], $data["hora"], $audienciaOld->id);
                 if ($choque) {
                     return back()->withInput()->withErrors(AgendaAudiencias::mensajeChoque($choque));
                 }
@@ -390,7 +415,9 @@ class AdministracionController extends Controller{
                             'hora'  => $data["hora"],
                         ], trim($data["motivo"]), $NUE);
 
-                return redirect()->route('cambio_fecha_audiencia');
+                // De regreso a la tabla con los mismos filtros.
+                return back()->with('success', "La audiencia del NUE {$NUE} quedó el "
+                    .Carbon::parse($data["fecha"])->format('d/m/Y').' a las '.substr($data["hora"], 0, 5).'.');
             });
         } catch (AgendaOcupadaException $e) {
             return back()->withInput()->withErrors($e->getMessage());

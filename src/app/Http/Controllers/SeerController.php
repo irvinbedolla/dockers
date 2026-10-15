@@ -7545,15 +7545,18 @@ class SeerController extends Controller
     }
 
     public function reagendar_audiencia(Request $request){
-        // El conciliador escribe fecha y hora: antes se guardaban sin revisar
-        // y así se encimaban audiencias. Revisar y guardar va con candado.
+        // El conciliador escribe fecha y hora. Si la audiencia es suya (o quien
+        // reagenda es Super Usuario) puede encimarla; si no, se revisa el choque.
+        // Revisar y guardar va con candado para no duplicar folios.
         $previa = Audiencias::where('id_solicitud', $request->input('id'))->orderByDesc('id')->first();
         $conciliador = (int) ($previa->id_conciliador ?? auth()->id());
         $sede = \App\Models\User::whereKey($conciliador)->value('delegacion') ?? ($previa->delegacion ?? null);
 
         try {
             return \App\Support\AgendaAudiencias::conBloqueo($sede, function () use ($request, $previa, $conciliador) {
+                // El conciliador con sus propias audiencias y el Super Usuario sí pueden empalmar.
                 if ($request->filled(['fecha', 'hora'])
+                    && ! \App\Support\AgendaAudiencias::puedeEmpalmar(auth()->user(), $conciliador)
                     && ($choque = \App\Support\AgendaAudiencias::choque($conciliador, $request->input('fecha'), $request->input('hora'), $previa->id ?? null))) {
                     // Las vistas de audiencia no pintan $errors; el layout sí muestra session('error').
                     $aviso = \App\Support\AgendaAudiencias::mensajeChoque($choque);
@@ -7670,15 +7673,18 @@ class SeerController extends Controller
     }
 
     public function reagendar_audiencia_parte3(Request $request){
-        // El conciliador escribe fecha y hora: antes se guardaban sin revisar
-        // y así se encimaban audiencias. Revisar y guardar va con candado.
+        // El conciliador escribe fecha y hora. Si la audiencia es suya (o quien
+        // reagenda es Super Usuario) puede encimarla; si no, se revisa el choque.
+        // Revisar y guardar va con candado para no duplicar folios.
         $previa = Audiencias::where('id_solicitud', $request->input('id'))->orderByDesc('id')->first();
         $conciliador = (int) ($previa->id_conciliador ?? auth()->id());
         $sede = \App\Models\User::whereKey($conciliador)->value('delegacion') ?? ($previa->delegacion ?? null);
 
         try {
             return \App\Support\AgendaAudiencias::conBloqueo($sede, function () use ($request, $previa, $conciliador) {
+                // El conciliador con sus propias audiencias y el Super Usuario sí pueden empalmar.
                 if ($request->filled(['fecha', 'hora'])
+                    && ! \App\Support\AgendaAudiencias::puedeEmpalmar(auth()->user(), $conciliador)
                     && ($choque = \App\Support\AgendaAudiencias::choque($conciliador, $request->input('fecha'), $request->input('hora'), $previa->id ?? null))) {
                     // Las vistas de audiencia no pintan $errors; el layout sí muestra session('error').
                     $aviso = \App\Support\AgendaAudiencias::mensajeChoque($choque);
