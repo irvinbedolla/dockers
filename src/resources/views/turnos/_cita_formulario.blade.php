@@ -45,9 +45,11 @@
                                             <label class="form-label" for="tipo">Tipo de trámite <span class="gc-req">*</span></label>
                                             <select id="tipo" name="tipo" class="form-select" onchange="blockCalendar();" required>
                                                 <option value="">Elige una opción</option>
-                                                <option value="Asesoría">Asesoría</option>
-                                                <option value="Solicitud">Solicitud de conciliación</option>
-                                                <option value="Ratificación">Ratificación de convenio</option>
+                                                {{-- ?tipo=Solicitud llega ya elegido (accesos rápidos de recepción en el Inicio). --}}
+                                                @php $tipoInicial = old('tipo', request()->query('tipo')); @endphp
+                                                <option value="Asesoría" @selected($tipoInicial === 'Asesoría')>Asesoría</option>
+                                                <option value="Solicitud" @selected($tipoInicial === 'Solicitud')>Solicitud de conciliación</option>
+                                                <option value="Ratificación" @selected($tipoInicial === 'Ratificación')>Ratificación de convenio</option>
                                             </select>
                                             <div class="form-text gc-ayuda-tramite" id="gcAyudaTramite">Elige una opción y te explicamos de qué se trata.</div>
                                             <div class="invalid-feedback">Elige el tipo de trámite.</div>

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\AccesosRecepcion;
 use App\Support\AgendaContexto;
 use App\Support\ResumenSedes;
 use App\Support\Saludo;
@@ -26,10 +27,12 @@ class InicioController extends Controller
         $userRole = $usuario->roles->pluck('name')->all();
         $saludo   = Saludo::para($usuario);
 
-        // La tabla de posiciones la ven todos los roles, así que se resuelve
-        // antes de la bifurcación. Las cifras del mes (convenios, montos y
-        // tasa) se mudaron al Panel estadístico (EstadisticasController).
-        $posiciones = TablaPosiciones::resumen();
+        // Recepción (Morelia 01, 02 y General) ve accesos rápidos en lugar de
+        // la tabla de posiciones; los demás roles, la tabla. Se resuelve antes
+        // de la bifurcación. Las cifras del mes (convenios, montos y tasa) se
+        // mudaron al Panel estadístico (EstadisticasController).
+        $accesos    = AccesosRecepcion::aplica($usuario) ? AccesosRecepcion::para($usuario) : null;
+        $posiciones = $accesos ? null : TablaPosiciones::resumen();
 
         if (in_array('Directivo', $userRole, true)) {
             return view('inicio.index', [
@@ -37,6 +40,7 @@ class InicioController extends Controller
                 'userRole'     => $userRole,
                 'saludo'       => $saludo,
                 'posiciones'   => $posiciones,
+                'accesos'      => $accesos,
                 'resumen'      => ResumenSedes::totales(),
                 'resumenSedes' => ResumenSedes::detalle(),
             ]);
@@ -44,6 +48,6 @@ class InicioController extends Controller
 
         ['sedes' => $sedes, 'conciliadores' => $conciliadores] = AgendaContexto::para($usuario);
 
-        return view('inicio.index', compact('usuario', 'userRole', 'saludo', 'posiciones', 'sedes', 'conciliadores'));
+        return view('inicio.index', compact('usuario', 'userRole', 'saludo', 'posiciones', 'accesos', 'sedes', 'conciliadores'));
     }
 }
