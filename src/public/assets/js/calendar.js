@@ -584,6 +584,10 @@ function calContenidoEvento(info) {
         linea.appendChild(etiqueta);
 
         linea.appendChild(document.createTextNode(par[1] || 'N/A'));
+        // Ratificaciones: el registro patronal se ve de un vistazo.
+        if (par[0] === 'Registro') {
+            linea.classList.add(par[1] === 'Validado' ? 'evt-registro--si' : 'evt-registro--no');
+        }
         tarjeta.appendChild(linea);
     });
 
@@ -774,6 +778,37 @@ function calModalCita(info) {
     bootstrap.Modal.getOrCreateInstance(document.getElementById('evento')).show();
 }
 
+// Texto seguro para el detalle (se arma con template strings) y con un
+// letrero en lugar de "null" cuando el dato viene vacio.
+function calTexto(valor, siVacio) {
+    const texto = (valor === null || valor === undefined) ? '' : String(valor).trim();
+    if (texto === '' || texto.toLowerCase() === 'null') {
+        return siVacio || '';
+    }
+    return texto.replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+}
+
+// Registro patronal de una ratificacion (tabla abogados). Guia para la
+// recepcion: solo cuenta si existe y ya esta validado.
+function calRegistroPatronal(props) {
+    const r = props.registro_patronal;
+    if (!r) {
+        return '<span class="cal-registro cal-registro--no"><i class="bi bi-x-circle"></i> No existe registro aún</span>';
+    }
+    let html = '<span class="cal-registro cal-registro--si"><i class="bi bi-check-circle"></i> Registro validado</span>';
+    if (r.representante) {
+        html += '<br><span class="text-muted">Representante:</span> ' + calTexto(r.representante);
+    } else if (r.patron) {
+        html += '<br><span class="text-muted">Sin representante; comparece:</span> ' + calTexto(r.patron);
+    }
+    if (r.vigencia) {
+        html += '<br><span class="text-muted">Vigente al:</span> ' + calTexto(r.vigencia);
+    }
+    return html;
+}
+
 function handleEventClick(info, calendarType) {
     if (calendarType === 'citasLinea') {
         calModalCita(info);
@@ -794,7 +829,7 @@ function handleEventClick(info, calendarType) {
             <strong>Patronal:</strong> ${props.empresa}<br>
             <strong>Estatus:</strong> ${props.estatus}<br>
             <strong>Monto:</strong> ${props.monto}<br>
-            <strong>Observaciones:</strong> ${props.observaciones}<br>
+            <strong>Observaciones:</strong> ${calTexto(props.observaciones, 'No tiene observaciones')}<br>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
                 <a href="cumplimiento/consulta/${info.event.id}/${props.tipo}" class="btn btn-info">Ver Cumplimiento</a>
@@ -812,7 +847,7 @@ function handleEventClick(info, calendarType) {
             <strong>Patronal:</strong> ${props.empresa}<br>
             <strong>Estatus:</strong> ${props.estatus}<br>
             <strong>Monto:</strong> ${props.monto}<br>
-            <strong>Observaciones:</strong> ${props.observaciones}<br>
+            <strong>Observaciones:</strong> ${calTexto(props.observaciones, 'No tiene observaciones')}<br>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
                 <a href="cumplimiento/consulta/${info.event.id}/${props.tipo}" class="btn btn-info">Ver detalle</a>
@@ -846,6 +881,7 @@ function handleEventClick(info, calendarType) {
             <strong>Hora:</strong> ${props.hora}<br>
             <strong>Estatus:</strong> ${props.estatus}<br>
             <strong>Delegación:</strong> ${props.delegacion}<br>
+            <strong>Registro patronal:</strong> ${calRegistroPatronal(props)}<br>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
                 <a href="cumplimiento/consulta/${info.event.id}/${props.tipo}" class="btn btn-info">Ver detalle</a>
@@ -876,7 +912,7 @@ function handleEventClick(info, calendarType) {
             <strong>Conciliador:</strong> ${props.conciliador}<br>
             <strong>Estatus:</strong> ${props.estatus}<br>
             <strong>Monto:</strong> ${props.monto}<br>
-            <strong>Observaciones:</strong> ${props.observaciones}<br>
+            <strong>Observaciones:</strong> ${calTexto(props.observaciones, 'No tiene observaciones')}<br>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
                 <a href="cumplimiento/consulta/${info.event.id}/${props.tipo}" class="btn btn-info">Ver detalle</a>

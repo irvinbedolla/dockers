@@ -3,7 +3,7 @@
     el calendario existe una sola vez: cualquier arreglo aquí llega a las dos.
 --}}
     {{-- Mismos estilos de calendario que la pantalla de bloqueos por sede --}}
-    <link href="{{ asset('assets/css/calendario.css') }}" rel="stylesheet">
+    <link href="{{ asset('assets/css/calendario.css') }}?v={{ @filemtime(public_path('assets/css/calendario.css')) }}" rel="stylesheet">
     <style>
         .loader {
             position: fixed;

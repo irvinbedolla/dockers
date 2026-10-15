@@ -36,5 +36,5 @@
         const urlBloqueos       = "{{ route('calendario.bloqueos') }}"; 
     </script>
 
-    <script src="{{ asset('assets/js/calendar.js') }}"></script>
+    <script src="{{ asset('assets/js/calendar.js') }}?v={{ @filemtime(public_path('assets/js/calendar.js')) }}"></script>
     <script src="{{ asset('assets/js/general/menu.js') }}"></script>
