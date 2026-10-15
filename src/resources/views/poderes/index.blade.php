@@ -366,8 +366,8 @@
                             <div id="wrapper_cartapoder"></div>
                         </li>
                         <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <span><i class="bi bi-journal-bookmark text-primary"></i> Cédula Profesional</span>
-                            <div id="wrapper_cedula"></div>
+                            <span><i class="bi bi-paperclip text-primary"></i> Anexo</span>
+                            <div id="wrapper_anexo"></div>
                         </li>
                         <li class="list-group-item d-flex justify-content-between align-items-center" id="li_registro">
                             <span><i class="bi bi-file-check text-success"></i> Constancia de Registro Oficial</span>
@@ -497,7 +497,7 @@
 
                 let abogado = $(this).data('abogado');
                 let ine = $(this).data('ine');
-                let cedula = $(this).data('cedula');
+                let anexo = $(this).data('anexo');
                 let rep = $(this).data('representacion');
                 let carta = $(this).data('cartapoder');
                 let registro = $(this).data('registro');
@@ -512,7 +512,7 @@
                 }
 
                 $('#wrapper_ine').html(buildLink(ine));
-                $('#wrapper_cedula').html(buildLink(cedula));
+                $('#wrapper_anexo').html(buildLink(anexo));
                 $('#wrapper_representacion').html(buildLink(rep));
                 $('#wrapper_cartapoder').html(buildLink(carta, 'S/D'));
 
