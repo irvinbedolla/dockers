@@ -80,10 +80,10 @@ class PoderController extends Controller
                 data-bs-toggle="modal"
                 data-bs-target="#modalExpedienteDigital"
                 data-abogado="' . $poder->nombre_representante_combinado . '"
-                data-ine="' . ($poder->ineDocumento ? signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $poder->idAbogado, 'archivo' => $poder->ineDocumento]) : '') . '"
-                data-cedula="' . ($poder->cedulaDocumento ? signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $poder->idAbogado, 'archivo' => $poder->cedulaDocumento]) : '') . '"
-                data-representacion="' . ($poder->representacionDocumento ? signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $poder->idAbogado, 'archivo' => $poder->representacionDocumento]) : '') . '"
-                data-cartapoder="' . ($poder->cedula === "Sin carta poder" ? 'S/A' : ($poder->cedulaDocumento ? signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $poder->idAbogado, 'archivo' => $poder->cedulaDocumento]) : '')) . '"
+                data-ine="' . $this->urlDocumentoPoder($poder, $poder->ineDocumento) . '"
+                data-anexo="' . $this->urlDocumentoPoder($poder, $poder->anexo_documeto) . '"
+                data-representacion="' . $this->urlDocumentoPoder($poder, $poder->representacionDocumento) . '"
+                data-cartapoder="' . $this->urlDocumentoPoder($poder, $poder->cedulaDocumento) . '"
                 data-registro="' . ($poder->estatus === "Validado" ? route('PDFregistroAbogado', $poder->idAbogado) : '') . '">
                 <i class="bi bi-folder2-open"></i> Ver Expediente
             </button>';
@@ -159,6 +159,18 @@ class PoderController extends Controller
         }
     }
 
+    // URL firmada de un documento del poder; 'S/A' para los marcadores que no son archivo y '' si está vacío.
+    private function urlDocumentoPoder($poder, $archivo)
+    {
+        if (empty($archivo)) {
+            return '';
+        }
+        if (in_array($archivo, ['Sin anexo', 'Sin documento', 'Sin carta poder'], true)) {
+            return 'S/A';
+        }
+        return signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $poder->idAbogado, 'archivo' => $archivo]);
+    }
+
     private function procesarColumnasPoder($poder, $hoy, $userRole)
     {
         $poder->nombre_patronal_combinado = trim(($poder->nombres_patronal ?? '') . ' ' . ($poder->primer_apellido_patronal ?? '') . ' ' . ($poder->segundo_apellido_patronal ?? '')) ?: 'Sin nombre';
@@ -177,10 +189,10 @@ class PoderController extends Controller
             data-bs-toggle="modal"
             data-bs-target="#modalExpedienteDigital"
             data-abogado="' . $poder->nombre_representante_combinado . '"
-            data-ine="' . ($poder->ineDocumento ? signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $poder->idAbogado, 'archivo' => $poder->ineDocumento]) : '') . '"
-            data-cedula="' . ($poder->cedulaDocumento ? signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $poder->idAbogado, 'archivo' => $poder->cedulaDocumento]) : '') . '"
-            data-representacion="' . ($poder->representacionDocumento ? signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $poder->idAbogado, 'archivo' => $poder->representacionDocumento]) : '') . '"
-            data-cartapoder="' . ($poder->cedula === "Sin carta poder" ? 'S/A' : ($poder->cedulaDocumento ? signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $poder->idAbogado, 'archivo' => $poder->cedulaDocumento]) : '')) . '"
+            data-ine="' . $this->urlDocumentoPoder($poder, $poder->ineDocumento) . '"
+            data-anexo="' . $this->urlDocumentoPoder($poder, $poder->anexo_documeto) . '"
+            data-representacion="' . $this->urlDocumentoPoder($poder, $poder->representacionDocumento) . '"
+            data-cartapoder="' . $this->urlDocumentoPoder($poder, $poder->cedulaDocumento) . '"
             data-registro="' . ($poder->estatus === "Validado" ? route('PDFregistroAbogado', $poder->idAbogado) : '') . '">
             <i class="bi bi-folder2-open"></i> Ver Expediente
         </button>';
