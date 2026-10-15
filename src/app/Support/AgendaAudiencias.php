@@ -20,6 +20,10 @@ use Illuminate\Support\Str;
  * Ahora todos usan ocupado() y hacen revisar-y-guardar dentro de
  * conBloqueo(), un candado de MySQL (GET_LOCK) por oficina. Las tres oficinas
  * no comparten conciliadores, así que Morelia no espera a Uruapan.
+ *
+ * Excepción (puedeEmpalmar): el conciliador que reagenda SUS audiencias y el
+ * Super Usuario sí pueden encimarlas; el reparto automático y los demás
+ * roles siguen sin poder.
  */
 class AgendaAudiencias
 {
@@ -43,6 +47,20 @@ class AgendaAudiencias
      * echen encima todo lo nuevo al regresar.
      */
     public const VENTANA_CARGA = 14;
+
+    /**
+     * ¿Quien reagenda puede dejar la audiencia encimada con otra del mismo
+     * conciliador? Sí el propio conciliador (organiza su agenda) y el Super
+     * Usuario (puede mover las de todos).
+     */
+    public static function puedeEmpalmar(?\App\Models\User $usuario, int $conciliador): bool
+    {
+        if ($usuario === null) {
+            return false;
+        }
+
+        return $usuario->hasRole('Super Usuario') || (int) $usuario->id === $conciliador;
+    }
 
     public static function oficina(?string $sede): string
     {
