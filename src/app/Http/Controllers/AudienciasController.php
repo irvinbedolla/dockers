@@ -430,10 +430,12 @@ class AudienciasController extends Controller
                 $registroValidado = $rati->ab_id && $rati->ab_estatus === 'Validado';
                 $representante = $nombre($rati->ab_nombre, $rati->ab_apellido1, $rati->ab_apellido2);
                 $conRepresentante = $registroValidado && $rati->ab_tiene_representante === 'Si' && $representante !== '';
+                // En una ratificación quien solicita es la empresa y el citado es
+                // el trabajador (antes salían al revés en la agenda).
                 $eventos[] = [
                     'id' => $rati->id,
                     'title' => $rati->empresa,
-                    'solicitante' => $trabajador,
+                    'solicitante' => $rati->empresa,
                     'start' => $rati->fecha . 'T' . $rati->hora,
                     'extendedProps' => [
                         'hora' => $rati->hora,
@@ -445,17 +447,21 @@ class AudienciasController extends Controller
                         'usuario' => $userID,
                         'tipo' => $tipo,
                         'conciliador' => $rati->name,
-                        'solicitante' => $trabajador,
-                        'citado' => $rati->empresa,
-                        'registro_patronal' => $registroValidado ? [
+                        'solicitante' => $rati->empresa,
+                        'citado' => $trabajador,
+                        // Folio del registro patronal = abogados.idAbogado (así lo
+                        // entrega Poderes). Validado decide "existe" o "no existe aún".
+                        'registro_patronal' => $rati->ab_id ? [
+                            'folio'         => (int) $rati->ab_id,
+                            'validado'      => (bool) $registroValidado,
                             'representante' => $conRepresentante ? $representante : null,
-                            'patron'        => $nombre($rati->ab_patron, $rati->ab_patron1, $rati->ab_patron2) ?: null,
-                            'vigencia'      => $rati->ab_vigencia ? Carbon::parse($rati->ab_vigencia)->format('d/m/Y') : null,
+                            'patron'        => $registroValidado ? ($nombre($rati->ab_patron, $rati->ab_patron1, $rati->ab_patron2) ?: null) : null,
+                            'vigencia'      => $registroValidado && $rati->ab_vigencia ? Carbon::parse($rati->ab_vigencia)->format('d/m/Y') : null,
                         ] : null,
                         // Renglones de la tarjeta en el calendario (calContenidoEvento).
                         'lineas' => [
-                            ['Solicitante', $trabajador],
-                            ['Citado', $rati->empresa],
+                            ['Solicitante', $rati->empresa],
+                            ['Citado', $trabajador],
                             ['Conciliador', $rati->name],
                             ['Registro', $registroValidado ? 'Validado' : 'No existe aún'],
                         ],
