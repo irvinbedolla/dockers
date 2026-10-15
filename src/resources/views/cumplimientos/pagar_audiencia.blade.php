@@ -277,8 +277,7 @@ Dicha cantidad corresponde al cumplimiento (total o parcial, según corresponda)
                 // este proyecto no carga.
                 "responsive": false,
                 "destroy": true,
-                "paging": true,
-                "pageLength": 10,
+                "paging": false,
                 "searching": true,
                 "ordering": true,
                 "info": true,
