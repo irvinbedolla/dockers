@@ -1,14 +1,17 @@
 {{--
-    Fila de tarjetas de estadísticas del Inicio.
+    Fila de tarjetas de cifras del mes: convenios pagados, montos convenidos
+    y tasa de conciliación, en tres columnas fijas.
 
-    Vive aparte del saludo y de la bifurcación por rol porque la ven todos:
-    Directivo, Conciliador, Auxiliar y demás.
+    Antes iba en el Inicio de todos los roles; ahora sólo vive en el Panel
+    estadístico (estadisticas/panel, EstadisticasController). En el Inicio se
+    quedó la tabla de posiciones (_tarjeta_posiciones).
 
-    Arriba van las tres tarjetas de cifras en tres columnas fijas; abajo, la
-    tabla de posiciones a todo lo ancho, con sus tres grupos lado a lado.
-    Para sumar otra tarjeta de cifras hay que decidir aquí si la fila pasa a
-    cuatro columnas o si arranca una segunda fila.
+    Espera $convenios, $conveniosMes y $tasaConciliacion. Para sumar otra
+    tarjeta de cifras hay que decidir aquí si la fila pasa a cuatro columnas
+    o si arranca una segunda fila.
 --}}
+
+@include('inicio._tarjeta_base')
 
 <style>
     .inicio-tarjetas {
@@ -33,26 +36,6 @@
        el menú escondido cada tarjeta aún mide unos 270px. */
     @media (max-width: 899.98px) {
         .inicio-tarjetas { grid-template-columns: 1fr; }
-    }
-
-    .inicio-tarjeta {
-        background: #fff;
-        border: 1px solid #E3E8E8;
-        border-radius: 12px;
-        padding: 20px 22px;
-        /* Sin esto un nombre largo ensancha su columna y empuja a las otras
-           tres: minmax(0, 1fr) arriba y min-width aquí son la misma defensa
-           vista desde los dos lados. */
-        min-width: 0;
-    }
-
-    .inicio-tarjeta__titulo {
-        font-size: 12px;
-        font-weight: 600;
-        letter-spacing: .08em;
-        text-transform: uppercase;
-        color: #7B8A8B;
-        margin: 0 0 14px;
     }
 
     /* ---------------------------------------------------------------------
@@ -130,7 +113,3 @@
     @include('inicio._tarjeta_mes')
     @include('inicio._tarjeta_tasa')
 </div>
-
-{{-- Abajo y a todo lo ancho: tres grupos que necesitan espacio para verse
-     lado a lado. --}}
-@include('inicio._tarjeta_posiciones')

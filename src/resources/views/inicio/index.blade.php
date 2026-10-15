@@ -68,9 +68,10 @@
                 <p>{{ $saludo }}</p>
             </div>
 
-            {{-- Estadísticas para todos los roles: va antes de la bifurcación
-                 de abajo, que es la que separa al Directivo del resto. --}}
-            @include('inicio._tarjetas')
+            {{-- Tabla de posiciones para todos los roles: va antes de la
+                 bifurcación de abajo, que separa al Directivo del resto. Las
+                 tarjetas de cifras del mes viven en el Panel estadístico. --}}
+            @include('inicio._tarjeta_posiciones')
         </div>
 
         @if(in_array('Directivo', $userRole))

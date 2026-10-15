@@ -3,12 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Support\AgendaContexto;
-use App\Support\ConveniosDelMes;
-use App\Support\ConveniosPagados;
 use App\Support\ResumenSedes;
 use App\Support\Saludo;
 use App\Support\TablaPosiciones;
-use App\Support\TasaConciliacion;
 
 /**
  * Pantalla de Inicio.
@@ -29,22 +26,17 @@ class InicioController extends Controller
         $userRole = $usuario->roles->pluck('name')->all();
         $saludo   = Saludo::para($usuario);
 
-        // Las tarjetas de estadísticas las ven todos los roles, así que se
-        // resuelven antes de la bifurcación.
-        $convenios    = ConveniosPagados::porSede();
-        $conveniosMes = ConveniosDelMes::resumen();
-        $tasaConciliacion = TasaConciliacion::resumen();
-        $posiciones       = TablaPosiciones::resumen();
+        // La tabla de posiciones la ven todos los roles, así que se resuelve
+        // antes de la bifurcación. Las cifras del mes (convenios, montos y
+        // tasa) se mudaron al Panel estadístico (EstadisticasController).
+        $posiciones = TablaPosiciones::resumen();
 
         if (in_array('Directivo', $userRole, true)) {
             return view('inicio.index', [
                 'usuario'      => $usuario,
                 'userRole'     => $userRole,
                 'saludo'       => $saludo,
-                'convenios'    => $convenios,
-                'conveniosMes' => $conveniosMes,
-                'tasaConciliacion' => $tasaConciliacion,
-                'posiciones'       => $posiciones,
+                'posiciones'   => $posiciones,
                 'resumen'      => ResumenSedes::totales(),
                 'resumenSedes' => ResumenSedes::detalle(),
             ]);
@@ -52,6 +44,6 @@ class InicioController extends Controller
 
         ['sedes' => $sedes, 'conciliadores' => $conciliadores] = AgendaContexto::para($usuario);
 
-        return view('inicio.index', compact('usuario', 'userRole', 'saludo', 'convenios', 'conveniosMes', 'tasaConciliacion', 'posiciones', 'sedes', 'conciliadores'));
+        return view('inicio.index', compact('usuario', 'userRole', 'saludo', 'posiciones', 'sedes', 'conciliadores'));
     }
 }
