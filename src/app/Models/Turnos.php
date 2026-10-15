@@ -15,7 +15,7 @@ class Turnos extends Model {
     'Aguinaldo','Vacaciones','PrimaVacacional','PagoPTU','Gratificación','PrimaAntigüedad','Otras','Especifique','documentoCuanti','tipo_otros',
     'observaciones','curp_solicitante','salario','primero_empresa','segundo_empresa','nombre_empresa','primero_trabajador','segundo_trabajador',
     'vacaciones_dias','aguinaldo_dias','otros_dias','horario','comida',/*'domicilio',*/'resolucion_primera','resolucion_trabajadores','resolucion_justificacion','resolucion_segunda',
-    'NUE','observaciones','id_conciliador','municipio_rat','tipo_vialidad','calle','colonia','num_ext','num_int','codigo_postal','idAbogado','user_id','num_identificacion','estado_rat','año', 'id_historial','nacionalidad', 'incidencia', 'motivo_incidencia', 'conclucion_id', 'fecha_conclucion', 'year_ptu'];
+    'NUE','observaciones','id_conciliador','municipio_rat','tipo_vialidad','calle','colonia','num_ext','num_int','codigo_postal','idAbogado','user_id','num_identificacion','estado_rat','año', 'id_historial','nacionalidad', 'incidencia', 'motivo_incidencia', 'conclucion_id', 'fecha_conclucion', 'year_ptu','recepcion_id'];
 
     public function pagos()
     {
