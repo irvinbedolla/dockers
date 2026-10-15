@@ -505,7 +505,7 @@
                 var tieneFolio = $(this).val();
                 
                 if (tieneFolio === 'si') {
-                    window.location.href = '{{ route('create_cita') }}'; 
+                    window.location.href = '{{ route('create_cita', ['origen' => 'externo']) }}';
                 }
             });
 

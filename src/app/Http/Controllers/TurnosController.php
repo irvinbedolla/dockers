@@ -566,10 +566,10 @@ class TurnosController extends Controller
         return redirect()->route('misturnos');
     }
 
-    public function create_publico(){
+    public function create_publico($origen){
         $estados = Estados::all();
         $municipios = Municipios::all();
-        return view('citas', compact('estados','municipios'));
+        return view('citas', compact('estados','municipios', 'origen'));
     }
 
     public function store_publico(Request $request)
@@ -813,49 +813,55 @@ class TurnosController extends Controller
         }
 
         unset($data_insertar['ine'], $data_insertar['representacion'], $data_insertar['documentoidentificacion']);
+        $recepcion = null;
+        if($data['origen'] === 'externo'){
+            $elegido = \App\Support\AsignadorModulos::elegir($data['sede'], 'Ratificación', $data["fecha"], $data["hora"]);
+            if (!$elegido) {
+                return redirect()->back()->with('error', 'No se ha podido completar tu cita. No se ha encontrado auxiliar disponible.');
+            }
+            $id_aux    = $elegido->user_id;
+            $modulo    = $elegido->nombre;
+            $modulo_id = $elegido->id;
+            $hora_fin = HorarioCitas::horaFin($data['sede'], 'Ratificación', 0, $data['hora']); //el 0 representa que no es caso de excepcion
 
-        $elegido = \App\Support\AsignadorModulos::elegir($data['sede'], 'Ratificación', $data["fecha"], $data["hora"]);
-        if (!$elegido) {
-            return redirect()->back()->with('error', 'No se ha podido completar tu cita. No se ha encontrado auxiliar disponible.');
+                $direccion = HorarioCitas::DIRECCIONES_SEDES[$data['sede']];
+
+                $data_recepcion= array(
+                    'consecutivo'   => $numero_consecutivo,
+                    'solicitante'   => $nombre_completo,
+                    'auxiliar'      => $id_aux,
+                    'lugar_auxiliar'=> $modulo,
+                    'modulo_id'     => $modulo_id,
+                    'origen'        => 'linea',
+                    'tipo'          => 'Ratificación',
+                    'fecha'         => $data['fecha'],
+                    'hora'          => $data['hora'],
+                    'hora_fin'      => $hora_fin,
+                    'delegacion'    => $data['sede'],
+                    'estatus'       => "pendiente",
+                    'exepcion'      => 'No',
+                    'municipio'     => $data["municipio_rat"],
+                    'correo'        => $email ,
+                    'telefono'      => $telefono,
+                );
+        
+                // En transacción: si el INSERT falla, también se deshace el folio
+                // que se apartó en folios_citas y no quedan números saltados.
+                try {
+                   $recepcion = DB::transaction(fn () => Recepcion::create($data_recepcion));
+                }
+                catch (\Throwable $e) { 
+                    return redirect()->back()->with('error', 'No se ha podido completar tu cita.'); 
+                }
+                $fecha=$recepcion->fecha->format('Y-m-d');
+                $hora=$recepcion->hora->format('H:i');
+                $pdfCitas = $this->verDocumentoCita($recepcion->id);
+                // Correo con diseño institucional y el acuse adjunto (emails.cita_agendada).
+                Mail::to($email)->send(new \App\Mail\CitaAgendadaMail($pdfCitas, $recepcion));
         }
-        $id_aux    = $elegido->user_id;
-        $modulo    = $elegido->nombre;
-        $modulo_id = $elegido->id;
-        $hora_fin = HorarioCitas::horaFin($data['sede'], 'Ratificación', 0, $data['hora']); //el 0 representa que no es caso de excepcion
-
-            $direccion = HorarioCitas::DIRECCIONES_SEDES[$data['sede']];
-
-            $data_recepcion= array(
-                'consecutivo'   => $numero_consecutivo,
-                'solicitante'   => $nombre_completo,
-                'auxiliar'      => $id_aux,
-                'lugar_auxiliar'=> $modulo,
-                'modulo_id'     => $modulo_id,
-                'origen'        => 'linea',
-                'tipo'          => 'Ratificación',
-                'fecha'         => $data['fecha'],
-                'hora'          => $data['hora'],
-                'hora_fin'      => $hora_fin,
-                'delegacion'    => $data['sede'],
-                'estatus'       => "pendiente",
-                'exepcion'      => 'No',
-                'municipio'     => $data["municipio_rat"],
-                'correo'        => $email ,
-                'telefono'      => $telefono,
-            );
-    
-            // En transacción: si el INSERT falla, también se deshace el folio
-            // que se apartó en folios_citas y no quedan números saltados.
-            $recepcion = DB::transaction(fn () => Recepcion::create($data_recepcion));
-            $fecha=$recepcion->fecha->format('Y-m-d');
-            $hora=$recepcion->hora->format('H:i');
-            $pdfCitas = $this->verDocumentoCita($recepcion->id);
-            // Correo con diseño institucional y el acuse adjunto (emails.cita_agendada).
-          
-
+        
         $turno = Turnos::create($data_insertar);
         $id_turno = $turno->id;
-        $turno->update(['recepcion_id' => $recepcion->id]);
         //Documentos si cargaron el folio
         if(isset($data["folio"])){
             $representante  = Poder::find($data["folio"]);
@@ -936,10 +942,13 @@ class TurnosController extends Controller
         }
         
         */
-        Mail::to($email)->send(new \App\Mail\CitaAgendadaMail($pdfCitas, $recepcion));
-        return redirect()->route('citas_exito')->with(['success' => true,'id'=>$recepcion->id,'folio' => $recepcion->folio_cita,'fecha' => $fecha,'hora' => $hora,'delegacion' => $recepcion->delegacion, 'modulo' => $recepcion->lugar_auxiliar, 'direccion' => $direccion]);
+        
+        if($data['origen'] === 'externo'){
+            $turno->update(['recepcion_id' => $recepcion->id]);
+            return redirect()->route('citas_exito')->with(['success' => true,'id'=>$recepcion->id,'folio' => $recepcion->folio_cita,'fecha' => $fecha,'hora' => $hora,'delegacion' => $recepcion->delegacion, 'modulo' => $recepcion->lugar_auxiliar, 'direccion' => $direccion]);
+        }
         return back()->with('success', 'Debes ingresar a '. 
-        ' http://siconcilio.cclmichoacan.gob.mx/ en el apartado de buzón electrónico.'  ); 
+        ' http://siconcilio.ccl.michoacan.gob.mx/ en el apartado de buzón electrónico.'  ); 
     }
 
     public function pagoA_ratificacion(Request $request){
@@ -1042,6 +1051,7 @@ class TurnosController extends Controller
         $fecha_inicio = now()->format('Y-m-d');
         $fecha_fin = now()->addDays(60)->format('Y-m-d');
         $sede = $request->input('sede'); // Obtener sede de la solicitud
+        $origen = $request->input('origen');
 
         $inhabiles = DiasInhabiles::where('centro', $sede)
             ->whereNull('user_id')
@@ -1054,6 +1064,9 @@ class TurnosController extends Controller
         $ocupadosQuery = Recepcion::whereBetween('fecha', [$fecha_inicio, $fecha_fin])->where('tipo', 'Ratificación')->where('delegacion', $sede)->get(['fecha', 'hora']);
         $ocupadosCount = [];
         foreach ($ocupadosQuery as $turno) {
+            $fechaTurno = \Carbon\Carbon::parse($turno->fecha)->format('Y-m-d');
+            $horaTurno = \Carbon\Carbon::parse($turno->hora)->format('H:i');
+
             $key = $turno->fecha->format('Y-m-d') . 'T' . $turno->hora->format('H:i');
             $ocupadosCount[$key] = ($ocupadosCount[$key] ?? 0) + 1;
         }
