@@ -34,6 +34,7 @@ use NumberToWords\NumberToWords; // para convertir números(cantidades) a letras
 use DateTime;
 use Illuminate\Support\Facades\Log;
 use App\Services\RetrocesoRecorder;
+use App\Services\HistorialRatificacionRecorder;
 use Illuminate\Support\Facades\Mail;
 use App\Support\HorarioCitas;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
@@ -3182,6 +3183,14 @@ class TurnosController extends Controller
             );
         }
 
+        $request->validate(
+            ['motivo_edicion' => 'required|string|max:255'],
+            [
+                'motivo_edicion.required' => 'El motivo de la edición es obligatorio.',
+                'motivo_edicion.max'      => 'El motivo de la edición no debe pasar de 255 caracteres.',
+            ]
+        );
+
         //Variables opcionales
         if(isset($data["Aguinaldo"]) && $data["motivo"] == "Pago de prestaciones"){
             $Aguinaldo =  1;
@@ -3292,7 +3301,7 @@ class TurnosController extends Controller
             $request->file('cuantificacion')->storeAs('documentos_ratificacion/' . $id_solicitud, $nombre_cuantificacion);
             $updateData["documentoCuanti"] = $nombre_cuantificacion; 
         }
-        $solicitud->update($updateData);
+        HistorialRatificacionRecorder::actualizar($solicitud, $updateData, $data['motivo_edicion']);
 
         return redirect()->route('todas_ratificaciones')->with('success', 'Actualizado correctamente');
 

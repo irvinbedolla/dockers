@@ -48,6 +48,7 @@ use App\Http\Controllers\IncidenciasBusquedaController;
 use App\Http\Controllers\AsistenciaController;
 use App\Http\Controllers\RetrocesoHistorialController;
 use App\Http\Controllers\BitacoraAdministracionController;
+use App\Http\Controllers\HistorialEdicionRatificacionController;
 
 
 /*
@@ -733,6 +734,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         
         Route::get('/ratificaciones/vista_previaCitas/{id_solicitud}',  [TurnosController::class, 'vista_previa_citas'])->name('vista_previa_citas'); //Vista previa de la vista citas(primera parte del llenado de la ratificación)
         Route::post('/ratificaciones/guardarEdicion_citas',             [TurnosController::class, 'guardarEdicion_citas'])->name('guardarEdicion_citas');
+        Route::get('/ratificaciones/historialEdicion',                  [HistorialEdicionRatificacionController::class, 'index'])->name('historial_edicion_ratificaciones')->middleware('role:Super Usuario|Enlace|Auxiliar');
+        Route::get('/ratificaciones/historialEdicion/{id}',             [HistorialEdicionRatificacionController::class, 'show'])->name('historial_edicion_ratificaciones_detalle')->middleware('role:Super Usuario|Enlace|Auxiliar');
         Route::get('/ratificaciones/buscar-abogados-ajax',              [TurnosController::class, 'buscar_abogados_ajax'])->name('buscar_abogados_ajax');
         Route::get('/cumplimiento/rechazara/{id}',                      [SeerController::class, 'cumplimiento_rechazar_audiencia'])->name('cumplimiento_rechazar_audiencia');
         Route::post('/turnos/mostrar',                                  [TurnosController::class, 'mostrar'])->name('turnos_mostrar');

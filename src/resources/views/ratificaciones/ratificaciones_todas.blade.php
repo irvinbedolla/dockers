@@ -9,6 +9,11 @@
     <section class="section">
         <div class="section-header d-flex justify-content-between align-items-center mb-4">
             <h3 class="page__heading mb-0">Ratificaciones</h3>
+            @can('ratificaciones_editar')
+                    <a class="btn btn-primary shadow-sm" href="{{ route('historial_edicion_ratificaciones') }}">
+                        <i class="bi bi-clock-history"></i> Historial Edición
+                    </a>
+            @endcan
         </div>
 
         <div class="section-body">
