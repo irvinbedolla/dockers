@@ -48,6 +48,8 @@ class NotificacionesController extends Controller
 
     private const POR_PAGINA = [25, 50, 100];
 
+    private const SEDES = ['Morelia', 'Zitácuaro', 'Uruapan', 'Lázaro Cárdenas', 'Zamora', 'Sahuayo'];
+
     // ------------------------------------------------------------------
     // Inicio
     // ------------------------------------------------------------------
@@ -237,7 +239,8 @@ class NotificacionesController extends Controller
                     $hecho = DB::table('seer_citados')
                         ->where('id', $idCitado)
                         ->where('id_notificador', 0)
-                        ->update(['id_notificador' => $idNotificador, 'estatus' => 'Pendiente', 'updated_at' => now()]);
+                        ->update(['id_notificador' => $idNotificador, 'estatus' => 'Pendiente', 'updated_at' => now()]
+                            + (\App\Support\DesempenoNotificadores::conAsignacion() ? ['asignado_at' => now()] : []));
                     $motivo = $hecho ? null : 'ya tenía notificador';
                 }
 
@@ -279,6 +282,7 @@ class NotificacionesController extends Controller
     {
         $usuario = $request->user();
         $restringido = $usuario->hasAnyRole(['Enlace', 'Estadistica']);
+        $sedesPermitidas = $restringido ? $this->sedes($usuario) : self::SEDES;
 
         $filtros = $request->validate([
             'buscar'      => ['nullable', 'string', 'max:100'],
@@ -286,7 +290,16 @@ class NotificacionesController extends Controller
             'notificador' => ['nullable', 'string', 'max:12'],
             'tipo'        => ['nullable', Rule::in(['Citatorio', 'Multa'])],
             'por'         => ['nullable', Rule::in(self::POR_PAGINA)],
+            // Filtro avanzado: sede, periodo y por qué fecha se filtra la lista.
+            'sede'        => ['nullable', Rule::in($sedesPermitidas)],
+            'desde'       => ['nullable', 'date_format:Y-m-d'],
+            'hasta'       => ['nullable', 'date_format:Y-m-d'],
+            'fecha_de'    => ['nullable', Rule::in(['notificacion', 'asignacion'])],
         ]);
+        // Si las pusieron al revés, se acomodan en lugar de marcar error.
+        if (! empty($filtros['desde']) && ! empty($filtros['hasta']) && $filtros['desde'] > $filtros['hasta']) {
+            [$filtros['desde'], $filtros['hasta']] = [$filtros['hasta'], $filtros['desde']];
+        }
 
         $query = DB::table('seer_citados as c')
             ->join('seer_general as g', 'g.id', '=', 'c.id_solicitud')
@@ -302,6 +315,7 @@ class NotificacionesController extends Controller
             ->when(! empty($filtros['tipo']), fn ($q) => $q->where('c.tipo_notificacion', $filtros['tipo']))
             ->when($notificador === 'sin', fn ($q) => $q->where('c.id_notificador', 0))
             ->when($notificador && ctype_digit($notificador), fn ($q) => $q->where('c.id_notificador', (int) $notificador))
+            ->when(! empty($filtros['sede']), fn ($q) => $q->where('g.delegacion', $filtros['sede']))
             ->when(! empty($filtros['buscar']), function ($q) use ($filtros) {
                 $t = '%'.trim($filtros['buscar']).'%';
                 $q->where(function ($w) use ($t) {
@@ -312,6 +326,17 @@ class NotificacionesController extends Controller
                       ->orWhere('m.nombre', 'like', $t);
                 });
             });
+
+        // Cifras del periodo (filtro avanzado): sobre la consulta con sede,
+        // notificador, tipo y búsqueda, pero sin estatus ni el filtro de fecha
+        // de la lista, porque cada cifra usa su propia fecha.
+        $rango = \App\Support\DesempenoNotificadores::rango($filtros['desde'] ?? null, $filtros['hasta'] ?? null);
+        $resumen = \App\Support\DesempenoNotificadores::resumen($query, $rango);
+        $porNotificador = ($notificador && ctype_digit($notificador)) || $notificador === 'sin'
+            ? collect()
+            : \App\Support\DesempenoNotificadores::porNotificador($query, $rango);
+
+        \App\Support\DesempenoNotificadores::filtrarLista($query, $rango, $filtros['fecha_de'] ?? 'notificacion');
 
         // Las pestañas de estatus cuentan con los demás filtros ya aplicados.
         $conteos = (clone $query)
@@ -327,7 +352,7 @@ class NotificacionesController extends Controller
                 'c.nombre', 'c.primer_apellido', 'c.segundo_apellido',
                 'c.colonia', 'c.tipo_vialidad', 'c.calle', 'c.n_ext', 'c.n_int',
                 'm.nombre as municipio', 'e.nombre as estado',
-                'c.estatus', 'c.notificacion', 'c.tipo_notificacion', 'c.updated_at',
+                'c.estatus', 'c.notificacion', 'c.tipo_notificacion', 'c.updated_at', 'c.fecha',
                 'n.name as notificador_nombre',
             ])
             ->paginate((int) ($filtros['por'] ?? 25))
@@ -340,12 +365,19 @@ class NotificacionesController extends Controller
             ->get(['id', 'name', 'delegacion'])
             ->groupBy('delegacion');
 
+        $elegido = $notificador && ctype_digit($notificador) ? User::find((int) $notificador, ['id', 'name', 'email', 'delegacion']) : null;
+
         return view('notificaciones.index_busqueda', [
             'notificaciones'       => $notificaciones,
             'filtros'              => $filtros,
             'conteos'              => $conteos,
             'notificadoresPorSede' => $notificadoresPorSede,
             'porPagina'            => self::POR_PAGINA,
+            'sedesPermitidas'      => $sedesPermitidas,
+            'resumen'              => $resumen,
+            'porNotificador'       => $porNotificador,
+            'notificadorElegido'   => $elegido,
+            'hayPeriodo'           => (bool) $rango,
         ]);
     }
 

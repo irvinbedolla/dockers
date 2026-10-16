@@ -3110,7 +3110,8 @@ class SeerController extends Controller
     public function store_enlace(Request $request, $id_citado){
         $data = $request->all();
         $registrosActualizados = SeerCitados::where('id', $id_citado)->where('id_solicitud', $data["id"])
-        ->update(['id_notificador' => $data["notificador"], 'estatus' => "Pendiente"]);
+        ->update(['id_notificador' => $data["notificador"], 'estatus' => "Pendiente"]
+            + (\App\Support\DesempenoNotificadores::conAsignacion() ? ['asignado_at' => now()] : []));
 
         return redirect()->route('notificaciones');
     }
@@ -3135,7 +3136,9 @@ class SeerController extends Controller
             return redirect()->back()->with('error', 'El usuario seleccionado no es un Notificador válido para la sede de este registro.');
         }
 
-        $citado->update(['id_notificador' => $request->id_notificador, 'estatus' => "Pendiente"]);
+        // forceFill: asignado_at no está en $fillable (sólo lo pone el sistema).
+        $citado->forceFill(['id_notificador' => $request->id_notificador, 'estatus' => "Pendiente"]
+            + (\App\Support\DesempenoNotificadores::conAsignacion() ? ['asignado_at' => now()] : []))->save();
 
         return redirect()->back()->with('success', 'Notificador asignado correctamente.');
     }
