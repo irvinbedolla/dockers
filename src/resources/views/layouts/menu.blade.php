@@ -62,7 +62,7 @@
             
             ['route' => 'solicitudes_index',          'label' => 'Solicitudes',             'icon' => 'bi bi-file-earmark-text-fill', 'roles' => ['Super Usuario', 'Administrador', 'Orientador', 'Auxiliar', 'Conciliador',  'Cumplimientos', 'Directivo','Excepcion', 'Delegado'], 'especialidad' => 'solicitudes_revisar'],
             ['route' => 'solicitudes_pendientes',     'label' => 'Solicitudes',             'icon' => 'bi bi-file-earmark-text-fill', 'roles' => ['Administrador Solicitante']],
-            ['route' => 'index_ratificacion',         'label' => 'Ratificaciones',          'icon' => 'bi bi-bank',                'roles' => ['Super Usuario', 'Administrador', 'Auxiliar', 'Excepcion','Directivo', 'Delegado', 'Conciliador'], 'especialidad' => 'ratificaciones_consultar'],
+            ['route' => 'todas_ratificaciones',         'label' => 'Ratificaciones',          'icon' => 'bi bi-bank',                'roles' => ['Super Usuario', 'Administrador', 'Auxiliar', 'Excepcion','Directivo', 'Delegado', 'Conciliador'], 'especialidad' => 'ratificaciones_consultar'],
             ['route' => 'Ratificacion',               'label' => 'Ratificaciones',          'icon' => 'bi bi-bank',                'roles' => ['Administrador Solicitante']],
             ['route' => 'audiencias.cumplimiento',    'label' => 'Cumplimientos',           'icon' => 'bi bi-cash-coin',           'roles' => ['Super Usuario', 'Auxiliar', 'Cumplimientos', 'Directivo', 'Delegado', 'Orientador'], 'especialidad' => 'cumplimientos_consultar'],
             ['route' => 'todas_audiencias',           'label' => 'Audiencias',              'icon' => 'bi bi-people-fill',         'roles' => ['Super Usuario', 'Administrador', 'Conciliador', 'Directivo','Excepcion', 'Delegado']],
