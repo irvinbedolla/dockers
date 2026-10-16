@@ -35,6 +35,9 @@
             // Flujo nuevo cita → solicitud: sólo si el interruptor lo habilita para esta persona.
             ['route' => 'mi_modulo',                  'label' => 'Mi módulo',               'icon' => 'bi bi-person-workspace',    'roles' => '*',
                 'si' => fn () => \App\Http\Controllers\MiModuloController::puedeVer(auth()->user())],
+            // Recepción de audiencias (Morelia 02): marcar quién llegó.
+            ['route' => 'recepcion.audiencias_hoy',   'label' => 'Audiencias de hoy',       'icon' => 'bi bi-person-check',        'roles' => \App\Support\LlegadasAudiencia::ROLES,
+                'si' => fn () => \App\Support\LlegadasAudiencia::migrado()],
             ['route' => 'configuracion',              'label' => 'Administración',          'icon' => 'bi bi-lock-fill',           'roles' => ['Super Usuario', 'Delegado', 'Enlace']],
             ['route' => 'agenda',                     'label' => 'Agenda',                  'icon' => 'bi bi-calendar-week',       'roles' => ['Super Usuario', 'Administrador', 'Auxiliar', 'Orientador', 'Conciliador', 'Notificador', 'Delegado', 'Excepcion',  'Cumplimientos', 'Directivo','Turnos', ...$recepcion]],
             ['route' => 'todas_notificaciones',       'label' => 'Búsqueda Notificaciones', 'icon' => 'bi bi-search',              'roles' => ['Super Usuario', 'Administrador','Directivo', 'Delegado']],

@@ -210,6 +210,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // SinRecepcion. Los nombres de rol salen de App\Support\Recepcion.
     Route::get('/agenda/citas-en-linea',                AgendaCitasController::class)->name('agenda.citas_linea')
         ->middleware(Recepcion::middleware(...Recepcion::SUPERVISAN));
+    // Audiencias de hoy: la recepción de audiencias (Morelia 02) marca qué parte
+    // llegó y el conciliador recibe el aviso. Ver App\Support\LlegadasAudiencia.
+    Route::middleware('role:'.implode('|', \App\Support\LlegadasAudiencia::ROLES))->group(function () {
+        Route::get('/recepcion/audiencias-hoy',          [App\Http\Controllers\LlegadasAudienciaController::class, 'index'])->name('recepcion.audiencias_hoy');
+        Route::get('/recepcion/audiencias-hoy/datos',    [App\Http\Controllers\LlegadasAudienciaController::class, 'datos'])->name('recepcion.audiencias_hoy.datos');
+        Route::post('/recepcion/audiencias/{id}/llegada', [App\Http\Controllers\LlegadasAudienciaController::class, 'marcar'])->name('recepcion.audiencias_hoy.llegada')
+            ->whereNumber('id')->middleware('throttle:120,1');
+    });
+    Route::get('/audiencias/llegadas/avisos',           [App\Http\Controllers\LlegadasAudienciaController::class, 'avisos'])->name('audiencias.llegadas_avisos')
+        ->middleware('role:Super Usuario|Conciliador');
+
     // Escáner de QR de citas. La cámara sólo se permite en esta pantalla
     // (ver ContentSecurityPolicy). Super Usuario y las tres recepciones.
     Route::middleware(Recepcion::middleware('Super Usuario'))->group(function () {

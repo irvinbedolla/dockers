@@ -95,7 +95,8 @@ class AccesosRecepcion
                 'etiqueta' => 'Audiencias',
                 'total'    => DB::table('audiencias')->where('fecha', $hoy)->whereIn('delegacion', $variantes)
                     ->whereNotIn('estatus', AgendaAudiencias::LIBERAN)->count(),
-                'url'      => null,
+                // Ahí marca quién llegó a su audiencia (LlegadasAudiencia).
+                'url'      => LlegadasAudiencia::migrado() ? route('recepcion.audiencias_hoy') : null,
             ]);
             $desglose[] = [
                 'etiqueta' => 'Cumplimientos',
