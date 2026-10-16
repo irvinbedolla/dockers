@@ -18,7 +18,10 @@
         $cita = $n->tipo_notificacion === 'Citatorio';
         $multa = $n->tipo_notificacion === 'Multa';
         $docs = match ($n->estatus) {
-            'Finalizado exitosamente'                  => ['Notificación' => $cita ? $r('PDFRazonNoticacion') : null, 'Multa' => $multa ? $r('PDFmultaNotificacion') : null],
+            // "Recibe pero no firma" también es notificación exitosa: lleva la misma
+            // razón de notificación (el PDF ya redacta el "no firma").
+            'Finalizado exitosamente', 'Recibe pero no firma'
+                                                       => ['Notificación' => $cita ? $r('PDFRazonNoticacion') : null, 'Multa' => $multa ? $r('PDFmultaNotificacion') : null],
             'No notificada', 'Exitosa por Instructivo' => ['Notificación' => $cita ? $r('PDFInstructivo') : null, 'Multa' => $multa ? $r('VerPDFMultaInstructivo') : null],
             'No exitosa se constituye'                 => ['Notificación' => $cita ? $r('VerPDFNoExitConstituye') : null, 'Multa' => $multa ? $r('VerPDFMultaNoExitConstituye') : null],
             'No exitosa no se constituye'              => ['Notificación' => $cita ? $r('PDFnotificadoNoexitosaNS') : null],

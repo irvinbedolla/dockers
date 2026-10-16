@@ -18,7 +18,7 @@
         $notif = auth()->user()->can('notificaciones_ver_notificacion');
         $par = fn ($notificacion, $multa) => array_filter(['Notificación' => $notif ? $r($notificacion) : null, 'Multa' => $r($multa)]);
         return match ($n->estatus) {
-            'Finalizado exitosamente'                                          => $par('PDFRazonNoticacion', 'PDFmultaNotificacion'),
+            'Finalizado exitosamente', 'Recibe pero no firma'                  => $par('PDFRazonNoticacion', 'PDFmultaNotificacion'),
             'No notificada', 'Notificada en Audiencia', 'Exitosa por Instructivo' => $par('PDFInstructivo', 'VerPDFMultaInstructivo'),
             'No exitosa se constituye'                                         => $par('VerPDFNoExitConstituye', 'VerPDFMultaNoExitConstituye'),
             'No exitosa no se constituye'                                      => $par('PDFnotificadoNoexitosaNS', 'VerPDFMultaNoExitConstituye'),

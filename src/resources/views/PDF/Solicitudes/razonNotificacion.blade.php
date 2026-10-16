@@ -102,6 +102,10 @@
             ];
         @endphp
         @php
+            // "Recibe pero no firma" sin firma capturada: se redacta como "no firma" (no se guarda).
+            if (empty($citado->firma) && $citado->estatus === 'Recibe pero no firma') {
+                $citado->firma = 'NO FIRMA';
+            }
             if($citado->firma === 'FIRMA'){
                 $descripcionFirma = 'FIRMA PARA CONSTANCIA LEGAL.';
             }

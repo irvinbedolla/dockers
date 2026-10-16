@@ -36,7 +36,7 @@
                                                     <td>{{$notificacion->nombre}} {{$notificacion->primer_apellido}} {{$notificacion->segundo_apellido}}</td>
                                                     <td>{{$notificacion->estatus}}</td>
                                                     <td>
-                                                        @if($notificacion->estatus === "Finalizado exitosamente")
+                                                        @if($notificacion->estatus === "Finalizado exitosamente" || $notificacion->estatus === "Recibe pero no firma")
                                                             <a class="btn btn-success" href="{{ route('PDFRazonNoticacion', [$notificacion->id_citado, $notificacion->id_solicitud]) }}" target="_blank">Ver PDF</a>
                                                         @endif     
                                                         @if($notificacion->estatus === "No notificada")

@@ -1428,7 +1428,7 @@
                                                                                 <a class="btn btn-secondary btn-xs" disabled>Visualizar</a>
                                                                             @elseif($notificado->estatus === "No exitosa se constituye")
                                                                                 <a class="btn btn-success btn-xs" href="{{ route('VerPDFNoExitConstituye', ['id' => $citado->id, 'id_solicitud' => $citado->id_solicitud]) }}" target="_blank">Visualizar</a>
-                                                                            @elseif($notificado->estatus === "Finalizado exitosamente")
+                                                                            @elseif($notificado->estatus === "Finalizado exitosamente" || $notificado->estatus === "Recibe pero no firma")
                                                                                 <a class="btn btn-success btn-xs" href="{{ route('PDFRazonNoticacion', ['id' => $citado->id, 'id_solicitud' => $citado->id_solicitud]) }}" target="_blank">Visualizar</a>
                                                                             @elseif($notificado->estatus === "No notificada" || $notificado->estatus === "Exitosa por Instructivo")
                                                                                 <a class="btn btn-success btn-xs" href="{{ route('PDFInstructivo', ['id' => $citado->id, 'id_solicitud' => $citado->id_solicitud]) }}" target="_blank">Visualizar</a>

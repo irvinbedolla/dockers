@@ -3087,7 +3087,8 @@ class SeerController extends Controller
         $tipo = $registro->tipo_notificacion;
         
         return match ($estatus) {
-            "Finalizado exitosamente" => match ($tipo) {
+            // "Recibe pero no firma" es exitosa: misma razón de notificación.
+            "Finalizado exitosamente", "Recibe pero no firma" => match ($tipo) {
                 "Citatorio" => route('PDFRazonNoticacion', [$registro->id, $registro->id_solicitud]),
                 "Multa"     => route('PDFmultaNotificacion', [$registro->id, $registro->id_solicitud]),
                 default     => null
