@@ -26,10 +26,60 @@
         };
     };
     $verDocs = auth()->user()->can('notificaciones_ver_documento');
+
+    // Periodos rápidos del filtro avanzado.
+    $hoyC = \Illuminate\Support\Carbon::today();
+    $periodos = [
+        'Hoy'          => [$hoyC->toDateString(), $hoyC->toDateString()],
+        'Esta semana'  => [$hoyC->copy()->startOfWeek()->toDateString(), $hoyC->copy()->endOfWeek()->toDateString()],
+        'Este mes'     => [$hoyC->copy()->startOfMonth()->toDateString(), $hoyC->copy()->endOfMonth()->toDateString()],
+        'Mes pasado'   => [$hoyC->copy()->subMonthNoOverflow()->startOfMonth()->toDateString(), $hoyC->copy()->subMonthNoOverflow()->endOfMonth()->toDateString()],
+    ];
+    $desde = $filtros['desde'] ?? null;
+    $hasta = $filtros['hasta'] ?? null;
+    $fechaCorta = fn ($f) => \Illuminate\Support\Carbon::parse($f)->locale('es')->isoFormat('D MMM YYYY');
+    $textoPeriodo = $hayPeriodo
+        ? ($desde && $hasta && $desde === $hasta ? $fechaCorta($desde) : ($desde ? $fechaCorta($desde) : 'el inicio').' – '.($hasta ? $fechaCorta($hasta) : 'hoy'))
+        : 'todo el historial';
+    $pct = fn ($v) => $v === null ? '—' : rtrim(rtrim(number_format($v, 1), '0'), '.').'%';
 @endphp
 
 @section('page_css')
     @include('notificaciones._estilos')
+    <style>
+        /* Filtro avanzado: periodo, cifras del notificador y tabla por notificador. */
+        .nt-periodo { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--tn-borde); }
+        .nt-periodo label { display: block; font-size: 11.5px; font-weight: 600; color: var(--tn-tenue); margin-bottom: 4px; }
+        .nt-periodo .form-control, .nt-periodo .form-select { min-width: 150px; }
+        .nt-atajos { display: flex; flex-wrap: wrap; gap: 6px; }
+        .nt-atajo { padding: 5px 12px; border-radius: 999px; border: 1px solid var(--tn-borde); background: #fff; color: var(--tn-suave); font-size: 12.5px; font-weight: 600; text-decoration: none; }
+        .nt-atajo:hover { border-color: var(--tn-verde-claro); color: var(--tn-verde); }
+        .nt-atajo.is-activo { background: var(--tn-verde); border-color: var(--tn-verde); color: #fff; }
+
+        .nt-resumen { margin-top: 14px; }
+        .nt-resumen__cabeza { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 6px 12px; margin-bottom: 12px; }
+        .nt-resumen__titulo { margin: 0; font-size: 16px; font-weight: 800; color: var(--tn-tinta); }
+        .nt-resumen__sub { font-size: 12.5px; color: var(--tn-tenue); }
+        .nt-cifras { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
+        @media (max-width: 1100px) { .nt-cifras { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+        @media (max-width: 560px)  { .nt-cifras { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+        .nt-cifra { border: 1px solid var(--tn-borde); border-radius: 10px; padding: 10px 12px; background: var(--tn-fondo); }
+        .nt-cifra b { display: block; font-size: 24px; font-weight: 800; color: var(--tn-tinta); line-height: 1.1; font-variant-numeric: tabular-nums; }
+        .nt-cifra span { font-size: 12px; color: var(--tn-suave); font-weight: 600; }
+        .nt-cifra small { display: block; font-size: 11px; color: var(--tn-tenue); margin-top: 2px; }
+        .nt-cifra--exito { background: #E9F5EE; border-color: #CBE7D6; }
+        .nt-cifra--exito b { color: #1E7B3C; }
+        .nt-cifra--falla b { color: #9A2B1C; }
+        .nt-cifra--pend b { color: #7A5D10; }
+
+        .nt-ranking { margin-top: 14px; }
+        .nt-ranking td, .nt-ranking th { white-space: nowrap; }
+        .nt-ranking td.nt-num, .nt-ranking th.nt-num { text-align: right; font-variant-numeric: tabular-nums; }
+        .nt-barra { display: inline-block; width: 80px; height: 6px; border-radius: 99px; background: #EDF1F1; vertical-align: middle; margin-right: 6px; overflow: hidden; }
+        .nt-barra i { display: block; height: 100%; background: #2F9E5B; }
+        .nt-ranking a { color: var(--tn-tinta); font-weight: 700; text-decoration: none; }
+        .nt-ranking a:hover { color: var(--tn-verde); text-decoration: underline; }
+    </style>
 @endsection
 
 @section('content')
@@ -76,6 +126,17 @@
                             @endforeach
                         </select>
                     </div>
+                    @if (count($sedesPermitidas) > 1)
+                        <div>
+                            <label for="ntSede">Sede</label>
+                            <select id="ntSede" name="sede" class="form-select nt-auto">
+                                <option value="">Todas</option>
+                                @foreach ($sedesPermitidas as $s)
+                                    <option value="{{ $s }}" @selected(($filtros['sede'] ?? '') === $s)>{{ $s }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    @endif
                     <div>
                         <label for="ntTipo">Tipo</label>
                         <select id="ntTipo" name="tipo" class="form-select nt-auto">
@@ -91,7 +152,116 @@
                         @endif
                     </div>
                 </div>
+
+                {{-- Periodo --}}
+                <div class="nt-periodo">
+                    <div>
+                        <label>Periodo</label>
+                        <div class="nt-atajos">
+                            <a class="nt-atajo {{ ! $hayPeriodo ? 'is-activo' : '' }}" href="{{ $url(['desde' => null, 'hasta' => null]) }}">Todo</a>
+                            @foreach ($periodos as $etiqueta => [$d, $h])
+                                <a class="nt-atajo {{ $desde === $d && $hasta === $h ? 'is-activo' : '' }}" href="{{ $url(['desde' => $d, 'hasta' => $h]) }}">{{ $etiqueta }}</a>
+                            @endforeach
+                        </div>
+                    </div>
+                    <div>
+                        <label for="ntDesde">Desde</label>
+                        <input type="date" id="ntDesde" name="desde" class="form-control" value="{{ $desde }}">
+                    </div>
+                    <div>
+                        <label for="ntHasta">Hasta</label>
+                        <input type="date" id="ntHasta" name="hasta" class="form-control" value="{{ $hasta }}">
+                    </div>
+                    <div>
+                        <label for="ntFechaDe">La lista filtra por</label>
+                        <select id="ntFechaDe" name="fecha_de" class="form-select">
+                            <option value="notificacion" @selected(($filtros['fecha_de'] ?? 'notificacion') === 'notificacion')>Fecha de la diligencia</option>
+                            <option value="asignacion" @selected(($filtros['fecha_de'] ?? '') === 'asignacion')>Fecha de asignación</option>
+                        </select>
+                    </div>
+                </div>
             </form>
+
+            {{-- Cifras del periodo --}}
+            <div class="tn-tarjeta nt-resumen">
+                <div class="nt-resumen__cabeza">
+                    <h4 class="nt-resumen__titulo">
+                        @if ($notificadorElegido)
+                            {{ $notificadorElegido->name }}
+                        @elseif (($filtros['notificador'] ?? '') === 'sin')
+                            Sin notificador
+                        @else
+                            Todos los notificadores{{ ! empty($filtros['sede']) ? ' · '.$filtros['sede'] : '' }}
+                        @endif
+                    </h4>
+                    <span class="nt-resumen__sub">
+                        @if ($notificadorElegido)
+                            {{ $notificadorElegido->email }} · {{ $notificadorElegido->delegacion }} ·
+                        @endif
+                        {{ $textoPeriodo }}
+                    </span>
+                </div>
+                <div class="nt-cifras">
+                    <div class="nt-cifra" title="Asignadas en el periodo. Antes de guardarse la fecha de asignación se toma la fecha de registro del citado.">
+                        <b>{{ number_format($resumen['asignadas']) }}</b><span>Asignadas</span><small>en el periodo</small>
+                    </div>
+                    <div class="nt-cifra nt-cifra--exito">
+                        <b>{{ number_format($resumen['exitosas']) }}</b><span>Exitosas</span><small>diligencia en el periodo</small>
+                    </div>
+                    <div class="nt-cifra nt-cifra--falla">
+                        <b>{{ number_format($resumen['noExitosas']) }}</b><span>No exitosas</span><small>diligencia en el periodo</small>
+                    </div>
+                    <div class="nt-cifra">
+                        <b>{{ $pct($resumen['efectividad']) }}</b><span>Efectividad</span><small>exitosas / concluidas</small>
+                    </div>
+                    <div class="nt-cifra nt-cifra--pend">
+                        <b>{{ number_format($resumen['pendientes']) }}</b><span>Pendientes hoy</span><small>asignadas sin concluir</small>
+                    </div>
+                    <div class="nt-cifra" title="Notificadas en audiencia o enviadas a exhorto.">
+                        <b>{{ number_format($resumen['otras']) }}</b><span>Audiencia / exhorto</span><small>en el periodo</small>
+                    </div>
+                </div>
+
+                @if ($porNotificador->isNotEmpty())
+                    <div class="table-responsive nt-ranking">
+                        <table class="table table-hover nt-tabla">
+                            <thead>
+                                <tr>
+                                    <th>Notificador</th>
+                                    <th>Sede</th>
+                                    <th class="nt-num">Asignadas</th>
+                                    <th class="nt-num">Exitosas</th>
+                                    <th class="nt-num">No exitosas</th>
+                                    <th class="nt-num">Pendientes hoy</th>
+                                    <th>Efectividad</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($porNotificador as $f)
+                                    <tr>
+                                        <td>
+                                            <a href="{{ $url(['notificador' => $f['id']]) }}" title="Ver sólo sus notificaciones">{{ $f['nombre'] }}</a>
+                                            @if ($f['correo'])<span class="nt-sub">{{ $f['correo'] }}</span>@endif
+                                        </td>
+                                        <td>{{ $f['sede'] ?: '—' }}</td>
+                                        <td class="nt-num">{{ number_format($f['asignadas']) }}</td>
+                                        <td class="nt-num" style="color:#1E7B3C;font-weight:700;">{{ number_format($f['exitosas']) }}</td>
+                                        <td class="nt-num">{{ number_format($f['noExitosas']) }}</td>
+                                        <td class="nt-num">{{ number_format($f['pendientes']) }}</td>
+                                        <td>
+                                            @if ($f['efectividad'] !== null)
+                                                <span class="nt-barra"><i style="width: {{ $f['efectividad'] }}%"></i></span>{{ $pct($f['efectividad']) }}
+                                            @else
+                                                <span class="nt-sub d-inline">—</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @endif
+            </div>
 
             <div class="nt-pestanas">
                 <a class="nt-pestana {{ $estatusActivo ? '' : 'is-activa' }}" href="{{ $url(['estatus' => null]) }}">
@@ -147,7 +317,11 @@
                                         <td>@include('notificaciones._direccion', ['n' => $n])</td>
                                         <td>
                                             @include('notificaciones._estatus', ['estatus' => $n->estatus])
-                                            @if ($n->updated_at)<span class="nt-sub mt-1">{{ \Illuminate\Support\Carbon::parse($n->updated_at)->format('d/m/Y') }}</span>@endif
+                                            @if ($n->fecha && ! in_array($n->estatus, ['Sin asignar', 'Pendiente'], true))
+                                                <span class="nt-sub mt-1" title="Fecha de la diligencia">{{ \Illuminate\Support\Carbon::parse($n->fecha)->format('d/m/Y H:i') }}</span>
+                                            @elseif ($n->updated_at)
+                                                <span class="nt-sub mt-1">{{ \Illuminate\Support\Carbon::parse($n->updated_at)->format('d/m/Y') }}</span>
+                                            @endif
                                         </td>
                                         <td>
                                             @if ($n->estatus === 'Notificada en Audiencia')
