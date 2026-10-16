@@ -269,10 +269,11 @@
                                                 <i class="bi bi-search me-1"></i><span class="visually-hidden">Consultar campos</span>
                                             </a>
                                             @if($puedeEditarRat)
-                                        
-                                                <a class="btn btn-outline-success btn-sm" href="{{ route('vista_previa_citas', $solicitud->id) }}">
-                                                    <i class="bi bi-pencil me-1"></i><span class="visually-hidden">Editar</span>
-                                                </a>
+                                                @if($solicitud->estatus !== "Concluida" && $solicitud->estatus !== "Concluida Pagos")
+                                                    <a class="btn btn-outline-success btn-sm" href="{{ route('vista_previa_citas', $solicitud->id) }}">
+                                                        <i class="bi bi-pencil me-1"></i><span class="visually-hidden">Editar</span>
+                                                    </a>
+                                                @endif
                                         
                                             @endif
                                         </td>
