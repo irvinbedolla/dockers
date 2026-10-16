@@ -15742,10 +15742,49 @@ class SeerController extends Controller
         }
         // "Super Usuario" y "Administrador" pasan sin filtros adicionales (ven todo)
 
+        // Día de la cita (Y-m-d). Va antes del conteo para que los apartados lo respeten.
+        $fecha = $request->input('fecha');
+        if (is_string($fecha) && preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $fecha, $p) && checkdate((int) $p[2], (int) $p[3], (int) $p[1])) {
+            $query->where('fecha', $fecha);
+        } else {
+            $fecha = null;
+        }
+
+        // Apartados de estatus: cada uno agrupa los valores reales de turnos.estatus.
+        $apartados = [
+            'concluidas'     => ['Concluida', 'Concluida Pagos'],
+            'confirmadas'    => ['Confirmado'],
+            'incumplimiento' => ['Incumplimiento'],
+            'archivadas'     => ['Archivada'],
+        ];
+
+        // Conteo por apartado con los mismos filtros de búsqueda y rol, sin el de estatus.
+        $porEstatus = (clone $query)->reorder()->toBase()
+            ->select('estatus')->selectRaw('COUNT(*) as total')
+            ->groupBy('estatus')
+            ->pluck('total', 'estatus');
+        $conteo = collect($apartados)->map(fn ($valores) => (int) $porEstatus->only($valores)->sum())->all();
+
+        $estatus = in_array($request->input('estatus'), array_keys($apartados), true) ? $request->input('estatus') : null;
+        if ($estatus) {
+            $query->whereIn('estatus', $apartados[$estatus]);
+        }
+
+        $ordenes = [
+            'recientes'      => ['created_at', 'desc'],
+            'antiguas'       => ['created_at', 'asc'],
+            'fecha_reciente' => ['fecha', 'desc'],
+            'fecha_antigua'  => ['fecha', 'asc'],
+            'nue'            => ['NUE', 'asc'],
+        ];
+        $orden = in_array($request->input('orden'), array_keys($ordenes), true) ? $request->input('orden') : 'recientes';
+        [$columnaOrden, $direccion] = $ordenes[$orden];
+
         // 4. LA SOLUCIÓN CLAVE: Paginación fluida inyectando el término buscado
-        $solicitudes = $query->orderBy('created_at', 'desc')
+        $solicitudes = $query->orderBy($columnaOrden, $direccion)
+                            ->orderBy('id', 'desc')
                             ->paginate(500)
-                            ->appends(['buscar' => $request->input('buscar')]);
+                            ->appends($request->only(['buscar', 'estatus', 'orden', 'fecha']));
 
         // 5. Transformamos de manera eficiente ÚNICAMENTE los registros de la página actual
         $solicitudes->through(function ($audiencia) {
@@ -15753,7 +15792,7 @@ class SeerController extends Controller
             return $audiencia;
         });
 
-        return view('ratificaciones.ratificaciones_todas', compact('solicitudes', 'userRole'));
+        return view('ratificaciones.ratificaciones_todas', compact('solicitudes', 'userRole', 'conteo', 'estatus', 'orden', 'fecha'));
     }
 
     public function todas_solicitudes(Request $request) {
