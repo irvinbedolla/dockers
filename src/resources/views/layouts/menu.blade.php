@@ -35,6 +35,9 @@
             // Flujo nuevo cita → solicitud: sólo si el interruptor lo habilita para esta persona.
             ['route' => 'mi_modulo',                  'label' => 'Mi módulo',               'icon' => 'bi bi-person-workspace',    'roles' => '*',
                 'si' => fn () => \App\Http\Controllers\MiModuloController::puedeVer(auth()->user())],
+            // Recepción de audiencias (Morelia 02): marcar quién llegó.
+            ['route' => 'recepcion.audiencias_hoy',   'label' => 'Audiencias de hoy',       'icon' => 'bi bi-person-check',        'roles' => \App\Support\LlegadasAudiencia::ROLES,
+                'si' => fn () => \App\Support\LlegadasAudiencia::migrado()],
             ['route' => 'configuracion',              'label' => 'Administración',          'icon' => 'bi bi-lock-fill',           'roles' => ['Super Usuario', 'Delegado', 'Enlace']],
             ['route' => 'agenda',                     'label' => 'Agenda',                  'icon' => 'bi bi-calendar-week',       'roles' => ['Super Usuario', 'Administrador', 'Auxiliar', 'Orientador', 'Conciliador', 'Notificador', 'Delegado', 'Excepcion',  'Cumplimientos', 'Directivo','Turnos', ...$recepcion]],
             ['route' => 'todas_notificaciones',       'label' => 'Búsqueda Notificaciones', 'icon' => 'bi bi-search',              'roles' => ['Super Usuario', 'Administrador','Directivo', 'Delegado']],
@@ -62,7 +65,7 @@
             
             ['route' => 'solicitudes_index',          'label' => 'Solicitudes',             'icon' => 'bi bi-file-earmark-text-fill', 'roles' => ['Super Usuario', 'Administrador', 'Orientador', 'Auxiliar', 'Conciliador',  'Cumplimientos', 'Directivo','Excepcion', 'Delegado'], 'especialidad' => 'solicitudes_revisar'],
             ['route' => 'solicitudes_pendientes',     'label' => 'Solicitudes',             'icon' => 'bi bi-file-earmark-text-fill', 'roles' => ['Administrador Solicitante']],
-            ['route' => 'index_ratificacion',         'label' => 'Ratificaciones',          'icon' => 'bi bi-bank',                'roles' => ['Super Usuario', 'Administrador', 'Auxiliar', 'Excepcion','Directivo', 'Delegado', 'Conciliador'], 'especialidad' => 'ratificaciones_consultar'],
+            ['route' => 'todas_ratificaciones',         'label' => 'Ratificaciones',          'icon' => 'bi bi-bank',                'roles' => ['Super Usuario', 'Administrador', 'Auxiliar', 'Excepcion','Directivo', 'Delegado', 'Conciliador'], 'especialidad' => 'ratificaciones_consultar'],
             ['route' => 'Ratificacion',               'label' => 'Ratificaciones',          'icon' => 'bi bi-bank',                'roles' => ['Administrador Solicitante']],
             ['route' => 'audiencias.cumplimiento',    'label' => 'Cumplimientos',           'icon' => 'bi bi-cash-coin',           'roles' => ['Super Usuario', 'Auxiliar', 'Cumplimientos', 'Directivo', 'Delegado', 'Orientador'], 'especialidad' => 'cumplimientos_consultar'],
             ['route' => 'todas_audiencias',           'label' => 'Audiencias',              'icon' => 'bi bi-people-fill',         'roles' => ['Super Usuario', 'Administrador', 'Conciliador', 'Directivo','Excepcion', 'Delegado']],

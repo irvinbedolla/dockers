@@ -24,7 +24,8 @@
         $r = fn ($nombre) => \Illuminate\Support\Facades\Route::has($nombre) ? route($nombre, [$n->id_citado, $n->id_solicitud]) : null;
         $esMulta = $n->tipo_notificacion === 'Multa';
         return array_filter(match ($n->estatus) {
-            'Finalizado exitosamente'     => ['Notificación' => $esMulta ? null : $r('PDFRazonNoticacion'), 'Multa' => $esMulta ? $r('PDFmulta') : null],
+            'Finalizado exitosamente',
+            'Recibe pero no firma'        => ['Notificación' => $esMulta ? null : $r('PDFRazonNoticacion'), 'Multa' => $esMulta ? $r('PDFmulta') : null],
             'No notificada'               => ['Notificación' => $esMulta ? null : $r('PDFInstructivo'),     'Multa' => $esMulta ? $r('PDFmulta') : null],
             'No exitosa se constituye'    => ['Notificación' => $esMulta ? null : $r('VerPDFNoExitConstituye'), 'Multa' => $esMulta ? $r('PDFmulta') : null],
             'No exitosa no se constituye' => ['Notificación' => $r('PDFNoExitosaInt')],

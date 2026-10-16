@@ -48,6 +48,7 @@ use App\Http\Controllers\IncidenciasBusquedaController;
 use App\Http\Controllers\AsistenciaController;
 use App\Http\Controllers\RetrocesoHistorialController;
 use App\Http\Controllers\BitacoraAdministracionController;
+use App\Http\Controllers\HistorialEdicionRatificacionController;
 
 
 /*
@@ -210,6 +211,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // SinRecepcion. Los nombres de rol salen de App\Support\Recepcion.
     Route::get('/agenda/citas-en-linea',                AgendaCitasController::class)->name('agenda.citas_linea')
         ->middleware(Recepcion::middleware(...Recepcion::SUPERVISAN));
+    // Audiencias de hoy: la recepción de audiencias (Morelia 02) marca qué parte
+    // llegó y el conciliador recibe el aviso. Ver App\Support\LlegadasAudiencia.
+    Route::middleware('role:'.implode('|', \App\Support\LlegadasAudiencia::ROLES))->group(function () {
+        Route::get('/recepcion/audiencias-hoy',          [App\Http\Controllers\LlegadasAudienciaController::class, 'index'])->name('recepcion.audiencias_hoy');
+        Route::get('/recepcion/audiencias-hoy/datos',    [App\Http\Controllers\LlegadasAudienciaController::class, 'datos'])->name('recepcion.audiencias_hoy.datos');
+        Route::post('/recepcion/audiencias/{id}/llegada', [App\Http\Controllers\LlegadasAudienciaController::class, 'marcar'])->name('recepcion.audiencias_hoy.llegada')
+            ->whereNumber('id')->middleware('throttle:120,1');
+    });
+    Route::get('/audiencias/llegadas/avisos',           [App\Http\Controllers\LlegadasAudienciaController::class, 'avisos'])->name('audiencias.llegadas_avisos')
+        ->middleware('role:Super Usuario|Conciliador');
+
     // Escáner de QR de citas. La cámara sólo se permite en esta pantalla
     // (ver ContentSecurityPolicy). Super Usuario y las tres recepciones.
     Route::middleware(Recepcion::middleware('Super Usuario'))->group(function () {
@@ -733,6 +745,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         
         Route::get('/ratificaciones/vista_previaCitas/{id_solicitud}',  [TurnosController::class, 'vista_previa_citas'])->name('vista_previa_citas'); //Vista previa de la vista citas(primera parte del llenado de la ratificación)
         Route::post('/ratificaciones/guardarEdicion_citas',             [TurnosController::class, 'guardarEdicion_citas'])->name('guardarEdicion_citas');
+        Route::get('/ratificaciones/historialEdicion',                  [HistorialEdicionRatificacionController::class, 'index'])->name('historial_edicion_ratificaciones')->middleware('role:Super Usuario|Enlace|Auxiliar');
+        Route::get('/ratificaciones/historialEdicion/{id}',             [HistorialEdicionRatificacionController::class, 'show'])->name('historial_edicion_ratificaciones_detalle')->middleware('role:Super Usuario|Enlace|Auxiliar');
         Route::get('/ratificaciones/buscar-abogados-ajax',              [TurnosController::class, 'buscar_abogados_ajax'])->name('buscar_abogados_ajax');
         Route::get('/cumplimiento/rechazara/{id}',                      [SeerController::class, 'cumplimiento_rechazar_audiencia'])->name('cumplimiento_rechazar_audiencia');
         Route::post('/turnos/mostrar',                                  [TurnosController::class, 'mostrar'])->name('turnos_mostrar');

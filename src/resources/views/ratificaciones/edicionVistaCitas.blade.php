@@ -629,6 +629,17 @@
                                                     </div>
                                                 </div>
                                             </div>
+                                            <div class="row">
+                                                <div class="col-xs-12 col-sm-12 col-md-12">
+                                                    <div class="form-group">
+                                                        <label for="motivo_edicion">Motivo de la edición <span style="color:red;">(*)</span></label>
+                                                        <textarea name="motivo_edicion" id="motivo_edicion" maxlength="255" rows="2" class="form-control @error('motivo_edicion') is-invalid @enderror" required>{{ old('motivo_edicion') }}</textarea>
+                                                        <div class="invalid-feedback">
+                                                            @error('motivo_edicion') {{ $message }} @else El motivo de la edición es obligatorio. @enderror
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
                                             <div class="modal-footer">
                                                 <button type="button" class="btn btn-primary" onclick="window.history.back()">Regresar</button>
                                                 <button type="submit" class="btn btn-success">Guardar edición</button>
