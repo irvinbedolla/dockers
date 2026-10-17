@@ -168,6 +168,12 @@ class SemaforoAgenda
                 ['color' => self::VERDE, 'texto' => 'Cumplimiento'],
                 ['color' => self::ROJO,  'texto' => 'Incumplimiento'],
             ],
+            // Notificaciones pendientes del notificador, por cuánto falta para la audiencia.
+            'mis_notificaciones' => [
+                ['color' => self::ROJO,     'texto' => 'Audiencia en 2 días o menos'],
+                ['color' => self::AMARILLO, 'texto' => 'En 3 a 5 días'],
+                ['color' => self::VERDE,    'texto' => 'Con más tiempo'],
+            ],
             'ratificaciones' => [
                 ['color' => self::GRIS,  'texto' => 'En proceso'],
                 ['color' => self::VERDE, 'texto' => 'Conciliación'],

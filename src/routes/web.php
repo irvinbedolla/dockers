@@ -13,6 +13,7 @@ use App\Http\Controllers\HorariosCitasController;
 use App\Http\Controllers\EscanerCitasController;
 use App\Http\Controllers\NotificacionesController;
 use App\Http\Middleware\SinRecepcion;
+use App\Http\Middleware\SinNotificador;
 use App\Support\Recepcion;
 use App\Http\Controllers\DashboardController;
 use Illuminate\Support\Facades\Route;
@@ -204,7 +205,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/agenda',                               [DashboardController::class, 'index'])->name('agenda');
     // Descarga la agenda del rango visible del calendario, una hoja por
     // conciliador. El alcance lo acota AgendaContexto dentro del controlador.
-    Route::get('/agenda/exportar',                      [DashboardController::class, 'exportar'])->name('agenda.exportar')->middleware(SinRecepcion::class);
+    Route::get('/agenda/exportar',                      [DashboardController::class, 'exportar'])->name('agenda.exportar')->middleware([SinRecepcion::class, SinNotificador::class]);
 
     // Citas en línea de recepción. Es la única fuente de la agenda que ven
     // los tres roles de recepción; las demás les quedan cerradas por
@@ -248,12 +249,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Calendario Compartido
     Route::get('/calendario',                   [App\Http\Controllers\CalendarController::class, 'index'])->name('calendario.index');
-    Route::get('/citas/eventos',                [App\Http\Controllers\CitaController::class, 'citas'])->name('citas.eventos')->middleware(SinRecepcion::class.':citas');
-    Route::get('/pagos/eventos',                [App\Http\Controllers\CitaController::class, 'pagos'])->name('pagos.eventos')->middleware(SinRecepcion::class.':pagos');
-    Route::get('/pagos/conciliadores',          [App\Http\Controllers\CitaController::class, 'conciliadores'])->name('conciliador.eventos')->middleware(SinRecepcion::class.':conciliador');
-    Route::get('/solicitudes/eventos',          [App\Http\Controllers\AudienciasController::class, 'solicitudes'])->name('solicitudes.eventos')->middleware(SinRecepcion::class.':solicitudes');
+    Route::get('/citas/eventos',                [App\Http\Controllers\CitaController::class, 'citas'])->name('citas.eventos')->middleware([SinRecepcion::class.':citas', SinNotificador::class]);
+    Route::get('/pagos/eventos',                [App\Http\Controllers\CitaController::class, 'pagos'])->name('pagos.eventos')->middleware([SinRecepcion::class.':pagos', SinNotificador::class]);
+    Route::get('/pagos/conciliadores',          [App\Http\Controllers\CitaController::class, 'conciliadores'])->name('conciliador.eventos')->middleware([SinRecepcion::class.':conciliador', SinNotificador::class]);
+    Route::get('/solicitudes/eventos',          [App\Http\Controllers\AudienciasController::class, 'solicitudes'])->name('solicitudes.eventos')->middleware([SinRecepcion::class.':solicitudes', SinNotificador::class]);
+    // Agenda del notificador: sus notificaciones pendientes (App\Support\AgendaNotificador).
+    Route::get('/agenda/mis-notificaciones',          App\Http\Controllers\AgendaNotificadorController::class)->name('agenda.mis_notificaciones')
+        ->middleware('role:Super Usuario|Notificador');
     Route::get('/audiencias/eventos',           [App\Http\Controllers\AudienciasController::class, 'audiencias'])->name('audiencias.eventos')->middleware(SinRecepcion::class.':audiencias');
-    Route::get('/ratificaciones/eventos',       [App\Http\Controllers\AudienciasController::class, 'ratificaciones'])->name('ratificaciones.eventos')->middleware(SinRecepcion::class.':ratificaciones');
+    Route::get('/ratificaciones/eventos',       [App\Http\Controllers\AudienciasController::class, 'ratificaciones'])->name('ratificaciones.eventos')->middleware([SinRecepcion::class.':ratificaciones', SinNotificador::class]);
     Route::get('citas/exportar-excel',          [CitaController::class, 'exportarExcel']);
     Route::get('/obtenerBloqueosCalendario',    [AdministracionController::class, 'obtenerBloqueosCalendario'])->name('calendario.bloqueos');
     // Dias inhabiles del rango visible, para pintarlos deshabilitados.
@@ -495,13 +499,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/notificaciones/index',                 [NotificacionesController::class, 'porNotificar'])->name('notificaciones');
         Route::post('/notificaciones/asignar-lote',         [NotificacionesController::class, 'asignarLote'])->name('notificaciones.asignar_lote')
             ->middleware('permission:por_notificar_asignar');
-        Route::get('/notificaciones/busqueda',              [NotificacionesController::class, 'historial'])->name('notificaciones_consultar_busqueda');
+        Route::get('/notificaciones/busqueda',              [NotificacionesController::class, 'historial'])->name('notificaciones_consultar_busqueda')->middleware(SinNotificador::class);
         Route::post('/notificaciones/resultado',            [SeerController::class, 'notificaciones_busqueda'])->name('notificaciones_busqueda');
         Route::get('/notificaciones/detalles/{id}',         [SeerController::class, 'seer_detalles'])->name('seer_detalles');
         Route::get('/seer/estatus/{id}',                    [SeerController::class, 'seer_estatus'])->name('seer.notificador');
         Route::post('/seer/updateNotificador',              [SeerController::class, 'update_notificador'])->name('seer.cambioEstatus');
         Route::get('/notificador/mihistorial',              [NotificacionesController::class, 'misNotificaciones'])->name('Historial_Notificacador');
-        Route::get('/notificador/historial',                [SeerController::class, 'todas_notificaciones'])->name('todas_notificaciones');
+        Route::get('/notificador/historial',                [SeerController::class, 'todas_notificaciones'])->name('todas_notificaciones')->middleware(SinNotificador::class);
         Route::get('/notificaciones/home',                  [NotificacionesController::class, 'inicio'])->name('index_notificaciones');
         // Quien escribe /notificaciones a mano llega al inicio del apartado en vez de a un 404.
         Route::redirect('/notificaciones',                  '/notificaciones/home');
@@ -509,12 +513,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/notificaciones/consultar/{id}',        [SeerController::class, 'mostrar_citados']);
         Route::post('/notificaciones/editar',               [SeerController::class, 'editar_citados'])->name('editar_citado_enlace');   
         Route::get('/notificaciones/consultar_citado/{id}', [SeerController::class, 'mostrar_citadoC'])->name('consultar_citado');
-        Route::get('/notificaciones/historial',             [NotificacionesController::class, 'historial'])->name('notificaciones_consultar');
+        Route::get('/notificaciones/historial',             [NotificacionesController::class, 'historial'])->name('notificaciones_consultar')->middleware(SinNotificador::class);
         Route::post('notificaciones/actualizar',            [SeerController::class, 'editar_citados'])->name('actualizar_enlace'); 
         Route::post('/seer/store_enlace/{id}',              [SeerController::class, 'store_enlace'])->name('seer.store_enlace');
         Route::post('/notificaciones/asignar_notificador',  [SeerController::class, 'asignar_notificador_busqueda'])->name('asignar_notificador_busqueda')->middleware('role:Enlace|Super Usuario');
-        Route::post('/notificacion/editar',                 [SeerController::class, 'mostrar_citado'])->name('editar_citado_historial');
-        Route::post('notificaciones/actualizarH',           [SeerController::class, 'editar_citados_historial'])->name('actualizar_enlace_hitorial');  
+        Route::post('/notificacion/editar',                 [SeerController::class, 'mostrar_citado'])->name('editar_citado_historial')->middleware(SinNotificador::class);
+        Route::post('notificaciones/actualizarH',           [SeerController::class, 'editar_citados_historial'])->name('actualizar_enlace_hitorial')->middleware(SinNotificador::class);  
     });
 
     /*

@@ -21,6 +21,11 @@
                                                 // sin descarga y con una sola pastilla. El servidor le cierra
                                                 // además las otras fuentes (middleware SinRecepcion).
                                                 $esRecepcion   = \App\Support\Recepcion::es(auth()->user());
+
+                                                // El notificador sólo ve audiencias y sus notificaciones
+                                                // pendientes (App\Support\AgendaNotificador; el servidor le
+                                                // cierra lo demás con el middleware SinNotificador).
+                                                $esNotificador = \App\Support\AgendaNotificador::soloNotificador(auth()->user());
                                             @endphp
 
                                             <div class="col-12">
@@ -64,7 +69,7 @@
                                                                 <i class="bi bi-arrows-angle-expand"></i> Fin de semana
                                                             </button>
 
-                                                            @unless ($esRecepcion)
+                                                            @unless ($esRecepcion || $esNotificador)
                                                                 <button type="button" id="calExportar" class="cal-select" title="Descargar en Excel la agenda del rango visible">
                                                                     <i class="bi bi-file-earmark-excel"></i> Exportar
                                                                 </button>
@@ -92,7 +97,7 @@
                                                             {{-- Un conciliador no elige: el valor va fijo y oculto,
                                                                  calendar.js lo lee igual que antes. --}}
                                                             <input type="hidden" id="filter-conciliador" value="{{ $idUsuario }}">
-                                                        @elseif ($esRecepcion && $conciliadores->isEmpty())
+                                                        @elseif ($esNotificador || ($esRecepcion && $conciliadores->isEmpty()))
                                                             {{-- Las citas no tienen conciliador todavía: no hay nada
                                                                  que elegir. El input vacío hace que calendar.js no
                                                                  mande filtro, igual que "Todos". --}}
@@ -113,7 +118,10 @@
                                                          elegirlas pintan sus hijas juntas y despliegan la fila de
                                                          abajo para acotar a una sola. --}}
                                                     <div class="cal-tabs">
-                                                        @if ($esRecepcion)
+                                                        @if ($esNotificador)
+                                                            <button type="button" class="cal-tab btn-calendar active" data-tipo="btn-mis-notificaciones">Mis notificaciones</button>
+                                                            <button type="button" class="cal-tab btn-calendar" data-tipo="btn-audiencias">Audiencias</button>
+                                                        @elseif ($esRecepcion)
                                                             @php $fuentesRecepcion = \App\Support\Recepcion::fuentes(auth()->user()); @endphp
                                                             <button type="button" class="cal-tab btn-calendar active" data-tipo="btn-citas-linea">Citas en línea</button>
                                                             @if (in_array('audiencias', $fuentesRecepcion, true))

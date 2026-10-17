@@ -330,7 +330,9 @@ function calFuente(id) {
         citas:          urlCitas,
         // Citas en linea de recepcion (tabla recepcion). Ojo: no confundir con
         // "citas", que a pesar del nombre son cumplimientos de ratificacion.
-        citasLinea:     typeof urlCitasLinea !== 'undefined' ? urlCitasLinea : ''
+        citasLinea:     typeof urlCitasLinea !== 'undefined' ? urlCitasLinea : '',
+        // Notificaciones pendientes del notificador, en el dia de su audiencia.
+        misNotificaciones: typeof urlMisNotificaciones !== 'undefined' ? urlMisNotificaciones : ''
     };
 
     return { id: id, url: urls[id] + getFilterParams() };
@@ -347,7 +349,8 @@ var CAL_PASTILLAS = {
     'btn-cumpl-generales':    ['pagos'],
     'btn-ratificaciones':     ['ratificaciones', 'citas'],
     'btn-rati-cumplimientos': ['citas'],
-    'btn-citas-linea':        ['citasLinea']
+    'btn-citas-linea':        ['citasLinea'],
+    'btn-mis-notificaciones': ['misNotificaciones']
 };
 
 // Que semaforo describe a cada pastilla. Las claves son las de
@@ -361,13 +364,15 @@ var CAL_PASTILLA_LEYENDA = {
     'btn-cumpl-generales':    'cumplimientos',
     'btn-ratificaciones':     'ratificaciones',
     'btn-rati-cumplimientos': 'cumplimientos',
-    'btn-citas-linea':        'citas_linea'
+    'btn-citas-linea':        'citas_linea',
+    'btn-mis-notificaciones': 'mis_notificaciones'
 };
 
 // La recepcion no tiene "Todos": abre en su unica pastilla.
+// El notificador abre en "Mis notificaciones".
 var pastillaActiva = (typeof CAL_SOLO_CITAS !== 'undefined' && CAL_SOLO_CITAS)
     ? 'btn-citas-linea'
-    : 'btn-todos';
+    : ((typeof CAL_SOLO_NOTIFICADOR !== 'undefined' && CAL_SOLO_NOTIFICADOR) ? 'btn-mis-notificaciones' : 'btn-todos');
 
 function calFuentes(tipo) {
     return (CAL_PASTILLAS[tipo] || []).map(calFuente);
@@ -891,6 +896,33 @@ function handleEventClick(info, calendarType) {
 
     const props = info.event.extendedProps;
     const t = calTexto;
+
+    if (calendarType === 'misNotificaciones') {
+        const dias = props.dias;
+        const plazo = dias === null || dias === undefined ? 'Sin audiencia'
+            : (dias < 0 ? 'La audiencia ya pasó' : (dias === 0 ? 'La audiencia es hoy' : 'Faltan ' + dias + ' día' + (dias === 1 ? '' : 's') + ' para la audiencia'));
+        const d0 = {
+            tipo: 'Notificación pendiente',
+            titulo: props.citado || info.event.title,
+            sub: 'Expediente ' + t(props.nue),
+            estatus: plazo, color: props.color,
+            fecha: props.audiencia ? 'Audiencia: ' + t(props.audiencia) : 'Sin audiencia',
+            secciones: [
+                { titulo: 'Dónde', filas: [
+                    ['Domicilio', t(props.domicilio)],
+                    ['Colonia / municipio', t(props.lugar)],
+                    ['Sede', t(props.delegacion)]
+                ] },
+                { titulo: 'Notificación', filas: [['Tipo', t(props.tipo)]] }
+            ],
+            accion: props.url ? { href: props.url, texto: 'Diligenciar' } : null
+        };
+        const tituloN = document.getElementById('tituloEvento');
+        if (tituloN) { tituloN.textContent = 'Detalles de la notificación'; }
+        document.querySelector('#evento .modal-body').innerHTML = calArmarDetalle(d0);
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('evento')).show();
+        return;
+    }
     const id = encodeURIComponent(info.event.id);
     const tipoUrl = encodeURIComponent(props.tipo === undefined ? '' : props.tipo);
     const fecha = calFechaLarga(info, props);

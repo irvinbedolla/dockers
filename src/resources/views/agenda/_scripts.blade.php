@@ -12,6 +12,9 @@
         const urlSolicitudes    = "{{ route('solicitudes.eventos') }}";
         const urlInhabiles      = "{{ route('agenda.inhabiles') }}";
         const urlCitasLinea     = "{{ route('agenda.citas_linea') }}";
+        // Agenda del notificador: sus notificaciones pendientes (App\Support\AgendaNotificador).
+        const urlMisNotificaciones = "{{ route('agenda.mis_notificaciones') }}";
+        const CAL_SOLO_NOTIFICADOR = @json(\App\Support\AgendaNotificador::soloNotificador(auth()->user()));
         // Base del acuse en PDF de una cita (citas/{id}/documento). Es sólo
         // lectura. A propósito NO se expone citas/{id}/confirmar: es el destino
         // del QR y cambia el estatus según la hora en que se abre.
