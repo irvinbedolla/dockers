@@ -71,7 +71,7 @@
             ['route' => 'todas_audiencias',           'label' => 'Audiencias',              'icon' => 'bi bi-people-fill',         'roles' => ['Super Usuario', 'Administrador', 'Conciliador', 'Directivo','Excepcion', 'Delegado']],
             ['route' => 'index_notificaciones',       'label' => 'Notificaciones',          'icon' => 'bi bi-envelope',            'roles' => ['Super Usuario', 'Enlace', 'Directivo','Excepcion','Notificador', 'Delegado']],
             ['route' => 'create_asesoria',            'label' => 'Asesorías',               'icon' => 'bi bi-person-check-fill',   'roles' => ['Super Usuario', 'Orientador', 'Delegado', 'Auxiliar'], 'especialidad' => 'asesoria_crear'],
-            ['route' => 'estadisticas.index',        'label' => 'Panel estadístico',       'icon' => 'bi bi-bar-chart-line-fill', 'roles' => ['Super Usuario', 'Estadistica', 'Directivo']],
+            ['route' => 'estadisticas.index',        'label' => 'Panel estadístico',       'icon' => 'bi bi-bar-chart-line-fill', 'roles' => ['Super Usuario', 'Estadistica', 'Directivo'], 'activo' => 'estadisticas.*'],
             ['route' => 'seer.estadistica',           'label' => 'Estadísticas',            'icon' => 'bi bi-clipboard-data-fill', 'roles' => ['Super Usuario', 'Auxiliar', 'Orientador', 'Administrador', 'Enlace', 'Estadistica', 'Directivo', 'Notificador', 'Delegado','Excepcion', 'Cumplimientos']],
             ['route' => 'reportes_conciliador',       'label' => 'Estadísticas',            'icon' => 'bi bi-clipboard-data-fill', 'roles' => ['Conciliador']],
             ['route' => 'misestadisticas',            'label' => 'Estadísticas',            'icon' => 'bi bi-clipboard-data-fill', 'roles' => ['Cumplimientos']],
@@ -116,7 +116,8 @@
                     $destino = $item['url'];
                 } elseif (isset($item['route']) && \Illuminate\Support\Facades\Route::has($item['route'])) {
                     $destino = route($item['route']);
-                    $activo  = request()->routeIs($item['route']);
+                    // 'activo' (opcional): patrón de rutas que también marcan el renglón, p. ej. sus secciones.
+                    $activo  = request()->routeIs($item['activo'] ?? $item['route']);
                 }
             }
         @endphp

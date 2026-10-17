@@ -201,6 +201,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Panel de estadísticas: mapa, gráficas y descarga de reportes.
     Route::get('/estadisticas',                         [EstadisticasController::class, 'index'])->name('estadisticas.index')
         ->middleware('role:Super Usuario|Estadistica|Directivo');
+    // Secciones del panel: todo lo de notificaciones (antes, filtro avanzado del historial).
+    Route::get('/estadisticas/notificaciones',          [EstadisticasController::class, 'notificaciones'])->name('estadisticas.notificaciones')
+        ->middleware('role:Super Usuario|Estadistica|Directivo');
     // Panel Común de entrada
     Route::get('/agenda',                               [DashboardController::class, 'index'])->name('agenda');
     // Descarga la agenda del rango visible del calendario, una hoja por
