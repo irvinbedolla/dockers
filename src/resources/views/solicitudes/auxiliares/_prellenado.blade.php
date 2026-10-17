@@ -26,7 +26,8 @@
 
         function poner(nombre, valor) {
             var el = form.querySelector('[name="' + nombre + '"]');
-            if (!el || el.value) { return; }
+            // "excepcion" ya trae "No" por omisión: la cita de excepción sí lo cambia.
+            if (!el || (el.value && nombre !== 'excepcion')) { return; }
             el.value = valor;
             el.dispatchEvent(new Event('input', { bubbles: true }));
             el.dispatchEvent(new Event('change', { bubbles: true }));

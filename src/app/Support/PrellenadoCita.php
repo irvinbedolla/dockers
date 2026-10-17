@@ -105,6 +105,8 @@ class PrellenadoCita
             'colonia_solicitante'  => $dom['colonia'] ?? null,
             'cp'                   => $dom['cp'] ?? null,
             'descripcionSolicitud' => trim((string) ($c->conflicto ?: $c->observaciones)) ?: null,
+            // Si la cita venía como caso de excepción, la solicitud también.
+            'excepcion'            => $c->exepcion === 'Si' ? 'Si' : null,
         ];
 
         return array_filter($campos, fn ($v) => $v !== null && $v !== '');
