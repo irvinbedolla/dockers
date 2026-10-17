@@ -290,7 +290,7 @@ class NotificacionesController extends Controller
             'notificador' => ['nullable', 'string', 'max:12'],
             'tipo'        => ['nullable', Rule::in(['Citatorio', 'Multa'])],
             'por'         => ['nullable', Rule::in(self::POR_PAGINA)],
-            // Filtro avanzado: sede, periodo y por qué fecha se filtra la lista.
+            // Sede, periodo y por qué fecha se filtra la lista.
             'sede'        => ['nullable', Rule::in($sedesPermitidas)],
             'desde'       => ['nullable', 'date_format:Y-m-d'],
             'hasta'       => ['nullable', 'date_format:Y-m-d'],
@@ -327,14 +327,9 @@ class NotificacionesController extends Controller
                 });
             });
 
-        // Cifras del periodo (filtro avanzado): sobre la consulta con sede,
-        // notificador, tipo y búsqueda, pero sin estatus ni el filtro de fecha
-        // de la lista, porque cada cifra usa su propia fecha.
+        // Las cifras por notificador están en /estadisticas/notificaciones;
+        // aquí el periodo sólo acota la lista.
         $rango = \App\Support\DesempenoNotificadores::rango($filtros['desde'] ?? null, $filtros['hasta'] ?? null);
-        $resumen = \App\Support\DesempenoNotificadores::resumen($query, $rango);
-        $porNotificador = ($notificador && ctype_digit($notificador)) || $notificador === 'sin'
-            ? collect()
-            : \App\Support\DesempenoNotificadores::porNotificador($query, $rango);
 
         \App\Support\DesempenoNotificadores::filtrarLista($query, $rango, $filtros['fecha_de'] ?? 'notificacion');
 
@@ -365,8 +360,6 @@ class NotificacionesController extends Controller
             ->get(['id', 'name', 'delegacion'])
             ->groupBy('delegacion');
 
-        $elegido = $notificador && ctype_digit($notificador) ? User::find((int) $notificador, ['id', 'name', 'email', 'delegacion']) : null;
-
         return view('notificaciones.index_busqueda', [
             'notificaciones'       => $notificaciones,
             'filtros'              => $filtros,
@@ -374,9 +367,6 @@ class NotificacionesController extends Controller
             'notificadoresPorSede' => $notificadoresPorSede,
             'porPagina'            => self::POR_PAGINA,
             'sedesPermitidas'      => $sedesPermitidas,
-            'resumen'              => $resumen,
-            'porNotificador'       => $porNotificador,
-            'notificadorElegido'   => $elegido,
             'hayPeriodo'           => (bool) $rango,
         ]);
     }
