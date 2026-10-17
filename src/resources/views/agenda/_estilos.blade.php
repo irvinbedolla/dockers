@@ -4,6 +4,8 @@
 --}}
     {{-- Mismos estilos de calendario que la pantalla de bloqueos por sede --}}
     <link href="{{ asset('assets/css/calendario.css') }}?v={{ @filemtime(public_path('assets/css/calendario.css')) }}" rel="stylesheet">
+    {{-- Vista de celulares (agenda-movil.js); sólo aplica dentro de .cal-wrap.is-movil. --}}
+    <link href="{{ asset('assets/css/agenda-movil.css') }}?v={{ @filemtime(public_path('assets/css/agenda-movil.css')) }}" rel="stylesheet">
     <style>
         .loader {
             position: fixed;

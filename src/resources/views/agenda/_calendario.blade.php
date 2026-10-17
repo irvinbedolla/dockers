@@ -163,6 +163,40 @@
                                                          catalogo viene de App\Support\SemaforoAgenda. --}}
                                                     <div class="cal-leyenda" id="calLeyenda" style="display:none;"></div>
 
+                                                    {{-- Vista para celulares (agenda-movil.js). En escritorio va
+                                                         oculta y no se usa; en un teléfono sustituye a la
+                                                         cuadrícula de FullCalendar con los mismos filtros. --}}
+                                                    <div id="calMovil" class="cm" hidden>
+                                                        <div class="cm-cabeza">
+                                                            <div class="cm-cabeza__texto">
+                                                                <h4 class="cm-mes" id="cmMes">&nbsp;</h4>
+                                                                <span class="cm-sub" id="cmSub"></span>
+                                                            </div>
+                                                            <div class="cm-acciones">
+                                                                <button type="button" class="cm-btn" id="cmPrev" aria-label="Mes anterior"><i class="bi bi-chevron-left"></i></button>
+                                                                <button type="button" class="cm-btn cm-btn--texto" id="cmHoy">Hoy</button>
+                                                                <button type="button" class="cm-btn" id="cmNext" aria-label="Mes siguiente"><i class="bi bi-chevron-right"></i></button>
+                                                                <button type="button" class="cm-btn cm-btn--vista" id="cmVista" aria-pressed="false" aria-label="Cambiar entre días y mes completo"><i class="bi bi-calendar3"></i></button>
+                                                                @unless ($esRecepcion || $esNotificador)
+                                                                    <button type="button" class="cm-btn" id="cmExportar" aria-label="Descargar la agenda del mes en Excel" title="Descargar el mes en Excel"><i class="bi bi-file-earmark-excel"></i></button>
+                                                                @endunless
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="cm-tira" id="cmTira" role="listbox" aria-label="Días del mes"></div>
+                                                        <div class="cm-rejilla" id="cmRejilla" hidden></div>
+
+                                                        <div class="cm-dia">
+                                                            <div class="cm-dia__cabeza">
+                                                                <h5 class="cm-dia__titulo" id="cmDiaTitulo"></h5>
+                                                                <span class="cm-dia__cuenta" id="cmDiaCuenta"></span>
+                                                            </div>
+                                                            <div class="cm-aviso" id="cmAviso" hidden></div>
+                                                            <div class="cm-lista" id="cmLista" aria-live="polite"></div>
+                                                            <p class="cm-pista"><i class="bi bi-arrow-left-right"></i> Desliza la lista para cambiar de día</p>
+                                                        </div>
+                                                    </div>
+
                                                     <div id="calZona" class="cal-zona" aria-busy="true">
                                                         <div id="calSkeleton" class="cal-skeleton">
                                                             <span class="sr-only" role="status">Cargando agenda…</span>

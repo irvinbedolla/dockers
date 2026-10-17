@@ -1,0 +1,204 @@
+/* =============================================================================
+   Agenda en celulares (agenda-movil.js). Todo cuelga de .cal-wrap.is-movil o
+   de #calMovil (.cm), así que en escritorio no cambia nada.
+   ========================================================================== */
+
+/* En el teléfono se esconden la barra y la cuadrícula de escritorio; los
+   filtros (sede, conciliadores, pastillas) se quedan y se deslizan de lado. */
+.cal-wrap.is-movil .cal-toolbar,
+.cal-wrap.is-movil #calZona { display: none !important; }
+
+.cal-wrap.is-movil .cal-personas,
+.cal-wrap.is-movil .cal-tabs,
+.cal-wrap.is-movil .cal-subtabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+}
+.cal-wrap.is-movil .cal-personas::-webkit-scrollbar,
+.cal-wrap.is-movil .cal-tabs::-webkit-scrollbar,
+.cal-wrap.is-movil .cal-subtabs::-webkit-scrollbar { display: none; }
+.cal-wrap.is-movil .cal-persona,
+.cal-wrap.is-movil .cal-tab { flex: 0 0 auto; }
+.cal-wrap.is-movil .cal-personas .cal-select { flex: 0 0 auto; width: auto; max-width: 170px; }
+
+/* La leyenda de colores ocupa una sola línea deslizable. */
+.cal-wrap.is-movil .cal-leyenda {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    font-size: 12px;
+}
+.cal-wrap.is-movil .cal-leyenda::-webkit-scrollbar { display: none; }
+.cal-wrap.is-movil .cal-leyenda > span { flex: 0 0 auto; white-space: nowrap; }
+.cal-wrap.is-movil .cal-leyenda { gap: 14px; padding: 8px 14px; }
+
+/* ---------------------------------------------------------------- cabecera */
+.cm {
+    --cm-tinta: #1F2A2B;
+    --cm-verde: #496163;
+    --cm-tenue: #8A9899;
+    --cm-borde: #E3E8E8;
+    border-bottom-left-radius: 10px;
+    border-bottom-right-radius: 10px;
+    overflow: hidden;
+}
+
+.cm-cabeza {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 18px 14px 10px;
+    background: linear-gradient(160deg, #F1F5F4 0%, #EEF2F7 55%, #F7F2E6 100%);
+}
+.cm-cabeza__texto { min-width: 0; }
+.cm-mes { margin: 0; font-size: 26px; font-weight: 800; color: var(--cm-tinta); letter-spacing: -.02em; line-height: 1.1; }
+.cm-sub { display: block; font-size: 12px; color: var(--cm-tenue); margin-top: 3px; }
+.cm-acciones { display: flex; gap: 6px; }
+.cm-acciones .cm-btn--vista { margin-left: auto; }
+.cm-btn {
+    width: 36px; height: 36px; border-radius: 12px; border: 0;
+    background: rgba(255, 255, 255, .85); color: var(--cm-verde);
+    box-shadow: 0 2px 8px rgba(31, 42, 43, .08);
+    display: inline-flex; align-items: center; justify-content: center; font-size: 15px;
+}
+.cm-btn--texto { width: auto; padding: 0 11px; font-size: 13px; font-weight: 700; }
+.cm-btn--vista[aria-pressed="true"] { background: var(--cm-verde); color: #fff; }
+
+/* ---------------------------------------------------------------- tira de días */
+.cm-tira {
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+    padding: 6px 10px 14px;
+    background: linear-gradient(180deg, #EEF2F7 0%, #fff 100%);
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+}
+.cm-tira::-webkit-scrollbar { display: none; }
+
+.cm-chip {
+    flex: 0 0 46px;
+    scroll-snap-align: center;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    padding: 7px 0 6px;
+    border: 0; border-radius: 16px; background: transparent;
+    color: var(--cm-tinta);
+}
+.cm-chip__letra { font-size: 11px; font-weight: 700; color: var(--cm-tenue); text-transform: uppercase; }
+.cm-chip__num { font-size: 18px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.cm-chip.is-finde .cm-chip__num { color: #A3AFB0; }
+.cm-chip.is-hoy .cm-chip__num { color: var(--cm-verde); text-decoration: underline; text-underline-offset: 3px; }
+.cm-chip.is-elegido {
+    background: #fff;
+    box-shadow: 0 6px 18px rgba(31, 42, 43, .14);
+}
+.cm-chip.is-elegido .cm-chip__num { font-size: 21px; font-weight: 800; color: var(--cm-tinta); text-decoration: none; }
+
+/* Inhábil: rayado diagonal. Parcial (sólo algunas sedes): rayado más tenue. */
+.cm-chip.is-inhabil,
+.cm-celda.is-inhabil {
+    background-image: repeating-linear-gradient(135deg, rgba(217, 45, 32, .10) 0 4px, transparent 4px 8px);
+}
+.cm-chip.is-inhabil .cm-chip__num,
+.cm-celda.is-inhabil .cm-celda__num { color: #B42318; text-decoration: line-through; text-decoration-thickness: 1px; }
+.cm-chip.is-inhabil-parcial,
+.cm-celda.is-inhabil-parcial {
+    background-image: repeating-linear-gradient(135deg, rgba(227, 160, 8, .14) 0 4px, transparent 4px 8px);
+}
+.cm-chip.is-elegido.is-inhabil, .cm-chip.is-elegido.is-inhabil-parcial { background-color: #fff; }
+
+.cm-puntos { display: flex; align-items: center; gap: 2px; min-height: 6px; }
+.cm-puntos i { width: 5px; height: 5px; border-radius: 50%; display: block; }
+.cm-puntos b { font-size: 9px; color: var(--cm-tenue); font-weight: 700; margin-left: 1px; }
+
+/* ---------------------------------------------------------------- mes completo */
+.cm-rejilla { padding: 8px 10px 12px; background: linear-gradient(180deg, #EEF2F7 0%, #fff 100%); }
+.cm-rejilla__cab, .cm-rejilla__dias { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.cm-rejilla__cab span { text-align: center; font-size: 11px; font-weight: 700; color: var(--cm-tenue); padding-bottom: 4px; }
+.cm-celda {
+    aspect-ratio: 1 / 1.05;
+    border: 1px solid var(--cm-borde); border-radius: 12px; background: #fff;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    color: var(--cm-tinta); padding: 0;
+}
+.cm-celda.is-vacia { border: 0; background: transparent; }
+.cm-celda.is-finde { background-color: #F7F9F9; }
+.cm-celda__num { font-size: 14px; font-weight: 700; }
+.cm-celda__cuenta {
+    min-width: 18px; height: 16px; padding: 0 4px; border-radius: 999px;
+    background: var(--cm-verde); color: #fff; font-size: 10px; font-weight: 700; line-height: 16px;
+}
+.cm-celda__cuenta.is-cero { background: transparent; }
+.cm-celda.is-hoy { border-color: var(--cm-verde); }
+.cm-celda.is-elegido { background-color: var(--cm-verde); border-color: var(--cm-verde); }
+.cm-celda.is-elegido .cm-celda__num { color: #fff; text-decoration: none; }
+.cm-celda.is-elegido .cm-celda__cuenta { background: #fff; color: var(--cm-verde); }
+.cm-celda.is-elegido .cm-celda__cuenta.is-cero { background: transparent; }
+
+/* ---------------------------------------------------------------- día */
+.cm-dia {
+    position: relative;
+    margin-top: -6px;
+    padding: 16px 12px 14px;
+    background: #fff;
+    border-top-left-radius: 22px;
+    border-top-right-radius: 22px;
+    box-shadow: 0 -8px 20px rgba(31, 42, 43, .05);
+}
+.cm-dia__cabeza { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 10px; padding: 0 2px; }
+.cm-dia__titulo { margin: 0; font-size: 19px; font-weight: 800; color: var(--cm-tinta); }
+.cm-dia__cuenta { font-size: 13px; font-weight: 700; color: var(--cm-verde); white-space: nowrap; }
+
+.cm-aviso {
+    display: flex; align-items: center; gap: 7px;
+    padding: 8px 12px; margin-bottom: 10px; border-radius: 12px;
+    background: #FDECEA; color: #9A2B1C; font-size: 13px; font-weight: 600;
+}
+
+.cm-lista { display: flex; flex-direction: column; gap: 10px; min-height: 120px; }
+
+.cm-evt {
+    --cm-color: #496163;
+    position: relative;
+    display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
+    width: 100%; text-align: left;
+    padding: 12px 14px 12px 18px;
+    border: 0; border-radius: 18px;
+    background: color-mix(in srgb, var(--cm-color) 12%, #fff);
+    color: var(--cm-tinta);
+    box-shadow: 0 2px 10px rgba(31, 42, 43, .05);
+}
+.cm-evt::before {
+    content: ''; position: absolute; left: 7px; top: 12px; bottom: 12px;
+    width: 4px; border-radius: 4px; background: var(--cm-color);
+}
+.cm-evt__hora { font-size: 12px; font-weight: 700; color: var(--cm-color); filter: brightness(.8); }
+.cm-evt__titulo { font-size: 15px; font-weight: 800; line-height: 1.25; overflow-wrap: anywhere; }
+.cm-evt__linea { font-size: 12.5px; color: #4A5859; line-height: 1.35; overflow-wrap: anywhere; }
+.cm-evt__linea b { color: var(--cm-tenue); font-weight: 600; }
+.cm-evt__estatus {
+    margin-top: 4px; padding: 2px 9px; border-radius: 999px;
+    background: rgba(255, 255, 255, .8); font-size: 11px; font-weight: 700; color: var(--cm-color);
+}
+
+.cm-vacio {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    padding: 34px 10px; color: var(--cm-tenue); font-size: 14px; text-align: center;
+}
+.cm-vacio .bi { font-size: 26px; color: #C5CFCF; }
+.cm-pista { margin: 12px 0 0; text-align: center; font-size: 11.5px; color: #A3AFB0; }
+
+/* Cargando: tres barras con destello. */
+.cm-cargando { display: flex; flex-direction: column; gap: 10px; }
+.cm-cargando span {
+    height: 76px; border-radius: 18px;
+    background: linear-gradient(90deg, #EEF1F1 25%, #F7F9F9 50%, #EEF1F1 75%);
+    background-size: 200% 100%;
+    animation: cmBrillo 1.2s ease-in-out infinite;
+}
+@keyframes cmBrillo { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .cm-cargando span { animation: none; } }

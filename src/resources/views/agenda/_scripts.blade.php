@@ -39,5 +39,7 @@
         const urlBloqueos       = "{{ route('calendario.bloqueos') }}"; 
     </script>
 
+    {{-- Vista de celulares: va antes que calendar.js, que la usa al arrancar. --}}
+    <script src="{{ asset('assets/js/agenda-movil.js') }}?v={{ @filemtime(public_path('assets/js/agenda-movil.js')) }}"></script>
     <script src="{{ asset('assets/js/calendar.js') }}?v={{ @filemtime(public_path('assets/js/calendar.js')) }}"></script>
     <script src="{{ asset('assets/js/general/menu.js') }}"></script>

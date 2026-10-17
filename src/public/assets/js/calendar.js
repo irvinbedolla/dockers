@@ -408,6 +408,44 @@ function calSeleccionarPastilla(tipo) {
     if (currentCalendar) {
         currentCalendar.setOption('eventSources', calFuentes(tipo));
     }
+    calRecargarMovil();
+}
+
+// ---------------------------------------------------------------------------
+// Celulares: agenda-movil.js pinta su propia vista (tira de días + lista) con
+// las mismas fuentes y filtros. En escritorio nada de esto corre.
+// ---------------------------------------------------------------------------
+var CAL_MOVIL = window.matchMedia ? window.matchMedia('(max-width: 767.98px)') : null;
+
+function calEsMovil() {
+    return Boolean(CAL_MOVIL && CAL_MOVIL.matches && document.getElementById('calMovil') && typeof CalMovil !== 'undefined');
+}
+
+function calRecargarMovil() {
+    const wrap = calendarEl ? calendarEl.closest('.cal-wrap') : null;
+    if (typeof CalMovil !== 'undefined' && wrap && wrap.classList.contains('is-movil')) {
+        CalMovil.recargar();
+    }
+}
+
+function calModoMovil(movil) {
+    const wrap = calendarEl ? calendarEl.closest('.cal-wrap') : null;
+    const caja = document.getElementById('calMovil');
+    if (!wrap || !caja) {
+        return;
+    }
+
+    wrap.classList.toggle('is-movil', movil);
+    caja.hidden = !movil;
+
+    if (movil) {
+        if (CalMovil.activa()) { CalMovil.recargar(); } else { CalMovil.iniciar(); }
+    } else if (!currentCalendar) {
+        // Si el teléfono se gira o la ventana se agranda, se arma la de escritorio.
+        calCrearEscritorio();
+    } else {
+        currentCalendar.updateSize();
+    }
 }
 
 function calMostrarSubpastillas(idVisible) {
@@ -463,6 +501,8 @@ function calAplicarVistas() {
 }
 
 function refreshCurrentCalendar() {
+    calRecargarMovil();
+
     if (!currentCalendar) {
         return;
     }
@@ -647,6 +687,52 @@ document.addEventListener('DOMContentLoaded', function () {
         calAplicarFinde();
     });
 
+    // En celulares no se arma FullCalendar: la vista la pinta agenda-movil.js.
+    if (!calEsMovil()) {
+        calCrearEscritorio();
+    }
+
+    document.querySelectorAll('.cal-tab').forEach(function (boton) {
+        boton.addEventListener('click', function (e) {
+            e.preventDefault();
+            calSeleccionarPastilla(this.getAttribute('data-tipo'));
+        });
+    });
+
+    // Abre en "Todos", salvo recepcion, que abre en "Citas en linea".
+    calSeleccionarPastilla(pastillaActiva);
+
+    const btnPrev = document.getElementById('calPrev');
+    const btnHoy = document.getElementById('calHoy');
+    const btnNext = document.getElementById('calNext');
+    const selVista = document.getElementById('calVista');
+
+    if (btnPrev) btnPrev.addEventListener('click', function () { if (currentCalendar) currentCalendar.prev(); });
+    if (btnNext) btnNext.addEventListener('click', function () { if (currentCalendar) currentCalendar.next(); });
+    if (btnHoy)  btnHoy.addEventListener('click',  function () { if (currentCalendar) currentCalendar.today(); });
+
+    if (selVista) {
+        selVista.value = calVistaInicial();
+        selVista.addEventListener('change', function () {
+            actualizarClaseVista(this.value);
+            if (currentCalendar) currentCalendar.changeView(this.value);
+        });
+    }
+
+    // Va al final: la pastilla inicial ya quedó elegida y la vista móvil pide
+    // sus datos una sola vez.
+    if (calEsMovil()) {
+        calModoMovil(true);
+    }
+    if (CAL_MOVIL && typeof CalMovil !== 'undefined' && document.getElementById('calMovil')) {
+        const alCambiar = function (e) { calModoMovil(e.matches); };
+        if (CAL_MOVIL.addEventListener) { CAL_MOVIL.addEventListener('change', alCambiar); } else if (CAL_MOVIL.addListener) { CAL_MOVIL.addListener(alCambiar); }
+    }
+});
+
+// Calendario de escritorio (FullCalendar). Sin cambios: sólo se movió a una
+// función para no crearlo en celulares.
+function calCrearEscritorio() {
     currentCalendar = new FullCalendar.Calendar(calendarEl, {
         initialView: calVistaInicial(),
         locale: 'es',
@@ -681,34 +767,7 @@ document.addEventListener('DOMContentLoaded', function () {
     actualizarClaseVista(calVistaInicial());
     currentCalendar.render();
     calAplicarFinde();
-
-    document.querySelectorAll('.cal-tab').forEach(function (boton) {
-        boton.addEventListener('click', function (e) {
-            e.preventDefault();
-            calSeleccionarPastilla(this.getAttribute('data-tipo'));
-        });
-    });
-
-    // Abre en "Todos", salvo recepcion, que abre en "Citas en linea".
-    calSeleccionarPastilla(pastillaActiva);
-
-    const btnPrev = document.getElementById('calPrev');
-    const btnHoy = document.getElementById('calHoy');
-    const btnNext = document.getElementById('calNext');
-    const selVista = document.getElementById('calVista');
-
-    if (btnPrev) btnPrev.addEventListener('click', function () { if (currentCalendar) currentCalendar.prev(); });
-    if (btnNext) btnNext.addEventListener('click', function () { if (currentCalendar) currentCalendar.next(); });
-    if (btnHoy)  btnHoy.addEventListener('click',  function () { if (currentCalendar) currentCalendar.today(); });
-
-    if (selVista) {
-        selVista.value = calVistaInicial();
-        selVista.addEventListener('change', function () {
-            actualizarClaseVista(this.value);
-            if (currentCalendar) currentCalendar.changeView(this.value);
-        });
-    }
-});
+}
 
 
 // Detalle de una cita en linea. Se arma con nodos y textContent, no con una
