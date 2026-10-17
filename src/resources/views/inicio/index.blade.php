@@ -71,6 +71,10 @@
                 @if (! empty($accesos))
                     @include('inicio._accesos_recepcion')
                 @endif
+                {{-- Conciliación, Género e Igualdad: sus casos de excepción. --}}
+                @if (! empty($casos))
+                    @include('inicio._accesos_excepcion')
+                @endif
             </div>
 
             {{-- Tabla de posiciones para todos los roles menos recepción (que
