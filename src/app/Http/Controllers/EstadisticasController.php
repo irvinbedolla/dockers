@@ -6,7 +6,9 @@ use App\Models\Sedes;
 use App\Models\User;
 use App\Support\ConveniosDelMes;
 use App\Support\ConveniosPagados;
+use App\Support\CasosExcepcion;
 use App\Support\DesempenoNotificadores;
+use App\Support\EstadisticasExcepcion;
 use App\Support\ResumenSedes;
 use App\Support\TasaConciliacion;
 use Illuminate\Http\Request;
@@ -48,6 +50,10 @@ class EstadisticasController extends Controller
             'convenios'        => ConveniosPagados::porSede(),
             'conveniosMes'     => ConveniosDelMes::resumen(),
             'tasaConciliacion' => TasaConciliacion::resumen(),
+            // Tarjeta de casos de excepción: cifras del mes.
+            'excepcionesMes' => EstadisticasExcepcion::resumen(
+                EstadisticasExcepcion::rango(now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()), null
+            ),
             // Tarjeta de la sección de notificaciones: cifras del mes.
             'notificacionesMes' => DesempenoNotificadores::resumen(
                 DesempenoNotificadores::base(),
@@ -125,6 +131,43 @@ class EstadisticasController extends Controller
             'porNotificador' => $porId || $notificador === 'sin' ? collect() : DesempenoNotificadores::porNotificador($base, $rango),
             'porSede'        => ! empty($filtros['sede']) ? collect() : DesempenoNotificadores::porSede($base, $rango),
             'tendencia'      => DesempenoNotificadores::tendencia($base, $rangoGrafica),
+        ]);
+    }
+
+    /**
+     * /estadisticas/excepciones: casos del art. 685 Ter LFT detectados,
+     * atendidos, que continúan con la conciliación y canalizados, por
+     * periodo y sede (App\Support\EstadisticasExcepcion). Lo ven el Panel
+     * estadístico y Conciliación, Género e Igualdad.
+     */
+    public function excepciones(Request $request)
+    {
+        $filtros = $request->validate([
+            'desde' => ['nullable', 'date_format:Y-m-d'],
+            'hasta' => ['nullable', 'date_format:Y-m-d'],
+            'sede'  => ['nullable', Rule::in(CasosExcepcion::SEDES)],
+        ]);
+        $filtros['desde'] ??= ($filtros['hasta'] ?? null) ? $filtros['hasta'] : now()->startOfMonth()->toDateString();
+        $filtros['hasta'] ??= now()->endOfMonth()->toDateString();
+        if ($filtros['desde'] > $filtros['hasta']) {
+            [$filtros['desde'], $filtros['hasta']] = [$filtros['hasta'], $filtros['desde']];
+        }
+
+        $rango = EstadisticasExcepcion::rango($filtros['desde'], $filtros['hasta']);
+        $sede  = $filtros['sede'] ?? null;
+
+        return view('estadisticas.excepciones', [
+            'filtros'       => $filtros,
+            'migrado'       => CasosExcepcion::conFormato(),
+            'resumen'       => EstadisticasExcepcion::resumen($rango, $sede),
+            'tendencia'     => EstadisticasExcepcion::tendencia($rango, $sede),
+            'instituciones' => EstadisticasExcepcion::porJson('instituciones', CasosExcepcion::INSTITUCIONES, $rango, $sede, 'canaliza'),
+            'tipos'         => EstadisticasExcepcion::porJson('tipos', CasosExcepcion::TIPOS, $rango, $sede),
+            'porSede'       => $sede ? collect() : EstadisticasExcepcion::porSede($rango),
+            'generos'       => EstadisticasExcepcion::porColumna('genero', ['M' => 'Masculino', 'F' => 'Femenino', 'Otro' => 'Otro'], $rango, $sede),
+            'vulnerables'   => EstadisticasExcepcion::porColumna('vulnerables', ['LGBTTTIQ' => 'LGBTTTIQ+'], $rango, $sede),
+            'frecuencias'   => EstadisticasExcepcion::porColumna('frecuencia', CasosExcepcion::FRECUENCIAS, $rango, $sede),
+            'esPanel'       => $request->user()->hasAnyRole(['Super Usuario', 'Estadistica', 'Directivo']),
         ]);
     }
 }

@@ -265,6 +265,23 @@
                         <div><b>{{ $nm['efectividad'] === null ? '—' : rtrim(rtrim(number_format($nm['efectividad'], 1), '0'), '.').'%' }}</b><span>Efectividad</span></div>
                     </div>
                 </a>
+
+                @php($xm = $excepcionesMes)
+                <a class="tn-tarjeta es-acceso" href="{{ route('estadisticas.excepciones') }}">
+                    <div class="es-acceso__cabeza">
+                        <span class="es-acceso__icono" style="background:#F6E4EA;color:#8C1D40;"><i class="bi bi-shield-exclamation"></i></span>
+                        <div>
+                            <h2 class="es-acceso__titulo">Casos de excepción</h2>
+                            <span class="es-acceso__sub">Art. 685 Ter: atendidos y canalizados</span>
+                        </div>
+                        <i class="bi bi-chevron-right es-acceso__ir" aria-hidden="true"></i>
+                    </div>
+                    <div class="es-acceso__cifras" title="Este mes">
+                        <div><b>{{ number_format($xm['detectados']) }}</b><span>Detectados este mes</span></div>
+                        <div><b>{{ number_format($xm['atendidos']) }}</b><span>Atendidos</span></div>
+                        <div><b style="color:#9A3A22;">{{ number_format($xm['canaliza']) }}</b><span>Canalizados</span></div>
+                    </div>
+                </a>
             </div>
 
             {{-- ===================== Cifras del mes ===================== --}}
