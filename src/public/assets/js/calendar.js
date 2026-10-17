@@ -840,6 +840,16 @@ function calModalCita(info) {
         pie.appendChild(acuse);
     }
 
+    // Conciliación, Género e Igualdad: el caso de excepción se atiende desde
+    // aquí (la URL sólo existe para quien puede atender; CasosExcepcion).
+    if (props.excepcion && typeof urlAtenderExcepcion !== 'undefined' && urlAtenderExcepcion) {
+        const atender = document.createElement('a');
+        atender.className = 'btn btn-primary';
+        atender.href = urlAtenderExcepcion + '/' + encodeURIComponent(info.event.id);
+        atender.textContent = 'Atender caso';
+        pie.appendChild(atender);
+    }
+
     cuerpo.appendChild(pie);
     bootstrap.Modal.getOrCreateInstance(document.getElementById('evento')).show();
 }

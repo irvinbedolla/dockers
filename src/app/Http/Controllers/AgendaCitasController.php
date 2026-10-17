@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\CasosExcepcion;
 use App\Support\Recepcion;
 use App\Support\SemaforoAgenda;
 use Illuminate\Http\Request;
@@ -34,7 +35,9 @@ class AgendaCitasController extends Controller
         // Super Usuario y Administrador ven todas; la recepción, las suyas.
         // El sede del filtro se cruza contra eso: escribir otra sede en la
         // URL no amplía lo que uno puede ver.
-        $permitidas = $usuario->hasAnyRole(Recepcion::SUPERVISAN)
+        // Conciliación, Género e Igualdad: todas las sedes, sólo excepción.
+        $soloExcepcion = CasosExcepcion::agendaSoloExcepcion($usuario);
+        $permitidas = $usuario->hasAnyRole(Recepcion::SUPERVISAN) || $soloExcepcion
             ? self::TODAS_LAS_SEDES
             : Recepcion::sedes($usuario);
 
@@ -55,6 +58,7 @@ class AgendaCitasController extends Controller
             ->whereBetween('r.fecha', [$desde, $hasta])
             ->whereIn('r.delegacion', $sedes)
             ->where('r.origen', 'linea')
+            ->when($soloExcepcion, fn ($q) => $q->where('r.exepcion', 'Si'))
             // Morelia 02 sólo ve las de ratificación (Recepcion::tramitesVisibles).
             ->when(Recepcion::tramitesVisibles($usuario), fn ($q, $tramites) => $q->whereIn('r.tipo', $tramites))
             ->orderBy('r.fecha')

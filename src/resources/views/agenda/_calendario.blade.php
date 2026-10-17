@@ -26,6 +26,11 @@
                                                 // pendientes (App\Support\AgendaNotificador; el servidor le
                                                 // cierra lo demás con el middleware SinNotificador).
                                                 $esNotificador = \App\Support\AgendaNotificador::soloNotificador(auth()->user());
+
+                                                // Conciliación, Género e Igualdad sólo ve las citas en línea
+                                                // con caso de excepción, de todas las sedes (CasosExcepcion;
+                                                // el servidor le cierra lo demás con SinCasosExcepcion).
+                                                $esExcepcion   = \App\Support\CasosExcepcion::soloRol(auth()->user());
                                             @endphp
 
                                             <div class="col-12">
@@ -69,7 +74,7 @@
                                                                 <i class="bi bi-arrows-angle-expand"></i> Fin de semana
                                                             </button>
 
-                                                            @unless ($esRecepcion || $esNotificador)
+                                                            @unless ($esRecepcion || $esNotificador || $esExcepcion)
                                                                 <button type="button" id="calExportar" class="cal-select" title="Descargar en Excel la agenda del rango visible">
                                                                     <i class="bi bi-file-earmark-excel"></i> Exportar
                                                                 </button>
@@ -97,7 +102,7 @@
                                                             {{-- Un conciliador no elige: el valor va fijo y oculto,
                                                                  calendar.js lo lee igual que antes. --}}
                                                             <input type="hidden" id="filter-conciliador" value="{{ $idUsuario }}">
-                                                        @elseif ($esNotificador || ($esRecepcion && $conciliadores->isEmpty()))
+                                                        @elseif ($esNotificador || $esExcepcion || ($esRecepcion && $conciliadores->isEmpty()))
                                                             {{-- Las citas no tienen conciliador todavía: no hay nada
                                                                  que elegir. El input vacío hace que calendar.js no
                                                                  mande filtro, igual que "Todos". --}}
@@ -121,6 +126,8 @@
                                                         @if ($esNotificador)
                                                             <button type="button" class="cal-tab btn-calendar active" data-tipo="btn-mis-notificaciones">Mis notificaciones</button>
                                                             <button type="button" class="cal-tab btn-calendar" data-tipo="btn-audiencias">Audiencias</button>
+                                                        @elseif ($esExcepcion)
+                                                            <button type="button" class="cal-tab btn-calendar active" data-tipo="btn-citas-linea">Citas en línea · casos de excepción</button>
                                                         @elseif ($esRecepcion)
                                                             @php $fuentesRecepcion = \App\Support\Recepcion::fuentes(auth()->user()); @endphp
                                                             <button type="button" class="cal-tab btn-calendar active" data-tipo="btn-citas-linea">Citas en línea</button>
@@ -177,7 +184,7 @@
                                                                 <button type="button" class="cm-btn cm-btn--texto" id="cmHoy">Hoy</button>
                                                                 <button type="button" class="cm-btn" id="cmNext" aria-label="Mes siguiente"><i class="bi bi-chevron-right"></i></button>
                                                                 <button type="button" class="cm-btn cm-btn--vista" id="cmVista" aria-pressed="false" aria-label="Cambiar entre días y mes completo"><i class="bi bi-calendar3"></i></button>
-                                                                @unless ($esRecepcion || $esNotificador)
+                                                                @unless ($esRecepcion || $esNotificador || $esExcepcion)
                                                                     <button type="button" class="cm-btn" id="cmExportar" aria-label="Descargar la agenda del mes en Excel" title="Descargar el mes en Excel"><i class="bi bi-file-earmark-excel"></i></button>
                                                                 @endunless
                                                             </div>
