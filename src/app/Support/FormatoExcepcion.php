@@ -5,6 +5,7 @@ namespace App\Support;
 use App\Models\User;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Formato de atención para casos previstos en el art. 685 Ter LFT y
@@ -29,7 +30,7 @@ class FormatoExcepcion
     public const CAMPOS = [
         'fecha', 'expediente', 'nombre', 'edad', 'genero', 'genero_otro', 'telefono', 'correo',
         'empresa', 'area_adscripcion', 'puesto', 'conoce_jefe', 'jefe_inmediato',
-        'tipos', 'motivos', 'riesgo_lugar', 'frecuencia', 'situacion_laboral', 'situacion_otro',
+        'tipos', 'motivos', 'motivo_discriminacion', 'riesgo_lugar', 'frecuencia', 'situacion_laboral', 'situacion_otro',
         'descripcion_persona', 'descripcion_conductas', 'observaciones', 'vulnerables',
         'resultado', 'instituciones', 'domicilio_procuraduria',
     ];
@@ -97,6 +98,11 @@ class FormatoExcepcion
             }
         }
 
+        // Formato de antes: el motivo era texto libre.
+        if (! empty($datos['motivos']) && empty($datos['motivo_discriminacion'])) {
+            $datos['motivo_discriminacion'] = 'otro';
+        }
+
         $datos['tipos'] ??= [];
         $datos['instituciones'] ??= [];
 
@@ -121,6 +127,19 @@ class FormatoExcepcion
         };
 
         $tipoCaso = $cita->tipo_caso ?? null;
+        $motivoCita = CasosExcepcion::motivoValido($cita->motivo_excepcion ?? null);
+        $tipos = self::tiposDe($tipoCaso);
+        $motivoDisc = null;
+        if ($motivoCita) {
+            $tipos = match (true) {
+                in_array($motivoCita, CasosExcepcion::MOTIVOS_DISCRIMINACION, true) => ['discriminacion'],
+                $motivoCita === 'acoso_laboral'                                    => ['acoso_laboral'],
+                $motivoCita === 'acoso_sexual'                                     => ['acoso_sexual'],
+                in_array($motivoCita, ['riesgos', 'accidentes', 'enfermedades'], true) => ['riesgo_trabajo'],
+                default                                                            => $tipos,
+            };
+            $motivoDisc = in_array($motivoCita, CasosExcepcion::MOTIVOS_DISCRIMINACION, true) ? $motivoCita : null;
+        }
 
         return array_filter([
             'fecha'                 => now()->toDateString(),
@@ -133,8 +152,8 @@ class FormatoExcepcion
             'correo'                => $solicitante->email ?? $cita->correo ?? null,
             'empresa'               => $citado ? trim($citado->nombre.' '.$citado->primer_apellido.' '.$citado->segundo_apellido) : null,
             'puesto'                => $solicitante->puesto ?? null,
-            'tipos'                 => self::tiposDe($tipoCaso),
-            'motivos'               => null,
+            'tipos'                 => $tipos,
+            'motivo_discriminacion' => $motivoDisc,
             'descripcion_conductas' => self::texto(($solicitante->descripcionSolicitud ?? null) ?: ($cita->conflicto ?? null)),
             'vulnerables'           => in_array($cita->vulnerables ?? null, CasosExcepcion::GRUPOS_VULNERABLES, true) ? $cita->vulnerables : null,
             'domicilio_procuraduria'=> self::domicilioSugerido(self::sede($origen)),
@@ -192,6 +211,16 @@ class FormatoExcepcion
         // continúa con la conciliación (el oficio lo contempla).
         $instituciones = array_values(array_intersect(array_keys(CasosExcepcion::INSTITUCIONES), Arr::wrap($datos['instituciones'] ?? [])));
 
+        // "Señale el motivo": del catálogo (se guarda la clave y el texto) u "otro" con texto libre.
+        $claveDisc = in_array('discriminacion', $tipos, true) ? ($datos['motivo_discriminacion'] ?? null) : null;
+        $claveDisc = $claveDisc === 'otro' || in_array($claveDisc, CasosExcepcion::MOTIVOS_DISCRIMINACION, true) ? $claveDisc : null;
+        $motivos = match (true) {
+            $claveDisc === null && in_array('discriminacion', $tipos, true) => $datos['motivos'] ?? null,
+            $claveDisc === null                                             => null,
+            $claveDisc === 'otro'                                           => $datos['motivos'] ?? null,
+            default                                                         => CasosExcepcion::MOTIVOS[$claveDisc][0],
+        };
+
         $conoce = isset($datos['conoce_jefe']) && $datos['conoce_jefe'] !== '' ? (string) (int) $datos['conoce_jefe'] : null;
 
         $fila = [
@@ -214,7 +243,7 @@ class FormatoExcepcion
             'tipos'                  => json_encode($tipos),
             // Para lo que todavía lee tipo_caso (reportes anteriores): el primero.
             'tipo_caso'              => $tipos ? CasosExcepcion::TIPOS[$tipos[0]] : null,
-            'motivos'                => in_array('discriminacion', $tipos, true) ? ($datos['motivos'] ?? null) : null,
+            'motivos'                => $motivos,
             'riesgo_lugar'           => in_array('riesgo_trabajo', $tipos, true) ? ($datos['riesgo_lugar'] ?? null) : null,
             'frecuencia'             => $datos['frecuencia'] ?? null,
             'situacion_laboral'      => $datos['situacion_laboral'] ?? null,
@@ -231,6 +260,10 @@ class FormatoExcepcion
             'id_user'                => $usuario->id,
             'updated_at'             => now(),
         ];
+
+        if (Schema::hasColumn('seer_casos_excepcion', 'motivo_discriminacion')) {
+            $fila['motivo_discriminacion'] = $claveDisc;
+        }
 
         if ($terminar) {
             $fila['terminado_at'] = $origen['caso']->terminado_at ?? now();

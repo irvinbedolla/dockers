@@ -166,6 +166,7 @@ class CasosExcepcionController extends Controller
             'tipos'                  => ['nullable', 'array'],
             'tipos.*'                => [Rule::in(array_keys(CasosExcepcion::TIPOS))],
             'motivos'                => ['nullable', 'string', 'max:255'],
+            'motivo_discriminacion'  => ['nullable', Rule::in(array_merge(CasosExcepcion::MOTIVOS_DISCRIMINACION, ['otro']))],
             'riesgo_lugar'           => ['nullable', Rule::in(['dentro', 'fuera'])],
             'frecuencia'             => ['nullable', Rule::in(array_keys(CasosExcepcion::FRECUENCIAS))],
             'situacion_laboral'      => ['nullable', Rule::in(array_keys(CasosExcepcion::SITUACIONES))],

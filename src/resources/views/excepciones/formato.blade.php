@@ -184,7 +184,18 @@
                                 @foreach ($CX::TIPOS_FORMATO as $clave => $texto)
                                     <label class="fx-opcion"><input type="checkbox" name="tipos[]" value="{{ $clave }}" data-tipo="{{ $clave }}" @checked(in_array($clave, $arr('tipos'), true))> {{ $texto }}</label>
                                     @if ($clave === 'discriminacion')
-                                        <div class="fx-extra" data-de="discriminacion"><input type="text" name="motivos" class="form-control" placeholder="Señale el motivo" value="{{ $v('motivos') }}"></div>
+                                        <div class="fx-extra fx-campos" data-de="discriminacion">
+                                            <div class="fx-c6">
+                                                <select name="motivo_discriminacion" id="fxMotivoDisc" class="form-select" aria-label="Señale el motivo">
+                                                    <option value="">Señale el motivo…</option>
+                                                    @foreach ($CX::MOTIVOS_DISCRIMINACION as $clave)
+                                                        <option value="{{ $clave }}" @selected($v('motivo_discriminacion') === $clave)>{{ $CX::MOTIVOS[$clave][0] }}</option>
+                                                    @endforeach
+                                                    <option value="otro" @selected($v('motivo_discriminacion') === 'otro')>Otro</option>
+                                                </select>
+                                            </div>
+                                            <div class="fx-c6" data-de="motivo_otro"><input type="text" name="motivos" class="form-control" placeholder="¿Cuál?" value="{{ $v('motivo_discriminacion') === 'otro' ? $v('motivos') : '' }}"></div>
+                                        </div>
                                     @elseif ($clave === 'riesgo_trabajo')
                                         <div class="fx-extra fx-opciones fx-opciones--fila" data-de="riesgo_trabajo">
                                             <label class="fx-opcion"><input type="radio" name="riesgo_lugar" value="dentro" @checked($v('riesgo_lugar') === 'dentro')> Dentro del centro de trabajo</label>
@@ -394,6 +405,8 @@
         function mostrar(clave, si) { form.querySelectorAll('[data-de="' + clave + '"]').forEach(function (el) { el.hidden = !si; }); }
         function refrescar() {
             mostrar('discriminacion', marcado('[data-tipo="discriminacion"]'));
+            var motivoDisc = document.getElementById('fxMotivoDisc');
+            mostrar('motivo_otro', !!motivoDisc && motivoDisc.value === 'otro');
             mostrar('riesgo_trabajo', marcado('[data-tipo="riesgo_trabajo"]'));
             mostrar('situacion_otro', marcado('input[name="situacion_laboral"][value="otro"]'));
             mostrar('procuraduria', marcado('[data-institucion="procuraduria"]'));
