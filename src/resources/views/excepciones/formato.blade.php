@@ -73,6 +73,9 @@
         .fx-oficio { border: 1px solid var(--tn-borde); border-radius: 12px; padding: 12px 14px; background: #fff; }
         .fx-oficio__cabeza { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
         .fx-oficio__cabeza b { font-size: 14px; color: var(--tn-tinta); }
+        .fx-paso { display: flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 800; color: var(--tn-tinta); margin: 4px 0 10px; }
+        .fx-paso small { font-weight: 500; color: var(--tn-tenue); font-size: 12px; }
+        .fx-paso .fx-num, .fx-oficio .fx-num { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 7px; background: #E7EFEF; color: var(--tn-verde); font-size: 12px; }
     </style>
 @endsection
 
@@ -307,38 +310,71 @@
                 </div>
             </form>
 
-            {{-- Oficios de canalización: uno por institución marcada (lo guardado). --}}
+            {{-- Canalización: por institución marcada, aceptación (la firma la persona) y oficio. --}}
             @if ($caso && ! empty($datos['instituciones']))
+                @php $conAceptacion = \App\Support\OficioCanalizacion::conAceptacion(); @endphp
                 <div class="tn-tarjeta fx-seccion mt-3" id="oficios">
-                    <h4><i class="bi bi-envelope-paper"></i> Oficios de canalización</h4>
+                    <h4><i class="bi bi-envelope-paper"></i> Canalización: aceptación y oficios</h4>
                     @if (! \App\Support\OficioCanalizacion::migrado())
                         <div class="alert alert-warning mb-0">Falta correr la migración de canalización (<code>php artisan migrate</code>).</div>
                     @else
-                        <p class="fx-nota">Un oficio por institución, con el formato 685 Ter como anexo. Si cambias las instituciones de arriba, guarda el formato para que se actualice esta lista. El titular y el cargo se escriben aquí; se propone el último que se usó.</p>
+                        <p class="fx-nota">Por cada institución: primero la persona firma la <b>aceptación de canalización</b>; después se genera el <b>oficio</b>, con el formato 685 Ter como anexo. Si cambias las instituciones de arriba, guarda el formato para que se actualice esta lista.</p>
+                        @unless ($conAceptacion)
+                            <div class="alert alert-warning">Falta correr la migración de la aceptación (<code>php artisan migrate</code>); por ahora sólo está el oficio.</div>
+                        @endunless
                         <div class="fx-oficios">
                             @foreach ($oficios as $inst => $o)
-                                <form class="fx-oficio" method="POST" action="{{ route('excepciones.oficio.guardar', ['tipo' => $origen['tipo'], 'id' => $origen['id'], 'institucion' => $inst]) }}" target="_blank">
+                                <form class="fx-oficio" method="POST" action="{{ route('excepciones.oficio.guardar', ['tipo' => $origen['tipo'], 'id' => $origen['id'], 'institucion' => $inst]) }}">
                                     @csrf
                                     <div class="fx-oficio__cabeza">
                                         <b>{{ $CX::INSTITUCIONES[$inst] ?? $inst }}</b>
-                                        @if ($o['guardado'])
-                                            <span class="fx-badge fx-badge--continua"><i class="bi bi-check2"></i> {{ $o['numero'] }}</span>
-                                        @else
-                                            <span class="fx-badge fx-badge--nuevo">Sin generar</span>
-                                        @endif
+                                        <span class="d-flex flex-wrap gap-1">
+                                            @if ($conAceptacion)
+                                                @if ($o['aceptacion_firmada'])
+                                                    <span class="fx-badge fx-badge--continua"><i class="bi bi-pen"></i> Aceptación firmada</span>
+                                                @else
+                                                    <span class="fx-badge fx-badge--borrador"><i class="bi bi-exclamation-circle"></i> Falta firma de aceptación</span>
+                                                @endif
+                                            @endif
+                                            @if ($o['conOficio'])
+                                                <span class="fx-badge fx-badge--continua"><i class="bi bi-check2"></i> {{ $o['numero'] }}</span>
+                                            @else
+                                                <span class="fx-badge fx-badge--nuevo">Oficio sin generar</span>
+                                            @endif
+                                        </span>
                                     </div>
+
+                                    @if ($conAceptacion)
+                                        <div class="fx-paso"><span class="fx-num">1</span> Aceptación de canalización <small>la firma la persona usuaria</small></div>
+                                        <div class="fx-campos">
+                                            <div class="fx-c6"><label>Área o servicio al que se canaliza</label><input type="text" name="area_servicio" class="form-control" value="{{ $o['area_servicio'] }}" placeholder="Ej. asesoría jurídica, atención psicológica"></div>
+                                            <div class="fx-c6"><label>Cargo de quien brinda la atención</label><input type="text" name="cargo_atiende" class="form-control" value="{{ $o['cargo_atiende'] }}"></div>
+                                            <div class="fx-c12"><label>Motivo general de la canalización</label><input type="text" name="motivo" class="form-control" value="{{ $o['motivo'] }}" maxlength="500"></div>
+                                            <div class="fx-c12 d-flex flex-wrap align-items-center justify-content-between gap-2">
+                                                <input type="hidden" name="aceptacion_firmada" value="0">
+                                                <label class="fx-opcion mb-0" style="flex: 1 1 320px"><input type="checkbox" name="aceptacion_firmada" value="1" data-firmada @checked($o['aceptacion_firmada'])> <span><b>Aceptación firmada</b> <small class="d-block" style="color:var(--tn-tenue)">La persona ya firmó el formato de aceptación.</small></span></label>
+                                                <button type="submit" name="accion" value="aceptacion" formtarget="_blank" class="btn btn-outline-secondary btn-sm"><i class="bi bi-printer"></i> Imprimir aceptación</button>
+                                            </div>
+                                        </div>
+                                        <div class="fx-paso mt-3"><span class="fx-num">2</span> Oficio a la institución <small>con el formato 685 Ter como anexo</small></div>
+                                    @endif
+
                                     <div class="fx-campos">
-                                        <div class="fx-c4"><label>Número de oficio</label><input type="text" name="numero" class="form-control" value="{{ $o['numero'] }}" maxlength="40"></div>
+                                        <div class="fx-c4"><label>Número de oficio</label><input type="text" name="numero" class="form-control" value="{{ $o['numero'] }}" placeholder="{{ $o['numeroPropuesto'] }}" maxlength="40">
+                                            @unless ($o['conOficio'])<div class="fx-ayuda">Se aparta al generar el oficio.</div>@endunless</div>
                                         <div class="fx-c4"><label>Fecha</label><input type="date" name="fecha" class="form-control" value="{{ \Illuminate\Support\Carbon::parse($o['fecha'])->toDateString() }}" required></div>
                                         <div class="fx-c4"><label>Lugar</label><input type="text" name="lugar" class="form-control" value="{{ $o['lugar'] }}" maxlength="80"></div>
                                         <div class="fx-c6"><label>Titular de la institución</label><input type="text" name="destinatario" class="form-control" value="{{ $o['destinatario'] }}" placeholder="Nombre de la persona titular"></div>
                                         <div class="fx-c6"><label>Cargo</label><input type="text" name="cargo" class="form-control" value="{{ $o['cargo'] }}" placeholder="Cargo"></div>
                                     </div>
                                     <div class="d-flex flex-wrap gap-2 justify-content-end mt-2">
-                                        @if ($o['guardado'])
+                                        <button type="submit" name="accion" value="guardar" class="btn btn-outline-secondary btn-sm"><i class="bi bi-save"></i> Guardar</button>
+                                        @if ($o['conOficio'])
                                             <a class="btn btn-outline-secondary btn-sm" href="{{ route('excepciones.oficio.pdf', ['tipo' => $origen['tipo'], 'id' => $origen['id'], 'institucion' => $inst]) }}" target="_blank" rel="noopener"><i class="bi bi-file-earmark-pdf"></i> Ver oficio</a>
                                         @endif
-                                        <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-printer"></i> {{ $o['guardado'] ? 'Guardar cambios y ver' : 'Generar oficio' }}</button>
+                                        <button type="submit" name="accion" value="oficio" formtarget="_blank" class="btn btn-primary btn-sm" @if ($conAceptacion) data-oficio @endif>
+                                            <i class="bi bi-printer"></i> {{ $o['conOficio'] ? 'Guardar y ver oficio' : 'Generar oficio' }}
+                                        </button>
                                     </div>
                                 </form>
                             @endforeach
@@ -373,6 +409,16 @@
         }
         form.addEventListener('change', refrescar);
         refrescar();
+
+        // Generar el oficio sin la aceptación firmada: se avisa, no se impide.
+        document.querySelectorAll('.fx-oficio [data-oficio]').forEach(function (boton) {
+            boton.addEventListener('click', function (e) {
+                var firmada = boton.form.querySelector('[data-firmada]');
+                if (firmada && !firmada.checked && !window.confirm('La persona todavía no firma la aceptación de canalización. ¿Generar el oficio de todos modos?')) {
+                    e.preventDefault();
+                }
+            });
+        });
     })();
     </script>
 @endsection

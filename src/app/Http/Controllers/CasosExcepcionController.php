@@ -126,9 +126,7 @@ class CasosExcepcionController extends Controller
         if ($origen['caso'] && OficioCanalizacion::migrado()) {
             $guardados = OficioCanalizacion::delCaso((int) $origen['caso']->id);
             foreach ((array) ($datos['instituciones'] ?? []) as $inst) {
-                $oficios[$inst] = isset($guardados[$inst])
-                    ? ['guardado' => true] + (array) $guardados[$inst]
-                    : ['guardado' => false] + OficioCanalizacion::propuesta($inst, $sede);
+                $oficios[$inst] = OficioCanalizacion::tarjeta($guardados[$inst] ?? null, $inst, $sede, (array) ($datos['tipos'] ?? []), request()->user());
             }
         }
 
@@ -229,6 +227,12 @@ class CasosExcepcionController extends Controller
     // Oficio de canalización (uno por institución) — OficioCanalizacion
     // ------------------------------------------------------------------
 
+    /**
+     * Guarda los datos de la canalización a una institución y, según el botón:
+     * accion=aceptacion abre la aceptación (no gasta número de oficio),
+     * accion=oficio aparta el número y abre el oficio, accion=guardar vuelve
+     * al formato.
+     */
     public function guardarOficio(Request $request, string $tipo, int $id, string $institucion)
     {
         abort_unless(OficioCanalizacion::migrado(), 503, 'Falta correr la migración de canalización.');
@@ -236,24 +240,34 @@ class CasosExcepcionController extends Controller
         abort_unless($origen['caso'] && array_key_exists($institucion, CasosExcepcion::INSTITUCIONES), 404);
 
         $datos = $request->validate([
-            'numero'       => ['nullable', 'string', 'max:40'],
-            'fecha'        => ['required', 'date_format:Y-m-d'],
-            'lugar'        => ['nullable', 'string', 'max:80'],
-            'destinatario' => ['nullable', 'string', 'max:255'],
-            'cargo'        => ['nullable', 'string', 'max:255'],
+            'accion'             => ['required', Rule::in(['guardar', 'aceptacion', 'oficio'])],
+            'numero'             => ['nullable', 'string', 'max:40'],
+            'fecha'              => ['required', 'date_format:Y-m-d'],
+            'lugar'              => ['nullable', 'string', 'max:80'],
+            'destinatario'       => ['nullable', 'string', 'max:255'],
+            'cargo'              => ['nullable', 'string', 'max:255'],
+            'area_servicio'      => ['nullable', 'string', 'max:255'],
+            'motivo'             => ['nullable', 'string', 'max:500'],
+            'cargo_atiende'      => ['nullable', 'string', 'max:255'],
+            'aceptacion_firmada' => ['nullable', Rule::in(['0', '1'])],
         ]);
 
-        OficioCanalizacion::guardar($origen['caso'], $institucion, $datos, $request->user());
+        OficioCanalizacion::guardar($origen['caso'], $institucion, $datos, $request->user(), $datos['accion'] === 'oficio');
 
-        return redirect()->route('excepciones.oficio.pdf', ['tipo' => $tipo, 'id' => $id, 'institucion' => $institucion]);
+        $ruta = ['tipo' => $tipo, 'id' => $id, 'institucion' => $institucion];
+
+        return match ($datos['accion']) {
+            'aceptacion' => redirect()->route('excepciones.aceptacion.pdf', $ruta),
+            'oficio'     => redirect()->route('excepciones.oficio.pdf', $ruta),
+            default      => redirect()->to(route('excepciones.formato', ['tipo' => $tipo, 'id' => $id]).'#oficios')
+                ->with('success', 'Canalización a '.CasosExcepcion::INSTITUCIONES[$institucion].' guardada.'),
+        };
     }
 
     public function oficioPdf(string $tipo, int $id, string $institucion)
     {
-        $origen = FormatoExcepcion::origen($tipo, $id);
-        abort_unless($origen['caso'] && OficioCanalizacion::migrado(), 404);
-        $oficio = OficioCanalizacion::delCaso((int) $origen['caso']->id)[$institucion] ?? null;
-        abort_unless($oficio, 404);
+        [$origen, $oficio] = $this->canalizacion($tipo, $id, $institucion);
+        abort_unless(! empty($oficio->numero), 404);
 
         $html = view('PDF.Recepcion.OficioCanalizacion', [
             'oficio'      => $oficio,
@@ -264,6 +278,38 @@ class CasosExcepcionController extends Controller
             ->setPaper('a4', 'portrait')
             ->setOption('isHtml5ParserEnabled', true)
             ->stream('oficio_'.str_replace('/', '-', $oficio->numero).'.pdf', ['Attachment' => false]);
+    }
+
+    /** Formato de aceptación de canalización: lo firma la persona usuaria. */
+    public function aceptacionPdf(string $tipo, int $id, string $institucion)
+    {
+        [$origen, $oficio] = $this->canalizacion($tipo, $id, $institucion);
+        $datos = FormatoExcepcion::datos($origen);
+        $atendio = $oficio->user_id ? DB::table('users')->where('id', $oficio->user_id)->value('name') : null;
+
+        $html = view('PDF.Recepcion.AceptacionCanalizacion', [
+            'oficio'      => $oficio,
+            'institucion' => CasosExcepcion::INSTITUCIONES[$institucion] ?? $institucion,
+            'folio'       => $datos['expediente'] ?? null,
+            'persona'     => $datos['nombre'] ?? null,
+            'atendio'     => $atendio,
+        ])->render();
+
+        return \PDF::loadHTML($html)
+            ->setPaper('a4', 'portrait')
+            ->setOption('isHtml5ParserEnabled', true)
+            ->stream('aceptacion_canalizacion_'.$institucion.'.pdf', ['Attachment' => false]);
+    }
+
+    /** @return array{0: array, 1: object} */
+    private function canalizacion(string $tipo, int $id, string $institucion): array
+    {
+        $origen = FormatoExcepcion::origen($tipo, $id);
+        abort_unless($origen['caso'] && OficioCanalizacion::migrado(), 404);
+        $oficio = OficioCanalizacion::delCaso((int) $origen['caso']->id)[$institucion] ?? null;
+        abort_unless($oficio, 404);
+
+        return [$origen, $oficio];
     }
 
     // ------------------------------------------------------------------

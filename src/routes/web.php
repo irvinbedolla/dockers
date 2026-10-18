@@ -213,6 +213,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->whereIn('tipo', App\Support\FormatoExcepcion::TIPOS_ORIGEN)->whereNumber('id');
         Route::get('/excepciones/{tipo}/{id}/oficio/{institucion}/pdf', [App\Http\Controllers\CasosExcepcionController::class, 'oficioPdf'])->name('excepciones.oficio.pdf')
             ->whereIn('tipo', App\Support\FormatoExcepcion::TIPOS_ORIGEN)->whereNumber('id')->whereIn('institucion', array_keys(App\Support\CasosExcepcion::INSTITUCIONES));
+        Route::get('/excepciones/{tipo}/{id}/aceptacion/{institucion}/pdf', [App\Http\Controllers\CasosExcepcionController::class, 'aceptacionPdf'])->name('excepciones.aceptacion.pdf')
+            ->whereIn('tipo', App\Support\FormatoExcepcion::TIPOS_ORIGEN)->whereNumber('id')->whereIn('institucion', array_keys(App\Support\CasosExcepcion::INSTITUCIONES));
     });
     Route::middleware(CasosExcepcionAcceso::class.':atender')->group(function () {
         Route::get('/excepciones/atender/{id}',         [App\Http\Controllers\CasosExcepcionController::class, 'atender'])->name('atender_excepcion')->whereNumber('id');
