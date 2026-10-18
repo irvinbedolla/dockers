@@ -9,11 +9,14 @@ use Illuminate\Support\Facades\DB;
  * Fase 2 del flujo cita → solicitud: la solicitud del auxiliar arranca con lo
  * que la persona ya escribió al agendar.
  *
- *   preparar()  Desde "Mi módulo" ("Iniciar solicitud"): guarda en la sesión
+ *   preparar()  Desde "Mi módulo" ("Preparar solicitud"): guarda en la sesión
  *               del auxiliar los datos de la cita.
- *   paraVista() solicitudes/auxiliares/_prellenado los usa para llenar el
- *               formulario del trabajador (no cambia el formulario: sólo le
- *               pone valores; el auxiliar revisa y corrige).
+ *   paraVista() Lo usan las pantallas de la captura del trabajador; sólo
+ *               ponen valores y los resaltan, el auxiliar revisa y corrige:
+ *                 - solicitudAuxiliares: resalta "Soy trabajador(a)";
+ *                 - datos generales (_inicio_formulario): municipio de la
+ *                   fuente de empleo, delegación y objeto sugerido ('inicio');
+ *                 - solicitanteAux (_prellenado): datos de la persona ('datos').
  *   ligar()     Al guardar la solicitud (guardar_solicitudAux) la liga con la
  *               cita (seer_general.recepcion_id), da la cita por atendida
  *               (fase 4: se quita de la pantalla) y limpia la sesión.
@@ -33,8 +36,10 @@ class PrellenadoCita
         session([self::SESION => [
             'cita_id' => $cita->id,
             'folio'   => $cita->folio_cita,
+            'persona' => mb_strtoupper(trim((string) $cita->solicitante)),
             'en'      => now()->timestamp,
             'datos'   => self::datos($cita),
+            'inicio'  => self::inicio($cita),
         ]]);
     }
 
@@ -96,8 +101,8 @@ class PrellenadoCita
             'nacionalidad'         => $curpValida && substr($curp, 11, 2) !== 'NE' ? 'Mexicana' : null,
             'correo'               => $c->correo,
             'telefono1'            => preg_replace('/\D/', '', (string) $c->telefono) ?: null,
-            'estado_solicitante'   => $c->municipio ? 16 : null, // los municipios del formulario de cita son de Michoacán
-            'municipio_solicitante'=> $c->municipio,
+            // El municipio de la cita es el de la FUENTE DE EMPLEO (así lo pregunta el
+            // formulario de cita), no el del domicilio: va en datos generales (inicio()).
             'vialidad'             => ! empty($dom['calle']) ? 'CALLE' : null,
             'vialidad_calle'       => $dom['calle'] ?? null,
             'numExt'               => $dom['num_ext'] ?? null,
@@ -110,5 +115,54 @@ class PrellenadoCita
         ];
 
         return array_filter($campos, fn ($v) => $v !== null && $v !== '');
+    }
+
+    /**
+     * Pantalla "Datos generales de la solicitud": municipio de la fuente de
+     * empleo (la delegación sale sola de él) y los objetos sugeridos.
+     *
+     * @return array{municipio: ?int, motivos: int[]}
+     */
+    public static function inicio(Recepcion $c): array
+    {
+        return [
+            'municipio' => $c->municipio ? (int) $c->municipio : null,
+            'motivos'   => self::objetosSugeridos((string) ($c->conflicto ?: $c->observaciones)),
+        ];
+    }
+
+    /**
+     * Objetos de la solicitud (catalogo_motivos, trabajador) que sugiere lo
+     * que la persona escribió al agendar. Es sólo una sugerencia: sale
+     * resaltada para que el auxiliar la confirme o la quite.
+     *
+     * @return int[] ids de catalogo_motivos
+     */
+    public static function objetosSugeridos(string $texto): array
+    {
+        $t = mb_strtoupper(\Illuminate\Support\Str::ascii($texto));
+        if (trim($t) === '') {
+            return [];
+        }
+
+        $despido  = (bool) preg_match('/DESPID|DESPIDIERON|ME CORRI|ME CORRE|CORRIERON|ME SACARON|ME DIERON DE BAJA|DE BAJA SIN/', $t);
+        $renuncia = (bool) preg_match('/RENUNCI/', $t);
+        $pago     = (bool) preg_match('/FINIQUITO|LIQUIDACI|AGUINALDO|VACACION|PRIMA |HORAS? EXTRA|SALARIO|SUELDO|PAGA|PAGO|UTILIDADES|REPARTO|INFONAVIT|SEGURO SOCIAL|IMSS/', $t);
+        $reconoce = (bool) preg_match('/RECONO[CZ]/', $t);
+
+        $nombres = array_filter([
+            $despido ? 'Despido' : null,
+            $renuncia ? 'Terminación voluntaria de la relación de trabajo' : null,
+            // El despido ya reclama lo que se le debe; el pago va solo si no hubo despido.
+            ($pago && ! $despido) ? 'Pago de prestaciones' : null,
+            $reconoce ? 'Reconocimiento de Derechos' : null,
+        ]);
+        if (! $nombres) {
+            return [];
+        }
+
+        $ids = DB::table('catalogo_motivos')->where('tipo_solicitud', '1')->whereIn('motivo', $nombres)->pluck('id', 'motivo');
+
+        return array_values(array_map('intval', array_filter(array_map(fn ($n) => $ids[$n] ?? null, $nombres))));
     }
 }

@@ -13,7 +13,8 @@
         <span>
             <i class="bi bi-magic me-1"></i>
             <strong>Datos prellenados de la cita {{ $prellenado['folio'] }}.</strong>
-            Revísalos con la persona y completa lo que falta.
+            Revísalos con la persona y completa lo que falta. El estado y municipio del domicilio no vienen
+            en la cita (la cita trae el de la fuente de empleo): pregúntalos.
             <span id="prellenadoPendientes" class="fw-bold"></span>
         </span>
         <form method="POST" action="{{ route('mi_modulo.descartar') }}" class="m-0">
