@@ -6,6 +6,7 @@ use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Cifras de /estadisticas/excepciones (casos del art. 685 Ter LFT).
@@ -188,5 +189,93 @@ class EstadisticasExcepcion
 
         return $conteo->map(fn ($n, $v) => ['etiqueta' => $v === '_' ? 'Sin dato' : ($etiquetas[$v] ?? $v), 'total' => (int) $n])
             ->sortByDesc('total')->values();
+    }
+
+    /** Renglones del reporte por motivo que no son un motivo del catálogo. */
+    public const MOTIVOS_EXTRA = [
+        'discriminacion_otro' => ['Discriminación por otro motivo', 'Discriminación en el empleo'],
+        'discriminacion_sin'  => ['Discriminación (motivo no registrado)', 'Discriminación en el empleo'],
+        'prestaciones_sin'    => ['Prestaciones de seguridad social (sin detalle)', 'Prestaciones de seguridad social'],
+        'libertades_sin'      => ['Derechos fundamentales (sin detalle)', 'Derechos fundamentales y libertades laborales'],
+        'titularidad_sin'     => ['Titularidad o estatutos sindicales (sin detalle)', 'Disputa de titularidad o estatutos sindicales'],
+        'sin_motivo'          => ['Sin motivo registrado', 'Sin dato'],
+        'solicitud_sin'       => ['Solicitud marcada como excepción (sin motivo)', 'Sin dato'],
+    ];
+
+    /**
+     * Casos detectados por motivo (el reporte mensual del departamento),
+     * con su desglose por mes del periodo.
+     *
+     * Motivo de cada cita: el que se eligió en el formato 685 Ter para la
+     * discriminación; si no, el de la cita (recepcion.motivo_excepcion); si
+     * la cita es de antes de guardar el motivo, sólo se sabe su grupo
+     * (recepcion.tipo_caso) y cae en "(sin detalle)".
+     *
+     * @return array{meses: array<string, string>, filas: array<int, array>, total: int}
+     */
+    public static function porMotivo(array $rango, ?string $sede): array
+    {
+        $q = self::citasDetectadas($rango, $sede)->select('r.id', 'r.fecha', 'r.tipo_caso');
+        if (CasosExcepcion::conMotivo()) {
+            $q->addSelect('r.motivo_excepcion');
+        }
+        if (Schema::hasColumn('seer_casos_excepcion', 'motivo_discriminacion')) {
+            $q->addSelect(DB::raw('(SELECT x.motivo_discriminacion FROM seer_casos_excepcion x WHERE x.id_turno = r.id AND x.motivo_discriminacion IS NOT NULL ORDER BY x.id DESC LIMIT 1) AS motivo_formato'));
+        }
+
+        $conteo = [];
+        $sumar = function (string $clave, $fecha) use (&$conteo) {
+            $mes = substr((string) $fecha, 0, 7);
+            $conteo[$clave][$mes] = ($conteo[$clave][$mes] ?? 0) + 1;
+        };
+        foreach ($q->get() as $c) {
+            $sumar(self::claveMotivo($c), $c->fecha);
+        }
+        foreach (self::solicitudesDetectadas($rango, $sede)->pluck('g.fecha') as $fecha) {
+            $sumar('solicitud_sin', $fecha);
+        }
+
+        $meses = [];
+        $cursor = Carbon::parse($rango[0])->startOfMonth();
+        while ($cursor->format('Y-m') <= substr($rango[1], 0, 7)) {
+            $meses[$cursor->format('Y-m')] = $cursor->locale('es')->isoFormat('MMM YYYY');
+            $cursor->addMonthNoOverflow();
+        }
+
+        $filas = [];
+        foreach ($conteo as $clave => $porMes) {
+            [$etiqueta, $grupo] = isset(CasosExcepcion::MOTIVOS[$clave])
+                ? [CasosExcepcion::MOTIVOS[$clave][3], preg_replace('/\s*(por|de)?:\s*$/u', '', CasosExcepcion::MOTIVOS[$clave][1])]
+                : self::MOTIVOS_EXTRA[$clave];
+            $filas[] = ['clave' => $clave, 'etiqueta' => $etiqueta, 'grupo' => $grupo, 'total' => array_sum($porMes), 'meses' => $porMes];
+        }
+        usort($filas, fn ($a, $b) => [$b['total'], $a['etiqueta']] <=> [$a['total'], $b['etiqueta']]);
+
+        return ['meses' => $meses, 'filas' => $filas, 'total' => array_sum(array_column($filas, 'total'))];
+    }
+
+    private static function claveMotivo(object $c): string
+    {
+        $formato = $c->motivo_formato ?? null;
+        if ($formato === 'otro') {
+            return 'discriminacion_otro';
+        }
+        if ($formato && isset(CasosExcepcion::MOTIVOS[$formato])) {
+            return $formato;
+        }
+        if ($clave = CasosExcepcion::motivoValido($c->motivo_excepcion ?? null)) {
+            return $clave;
+        }
+
+        return match (trim((string) $c->tipo_caso)) {
+            'Acoso u hostigamiento sexual'  => 'acoso_sexual',
+            'Acoso u hostigamiento laboral' => 'acoso_laboral',
+            'Designacion'                   => 'designacion',
+            'Discriminación'                => 'discriminacion_sin',
+            'Prestaciones'                  => 'prestaciones_sin',
+            'Libertades_publicas'           => 'libertades_sin',
+            'Titularidad'                   => 'titularidad_sin',
+            default                         => 'sin_motivo',
+        };
     }
 }

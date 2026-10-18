@@ -142,6 +142,76 @@
                 </div>
             </div>
 
+            {{-- Casos por motivo: el reporte mensual del departamento --}}
+            @php
+                $mm = $motivos;
+                $verMeses = count($mm['meses']) > 1 && count($mm['meses']) <= 12;
+                $maxMotivo = max(1, (int) collect($mm['filas'])->max('total'));
+                $hayAntiguos = collect($mm['filas'])->contains(fn ($f) => str_ends_with($f['clave'], '_sin') || $f['clave'] === 'sin_motivo');
+            @endphp
+            <div class="tn-tarjeta ex-bloque" id="motivos">
+                <div class="ex-cabeza">
+                    <div>
+                        <h4 class="ex-titulo">Casos por motivo</h4>
+                        <span class="ex-sub">Casos detectados en el periodo · {{ $textoPeriodo }}{{ $verMeses ? ' · por mes' : '' }}</span>
+                    </div>
+                    <a class="btn btn-outline-secondary btn-sm" href="{{ route('estadisticas.excepciones.motivos', array_filter(['desde' => $desde, 'hasta' => $hasta, 'sede' => $filtros['sede'] ?? null])) }}">
+                        <i class="bi bi-file-earmark-spreadsheet"></i> Descargar para Excel
+                    </a>
+                </div>
+                @if (empty($mm['filas']))
+                    <div class="ex-vacio">Sin casos en este periodo.</div>
+                @else
+                    <div class="table-responsive">
+                        <table class="table table-hover ex-tabla mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Motivo</th>
+                                    @if ($verMeses)
+                                        @foreach ($mm['meses'] as $etqMes)<th class="ex-num">{{ \Illuminate\Support\Str::ucfirst($etqMes) }}</th>@endforeach
+                                    @endif
+                                    <th class="ex-num">Total</th>
+                                    <th style="min-width: 160px">Proporción</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($mm['filas'] as $f)
+                                    <tr>
+                                        <td style="white-space: normal">
+                                            <b style="color: var(--tn-tinta)">{{ $f['etiqueta'] }}</b>
+                                            <span class="d-block" style="font-size: 11.5px; color: var(--tn-tenue)">{{ $f['grupo'] }}</span>
+                                        </td>
+                                        @if ($verMeses)
+                                            @foreach (array_keys($mm['meses']) as $mes)<td class="ex-num">{{ $f['meses'][$mes] ?? 0 }}</td>@endforeach
+                                        @endif
+                                        <td class="ex-num"><b>{{ number_format($f['total']) }}</b></td>
+                                        <td>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <div class="ex-barra flex-grow-1"><i style="width: {{ round($f['total'] * 100 / $maxMotivo) }}%"></i></div>
+                                                <span style="font-size: 12px; color: var(--tn-suave); min-width: 42px; text-align: right">{{ $pct($mm['total'] ? $f['total'] * 100 / $mm['total'] : null) }}</span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <th>Total</th>
+                                    @if ($verMeses)
+                                        @foreach (array_keys($mm['meses']) as $mes)<th class="ex-num">{{ collect($mm['filas'])->sum(fn ($f) => $f['meses'][$mes] ?? 0) }}</th>@endforeach
+                                    @endif
+                                    <th class="ex-num">{{ number_format($mm['total']) }}</th>
+                                    <th></th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                    @if ($hayAntiguos)
+                        <p class="ex-sub mt-2 mb-0"><i class="bi bi-info-circle"></i> «Sin detalle» y «no registrado»: casos capturados antes de que el sistema guardara el motivo exacto (sólo se sabe su grupo) o solicitudes marcadas sin cita. Desde ahora cada cita guarda su motivo.</p>
+                    @endif
+                @endif
+            </div>
+
             {{-- Gráfica --}}
             <div class="tn-tarjeta ex-bloque">
                 <div class="ex-cabeza">

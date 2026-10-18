@@ -234,6 +234,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Casos de excepción (art. 685 Ter): también los ve Conciliación, Género e Igualdad.
     Route::get('/estadisticas/excepciones',             [EstadisticasController::class, 'excepciones'])->name('estadisticas.excepciones')
         ->middleware(CasosExcepcionAcceso::class.':estadisticas');
+    Route::get('/estadisticas/excepciones/motivos.csv', [EstadisticasController::class, 'excepcionesMotivosCsv'])->name('estadisticas.excepciones.motivos')
+        ->middleware(CasosExcepcionAcceso::class.':estadisticas');
     // Panel Común de entrada
     Route::get('/agenda',                               [DashboardController::class, 'index'])->name('agenda');
     // Descarga la agenda del rango visible del calendario, una hoja por
