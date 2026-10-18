@@ -123,11 +123,6 @@ class RecepcionController extends Controller
                     'lugar_auxiliar'  => $modulo,
                     'modulo_id'       => $modulo_id,
                     'origen'          => 'ventanilla',
-                    // Sólo un Super Usuario marca citas de prueba (App\Support\FlujoCita);
-                    // sin la migración de la fase 0 la columna no existe y no se manda.
-                    ...(\App\Support\FlujoCita::migrado()
-                        ? ['es_prueba' => ! empty($data['es_prueba']) && auth()->user()->hasRole('Super Usuario')]
-                        : []),
                     'exepcion'        => $data["excepcion"] ?? 'No',
                     'edad'            => $data["edad"] ?? null,
                     'sexo'            => $data["sexo"] ?? null,
