@@ -35,14 +35,6 @@ class Recepcion extends Model
             if (empty($cita->codigo)) {
                 $cita->codigo = FolioCita::generar($cita->delegacion, $cita->tipo);
             }
-
-            // Citas agendadas con un correo de prueba (Administración → Flujo de
-            // citas) quedan marcadas solas: así se prueba desde el formulario
-            // público sin tocar las citas reales.
-            if (! $cita->es_prueba && \App\Support\FlujoCita::migrado()
-                && \App\Support\FlujoCita::esCorreoPrueba($cita->correo)) {
-                $cita->es_prueba = true;
-            }
         });
     }
 
