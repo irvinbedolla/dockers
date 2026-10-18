@@ -25,7 +25,7 @@
         return match ($estatus) {
             'Conciliacion', 'Reinstalacion'                      => 'ca-estatus--convenio',
             'Reagendada', 'No conciliacion reagendada'           => 'ca-estatus--reagendada',
-            'No conciliacion', 'Incompetencia', 'Desistimiento'  => 'ca-estatus--cerrada',
+            'No conciliacion', 'Incompetencia', 'Desistimiento', 'Canalizada' => 'ca-estatus--cerrada',
             default                                              => 'ca-estatus--archivo',
         };
     };

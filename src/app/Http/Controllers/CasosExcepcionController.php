@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Support\CasosExcepcion;
 use App\Support\FormatoExcepcion;
+use App\Support\OficioCanalizacion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -119,12 +120,26 @@ class CasosExcepcionController extends Controller
     {
         $origen = FormatoExcepcion::origen($tipo, $id);
 
+        $datos = FormatoExcepcion::datos($origen);
+        $sede  = FormatoExcepcion::sede($origen);
+        $oficios = [];
+        if ($origen['caso'] && OficioCanalizacion::migrado()) {
+            $guardados = OficioCanalizacion::delCaso((int) $origen['caso']->id);
+            foreach ((array) ($datos['instituciones'] ?? []) as $inst) {
+                $oficios[$inst] = isset($guardados[$inst])
+                    ? ['guardado' => true] + (array) $guardados[$inst]
+                    : ['guardado' => false] + OficioCanalizacion::propuesta($inst, $sede);
+            }
+        }
+
         return view('excepciones.formato', [
-            'origen'    => $origen,
-            'datos'     => FormatoExcepcion::datos($origen),
-            'sede'      => FormatoExcepcion::sede($origen),
-            'terminado' => ! empty($origen['caso']->terminado_at ?? null),
-            'migrado'   => CasosExcepcion::conFormato(),
+            'origen'      => $origen,
+            'datos'       => $datos,
+            'sede'        => $sede,
+            'terminado'   => ! empty($origen['caso']->terminado_at ?? null),
+            'migrado'     => CasosExcepcion::conFormato(),
+            'oficios'     => $oficios,
+            'puedeCerrar' => FormatoExcepcion::puedeCerrar($origen['solicitud']),
         ]);
     }
 
@@ -165,6 +180,7 @@ class CasosExcepcionController extends Controller
             'instituciones'          => ['nullable', 'array'],
             'instituciones.*'        => [Rule::in(array_keys(CasosExcepcion::INSTITUCIONES))],
             'domicilio_procuraduria' => ['nullable', 'string', 'max:255'],
+            'cerrar_solicitud'       => ['nullable', Rule::in(['0', '1'])],
         ];
 
         // Para terminar, lo mínimo que pide el formato y la decisión de la persona.
@@ -207,6 +223,47 @@ class CasosExcepcionController extends Controller
             ->setPaper('a4', 'portrait')
             ->setOption('isHtml5ParserEnabled', true)
             ->stream('formato_685_ter_'.preg_replace('/[^A-Za-z0-9\-]/', '_', (string) ($datos['expediente'] ?? $id)).'.pdf', ['Attachment' => false]);
+    }
+
+    // ------------------------------------------------------------------
+    // Oficio de canalización (uno por institución) — OficioCanalizacion
+    // ------------------------------------------------------------------
+
+    public function guardarOficio(Request $request, string $tipo, int $id, string $institucion)
+    {
+        abort_unless(OficioCanalizacion::migrado(), 503, 'Falta correr la migración de canalización.');
+        $origen = FormatoExcepcion::origen($tipo, $id);
+        abort_unless($origen['caso'] && array_key_exists($institucion, CasosExcepcion::INSTITUCIONES), 404);
+
+        $datos = $request->validate([
+            'numero'       => ['nullable', 'string', 'max:40'],
+            'fecha'        => ['required', 'date_format:Y-m-d'],
+            'lugar'        => ['nullable', 'string', 'max:80'],
+            'destinatario' => ['nullable', 'string', 'max:255'],
+            'cargo'        => ['nullable', 'string', 'max:255'],
+        ]);
+
+        OficioCanalizacion::guardar($origen['caso'], $institucion, $datos, $request->user());
+
+        return redirect()->route('excepciones.oficio.pdf', ['tipo' => $tipo, 'id' => $id, 'institucion' => $institucion]);
+    }
+
+    public function oficioPdf(string $tipo, int $id, string $institucion)
+    {
+        $origen = FormatoExcepcion::origen($tipo, $id);
+        abort_unless($origen['caso'] && OficioCanalizacion::migrado(), 404);
+        $oficio = OficioCanalizacion::delCaso((int) $origen['caso']->id)[$institucion] ?? null;
+        abort_unless($oficio, 404);
+
+        $html = view('PDF.Recepcion.OficioCanalizacion', [
+            'oficio'      => $oficio,
+            'institucion' => CasosExcepcion::INSTITUCIONES[$institucion] ?? $institucion,
+        ])->render();
+
+        return \PDF::loadHTML($html)
+            ->setPaper('a4', 'portrait')
+            ->setOption('isHtml5ParserEnabled', true)
+            ->stream('oficio_'.str_replace('/', '-', $oficio->numero).'.pdf', ['Attachment' => false]);
     }
 
     // ------------------------------------------------------------------

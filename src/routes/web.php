@@ -211,6 +211,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Formato 685 Ter en PDF (prellenado; lo que falte sale en blanco).
         Route::get('/excepciones/{tipo}/{id}/formato/pdf', [App\Http\Controllers\CasosExcepcionController::class, 'pdf'])->name('excepciones.formato.pdf')
             ->whereIn('tipo', App\Support\FormatoExcepcion::TIPOS_ORIGEN)->whereNumber('id');
+        Route::get('/excepciones/{tipo}/{id}/oficio/{institucion}/pdf', [App\Http\Controllers\CasosExcepcionController::class, 'oficioPdf'])->name('excepciones.oficio.pdf')
+            ->whereIn('tipo', App\Support\FormatoExcepcion::TIPOS_ORIGEN)->whereNumber('id')->whereIn('institucion', array_keys(App\Support\CasosExcepcion::INSTITUCIONES));
     });
     Route::middleware(CasosExcepcionAcceso::class.':atender')->group(function () {
         Route::get('/excepciones/atender/{id}',         [App\Http\Controllers\CasosExcepcionController::class, 'atender'])->name('atender_excepcion')->whereNumber('id');
@@ -218,6 +220,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->whereIn('tipo', App\Support\FormatoExcepcion::TIPOS_ORIGEN)->whereNumber('id');
         Route::post('/excepciones/{tipo}/{id}/formato', [App\Http\Controllers\CasosExcepcionController::class, 'guardarFormato'])->name('excepciones.formato.guardar')
             ->whereIn('tipo', App\Support\FormatoExcepcion::TIPOS_ORIGEN)->whereNumber('id');
+        Route::post('/excepciones/{tipo}/{id}/oficio/{institucion}', [App\Http\Controllers\CasosExcepcionController::class, 'guardarOficio'])->name('excepciones.oficio.guardar')
+            ->whereIn('tipo', App\Support\FormatoExcepcion::TIPOS_ORIGEN)->whereNumber('id')->whereIn('institucion', array_keys(App\Support\CasosExcepcion::INSTITUCIONES));
     });
     // Panel de estadísticas: mapa, gráficas y descarga de reportes.
     Route::get('/estadisticas',                         [EstadisticasController::class, 'index'])->name('estadisticas.index')

@@ -186,9 +186,9 @@ class FormatoExcepcion
         $sol  = $origen['solicitud'];
 
         $tipos = array_values(array_intersect(array_keys(CasosExcepcion::TIPOS), Arr::wrap($datos['tipos'] ?? [])));
-        $instituciones = ($datos['resultado'] ?? null) === 'canaliza'
-            ? array_values(array_intersect(array_keys(CasosExcepcion::INSTITUCIONES), Arr::wrap($datos['instituciones'] ?? [])))
-            : [];
+        // También se canaliza "para atención integral" cuando la persona sí
+        // continúa con la conciliación (el oficio lo contempla).
+        $instituciones = array_values(array_intersect(array_keys(CasosExcepcion::INSTITUCIONES), Arr::wrap($datos['instituciones'] ?? [])));
 
         $conoce = isset($datos['conoce_jefe']) && $datos['conoce_jefe'] !== '' ? (string) (int) $datos['conoce_jefe'] : null;
 
@@ -237,11 +237,55 @@ class FormatoExcepcion
 
         if ($origen['caso']) {
             DB::table('seer_casos_excepcion')->where('id', $origen['caso']->id)->update($fila);
-
-            return (int) $origen['caso']->id;
+            $id = (int) $origen['caso']->id;
+        } else {
+            $id = (int) DB::table('seer_casos_excepcion')->insertGetId($fila + ['created_at' => now(), 'hora' => now()->format('H:i')]);
         }
 
-        return (int) DB::table('seer_casos_excepcion')->insertGetId($fila + ['created_at' => now(), 'hora' => now()->format('H:i')]);
+        // No continúa: si ya hay solicitud y así se pidió, se cierra como "Canalizada".
+        if ($terminar && ($datos['resultado'] ?? null) === 'canaliza' && $sol && ($datos['cerrar_solicitud'] ?? null) === '1') {
+            self::cerrarSolicitud($sol, $instituciones, $usuario);
+        }
+
+        return $id;
+    }
+
+    /** Estatus de solicitud que todavía se pueden cerrar como canalizada. */
+    public const SOLICITUD_ABIERTA = ['Pendiente', 'Aceptado', 'Confirmado', 'Reagendada', 'Prevencion'];
+
+    public static function puedeCerrar(?object $solicitud): bool
+    {
+        return $solicitud !== null
+            && OficioCanalizacion::migrado()
+            && in_array($solicitud->estatus, self::SOLICITUD_ABIERTA, true);
+    }
+
+    /**
+     * La persona no sigue con la conciliación (art. 685 Ter): la solicitud y
+     * sus audiencias pendientes quedan "Canalizada" (no es desistimiento) y
+     * se deja constancia en las observaciones. La audiencia libera su horario
+     * (AgendaAudiencias::LIBERAN).
+     */
+    public static function cerrarSolicitud(object $solicitud, array $instituciones, User $usuario): void
+    {
+        if (! self::puedeCerrar($solicitud)) {
+            return;
+        }
+
+        $a = $instituciones ? implode(', ', array_map(fn ($k) => CasosExcepcion::INSTITUCIONES[$k], $instituciones)) : 'otra institución';
+        $nota = 'Canalizada por caso de excepción (art. 685 Ter LFT) a: '.$a.'. '.now()->format('d/m/Y H:i').', '.trim((string) $usuario->name).'.';
+
+        DB::transaction(function () use ($solicitud, $nota) {
+            DB::table('seer_general')->where('id', $solicitud->id)->update([
+                'estatus'           => 'Canalizada',
+                'fecha_terminacion' => now()->toDateString(),
+                'observaciones'     => trim(trim((string) $solicitud->observaciones)."\n".$nota),
+                'updated_at'        => now(),
+            ]);
+
+            DB::table('audiencias')->where('id_solicitud', $solicitud->id)->where('estatus', 'Pendiente')
+                ->update(['estatus' => 'Canalizada', 'updated_at' => now()]);
+        });
     }
 
     private static function texto(?string $t): ?string

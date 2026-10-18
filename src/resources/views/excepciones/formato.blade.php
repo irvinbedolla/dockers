@@ -68,6 +68,11 @@
             box-shadow: 0 -6px 18px rgba(46, 60, 61, .06);
         }
         .fx-barra .fx-barra__nota { margin-right: auto; align-self: center; font-size: 12.5px; color: var(--tn-tenue); }
+
+        .fx-oficios { display: grid; gap: 12px; }
+        .fx-oficio { border: 1px solid var(--tn-borde); border-radius: 12px; padding: 12px 14px; background: #fff; }
+        .fx-oficio__cabeza { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+        .fx-oficio__cabeza b { font-size: 14px; color: var(--tn-tinta); }
     </style>
 @endsection
 
@@ -239,8 +244,8 @@
                                     <span><b>No, se canaliza</b><small>Se envía a la institución que corresponda.</small></span></label>
                             </div>
 
-                            <div id="fxCanaliza" class="mt-3" @if ($v('resultado') !== 'canaliza') hidden @endif>
-                                <span class="fx-etq">Canalizar a</span>
+                            <div id="fxCanaliza" class="mt-3" @if (! $v('resultado')) hidden @endif>
+                                <span class="fx-etq" id="fxCanalizaEtq" data-canaliza="Canalizar a (al menos una)" data-continua="¿Además se canaliza para atención integral? (opcional)">{{ $v('resultado') === 'continua' ? '¿Además se canaliza para atención integral? (opcional)' : 'Canalizar a (al menos una)' }}</span>
                                 <div class="fx-opciones @error('instituciones') border border-danger rounded p-2 @enderror">
                                     @foreach ($CX::INSTITUCIONES as $clave => $nombre)
                                         <label class="fx-opcion"><input type="checkbox" name="instituciones[]" value="{{ $clave }}" data-institucion="{{ $clave }}" @checked(in_array($clave, $arr('instituciones'), true))> {{ $loop->iteration }}. {{ $nombre }}</label>
@@ -254,6 +259,19 @@
                                     @endforeach
                                 </div>
                             </div>
+
+                            @if ($puedeCerrar)
+                                <div id="fxCerrar" class="mt-3" @if ($v('resultado') !== 'canaliza') hidden @endif>
+                                    <input type="hidden" name="cerrar_solicitud" value="0">
+                                    <label class="fx-opcion">
+                                        <input type="checkbox" name="cerrar_solicitud" value="1" @checked(old('cerrar_solicitud', '1') === '1')>
+                                        <span><b>Cerrar la solicitud {{ $sol->NUE ?: 'sin expediente' }} como «Canalizada»</b>
+                                            <small>Termina el trámite de conciliación; sus audiencias pendientes quedan canalizadas y liberan el horario. Se aplica al terminar la atención.</small></span>
+                                    </label>
+                                </div>
+                            @elseif ($sol && $sol->estatus === 'Canalizada')
+                                <p class="fx-nota mt-3 mb-0"><i class="bi bi-check2-circle"></i> La solicitud {{ $sol->NUE }} ya está cerrada como «Canalizada».</p>
+                            @endif
                         </div>
 
                         <div class="fx-barra">
@@ -288,6 +306,46 @@
                     </aside>
                 </div>
             </form>
+
+            {{-- Oficios de canalización: uno por institución marcada (lo guardado). --}}
+            @if ($caso && ! empty($datos['instituciones']))
+                <div class="tn-tarjeta fx-seccion mt-3" id="oficios">
+                    <h4><i class="bi bi-envelope-paper"></i> Oficios de canalización</h4>
+                    @if (! \App\Support\OficioCanalizacion::migrado())
+                        <div class="alert alert-warning mb-0">Falta correr la migración de canalización (<code>php artisan migrate</code>).</div>
+                    @else
+                        <p class="fx-nota">Un oficio por institución, con el formato 685 Ter como anexo. Si cambias las instituciones de arriba, guarda el formato para que se actualice esta lista. El titular y el cargo se escriben aquí; se propone el último que se usó.</p>
+                        <div class="fx-oficios">
+                            @foreach ($oficios as $inst => $o)
+                                <form class="fx-oficio" method="POST" action="{{ route('excepciones.oficio.guardar', ['tipo' => $origen['tipo'], 'id' => $origen['id'], 'institucion' => $inst]) }}" target="_blank">
+                                    @csrf
+                                    <div class="fx-oficio__cabeza">
+                                        <b>{{ $CX::INSTITUCIONES[$inst] ?? $inst }}</b>
+                                        @if ($o['guardado'])
+                                            <span class="fx-badge fx-badge--continua"><i class="bi bi-check2"></i> {{ $o['numero'] }}</span>
+                                        @else
+                                            <span class="fx-badge fx-badge--nuevo">Sin generar</span>
+                                        @endif
+                                    </div>
+                                    <div class="fx-campos">
+                                        <div class="fx-c4"><label>Número de oficio</label><input type="text" name="numero" class="form-control" value="{{ $o['numero'] }}" maxlength="40"></div>
+                                        <div class="fx-c4"><label>Fecha</label><input type="date" name="fecha" class="form-control" value="{{ \Illuminate\Support\Carbon::parse($o['fecha'])->toDateString() }}" required></div>
+                                        <div class="fx-c4"><label>Lugar</label><input type="text" name="lugar" class="form-control" value="{{ $o['lugar'] }}" maxlength="80"></div>
+                                        <div class="fx-c6"><label>Titular de la institución</label><input type="text" name="destinatario" class="form-control" value="{{ $o['destinatario'] }}" placeholder="Nombre de la persona titular"></div>
+                                        <div class="fx-c6"><label>Cargo</label><input type="text" name="cargo" class="form-control" value="{{ $o['cargo'] }}" placeholder="Cargo"></div>
+                                    </div>
+                                    <div class="d-flex flex-wrap gap-2 justify-content-end mt-2">
+                                        @if ($o['guardado'])
+                                            <a class="btn btn-outline-secondary btn-sm" href="{{ route('excepciones.oficio.pdf', ['tipo' => $origen['tipo'], 'id' => $origen['id'], 'institucion' => $inst]) }}" target="_blank" rel="noopener"><i class="bi bi-file-earmark-pdf"></i> Ver oficio</a>
+                                        @endif
+                                        <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-printer"></i> {{ $o['guardado'] ? 'Guardar cambios y ver' : 'Generar oficio' }}</button>
+                                    </div>
+                                </form>
+                            @endforeach
+                        </div>
+                    @endif
+                </div>
+            @endif
         </div>
     </section>
 @endsection
@@ -303,7 +361,13 @@
             mostrar('riesgo_trabajo', marcado('[data-tipo="riesgo_trabajo"]'));
             mostrar('situacion_otro', marcado('input[name="situacion_laboral"][value="otro"]'));
             mostrar('procuraduria', marcado('[data-institucion="procuraduria"]'));
-            document.getElementById('fxCanaliza').hidden = !marcado('input[name="resultado"][value="canaliza"]');
+            var canaliza = marcado('input[name="resultado"][value="canaliza"]');
+            var continua = marcado('input[name="resultado"][value="continua"]');
+            document.getElementById('fxCanaliza').hidden = !(canaliza || continua);
+            var etq = document.getElementById('fxCanalizaEtq');
+            etq.textContent = continua ? etq.dataset.continua : etq.dataset.canaliza;
+            var cerrar = document.getElementById('fxCerrar');
+            if (cerrar) { cerrar.hidden = !canaliza; }
             document.getElementById('fxGeneroOtro').hidden = !marcado('input[name="genero"][value="Otro"]');
             document.getElementById('fxJefe').hidden = !marcado('input[name="conoce_jefe"][value="1"]');
         }
