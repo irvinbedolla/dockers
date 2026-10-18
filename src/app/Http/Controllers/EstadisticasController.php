@@ -161,7 +161,7 @@ class EstadisticasController extends Controller
             'migrado'       => CasosExcepcion::conFormato(),
             'resumen'       => EstadisticasExcepcion::resumen($rango, $sede),
             'tendencia'     => EstadisticasExcepcion::tendencia($rango, $sede),
-            'instituciones' => EstadisticasExcepcion::porJson('instituciones', CasosExcepcion::INSTITUCIONES, $rango, $sede, 'canaliza'),
+            'instituciones' => EstadisticasExcepcion::porJson('instituciones', CasosExcepcion::INSTITUCIONES, $rango, $sede),
             'tipos'         => EstadisticasExcepcion::porJson('tipos', CasosExcepcion::TIPOS, $rango, $sede),
             'porSede'       => $sede ? collect() : EstadisticasExcepcion::porSede($rango),
             'generos'       => EstadisticasExcepcion::porColumna('genero', ['M' => 'Masculino', 'F' => 'Femenino', 'Otro' => 'Otro'], $rango, $sede),

@@ -65,7 +65,8 @@ class EstadisticasExcepcion
             ? self::atendidos($rango, $sede)->selectRaw(
                 "COUNT(*) AS atendidos,
                  SUM(CASE WHEN x.resultado = 'continua' THEN 1 ELSE 0 END) AS continua,
-                 SUM(CASE WHEN x.resultado = 'canaliza' THEN 1 ELSE 0 END) AS canaliza")->first()
+                 SUM(CASE WHEN x.resultado = 'canaliza' THEN 1 ELSE 0 END) AS canaliza,
+                 SUM(CASE WHEN x.resultado = 'continua' AND COALESCE(x.instituciones, '[]') <> '[]' THEN 1 ELSE 0 END) AS integral")->first()
             : null;
 
         $borradores = CasosExcepcion::conFormato()
@@ -83,6 +84,8 @@ class EstadisticasExcepcion
             'solicitudes' => $solicitudes,
             'atendidos'   => $atendidos,
             'continua'    => (int) ($fila->continua ?? 0),
+            // Siguen con la conciliación y además se canalizaron para atención integral.
+            'integral'    => (int) ($fila->integral ?? 0),
             'canaliza'    => $canaliza,
             'pctCanaliza' => $atendidos ? round($canaliza * 100 / $atendidos, 1) : null,
             'porAtender'  => CasosExcepcion::porAtender()->when($sede, fn ($q) => $q->where('r.delegacion', $sede))->count(),

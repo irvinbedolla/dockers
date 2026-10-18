@@ -135,7 +135,7 @@
                         <small>{{ $r['enLinea'] }} en línea · {{ $r['ventanilla'] }} ventanilla · {{ $r['solicitudes'] }} solicitud</small>
                     </div>
                     <div class="ex-cifra"><b>{{ number_format($r['atendidos']) }}</b><span>Atendidos</span><small>formato terminado</small></div>
-                    <div class="ex-cifra ex-cifra--exito"><b>{{ number_format($r['continua']) }}</b><span>Continúan</span><small>con la conciliación</small></div>
+                    <div class="ex-cifra ex-cifra--exito"><b>{{ number_format($r['continua']) }}</b><span>Continúan</span><small>con la conciliación{{ $r['integral'] ? ' · '.$r['integral'].' además canalizados' : '' }}</small></div>
                     <div class="ex-cifra ex-cifra--canal"><b>{{ number_format($r['canaliza']) }}</b><span>Canalizados</span><small>{{ $pct($r['pctCanaliza']) }} de los atendidos</small></div>
                     <div class="ex-cifra ex-cifra--pend"><b>{{ number_format($r['porAtender']) }}</b><span>Por atender hoy</span><small>últimos 30 días</small></div>
                     <div class="ex-cifra"><b>{{ number_format($r['borradores']) }}</b><span>Borradores</span><small>formato sin terminar</small></div>
@@ -178,7 +178,7 @@
 
             {{-- Instituciones y tipos --}}
             <div class="ex-columnas">
-                @foreach ([['Canalizaciones por institución', 'Un caso puede canalizarse a varias', $instituciones], ['Tipo de situación', 'Un caso puede tener varios tipos', $tipos]] as [$titulo, $nota, $lista])
+                @foreach ([['Canalizaciones por institución', 'Incluye atención integral de quien continúa', $instituciones], ['Tipo de situación', 'Un caso puede tener varios tipos', $tipos]] as [$titulo, $nota, $lista])
                     <div class="tn-tarjeta">
                         <div class="ex-cabeza"><h4 class="ex-titulo">{{ $titulo }}</h4><span class="ex-sub">{{ $nota }}</span></div>
                         @php $max = max(1, (int) $lista->max('total')); @endphp
