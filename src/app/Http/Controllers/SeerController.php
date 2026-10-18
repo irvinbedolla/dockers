@@ -4963,6 +4963,18 @@ class SeerController extends Controller
     }
 
     public function solicitudes_pendientes() {
+        $solicitudes = $this->consultaPendientes()->get();
+
+        return view('solicitudes.solicitudes_pendientes', compact('solicitudes'));
+    }
+
+    /**
+     * Solicitudes pendientes por validar (de la última semana) que le tocan a
+     * quien entra, según su rol y sede. La usan la lista de pendientes y la
+     * cifra del inicio de Solicitudes.
+     */
+    private function consultaPendientes()
+    {
         $user = auth()->user();
         $rol = $user->roles->first()->name ?? '';
         $id_usuario = $user->id;
@@ -5038,10 +5050,7 @@ class SeerController extends Controller
             ->orWhere('seer_general.incidencia', 0);
         });
 
-        // 5. Ejecución final
-        $solicitudes = $query->get();
-        
-        return view('solicitudes.solicitudes_pendientes', compact('solicitudes'));
+        return $query;
     }
 
     public function solicitudes_pendientes_revisar($id){
@@ -10243,6 +10252,27 @@ class SeerController extends Controller
         $id = auth()->user()->id;
         $user = User::find($id);
 
+        // Inicio de Solicitudes: accesos y cómo va la sede (solicitudes/index).
+        $todas = $user->hasAnyRole(['Super Usuario', 'Administrador']);
+        $sede  = $user->delegacion;
+        $hoy   = Carbon::today();
+        $base  = fn () => DB::table('seer_general')->when(! $todas, fn ($q) => $q->where('delegacion', $sede));
+        $cifras = [
+            'hoy'        => $base()->whereDate('fecha', $hoy)->count(),
+            'mes'        => $base()->whereBetween('fecha', [$hoy->copy()->startOfMonth()->toDateString(), $hoy->toDateString()])->count(),
+            'mias_hoy'   => DB::table('seer_general')->where('user_id', $id)->whereDate('fecha', $hoy)->count(),
+            'pendientes' => $user->can('solicitudes_pendientes_validar')
+                ? $this->consultaPendientes()->reorder()->distinct()->count('seer_general.id')
+                : null,
+            'citas'      => DB::table('recepcion')->where('fecha', $hoy->toDateString())->where('tipo', 'Solicitud')
+                ->when(! $todas, fn ($q) => $q->where('delegacion', $sede))
+                ->when(\App\Support\FlujoCita::migrado(), fn ($q) => $q->where('es_prueba', 0))
+                ->whereIn('estatus', ['pendiente', 'confirmada'])
+                ->selectRaw("COUNT(*) AS total, SUM(estatus = 'confirmada') AS en_sala")->first(),
+        ];
+        $mes   = \Illuminate\Support\Str::ucfirst($hoy->locale('es')->translatedFormat('F'));
+        $sedeTexto = $todas ? 'Todas las sedes' : $sede;
+
         // Sólo los auxiliares con esta especialidad (App\Support\Especialidades).
         $auxiliares = User::role('Auxiliar')->permission('solicitudes_crear')
         ->where('delegacion', $user["delegacion"])
@@ -10258,7 +10288,7 @@ class SeerController extends Controller
         ->where('delegacion', $user["delegacion"])
         ->get();
 
-        return view('solicitudes/index',compact('auxiliares','conciliadores'));
+        return view('solicitudes/index',compact('auxiliares','conciliadores','cifras','mes','sedeTexto'));
     }
 
     public function retroceso_solicitud_index()
