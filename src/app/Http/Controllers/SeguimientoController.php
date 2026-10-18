@@ -2,39 +2,66 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\AgendaContexto;
 use App\Support\SeguimientoCaso;
+use App\Support\VistaSolicitud;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 /**
- * Seguimiento del caso (/seguimiento): se busca a la persona por folio de
- * cita, NUE, CURP o nombre y se ve su historia completa con fechas
- * (App\Support\SeguimientoCaso). Cada quien consulta sólo las sedes que ve
- * en su agenda.
+ * Seguimiento del caso (App\Support\SeguimientoCaso):
+ *
+ *   /seguimiento                 todos los casos de sus sedes en una tabla,
+ *                                del más reciente al más antiguo, con filtros;
+ *   /seguimiento/{s123|c45}      la línea de tiempo de un caso, con sus
+ *                                documentos en cada paso;
+ *   /seguimiento/solicitud/{id}  la solicitud en modo consulta (verSolicitud: "solicitud"
+ *                                choca con Controller::solicitud()) (se abre en un
+ *                                modal; sólo HTML, sin layout).
+ *
+ * Cada quien consulta sólo las sedes que ve en su agenda.
  */
 class SeguimientoController extends Controller
 {
+    public const ESTADOS = [
+        ''          => 'Todos',
+        'tramite'   => 'En trámite',
+        'resueltos' => 'Resueltos',
+        'citas'     => 'Citas sin solicitud',
+    ];
+
     public function index(Request $request)
     {
-        $usuario = $request->user();
-        $sedes   = SeguimientoCaso::sedes($usuario);
-        $buscar  = trim((string) $request->query('q', ''));
-        $clave   = (string) $request->query('caso', '');
-
-        $resultados = $buscar !== '' ? SeguimientoCaso::buscar($buscar, $sedes) : collect();
-
-        // Si sólo hay un resultado, se abre directo.
-        if ($clave === '' && $resultados->count() === 1) {
-            $clave = $resultados->first()['clave'];
-        }
-
-        $caso = $clave !== '' ? SeguimientoCaso::linea($clave, $sedes) : null;
+        $usuario  = $request->user();
+        $visibles = AgendaContexto::para($usuario)['sedes'] ?? [];
+        $filtros  = [
+            'q'      => trim((string) $request->query('q', '')),
+            'sede'   => in_array($request->query('sede'), $visibles, true) ? $request->query('sede') : '',
+            'estado' => array_key_exists((string) $request->query('estado', ''), self::ESTADOS) ? (string) $request->query('estado', '') : '',
+        ];
 
         return view('seguimiento.index', [
-            'buscar'     => $buscar,
-            'resultados' => $resultados,
-            'clave'      => $clave,
-            'caso'       => $caso,
-            'noEncontrado' => $clave !== '' && ! $caso,
+            'casos'   => SeguimientoCaso::tabla(SeguimientoCaso::sedes($usuario), $filtros),
+            'filtros' => $filtros,
+            'sedes'   => $visibles,
+            'estados' => self::ESTADOS,
         ]);
+    }
+
+    public function ver(Request $request, string $clave)
+    {
+        $caso = SeguimientoCaso::linea($clave, SeguimientoCaso::sedes($request->user()));
+        abort_unless($caso, 404, 'Ese caso no existe o no es de tus sedes.');
+
+        return view('seguimiento.ver', ['caso' => $caso]);
+    }
+
+    public function verSolicitud(Request $request, int $id)
+    {
+        $datos = VistaSolicitud::datos($id);
+        $sedes = SeguimientoCaso::sedes($request->user());
+        abort_unless($datos && (in_array($datos['general']->delegacion, $sedes, true) || in_array(Str::ascii((string) $datos['general']->delegacion), $sedes, true)), 404);
+
+        return view('solicitudes._vista', $datos);
     }
 }

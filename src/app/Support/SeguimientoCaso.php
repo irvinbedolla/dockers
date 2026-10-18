@@ -4,8 +4,10 @@ namespace App\Support;
 
 use App\Models\User;
 use Illuminate\Support\Carbon;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 
 /**
@@ -76,30 +78,33 @@ class SeguimientoCaso
     }
 
     /**
-     * Casos que coinciden con lo buscado: folio de cita, NUE, CURP o nombre.
-     * Primero las solicitudes (con su cita, si la tienen) y luego las citas
-     * que todavía no tienen solicitud.
-     *
-     * @return Collection<int, array>
+     * Todos los casos de sus sedes, del más reciente al más antiguo: cada
+     * solicitud (con su cita, si la tiene) y cada cita que todavía no tiene
+     * solicitud. Filtros: q (folio de cita, NUE, CURP o nombre), sede y
+     * estado ('tramite', 'resueltos' o 'citas').
      */
-    public static function buscar(string $texto, array $sedes): Collection
+    public static function tabla(array $sedes, array $filtros, int $porPagina = 25): LengthAwarePaginator
     {
-        $texto = trim(preg_replace('/\s+/', ' ', $texto));
-        if (mb_strlen($texto) < 3 || ! $sedes) {
-            return collect();
+        $texto  = trim(preg_replace('/\s+/', ' ', (string) ($filtros['q'] ?? '')));
+        $estado = (string) ($filtros['estado'] ?? '');
+        if (! empty($filtros['sede'])) {
+            $sedes = array_values(array_intersect($sedes, [$filtros['sede'], Str::ascii($filtros['sede'])])) ?: ['__ninguna__'];
         }
+        $sedes = $sedes ?: ['__ninguna__'];
 
-        $folio  = FolioCita::normalizar($texto);
+        $folio  = $texto !== '' ? FolioCita::normalizar($texto) : null;
         $curpN  = Curp::normalizar($texto);
         $curp   = strlen($curpN) === 18 ? $curpN : null;
-        $nombre = ! $folio && ! $curp && ! preg_match('/\d/', $texto) && mb_strlen($texto) >= 4;
+        $nombre = $texto !== '' && ! $folio && ! $curp && ! preg_match('/\d/', $texto) && mb_strlen($texto) >= 3;
         $like   = '%'.str_replace(['%', '_'], ['\%', '\_'], mb_strtoupper($texto)).'%';
-        $nombreSub = '(SELECT s.nombre FROM seer_solicitante s WHERE s.id_solicitud = g.id ORDER BY s.id LIMIT 1)';
 
         $solicitudes = DB::table('seer_general as g')
             ->leftJoin('recepcion as r', 'r.id', '=', 'g.recepcion_id')
             ->whereIn('g.delegacion', $sedes)
-            ->where(function ($w) use ($folio, $curp, $nombre, $like) {
+            ->when($estado === 'tramite', fn ($q) => $q->whereNotIn('g.estatus', self::RESUELTOS))
+            ->when($estado === 'resueltos', fn ($q) => $q->whereIn('g.estatus', self::RESUELTOS))
+            ->when($estado === 'citas', fn ($q) => $q->whereRaw('1 = 0'))
+            ->when($texto !== '', fn ($q) => $q->where(function ($w) use ($folio, $curp, $nombre, $like) {
                 $w->where('g.NUE', 'like', $like);
                 if ($folio) {
                     $w->orWhere('r.codigo', $folio);
@@ -111,25 +116,15 @@ class SeguimientoCaso
                 if ($nombre) {
                     $w->orWhereExists(fn ($q) => $q->selectRaw(1)->from('seer_solicitante as s')->whereColumn('s.id_solicitud', 'g.id')->where('s.nombre', 'like', $like));
                 }
-            })
-            ->orderByDesc('g.id')
-            ->limit(25)
-            ->get(['g.id', 'g.NUE', 'g.fecha', 'g.estatus', 'g.delegacion', 'r.codigo', 'r.consecutivo', DB::raw($nombreSub.' AS nombre')])
-            ->map(fn ($s) => [
-                'clave'    => 's'.$s->id,
-                'tipo'     => 'solicitud',
-                'titulo'   => self::nombre($s->nombre) ?: 'Sin nombre',
-                'detalle'  => ($s->NUE ?: 'Sin NUE').($s->codigo ? ' · cita '.$s->codigo : '').' · '.$s->delegacion,
-                'fecha'    => substr((string) $s->fecha, 0, 10),
-                'estatus'  => self::ESTATUS[$s->estatus] ?? (string) $s->estatus,
-                'resuelto' => in_array($s->estatus, self::RESUELTOS, true),
-            ]);
+            }))
+            ->selectRaw('g.id AS sid, g.recepcion_id AS cid, COALESCE(g.created_at, g.fecha) AS creado');
 
         $citas = DB::table('recepcion as r')
             ->whereIn('r.delegacion', $sedes)
             ->when(FlujoCita::migrado(), fn ($q) => $q->where('r.es_prueba', 0))
             ->whereNotExists(fn ($q) => $q->selectRaw(1)->from('seer_general as g')->whereColumn('g.recepcion_id', 'r.id'))
-            ->where(function ($w) use ($folio, $curp, $nombre, $like) {
+            ->when(in_array($estado, ['tramite', 'resueltos'], true), fn ($q) => $q->whereRaw('1 = 0'))
+            ->when($texto !== '', fn ($q) => $q->where(function ($w) use ($folio, $curp, $nombre, $like) {
                 $w->whereRaw('1 = 0');
                 if ($folio) {
                     $w->orWhere('r.codigo', $folio);
@@ -140,21 +135,76 @@ class SeguimientoCaso
                 if ($nombre) {
                     $w->orWhere('r.solicitante', 'like', $like);
                 }
-            })
-            ->orderByDesc('r.fecha')->orderByDesc('r.id')
-            ->limit(25)
-            ->get(['r.id', 'r.codigo', 'r.consecutivo', 'r.fecha', 'r.tipo', 'r.estatus', 'r.delegacion', 'r.solicitante', 'r.origen'])
-            ->map(fn ($c) => [
-                'clave'    => 'c'.$c->id,
-                'tipo'     => 'cita',
-                'titulo'   => self::nombre($c->solicitante) ?: 'Sin nombre',
-                'detalle'  => FolioCita::mostrar($c).' · '.$c->tipo.' · '.($c->origen === 'linea' ? 'en línea' : 'ventanilla').' · '.$c->delegacion,
-                'fecha'    => substr((string) $c->fecha, 0, 10),
-                'estatus'  => 'Cita '.$c->estatus.' · sin solicitud',
-                'resuelto' => false,
-            ]);
+            }))
+            ->selectRaw('NULL AS sid, r.id AS cid, r.created_at AS creado');
 
-        return $solicitudes->concat($citas)->values();
+        $pagina = DB::query()->fromSub($solicitudes->unionAll($citas), 'u')
+            ->orderByDesc('creado')->orderByDesc('sid')->orderByDesc('cid')
+            ->paginate($porPagina)
+            ->withQueryString();
+
+        $filas = $pagina->getCollection();
+        $sids  = $filas->pluck('sid')->filter()->map(fn ($i) => (int) $i)->all();
+        $cids  = $filas->pluck('cid')->filter()->map(fn ($i) => (int) $i)->all();
+
+        $gen = DB::table('seer_general as g')->whereIn('g.id', $sids ?: [0])
+            ->get(['g.id', 'g.NUE', 'g.fecha', 'g.created_at', 'g.estatus', 'g.delegacion', 'g.user_id',
+                DB::raw('(SELECT s.nombre FROM seer_solicitante s WHERE s.id_solicitud = g.id ORDER BY s.id LIMIT 1) AS persona')])
+            ->keyBy('id');
+        $cit = DB::table('recepcion')->whereIn('id', $cids ?: [0])->get()->keyBy('id');
+        $prox = self::proximas($sids);
+        $nombres = self::usuarios($gen->pluck('user_id')->filter()->map(fn ($i) => (int) $i)->all());
+
+        $pagina->setCollection($filas->map(function ($f) use ($gen, $cit, $prox, $nombres) {
+            $g = $f->sid ? ($gen[(int) $f->sid] ?? null) : null;
+            $c = $f->cid ? ($cit[(int) $f->cid] ?? null) : null;
+            $capturo = $g && $g->user_id ? ($nombres[(int) $g->user_id] ?? null) : null;
+            $resuelto = $g && in_array($g->estatus, self::RESUELTOS, true);
+
+            return [
+                'clave'    => $g ? 's'.$g->id : 'c'.$c->id,
+                'creado'   => $f->creado ? Carbon::parse($f->creado) : null,
+                'persona'  => self::nombre($g->persona ?? null) ?: self::nombre($c->solicitante ?? null) ?: 'Sin nombre',
+                'folio'    => $c ? FolioCita::mostrar($c) : null,
+                'origen'   => $c ? ($c->origen === 'linea' ? 'En línea' : 'Ventanilla') : null,
+                'nue'      => $g->NUE ?? null,
+                'sede'     => $g->delegacion ?? $c->delegacion ?? '',
+                'estado'   => $g ? (self::ESTATUS[$g->estatus] ?? (string) $g->estatus) : 'Cita '.$c->estatus.', sin solicitud',
+                'tono'     => $g ? (in_array($g->estatus, self::FAVORABLES, true) ? 'favorable' : ($resuelto ? 'resuelto' : 'tramite')) : 'cita',
+                'atendio'  => self::nombre($c->atendido_por_nombre ?? null) ?: $capturo,
+                'creo'     => $c && $c->origen !== 'linea' ? (self::nombre($c->creado_por_nombre ?? null) ?: null) : null,
+                'proxima'  => $g ? ($prox[(int) $g->id] ?? null) : null,
+            ];
+        }));
+
+        return $pagina;
+    }
+
+    /**
+     * Próxima audiencia (pendiente, de hoy en adelante) de cada solicitud.
+     *
+     * @param  int[]  $solicitudes
+     * @return array<int, array{cuando: Carbon, conciliador: ?string, sala: ?string, numero: ?int}>
+     */
+    private static function proximas(array $solicitudes): array
+    {
+        if (! $solicitudes) {
+            return [];
+        }
+
+        $filas = DB::table('audiencias')->whereIn('id_solicitud', $solicitudes)
+            ->where('estatus', 'Pendiente')->where('fecha', '>=', now()->toDateString())
+            ->orderBy('fecha')->orderBy('hora')
+            ->get(['id_solicitud', 'fecha', 'hora', 'id_conciliador', 'sala', 'numero_audiencia'])
+            ->unique('id_solicitud');
+        $conc = self::usuarios($filas->pluck('id_conciliador')->filter()->map(fn ($i) => (int) $i)->all());
+
+        return $filas->mapWithKeys(fn ($a) => [(int) $a->id_solicitud => [
+            'cuando'      => Carbon::parse(substr((string) $a->fecha, 0, 10).' '.$a->hora),
+            'conciliador' => $conc[(int) $a->id_conciliador] ?? null,
+            'sala'        => $a->sala ?: null,
+            'numero'      => $a->numero_audiencia ? (int) $a->numero_audiencia : null,
+        ]])->all();
     }
 
     /**
@@ -217,6 +267,20 @@ class SeguimientoCaso
             return $e;
         });
 
+        // Quién intervino.
+        $prox     = $solicitud ? (self::proximas([(int) $solicitud->id])[(int) $solicitud->id] ?? null) : null;
+        $capturo  = $solicitud && $solicitud->user_id ? (self::usuarios([(int) $solicitud->user_id])[(int) $solicitud->user_id] ?? null) : null;
+        $ultimaConc = $solicitud ? DB::table('audiencias')->where('id_solicitud', $solicitud->id)->whereNotNull('id_conciliador')
+            ->orderByDesc('fecha')->orderByDesc('hora')->value('id_conciliador') : null;
+        $responsables = array_values(array_filter([
+            $cita ? ['rol' => $cita->origen === 'linea' ? 'Agendó su cita' : 'Le creó el turno',
+                     'nombre' => $cita->origen === 'linea' ? 'La persona, en línea' : (self::nombre($cita->creado_por_nombre ?? null) ?: 'Sin registro'), 'icono' => 'calendar-plus'] : null,
+            ($cita || $capturo) ? ['rol' => 'Lo atendió', 'nombre' => self::nombre($cita->atendido_por_nombre ?? null) ?: ($capturo ?: 'Sin registro'), 'icono' => 'person-check'] : null,
+            $solicitud ? ['rol' => 'Capturó la solicitud', 'nombre' => $capturo ?: 'La persona, en línea', 'icono' => 'file-earmark-text'] : null,
+            $solicitud ? ['rol' => $prox ? 'Le toca audiencia con' : 'Conciliador(a)',
+                          'nombre' => $prox['conciliador'] ?? ($ultimaConc ? (self::usuarios([(int) $ultimaConc])[(int) $ultimaConc] ?? null) : null) ?? 'Sin asignar', 'icono' => 'people'] : null,
+        ]));
+
         $pasados  = $eventos->where('futuro', false);
         $inicio   = $pasados->first()['cuando'] ?? null;
         $resuelto = $solicitud && in_array($solicitud->estatus, self::RESUELTOS, true);
@@ -235,6 +299,9 @@ class SeguimientoCaso
             'resuelto'  => $resuelto,
             'favorable' => $solicitud && in_array($solicitud->estatus, self::FAVORABLES, true),
             'vinculo'   => $solicitud->recepcion_vinculo ?? null,
+            'solicitud' => $solicitud ? (int) $solicitud->id : null,
+            'proxima'   => $prox,
+            'responsables' => $responsables,
             'dias'      => ($inicio && $fin) ? (int) $inicio->copy()->startOfDay()->diffInDays($fin->copy()->startOfDay()) : null,
             'etapas'    => collect(self::ETAPAS)->map(fn ($nombre, $k) => ['nombre' => $nombre, 'hecha' => ! empty($hechas[$k])])->all(),
             'eventos'   => $eventos->all(),
@@ -248,9 +315,12 @@ class SeguimientoCaso
         $hora    = substr((string) $c->hora, 0, 5);
         $fecha   = substr((string) $c->fecha, 0, 10);
         $aux     = self::usuarios([(int) $c->auxiliar])[(int) $c->auxiliar] ?? null;
+        $atendio = self::nombre($c->atendido_por_nombre ?? null) ?: $aux;
+        $creo    = self::nombre($c->creado_por_nombre ?? null);
 
         $eventos->push(self::evento('cita', $c->created_at, $enLinea ? 'Agendó su cita en línea' : 'Se registró su turno en ventanilla',
-            $folio.' · '.$c->tipo.' para el '.self::fechaLarga($fecha).' a las '.$hora, $enLinea ? 'globe2' : 'person-vcard', 'neutro', 1));
+            $folio.' · '.$c->tipo.' para el '.self::fechaLarga($fecha).' a las '.$hora.(! $enLinea && $creo ? ' · lo registró '.$creo : ''),
+            $enLinea ? 'globe2' : 'person-vcard', 'neutro', 1, false, [self::doc('Comprobante de la cita', 'citas.documento', ['id' => $c->id])]));
 
         $eventos->push(self::evento('cita', $fecha.' '.$c->hora, 'Hora de su cita',
             implode(' · ', array_filter([$c->tipo, $c->lugar_auxiliar ?: null, $aux])), 'calendar-event', 'neutro', 2));
@@ -262,7 +332,7 @@ class SeguimientoCaso
             $eventos->push(self::evento('cita', $c->llamado_at, 'Lo llamaron a su módulo', (string) $c->lugar_auxiliar, 'megaphone', 'neutro', 4));
         }
         if (! empty($c->atencion_inicio_at ?? null)) {
-            $eventos->push(self::evento('cita', $c->atencion_inicio_at, 'Inició su atención', $aux ? 'Con '.$aux : '', 'person-check', 'neutro', 5));
+            $eventos->push(self::evento('cita', $c->atencion_inicio_at, 'Inició su atención', $atendio ? 'Lo atendió '.$atendio : '', 'person-check', 'neutro', 5));
         }
         if (! empty($c->atencion_fin_at ?? null)) {
             $min = ! empty($c->atencion_inicio_at) ? (int) round(Carbon::parse($c->atencion_inicio_at)->diffInSeconds(Carbon::parse($c->atencion_fin_at)) / 60) : null;
@@ -287,16 +357,27 @@ class SeguimientoCaso
                 (string) $g->tipo_solicitud === '2' ? 'patronal' : 'de la persona trabajadora',
                 $capturo ? 'capturó '.$capturo : null,
                 $vinculo,
-            ])), 'file-earmark-text', 'neutro', 10));
+            ])), 'file-earmark-text', 'neutro', 10, false, self::documentosSolicitud($g)));
+
+        $citados = DB::table('seer_citados')->where('id_solicitud', $g->id)->orderBy('id')
+            ->get(['id', 'nombre', 'primer_apellido', 'segundo_apellido', 'estatus', 'notificacion', 'id_notificador', 'asignado_at', 'fecha', 'updated_at']);
 
         if (! empty($g->fecha_confirmacion)) {
+            $docs = [self::doc('Acuse de solicitud confirmada', 'PDFacuseConfirmada', ['id' => $g->id])];
+            foreach ($citados as $ct) {
+                $docs[] = self::doc('Citatorio · '.(self::nombre(trim($ct->nombre.' '.$ct->primer_apellido)) ?: 'citado'), 'PDFSolicitud', ['id' => $ct->id]);
+            }
             $eventos->push(self::evento('solicitud', substr((string) $g->fecha_confirmacion, 0, 10).' 23:58:00', 'Se confirmó la solicitud',
-                'Se agendó su audiencia y se emitieron los citatorios.', 'patch-check', 'ok', 11, true));
+                'Se agendó su audiencia y se emitieron los citatorios.', 'patch-check', 'ok', 11, true, $docs));
+        }
+
+        // Documentos que se fueron cargando al expediente (tabla documentos).
+        foreach (DB::table('documentos')->where('id_solicitud', $g->id)->where('tramite', 'Audiencia')->orderBy('created_at')->get(['id', 'nombre_documento', 'tipo_documentos', 'created_at']) as $d) {
+            $eventos->push(self::evento('solicitud', $d->created_at, 'Se cargó un documento', (string) ($d->tipo_documentos ?: $d->nombre_documento),
+                'paperclip', 'neutro', 12, false, [self::doc((string) ($d->nombre_documento ?: 'Documento'), 'documento_solicitud_ver', $d->id, true)]));
         }
 
         // Notificación de cada citado.
-        $citados = DB::table('seer_citados')->where('id_solicitud', $g->id)->orderBy('id')
-            ->get(['id', 'nombre', 'primer_apellido', 'segundo_apellido', 'estatus', 'notificacion', 'id_notificador', 'asignado_at', 'fecha', 'updated_at']);
         $notificadores = self::usuarios($citados->pluck('id_notificador')->filter()->map(fn ($i) => (int) $i)->all());
         foreach ($citados as $ct) {
             $quien = self::nombre(trim($ct->nombre.' '.$ct->primer_apellido.' '.$ct->segundo_apellido)) ?: 'el citado';
@@ -309,8 +390,17 @@ class SeguimientoCaso
                 $hechas['notificacion'] = ($hechas['notificacion'] ?? false) || $ok;
                 // seer_citados.fecha es el día de la diligencia (sin hora); si falta, cuando se registró.
                 $soloDia = $ct->fecha && strlen((string) $ct->fecha) <= 10;
+                $ruta = [
+                    'Finalizado exitosamente'     => 'PDFRazonNoticacion',
+                    'Recibe pero no firma'        => 'PDFRazonNoticacion',
+                    'Notificada'                  => 'PDFRazonNoticacion',
+                    'Exitosa por Instructivo'     => 'PDFInstructivo',
+                    'No exitosa se constituye'    => 'VerPDFNoExitConstituye',
+                    'No exitosa no se constituye' => 'PDFNoExitosaInt',
+                ][$ct->estatus] ?? null;
                 $eventos->push(self::evento('notificacion', $soloDia ? $ct->fecha.' 23:50:00' : ($ct->fecha ?: $ct->updated_at), ($ok ? 'Se notificó a ' : 'No se pudo notificar a ').$quien,
-                    (string) $ct->estatus, $ok ? 'envelope-check' : 'envelope-exclamation', $ok ? 'ok' : 'alerta', 21, $soloDia));
+                    (string) $ct->estatus, $ok ? 'envelope-check' : 'envelope-exclamation', $ok ? 'ok' : 'alerta', 21, $soloDia,
+                    $ruta ? [self::doc('Constancia de notificación', $ruta, ['id' => $ct->id, 'id_solicitud' => $g->id])] : []));
             } elseif ($ct->notificacion === 'Trabajador') {
                 // La persona trabajadora entrega el citatorio ella misma.
                 $hechas['notificacion'] = true;
@@ -362,8 +452,19 @@ class SeguimientoCaso
             $favorable = in_array($g->estatus, self::FAVORABLES, true);
             $ultima = $audiencias->last();
             $dia = $g->fecha_terminacion ?: ($ultima->fecha ?? $g->updated_at);
+            $docs = [];
+            if ($audiencias->contains(fn ($a) => ! in_array($a->estatus, ['Pendiente', 'Reagendada'], true))) {
+                $docs[] = self::doc('Acta de audiencia', 'VerPDFAudiencia', ['id' => $g->id]);
+            }
+            $docs[] = match ($g->estatus) {
+                'Conciliacion'    => self::doc('Convenio', 'PDFconveniosolicitud', ['id' => $g->id]),
+                'Reinstalacion'   => self::doc('Convenio de reinstalación', 'PDFconvenioreinstalacion', ['id' => $g->id]),
+                'No conciliacion' => self::doc('Constancia de no conciliación', 'PDFno_conciliacion', ['id' => $g->id]),
+                'Incompetencia'   => self::doc('Constancia de incompetencia', 'PDFincompetencia', ['id' => $g->id]),
+                default           => null,
+            };
             $eventos->push(self::evento('resultado', substr((string) $dia, 0, 10).' 23:59:00', 'Se resolvió: '.(self::ESTATUS[$g->estatus] ?? $g->estatus),
-                $g->fecha_terminacion ? '' : 'Fecha aproximada (la de su última audiencia).', $favorable ? 'trophy' : 'flag', $favorable ? 'ok' : 'neutro', 40, true));
+                $g->fecha_terminacion ? '' : 'Fecha aproximada (la de su última audiencia).', $favorable ? 'trophy' : 'flag', $favorable ? 'ok' : 'neutro', 40, true, $docs));
         }
 
         // Cumplimiento del convenio.
@@ -383,15 +484,59 @@ class SeguimientoCaso
         }
     }
 
-    private static function evento(string $etapa, $cuando, string $titulo, string $detalle, string $icono, string $tono, int $orden, bool $soloFecha = false): array
+    private static function evento(string $etapa, $cuando, string $titulo, string $detalle, string $icono, string $tono, int $orden, bool $soloFecha = false, array $docs = []): array
     {
         try {
             $momento = $cuando ? Carbon::parse($cuando) : null;
         } catch (\Throwable) {
             $momento = null;
         }
+        $docs = array_values(array_filter($docs));
 
-        return compact('etapa', 'titulo', 'detalle', 'icono', 'tono', 'orden', 'soloFecha') + ['cuando' => $momento];
+        return compact('etapa', 'titulo', 'detalle', 'icono', 'tono', 'orden', 'soloFecha', 'docs') + ['cuando' => $momento];
+    }
+
+    /**
+     * Lo que la persona entregó al levantar la solicitud: acuse,
+     * identificación, CURP y fotos del domicilio de los citados.
+     */
+    private static function documentosSolicitud(object $g): array
+    {
+        $s = DB::table('seer_solicitante')->where('id_solicitud', $g->id)->orderBy('id')->first(['documentoIdentificacion', 'documentoCurp']);
+        $archivo = fn ($v) => ($v && $v !== 'Sin documento') ? basename((string) $v) : null;
+
+        $docs = [self::doc('Acuse de la solicitud', 'PDFacuse_solicitud', ['id' => $g->id])];
+        if ($f = $archivo($s->documentoIdentificacion ?? null)) {
+            $docs[] = self::doc('Identificación', 'documentos.ver', ['tipo' => 'solicitud', 'id' => $g->id, 'archivo' => $f], true);
+        }
+        if ($f = $archivo($s->documentoCurp ?? null)) {
+            $docs[] = self::doc('CURP', 'documentos.ver', ['tipo' => 'solicitud', 'id' => $g->id, 'archivo' => $f], true);
+        }
+        foreach (DB::table('seer_citados')->where('id_solicitud', $g->id)->get(['imagen_domicilio1', 'imagen_domicilio2']) as $i => $c) {
+            foreach ([$c->imagen_domicilio1, $c->imagen_domicilio2] as $n => $img) {
+                if ($f = $archivo($img)) {
+                    $docs[] = self::doc('Foto del domicilio '.($n + 1).' (citado '.($i + 1).')', 'documentos.ver_imagen', ['id_solicitud' => $g->id, 'filename' => $f], true);
+                }
+            }
+        }
+
+        return $docs;
+    }
+
+    /** Liga a un documento si la ruta existe (firmada si así la pide la ruta). */
+    private static function doc(string $nombre, string $ruta, $parametros, bool $firmada = false): ?array
+    {
+        if (! Route::has($ruta)) {
+            return null;
+        }
+
+        try {
+            $url = $firmada && function_exists('signedDocRoute') ? signedDocRoute($ruta, $parametros) : route($ruta, $parametros);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        return ['nombre' => $nombre, 'url' => $url];
     }
 
     /** @return array<int, string> id => nombre */

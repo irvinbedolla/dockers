@@ -114,7 +114,7 @@
                     <span class="sl-acceso__icono"><i class="bi bi-signpost-2" aria-hidden="true"></i></span>
                     <span>
                         <span class="sl-acceso__titulo">Seguimiento del caso</span>
-                        <span class="sl-acceso__texto">De la cita a en qué quedó, con fechas</span>
+                        <span class="sl-acceso__texto">Todos los casos: de la cita a en qué quedó</span>
                     </span>
                 </a>
                 @if ($conModulo)
