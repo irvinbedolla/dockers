@@ -36,6 +36,73 @@ class CasosExcepcion
 
     public const SEDES = ['Morelia', 'Zitácuaro', 'Uruapan', 'Lázaro Cárdenas', 'Zamora', 'Sahuayo'];
 
+    /**
+     * Motivos de "¿Tu caso es por alguno de estos motivos?" (formulario de
+     * cita en línea y de ventanilla). Clave => [texto del formulario, grupo,
+     * valor de recepcion.tipo_caso, nombre en el reporte].
+     *
+     * recepcion.tipo_caso sólo guarda el grupo (p. ej. "Discriminación" para
+     * embarazo, raza, edad...), por eso el motivo exacto va aparte en
+     * recepcion.motivo_excepcion. Es lo que permite el reporte por motivo.
+     */
+    public const MOTIVOS = [
+        'acoso_sexual'          => ['Acoso u hostigamiento sexual', 'Discriminación en el empleo por:', 'Acoso u hostigamiento sexual', 'Acoso / hostigamiento sexual'],
+        'condicion_social'      => ['Condición social', 'Discriminación en el empleo por:', 'Discriminación', 'Discriminación por condición social'],
+        'embarazo'              => ['Embarazo o maternidad', 'Discriminación en el empleo por:', 'Discriminación', 'Discriminación por maternidad'],
+        'raza'                  => ['Raza', 'Discriminación en el empleo por:', 'Discriminación', 'Discriminación por raza'],
+        'razones_sexo'          => ['Razones de sexo', 'Discriminación en el empleo por:', 'Discriminación', 'Discriminación por razones de sexo'],
+        'religion'              => ['Religión', 'Discriminación en el empleo por:', 'Discriminación', 'Discriminación por religión'],
+        'orientacion_sexual'    => ['Orientación sexual', 'Discriminación en el empleo por:', 'Discriminación', 'Discriminación por orientación sexual'],
+        'origen_etnico'         => ['Origen étnico', 'Discriminación en el empleo por:', 'Discriminación', 'Discriminación por origen étnico'],
+        'acoso_laboral'         => ['Acoso / hostigamiento laboral (violencia laboral)', 'Discriminación en el empleo por:', 'Acoso u hostigamiento laboral', 'Acoso / hostigamiento laboral'],
+        'edad'                  => ['Edad', 'Discriminación en el empleo por:', 'Discriminación', 'Discriminación por edad'],
+        'designacion'           => ['Designación de beneficiarios por muerte', 'Designación de beneficiarios:', 'Designacion', 'Designación de beneficiarios'],
+        'accidentes'            => ['Accidentes de trabajo', 'Prestaciones de seguridad social por:', 'Prestaciones', 'Accidentes de trabajo'],
+        'enfermedades'          => ['Enfermedades', 'Prestaciones de seguridad social por:', 'Prestaciones', 'Enfermedades'],
+        'guarderias'            => ['Guarderías', 'Prestaciones de seguridad social por:', 'Prestaciones', 'Guarderías'],
+        'invalidez'             => ['Invalidez', 'Prestaciones de seguridad social por:', 'Prestaciones', 'Invalidez'],
+        'maternidad_ss'         => ['Maternidad', 'Prestaciones de seguridad social por:', 'Prestaciones', 'Prestación de maternidad (seguridad social)'],
+        'riesgos'               => ['Riesgos de trabajo', 'Prestaciones de seguridad social por:', 'Prestaciones', 'Riesgos de trabajo'],
+        'especie'               => ['Prestaciones en especie', 'Prestaciones de seguridad social por:', 'Prestaciones', 'Prestaciones en especie'],
+        'vida'                  => ['Vida', 'Prestaciones de seguridad social por:', 'Prestaciones', 'Seguro de vida'],
+        'libertad_asociacion'   => ['Libertad de asociación', 'Derechos fundamentales y libertades laborales:', 'Libertades_publicas', 'Libertad de asociación'],
+        'libertad_sindical'     => ['Libertad sindical', 'Derechos fundamentales y libertades laborales:', 'Libertades_publicas', 'Libertad sindical'],
+        'negociacion_colectiva' => ['Reconocimiento efectivo de la negociación colectiva', 'Derechos fundamentales y libertades laborales:', 'Libertades_publicas', 'Negociación colectiva'],
+        'trabajo_infantil'      => ['Trabajo infantil', 'Derechos fundamentales y libertades laborales:', 'Libertades_publicas', 'Trabajo infantil'],
+        'trabajo_forzoso'       => ['Trabajo forzoso u obligatorio', 'Derechos fundamentales y libertades laborales:', 'Libertades_publicas', 'Trabajo forzoso u obligatorio'],
+        'contratos_colectivos'  => ['Contratos colectivos', 'Disputa de titularidad o estatutos sindicales:', 'Titularidad', 'Titularidad de contratos colectivos'],
+        'contratos_ley'         => ['Contratos ley', 'Disputa de titularidad o estatutos sindicales:', 'Titularidad', 'Titularidad de contratos ley'],
+        'estatutos'             => ['Impugnación de los estatutos de los sindicatos o su modificación', 'Disputa de titularidad o estatutos sindicales:', 'Titularidad', 'Impugnación de estatutos sindicales'],
+    ];
+
+    /** Motivos de discriminación para "Señale el motivo" del formato 685 Ter. */
+    public const MOTIVOS_DISCRIMINACION = ['condicion_social', 'embarazo', 'raza', 'razones_sexo', 'religion', 'orientacion_sexual', 'origen_etnico', 'edad'];
+
+    /** Ya corrió la migración de recepcion.motivo_excepcion. */
+    public static function conMotivo(): bool
+    {
+        static $hay = null;
+
+        return $hay ??= Schema::hasColumn('recepcion', 'motivo_excepcion');
+    }
+
+    /** La clave si es un motivo del catálogo; si no, null. */
+    public static function motivoValido(?string $clave): ?string
+    {
+        return $clave !== null && isset(self::MOTIVOS[$clave]) ? $clave : null;
+    }
+
+    /** Opciones agrupadas para el select del formulario de cita. */
+    public static function motivosAgrupados(): array
+    {
+        $grupos = [];
+        foreach (self::MOTIVOS as $clave => [$texto, $grupo, $valor]) {
+            $grupos[$grupo][] = ['clave' => $clave, 'texto' => $texto, 'valor' => $valor];
+        }
+
+        return $grupos;
+    }
+
     /** Turnos que puede crear en ventanilla (Recepcion::tramitesQuePuedeCrear). */
     public const TRAMITES_TURNO = ['Solicitud', 'Asesoría'];
 

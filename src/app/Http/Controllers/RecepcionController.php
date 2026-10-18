@@ -132,6 +132,10 @@ class RecepcionController extends Controller
                     'edad'            => $data["edad"] ?? null,
                     'sexo'            => $data["sexo"] ?? null,
                     'tipo_caso'       => $tipo_caso,
+                    // Motivo exacto del caso de excepción (CasosExcepcion::MOTIVOS).
+                    ...(\App\Support\CasosExcepcion::conMotivo()
+                        ? ['motivo_excepcion' => \App\Support\CasosExcepcion::motivoValido($data['motivo_excepcion'] ?? null)]
+                        : []),
                     'prestacionSS'    => $prestacionSS,
                     'vulnerables'     => $vulnerables,
                     'conflicto'       => $data["conflicto"] ?? null,

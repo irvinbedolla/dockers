@@ -14,6 +14,7 @@
                                 @csrf
                                 <input type="hidden" name="orientacion" id="orientacion" value="No">
                                 <input type="hidden" name="excepcion" id="excepcion" value="No">
+                                <input type="hidden" name="motivo_excepcion" id="motivo_excepcion" value="">
                                 <input type="hidden" name="delegacion" id="delegacion" value="">
                                 <input type="hidden" name="fecha_turno" id="fecha_turno" value="">
                                 <input type="hidden" name="hora_turno" id="hora_turno" value="">
@@ -189,42 +190,16 @@
                                             <select id="gcTipoCaso" name="tipo_caso" class="form-select" onchange="cambiaExcepcion(this); blockCalendar();" required>
                                                 <option value="">Elige una opción</option>
                                                 <option value="Ninguno" style="font-weight: bold;">No, ninguno de estos</option>
-                                                <optgroup label="Discriminación en el empleo por:">
-                                                    <option value="Acoso u hostigamiento sexual">Acoso u hostigamiento sexual</option>
-                                                    <option value="Discriminación">Condición social</option>
-                                                    <option value="Discriminación">Embarazo</option>
-                                                    <option value="Discriminación">Raza</option>
-                                                    <option value="Discriminación">Razones de sexo</option>
-                                                    <option value="Discriminación">Religión</option>
-                                                    <option value="Discriminación">Orientación sexual</option>
-                                                    <option value="Discriminación">Origen étnico</option>
-                                                    <option value="Acoso u hostigamiento laboral">Acoso / hostigamiento laboral (violencia laboral)</option>
-                                                </optgroup>
-                                                <optgroup label="Designación de beneficiarios:">
-                                                    <option value="Designacion">Designación de beneficiarios por muerte</option>
-                                                </optgroup>
-                                                <optgroup label="Prestaciones de seguridad social por:">
-                                                    <option value="Prestaciones">Accidentes de trabajo</option>
-                                                    <option value="Prestaciones">Enfermedades</option>
-                                                    <option value="Prestaciones">Guarderías</option>
-                                                    <option value="Prestaciones">Invalidez</option>
-                                                    <option value="Prestaciones">Maternidad</option>
-                                                    <option value="Prestaciones">Riesgos de trabajo</option>
-                                                    <option value="Prestaciones">Prestaciones en especie</option>
-                                                    <option value="Prestaciones">Vida</option>
-                                                </optgroup>
-                                                <optgroup label="Derechos fundamentales y libertades laborales:">
-                                                    <option value="Libertades_publicas">Libertad de asociación</option>
-                                                    <option value="Libertades_publicas">Libertad sindical</option>
-                                                    <option value="Libertades_publicas">Reconocimiento efectivo de la negociación colectiva</option>
-                                                    <option value="Libertades_publicas">Trabajo infantil</option>
-                                                    <option value="Libertades_publicas">Trabajo forzoso u obligatorio</option>
-                                                </optgroup>
-                                                <optgroup label="Disputa de titularidad o estatutos sindicales:">
-                                                    <option value="Titularidad">Contratos colectivos</option>
-                                                    <option value="Titularidad">Contratos ley</option>
-                                                    <option value="Titularidad">Impugnación de los estatutos de los sindicatos o su modificación</option>
-                                                </optgroup>
+                                                {{-- Catálogo en App\Support\CasosExcepcion::MOTIVOS. El value es el de
+                                                     siempre (recepcion.tipo_caso, el grupo); data-motivo es el motivo
+                                                     exacto y viaja en motivo_excepcion, para el reporte por motivo. --}}
+                                                @foreach (\App\Support\CasosExcepcion::motivosAgrupados() as $grupo => $opciones)
+                                                    <optgroup label="{{ $grupo }}">
+                                                        @foreach ($opciones as $op)
+                                                            <option value="{{ $op['valor'] }}" data-motivo="{{ $op['clave'] }}">{{ $op['texto'] }}</option>
+                                                        @endforeach
+                                                    </optgroup>
+                                                @endforeach
                                             </select>
                                             <div class="form-text" id="gcAyudaCaso">Si no estás seguro, elige "No, ninguno de estos".</div>
                                             <div class="invalid-feedback">Elige una opción.</div>
