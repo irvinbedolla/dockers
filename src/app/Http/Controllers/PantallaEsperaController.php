@@ -38,9 +38,9 @@ class PantallaEsperaController extends Controller
             ->header('Cache-Control', 'no-store');
     }
 
-    /** ?pruebas=1 sólo cuenta mientras el flujo nuevo no esté apagado. */
+    /** ?pruebas=1 muestra también las citas de prueba. */
     private function conPruebas(Request $request): bool
     {
-        return $request->boolean('pruebas') && FlujoCita::migrado() && ! FlujoCita::apagado();
+        return $request->boolean('pruebas') && FlujoCita::migrado();
     }
 }

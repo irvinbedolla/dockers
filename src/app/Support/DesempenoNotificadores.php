@@ -9,8 +9,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Cifras del filtro avanzado del historial de notificaciones: cuántas se le
- * asignaron a un notificador en un periodo y cómo las concluyó.
+ * Cifras de /estadisticas/notificaciones: cuántas se le asignaron a cada
+ * notificador (o sede) en un periodo y cómo las concluyó. El historial de
+ * notificaciones sólo usa filtrarLista() para acotar su lista por fechas.
  *
  *   asignadas   asignado_at en el periodo (antes de existir la columna se
  *               toma la fecha de registro del citado, created_at);
@@ -29,6 +30,18 @@ class DesempenoNotificadores
     public const EXITOSAS    = ['Finalizado exitosamente', 'Exitosa por Instructivo', 'Notificada', 'Recibe pero no firma'];
     public const NO_EXITOSAS = ['No exitosa se constituye', 'No exitosa no se constituye', 'No notificada'];
     public const OTRAS       = ['Notificada en Audiencia', 'Exhorto'];
+
+    /**
+     * Citados con su expediente y su notificador ("c", "g" y "n"), sin los
+     * expedientes que siguen en captura. Es la misma base del historial.
+     */
+    public static function base(): Builder
+    {
+        return DB::table('seer_citados as c')
+            ->join('seer_general as g', 'g.id', '=', 'c.id_solicitud')
+            ->leftJoin('users as n', 'n.id', '=', 'c.id_notificador')
+            ->where('g.estatus', '!=', 'Pendiente');
+    }
 
     public static function conAsignacion(): bool
     {
@@ -83,6 +96,75 @@ class DesempenoNotificadores
             ->values();
     }
 
+    /**
+     * Las mismas cifras por sede del expediente.
+     *
+     * @return Collection<int, array>
+     */
+    public static function porSede(Builder $base, ?array $rango): Collection
+    {
+        [$sql, $bindings] = self::columnas($rango);
+
+        return (clone $base)
+            ->selectRaw('g.delegacion AS sede, '.$sql, $bindings)
+            ->groupBy('g.delegacion')
+            ->get()
+            ->map(fn ($f) => ['sede' => $f->sede ?: 'Sin sede'] + self::armar($f))
+            ->filter(fn ($f) => $f['asignadas'] + $f['concluidas'] + $f['otras'] + $f['pendientes'] > 0)
+            ->sortByDesc(fn ($f) => [$f['asignadas'], $f['exitosas']])
+            ->values();
+    }
+
+    /**
+     * Serie para la gráfica: asignadas, exitosas y no exitosas por día (o por
+     * mes si el rango pasa de dos meses). Los huecos van en cero.
+     *
+     * @param  array{0: string, 1: string}  $rango
+     * @return array{unidad: string, claves: array, etiquetas: array, asignadas: array, exitosas: array, noExitosas: array}
+     */
+    public static function tendencia(Builder $base, array $rango): array
+    {
+        $inicio = Carbon::parse($rango[0])->startOfDay();
+        $fin    = Carbon::parse($rango[1])->startOfDay();
+        $porMes = abs($inicio->diffInDays($fin)) > 62;
+        $formato = $porMes ? '%Y-%m' : '%Y-%m-%d';
+
+        $diligencias = (clone $base)
+            ->whereBetween('c.fecha', $rango)
+            ->whereIn('c.estatus', array_merge(self::EXITOSAS, self::NO_EXITOSAS))
+            ->selectRaw("DATE_FORMAT(c.fecha, '{$formato}') AS clave, "
+                .'SUM(CASE WHEN c.estatus IN ('.self::lista(self::EXITOSAS).') THEN 1 ELSE 0 END) AS exitosas, COUNT(*) AS total')
+            ->groupBy('clave')
+            ->get()
+            ->keyBy('clave');
+
+        $asignadas = (clone $base)
+            ->where('c.id_notificador', '>', 0)
+            ->whereRaw(self::fechaAsignacion().' BETWEEN ? AND ?', $rango)
+            ->selectRaw('DATE_FORMAT('.self::fechaAsignacion().", '{$formato}') AS clave, COUNT(*) AS total")
+            ->groupBy('clave')
+            ->pluck('total', 'clave');
+
+        $serie = ['unidad' => $porMes ? 'mes' : 'dia', 'claves' => [], 'etiquetas' => [], 'asignadas' => [], 'exitosas' => [], 'noExitosas' => []];
+        $cursor = $porMes ? $inicio->copy()->startOfMonth() : $inicio->copy();
+
+        while ($cursor <= $fin) {
+            $clave = $cursor->format($porMes ? 'Y-m' : 'Y-m-d');
+            $fila  = $diligencias[$clave] ?? null;
+            $exitosas = (int) ($fila->exitosas ?? 0);
+
+            $serie['claves'][]     = $clave;
+            $serie['etiquetas'][]  = $cursor->locale('es')->isoFormat($porMes ? 'MMM YY' : 'D MMM');
+            $serie['asignadas'][]  = (int) ($asignadas[$clave] ?? 0);
+            $serie['exitosas'][]   = $exitosas;
+            $serie['noExitosas'][] = (int) ($fila->total ?? 0) - $exitosas;
+
+            $porMes ? $cursor->addMonthNoOverflow() : $cursor->addDay();
+        }
+
+        return $serie;
+    }
+
     /** Filtra la lista por periodo según la fecha elegida. */
     public static function filtrarLista(Builder $consulta, ?array $rango, string $fechaDe): void
     {
@@ -98,7 +180,7 @@ class DesempenoNotificadores
     /** @return array{0: string, 1: array} */
     private static function columnas(?array $rango): array
     {
-        $lista = fn (array $valores) => "'".implode("','", array_map(fn ($v) => str_replace("'", "''", $v), $valores))."'";
+        $lista = fn (array $valores) => self::lista($valores);
         $enRango = fn (string $col) => $rango ? " AND {$col} BETWEEN ? AND ?" : '';
         $bindings = [];
         $suma = function (string $condicion, string $col) use ($enRango, $rango, &$bindings) {
@@ -118,6 +200,12 @@ class DesempenoNotificadores
         ]);
 
         return [$sql, $bindings];
+    }
+
+    /** Lista SQL entre comillas de valores fijos (las constantes de arriba). */
+    private static function lista(array $valores): string
+    {
+        return "'".implode("','", array_map(fn ($v) => str_replace("'", "''", $v), $valores))."'";
     }
 
     private static function armar(?object $f): array

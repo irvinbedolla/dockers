@@ -13,6 +13,11 @@ use App\Http\Controllers\HorariosCitasController;
 use App\Http\Controllers\EscanerCitasController;
 use App\Http\Controllers\NotificacionesController;
 use App\Http\Middleware\SinRecepcion;
+use App\Http\Middleware\SinNotificador;
+use App\Http\Middleware\SinCasosExcepcion;
+use App\Http\Middleware\CasosExcepcionAcceso;
+use App\Http\Middleware\VeCitasEnLinea;
+use App\Http\Middleware\CreaTurnos;
 use App\Support\Recepcion;
 use App\Http\Controllers\DashboardController;
 use Illuminate\Support\Facades\Route;
@@ -197,20 +202,52 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Fase 4: Llamar / Iniciar atención / Terminar / No se presentó (mueven la pantalla de espera).
     Route::post('/mi-modulo/citas/{id}/{accion}',       [App\Http\Controllers\MiModuloController::class, 'accion'])->name('mi_modulo.accion')
         ->whereNumber('id')->whereIn('accion', App\Http\Controllers\MiModuloController::ACCIONES)->middleware('throttle:60,1');
+    // Casos de excepción (art. 685 Ter LFT): bandeja del Departamento de
+    // Conciliación, Género e Igualdad (App\Support\CasosExcepcion). Antes
+    // estas rutas estaban dos veces y la segunda, sin rol, ganaba.
+    Route::middleware(CasosExcepcionAcceso::class)->group(function () {
+        Route::get('/excepciones/index',                [App\Http\Controllers\CasosExcepcionController::class, 'index'])->name('excepcion');
+        Route::get('/excepciones/solicitudes/{id}',     [App\Http\Controllers\CasosExcepcionController::class, 'verSolicitud'])->name('excepciones.solicitud')->whereNumber('id');
+        // Formato 685 Ter en PDF (prellenado; lo que falte sale en blanco).
+        Route::get('/excepciones/{tipo}/{id}/formato/pdf', [App\Http\Controllers\CasosExcepcionController::class, 'pdf'])->name('excepciones.formato.pdf')
+            ->whereIn('tipo', App\Support\FormatoExcepcion::TIPOS_ORIGEN)->whereNumber('id');
+        Route::get('/excepciones/{tipo}/{id}/oficio/{institucion}/pdf', [App\Http\Controllers\CasosExcepcionController::class, 'oficioPdf'])->name('excepciones.oficio.pdf')
+            ->whereIn('tipo', App\Support\FormatoExcepcion::TIPOS_ORIGEN)->whereNumber('id')->whereIn('institucion', array_keys(App\Support\CasosExcepcion::INSTITUCIONES));
+        Route::get('/excepciones/{tipo}/{id}/aceptacion/{institucion}/pdf', [App\Http\Controllers\CasosExcepcionController::class, 'aceptacionPdf'])->name('excepciones.aceptacion.pdf')
+            ->whereIn('tipo', App\Support\FormatoExcepcion::TIPOS_ORIGEN)->whereNumber('id')->whereIn('institucion', array_keys(App\Support\CasosExcepcion::INSTITUCIONES));
+    });
+    Route::middleware(CasosExcepcionAcceso::class.':atender')->group(function () {
+        Route::get('/excepciones/atender/{id}',         [App\Http\Controllers\CasosExcepcionController::class, 'atender'])->name('atender_excepcion')->whereNumber('id');
+        Route::get('/excepciones/{tipo}/{id}/formato',  [App\Http\Controllers\CasosExcepcionController::class, 'formato'])->name('excepciones.formato')
+            ->whereIn('tipo', App\Support\FormatoExcepcion::TIPOS_ORIGEN)->whereNumber('id');
+        Route::post('/excepciones/{tipo}/{id}/formato', [App\Http\Controllers\CasosExcepcionController::class, 'guardarFormato'])->name('excepciones.formato.guardar')
+            ->whereIn('tipo', App\Support\FormatoExcepcion::TIPOS_ORIGEN)->whereNumber('id');
+        Route::post('/excepciones/{tipo}/{id}/oficio/{institucion}', [App\Http\Controllers\CasosExcepcionController::class, 'guardarOficio'])->name('excepciones.oficio.guardar')
+            ->whereIn('tipo', App\Support\FormatoExcepcion::TIPOS_ORIGEN)->whereNumber('id')->whereIn('institucion', array_keys(App\Support\CasosExcepcion::INSTITUCIONES));
+    });
     // Panel de estadísticas: mapa, gráficas y descarga de reportes.
     Route::get('/estadisticas',                         [EstadisticasController::class, 'index'])->name('estadisticas.index')
         ->middleware('role:Super Usuario|Estadistica|Directivo');
+    // Secciones del panel: todo lo de notificaciones (antes, filtro avanzado del historial).
+    Route::get('/estadisticas/notificaciones',          [EstadisticasController::class, 'notificaciones'])->name('estadisticas.notificaciones')
+        ->middleware('role:Super Usuario|Estadistica|Directivo');
+    // Casos de excepción (art. 685 Ter): también los ve Conciliación, Género e Igualdad.
+    Route::get('/estadisticas/excepciones',             [EstadisticasController::class, 'excepciones'])->name('estadisticas.excepciones')
+        ->middleware(CasosExcepcionAcceso::class.':estadisticas');
+    Route::get('/estadisticas/excepciones/motivos.csv', [EstadisticasController::class, 'excepcionesMotivosCsv'])->name('estadisticas.excepciones.motivos')
+        ->middleware(CasosExcepcionAcceso::class.':estadisticas');
     // Panel Común de entrada
     Route::get('/agenda',                               [DashboardController::class, 'index'])->name('agenda');
     // Descarga la agenda del rango visible del calendario, una hoja por
     // conciliador. El alcance lo acota AgendaContexto dentro del controlador.
-    Route::get('/agenda/exportar',                      [DashboardController::class, 'exportar'])->name('agenda.exportar')->middleware(SinRecepcion::class);
+    Route::get('/agenda/exportar',                      [DashboardController::class, 'exportar'])->name('agenda.exportar')->middleware([SinRecepcion::class, SinNotificador::class, SinCasosExcepcion::class]);
 
     // Citas en línea de recepción. Es la única fuente de la agenda que ven
     // los tres roles de recepción; las demás les quedan cerradas por
     // SinRecepcion. Los nombres de rol salen de App\Support\Recepcion.
+    // Conciliación, Género e Igualdad también entra, sólo a las de excepción.
     Route::get('/agenda/citas-en-linea',                AgendaCitasController::class)->name('agenda.citas_linea')
-        ->middleware(Recepcion::middleware(...Recepcion::SUPERVISAN));
+        ->middleware(VeCitasEnLinea::class);
     // Audiencias de hoy: la recepción de audiencias (Morelia 02) marca qué parte
     // llegó y el conciliador recibe el aviso. Ver App\Support\LlegadasAudiencia.
     Route::middleware('role:'.implode('|', \App\Support\LlegadasAudiencia::ROLES))->group(function () {
@@ -248,12 +285,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Calendario Compartido
     Route::get('/calendario',                   [App\Http\Controllers\CalendarController::class, 'index'])->name('calendario.index');
-    Route::get('/citas/eventos',                [App\Http\Controllers\CitaController::class, 'citas'])->name('citas.eventos')->middleware(SinRecepcion::class.':citas');
-    Route::get('/pagos/eventos',                [App\Http\Controllers\CitaController::class, 'pagos'])->name('pagos.eventos')->middleware(SinRecepcion::class.':pagos');
-    Route::get('/pagos/conciliadores',          [App\Http\Controllers\CitaController::class, 'conciliadores'])->name('conciliador.eventos')->middleware(SinRecepcion::class.':conciliador');
-    Route::get('/solicitudes/eventos',          [App\Http\Controllers\AudienciasController::class, 'solicitudes'])->name('solicitudes.eventos')->middleware(SinRecepcion::class.':solicitudes');
-    Route::get('/audiencias/eventos',           [App\Http\Controllers\AudienciasController::class, 'audiencias'])->name('audiencias.eventos')->middleware(SinRecepcion::class.':audiencias');
-    Route::get('/ratificaciones/eventos',       [App\Http\Controllers\AudienciasController::class, 'ratificaciones'])->name('ratificaciones.eventos')->middleware(SinRecepcion::class.':ratificaciones');
+    Route::get('/citas/eventos',                [App\Http\Controllers\CitaController::class, 'citas'])->name('citas.eventos')->middleware([SinRecepcion::class.':citas', SinNotificador::class, SinCasosExcepcion::class]);
+    Route::get('/pagos/eventos',                [App\Http\Controllers\CitaController::class, 'pagos'])->name('pagos.eventos')->middleware([SinRecepcion::class.':pagos', SinNotificador::class, SinCasosExcepcion::class]);
+    Route::get('/pagos/conciliadores',          [App\Http\Controllers\CitaController::class, 'conciliadores'])->name('conciliador.eventos')->middleware([SinRecepcion::class.':conciliador', SinNotificador::class, SinCasosExcepcion::class]);
+    Route::get('/solicitudes/eventos',          [App\Http\Controllers\AudienciasController::class, 'solicitudes'])->name('solicitudes.eventos')->middleware([SinRecepcion::class.':solicitudes', SinNotificador::class, SinCasosExcepcion::class]);
+    // Agenda del notificador: sus notificaciones pendientes (App\Support\AgendaNotificador).
+    Route::get('/agenda/mis-notificaciones',          App\Http\Controllers\AgendaNotificadorController::class)->name('agenda.mis_notificaciones')
+        ->middleware('role:Super Usuario|Notificador');
+    Route::get('/audiencias/eventos',           [App\Http\Controllers\AudienciasController::class, 'audiencias'])->name('audiencias.eventos')->middleware([SinRecepcion::class.':audiencias', SinCasosExcepcion::class]);
+    Route::get('/ratificaciones/eventos',       [App\Http\Controllers\AudienciasController::class, 'ratificaciones'])->name('ratificaciones.eventos')->middleware([SinRecepcion::class.':ratificaciones', SinNotificador::class, SinCasosExcepcion::class]);
     Route::get('citas/exportar-excel',          [CitaController::class, 'exportarExcel']);
     Route::get('/obtenerBloqueosCalendario',    [AdministracionController::class, 'obtenerBloqueosCalendario'])->name('calendario.bloqueos');
     // Dias inhabiles del rango visible, para pintarlos deshabilitados.
@@ -276,9 +316,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::post('administracion/modulos/citas/{id}/reasignar',   [ModulosController::class, 'reasignar'])->name('modulos.reasignar')->whereNumber('id');
             Route::get('administracion/horarios',                        [HorariosCitasController::class, 'index'])->name('horarios.index');
             Route::put('administracion/horarios',                        [HorariosCitasController::class, 'actualizar'])->name('horarios.actualizar');
-            // Interruptor del flujo nuevo cita en línea → solicitud (App\Support\FlujoCita).
-            Route::get('administracion/flujo-citas',                     [App\Http\Controllers\FlujoCitaController::class, 'index'])->name('flujo_cita.index');
-            Route::put('administracion/flujo-citas',                     [App\Http\Controllers\FlujoCitaController::class, 'guardar'])->name('flujo_cita.guardar');
         });
         Route::get('administracion/sedes',                  [AdministracionController::class, 'configuracion_sedes'])->name('configuracion_sedes');
         Route::get('administracion/usuarios',               [AdministracionController::class, 'configuracion_usuarios'])->name('configuracion_usuarios');
@@ -440,6 +477,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     });
 
+    // Crear turno en ventanilla y su acuse: los roles de recepción de abajo y
+    // también Conciliación, Género e Igualdad (sólo solicitudes y asesorías,
+    // Recepcion::tramitesQuePuedeCrear), sin abrirle el resto de turnos.
+    Route::middleware(CreaTurnos::class)->group(function () {
+        Route::get('/turnos/nuevo',                     [RecepcionController::class, 'nueva_cita'])->name('nueva_cita');
+        Route::post('/tuenos/guardar',                  [RecepcionController::class, 'turnos_guardar'])->name('turnos_guardar_nuevo');
+        Route::get('/citas/{id}/documento',             [RecepcionController::class, 'verDocumentoCita'])->name('citas.documento');
+    });
+
     /*
      |-- SUB-GRUPO DE CONTROL DE ACCESO: AUXILIARES DE CONCILIACIÓN / RECEPCIÓN
      |-- (Pre-registro presencial, validación inicial y asignación de turnos rápidos)
@@ -474,14 +520,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/tarjeta/guardar',          [RecepcionController::class, 'guardar'])->name('agregar_tarjeta');
         Route::get('/tarjetas/index',            [RecepcionController::class, 'reporte_excepcion'])->name('reporte_excepcion');
         Route::post('reportes/excepcion',        [RecepcionController::class, 'reportePDF'])->name('turnos_excepcion');
-        Route::get('/turnos/nuevo',              [RecepcionController::class, 'nueva_cita'])->name('nueva_cita');
-        Route::post('/tuenos/guardar',           [RecepcionController::class, 'turnos_guardar'])->name('turnos_guardar_nuevo'); 
-        Route::get('/excepciones/index',         [RecepcionController::class, 'index_excepciones'])->name('excepcion');
-        Route::get('/excepciones/atender/{id}',  [RecepcionController::class, 'atender_excepcion'])->name('atender_excepcion');
-        Route::post('/excepciones/guardar',       [RecepcionController::class, 'guardar_excepcion'])->name('guardar_excepcion');
-        Route::get('/excepciones/solicitud/{id}',  [RecepcionController::class, 'solicitud_excepcion'])->name('solicitud_excepcion');
         Route::get('/audiencias_Revisar/{id}/{isAudiencia?}',               [SeerController::class, 'solicitud_audiencia_revisar'])->name('solicitud_audiencia');
-        Route::get('/citas/{id}/documento',         [RecepcionController::class, 'verDocumentoCita'])->name('citas.documento');
         Route::get('/citas/{id}/confirmar',         [RecepcionController::class, 'confirmarAsistencia'])->name('citas.confirmar')->middleware('auth');
 
     });
@@ -495,13 +534,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/notificaciones/index',                 [NotificacionesController::class, 'porNotificar'])->name('notificaciones');
         Route::post('/notificaciones/asignar-lote',         [NotificacionesController::class, 'asignarLote'])->name('notificaciones.asignar_lote')
             ->middleware('permission:por_notificar_asignar');
-        Route::get('/notificaciones/busqueda',              [NotificacionesController::class, 'historial'])->name('notificaciones_consultar_busqueda');
+        Route::get('/notificaciones/busqueda',              [NotificacionesController::class, 'historial'])->name('notificaciones_consultar_busqueda')->middleware(SinNotificador::class);
         Route::post('/notificaciones/resultado',            [SeerController::class, 'notificaciones_busqueda'])->name('notificaciones_busqueda');
         Route::get('/notificaciones/detalles/{id}',         [SeerController::class, 'seer_detalles'])->name('seer_detalles');
         Route::get('/seer/estatus/{id}',                    [SeerController::class, 'seer_estatus'])->name('seer.notificador');
         Route::post('/seer/updateNotificador',              [SeerController::class, 'update_notificador'])->name('seer.cambioEstatus');
         Route::get('/notificador/mihistorial',              [NotificacionesController::class, 'misNotificaciones'])->name('Historial_Notificacador');
-        Route::get('/notificador/historial',                [SeerController::class, 'todas_notificaciones'])->name('todas_notificaciones');
+        Route::get('/notificador/historial',                [SeerController::class, 'todas_notificaciones'])->name('todas_notificaciones')->middleware(SinNotificador::class);
         Route::get('/notificaciones/home',                  [NotificacionesController::class, 'inicio'])->name('index_notificaciones');
         // Quien escribe /notificaciones a mano llega al inicio del apartado en vez de a un 404.
         Route::redirect('/notificaciones',                  '/notificaciones/home');
@@ -509,12 +548,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/notificaciones/consultar/{id}',        [SeerController::class, 'mostrar_citados']);
         Route::post('/notificaciones/editar',               [SeerController::class, 'editar_citados'])->name('editar_citado_enlace');   
         Route::get('/notificaciones/consultar_citado/{id}', [SeerController::class, 'mostrar_citadoC'])->name('consultar_citado');
-        Route::get('/notificaciones/historial',             [NotificacionesController::class, 'historial'])->name('notificaciones_consultar');
+        Route::get('/notificaciones/historial',             [NotificacionesController::class, 'historial'])->name('notificaciones_consultar')->middleware(SinNotificador::class);
         Route::post('notificaciones/actualizar',            [SeerController::class, 'editar_citados'])->name('actualizar_enlace'); 
         Route::post('/seer/store_enlace/{id}',              [SeerController::class, 'store_enlace'])->name('seer.store_enlace');
         Route::post('/notificaciones/asignar_notificador',  [SeerController::class, 'asignar_notificador_busqueda'])->name('asignar_notificador_busqueda')->middleware('role:Enlace|Super Usuario');
-        Route::post('/notificacion/editar',                 [SeerController::class, 'mostrar_citado'])->name('editar_citado_historial');
-        Route::post('notificaciones/actualizarH',           [SeerController::class, 'editar_citados_historial'])->name('actualizar_enlace_hitorial');  
+        Route::post('/notificacion/editar',                 [SeerController::class, 'mostrar_citado'])->name('editar_citado_historial')->middleware(SinNotificador::class);
+        Route::post('notificaciones/actualizarH',           [SeerController::class, 'editar_citados_historial'])->name('actualizar_enlace_hitorial')->middleware(SinNotificador::class);  
     });
 
     /*
@@ -618,9 +657,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/VerpdfcumplimientoTotal/{id}',                     [SeerController::class, 'VerPDFCumplimientoTotal'])->name('PDFcumplimientoTotal');
         Route::get('/audiencias/edicion/{id}/{audiencia_id}',           [SeerController::class, 'edicion_audienciaConcluida'])->name('edicion_audienciaConcluida'); //Vista de edición cuando la audiencia ya finalizó
         Route::post('/audiencias/Guardar_edicionA',                     [SeerController::class, 'Guarda_edicion_audienciaConcluida'])->name('Guarda_edicion_audienciaConcluida');
-        Route::get('/excepciones/index',                                [RecepcionController::class, 'index_excepciones'])->name('excepcion');
-        Route::get('/excepciones/atender/{id}',                         [RecepcionController::class, 'atender_excepcion'])->name('atender_excepcion');
-        Route::post('/excepciones/guardar',                             [RecepcionController::class, 'guardar_excepcion'])->name('guardar_excepcion');
         Route::get('/cumplimiento/rechazar/rati/{id}',                  [SeerController::class, 'cumplimiento_rechazar_rati'])->name('cumplimiento_rechazar');
         Route::post('/cumplimiento/no_comparece/{id}',                  [SeerController::class, 'cumplimiento_incomparecencia'])->name('cumplimiento_incomparecencia');
         Route::get('/cumplimiento/PDFIncumplimiento/{id}',              [SeerController::class, 'PDFincumplimientoAudiencia'])->name('PDFincumplimientoAudiencia');

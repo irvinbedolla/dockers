@@ -7,7 +7,8 @@
     cifras del mes (convenios pagados, montos y tasa de conciliación) que
     antes iban en el Inicio, y abajo el mapa de sedes y las gráficas del
     Inicio del Directivo, incluidos desde sus parciales para no mantener dos
-    copias. Aquí se irán sumando gráficas.
+    copias. Aquí se irán sumando gráficas. Los temas con más detalle tienen
+    su propia página (Secciones), p. ej. /estadisticas/notificaciones.
 
     Cada reporte se ofrece sólo con los formatos que de verdad genera
     SeerController::mostrar_reporte (p. ej. INEGI siempre sale en Excel) y
@@ -104,6 +105,23 @@
         .es-formato:disabled { opacity: .5; }
 
         .es-seccion { margin: 6px 2px 10px; }
+
+        /* Secciones del panel: una tarjeta por tema que lleva a su página. */
+        .es-secciones { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; margin-bottom: 18px; }
+        .es-acceso {
+            display: flex; flex-direction: column; gap: 12px; text-decoration: none; color: inherit;
+            transition: border-color .15s, box-shadow .15s, transform .15s;
+        }
+        .es-acceso:hover { border-color: var(--tn-verde-claro); box-shadow: 0 6px 18px rgba(46, 60, 61, .08); transform: translateY(-1px); color: inherit; }
+        .es-acceso__cabeza { display: flex; align-items: center; gap: 12px; }
+        .es-acceso__icono { width: 40px; height: 40px; border-radius: 10px; flex: 0 0 auto; display: grid; place-items: center; font-size: 19px; background: #E7EFEF; color: var(--tn-verde); }
+        .es-acceso__titulo { margin: 0; font-size: 15px; font-weight: 700; color: var(--tn-tinta); line-height: 1.2; }
+        .es-acceso__sub { font-size: 12.5px; color: var(--tn-tenue); }
+        .es-acceso__ir { margin-left: auto; color: var(--tn-tenue); font-size: 18px; }
+        .es-acceso:hover .es-acceso__ir { color: var(--tn-verde); }
+        .es-acceso__cifras { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding-top: 12px; border-top: 1px solid var(--tn-borde); }
+        .es-acceso__cifras b { display: block; font-size: 19px; font-weight: 800; color: var(--tn-tinta); font-variant-numeric: tabular-nums; line-height: 1.1; }
+        .es-acceso__cifras span { font-size: 11.5px; color: var(--tn-suave); font-weight: 600; }
 
         @media (max-width: 1100px) {
             .es-campos { grid-template-columns: 1fr 1fr; }
@@ -225,6 +243,45 @@
                     </div>
                 </form>
                 @endif
+            </div>
+
+            {{-- ===================== Secciones ===================== --}}
+            {{-- Cada tema con más detalle vive en su página; aquí sólo la tarjeta. --}}
+            <h3 class="tn-titulo-seccion es-seccion">Secciones</h3>
+            <div class="es-secciones">
+                @php($nm = $notificacionesMes)
+                <a class="tn-tarjeta es-acceso" href="{{ route('estadisticas.notificaciones') }}">
+                    <div class="es-acceso__cabeza">
+                        <span class="es-acceso__icono"><i class="bi bi-envelope-paper"></i></span>
+                        <div>
+                            <h2 class="es-acceso__titulo">Notificaciones</h2>
+                            <span class="es-acceso__sub">Desempeño por notificador y sede</span>
+                        </div>
+                        <i class="bi bi-chevron-right es-acceso__ir" aria-hidden="true"></i>
+                    </div>
+                    <div class="es-acceso__cifras" title="Este mes">
+                        <div><b>{{ number_format($nm['asignadas']) }}</b><span>Asignadas este mes</span></div>
+                        <div><b style="color:#1E7B3C;">{{ number_format($nm['exitosas']) }}</b><span>Exitosas</span></div>
+                        <div><b>{{ $nm['efectividad'] === null ? '—' : rtrim(rtrim(number_format($nm['efectividad'], 1), '0'), '.').'%' }}</b><span>Efectividad</span></div>
+                    </div>
+                </a>
+
+                @php($xm = $excepcionesMes)
+                <a class="tn-tarjeta es-acceso" href="{{ route('estadisticas.excepciones') }}">
+                    <div class="es-acceso__cabeza">
+                        <span class="es-acceso__icono" style="background:#F6E4EA;color:#8C1D40;"><i class="bi bi-shield-exclamation"></i></span>
+                        <div>
+                            <h2 class="es-acceso__titulo">Casos de excepción</h2>
+                            <span class="es-acceso__sub">Art. 685 Ter: atendidos y canalizados</span>
+                        </div>
+                        <i class="bi bi-chevron-right es-acceso__ir" aria-hidden="true"></i>
+                    </div>
+                    <div class="es-acceso__cifras" title="Este mes">
+                        <div><b>{{ number_format($xm['detectados']) }}</b><span>Detectados este mes</span></div>
+                        <div><b>{{ number_format($xm['atendidos']) }}</b><span>Atendidos</span></div>
+                        <div><b style="color:#9A3A22;">{{ number_format($xm['canaliza']) }}</b><span>Canalizados</span></div>
+                    </div>
+                </a>
             </div>
 
             {{-- ===================== Cifras del mes ===================== --}}

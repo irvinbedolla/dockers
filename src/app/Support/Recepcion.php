@@ -27,6 +27,9 @@ class Recepcion
 
     public const ROLES = [self::MORELIA_01, self::MORELIA_02, self::REGIONAL];
 
+    /** Correo institucional que recepción puede usar si la persona no tiene uno. */
+    public const CORREO = 'recepcion@cclmichoacan.gob.mx';
+
     /** Ven las citas en línea de todas las sedes, además de su agenda normal. */
     public const SUPERVISAN = ['Super Usuario', 'Administrador', 'Directivo'];
 
@@ -120,6 +123,16 @@ class Recepcion
     {
         if ($usuario === null) {
             return [];
+        }
+        // Conciliación, Género e Igualdad (sola o junto con recepción):
+        // solicitudes y asesorías, más lo que den sus roles de recepción.
+        if (CasosExcepcion::es($usuario) && $usuario->getRoleNames()->diff(array_merge(self::ROLES, [CasosExcepcion::ROL]))->isEmpty()) {
+            $tramites = CasosExcepcion::TRAMITES_TURNO;
+            foreach ($usuario->getRoleNames() as $rol) {
+                $tramites = array_merge($tramites, self::CREA[$rol] ?? []);
+            }
+
+            return array_values(array_intersect(self::TRAMITES_TURNO, $tramites));
         }
         if (! self::es($usuario) || $usuario->getRoleNames()->diff(self::ROLES)->isNotEmpty()) {
             return self::TRAMITES_TURNO;

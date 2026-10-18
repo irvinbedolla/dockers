@@ -112,13 +112,16 @@
                         <span class="nt-acceso__num">{{ $fmt($cifras['por_asignar']) }}</span>
                     </a>
                 @endif
-                <a class="nt-acceso" href="{{ route('notificaciones_consultar') }}">
-                    <span class="nt-acceso__icono"><i class="bi bi-journal-text" aria-hidden="true"></i></span>
-                    <span>
-                        <span class="nt-acceso__titulo">Historial</span>
-                        <span class="nt-acceso__texto">Todas las notificaciones, con filtros</span>
-                    </span>
-                </a>
+                {{-- El notificador no ve el historial de todos (SinNotificador); tiene "Mis notificaciones". --}}
+                @unless (\App\Support\AgendaNotificador::soloNotificador(auth()->user()))
+                    <a class="nt-acceso" href="{{ route('notificaciones_consultar') }}">
+                        <span class="nt-acceso__icono"><i class="bi bi-journal-text" aria-hidden="true"></i></span>
+                        <span>
+                            <span class="nt-acceso__titulo">Historial</span>
+                            <span class="nt-acceso__texto">Todas las notificaciones, con filtros</span>
+                        </span>
+                    </a>
+                @endunless
             </div>
 
             <div class="tn-tarjeta">
@@ -138,10 +141,17 @@
                         <span class="nt-cifra__num">{{ $fmt($cifras['por_asignar']) }}</span>
                         <span class="nt-cifra__etiqueta">Sin notificador asignado</span>
                     </a>
-                    <a class="nt-cifra" href="{{ route('notificaciones_consultar', ['estatus' => 'Pendiente']) }}">
-                        <span class="nt-cifra__num">{{ $fmt($cifras['en_campo']) }}</span>
-                        <span class="nt-cifra__etiqueta">En campo con un notificador</span>
-                    </a>
+                    @if (\App\Support\AgendaNotificador::soloNotificador(auth()->user()))
+                        <div class="nt-cifra">
+                            <span class="nt-cifra__num">{{ $fmt($cifras['en_campo']) }}</span>
+                            <span class="nt-cifra__etiqueta">En campo con un notificador</span>
+                        </div>
+                    @else
+                        <a class="nt-cifra" href="{{ route('notificaciones_consultar', ['estatus' => 'Pendiente']) }}">
+                            <span class="nt-cifra__num">{{ $fmt($cifras['en_campo']) }}</span>
+                            <span class="nt-cifra__etiqueta">En campo con un notificador</span>
+                        </a>
+                    @endif
                     <div class="nt-cifra">
                         <span class="nt-cifra__num">{{ $fmt($cifras['del_mes']) }}</span>
                         <span class="nt-cifra__etiqueta">Notificadas con éxito en {{ $mes }}</span>

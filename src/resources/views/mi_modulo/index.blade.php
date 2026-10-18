@@ -39,11 +39,12 @@
         .mm-datos dd { margin: 0; color: var(--tn-tinta); overflow-wrap: anywhere; }
         .mm-vacio { color: var(--tn-tenue); font-size: 15px; padding: 18px 0; }
         .mm-cuenta {
-            display: inline-flex; align-items: baseline; gap: 6px; margin-top: 10px;
+            display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 4px 6px; margin-top: 10px;
             padding: 6px 12px; border-radius: 10px; background: #EEF2F2; color: var(--tn-verde); font-weight: 700;
         }
         .mm-cuenta strong { font-size: 24px; }
         .mm-cuenta.is-pronto { background: #FBF4E1; color: #7A5D10; }
+        .mm-cuenta.is-excedido { background: #FDECEA; color: #9A2B1C; }
 
         .mm-cifras { display: flex; flex-wrap: wrap; gap: 18px; font-size: 13px; color: var(--tn-suave); }
         .mm-cifras b { color: var(--tn-tinta); font-size: 16px; }
@@ -81,10 +82,6 @@
                 </span>
             </div>
             <div class="d-flex align-items-center gap-2 flex-wrap">
-                @php $estado = \App\Support\FlujoCita::estado(); @endphp
-                @if ($estado === 'pruebas')
-                    <span class="mm-chip mm-chip--pruebas"><i class="bi bi-cone-striped"></i> Modo pruebas</span>
-                @endif
                 <button type="button" class="btn btn-sm btn-outline-secondary" id="mmPermiso" hidden>
                     <i class="bi bi-bell"></i> Activar avisos del navegador
                 </button>
@@ -123,9 +120,10 @@
                             <tbody id="mmLista"></tbody>
                         </table>
                     </div>
-                    @if (auth()->user()->hasRole('Super Usuario'))
-                        <p class="mm-nota mb-0">Citas del flujo nuevo: aviso {{ \App\Support\FlujoCita::minutosAviso() }} min antes, prellenado de la solicitud y botones conectados a la pantalla de espera. Las demás citas siguen como siempre.</p>
-                    @endif
+                    <p class="mm-nota mb-0" id="mmNota">
+                        Cada cita dura <b>{{ $datos['duracion'] }} min</b> (Administración → Horarios de citas · Solicitud y asesoría).
+                        Sigue quien ya llegó y confirmó su cita; te avisamos {{ $datos['minutosAviso'] }} min antes de que le toque, aunque estés capturando una solicitud.
+                    </p>
                 </div>
             @endif
         </div>
@@ -196,6 +194,22 @@
         }
         return '<div class="mm-acciones' + (enFila ? ' mm-acciones--fila' : '') + '">' + b.join('') + '</div>';
     }
+    // Cuándo termina el turno de ahora y cuándo empieza el que sigue (Horarios de citas).
+    function tiempo(c, etiqueta) {
+        var t = datos.tiempos || {};
+        if (etiqueta === 'Ahora' && t.actual) {
+            return t.actual.excedido > 0
+                ? '<div class="mm-cuenta is-excedido">Lleva <strong>' + t.actual.lleva + '</strong> min · <b>' + t.actual.excedido + ' min</b> más de lo planeado (' + t.actual.duracion + ' min)</div>'
+                : '<div class="mm-cuenta">Desde ' + esc(t.actual.desde) + ' · termina aprox. <strong>' + esc(t.actual.termina) + '</strong> (' + t.actual.duracion + ' min)</div>';
+        }
+        if (etiqueta === 'Sigue' && t.siguiente) {
+            var pronto = t.siguiente.minutos <= datos.minutosAviso;
+            return '<div class="mm-cuenta' + (pronto ? ' is-pronto' : '') + '">' +
+                (t.siguiente.minutos > 0 ? 'Empieza aprox. <strong>' + esc(t.siguiente.empieza) + '</strong> · en <strong>' + t.siguiente.minutos + '</strong> min' : '<strong>Ya</strong> le toca') +
+                ' · ' + (c.estatus === 'confirmada' ? '<b>ya llegó y confirmó</b>' : 'aún no confirma su llegada') + '</div>';
+        }
+        return '';
+    }
     function ficha(c, etiqueta, conCuenta) {
         if (!c) {
             return '<p class="mm-turno__etiqueta">' + etiqueta + '</p><div class="mm-vacio">' +
@@ -205,9 +219,7 @@
         return '<p class="mm-turno__etiqueta">' + etiqueta + '</p>' +
             '<div class="mm-folio"><span>' + esc(c.prefijo) + '</span><strong>' + esc(c.numero) + '</strong></div>' +
             '<div class="mm-meta"><b>' + esc(c.hora) + '</b> · ' + esc(c.tipo) + ' ' + chips(c) + '</div>' +
-            (conCuenta && c.minutos >= 0 && c.estatus !== 'atendido'
-                ? '<div class="mm-cuenta' + (c.porLlegar ? ' is-pronto' : '') + '">' + (c.minutos === 0 ? '<strong>Ya</strong> es su hora' : 'Llega en <strong>' + c.minutos + '</strong> min') + '</div>'
-                : '') +
+            tiempo(c, etiqueta) +
             '<div class="mm-nombre">' + esc(c.solicitante || 'Sin nombre') + '</div>' +
             '<dl class="mm-datos">' +
                 dato('Edad', c.edad) + dato('Municipio', c.municipio) + dato('Teléfono', c.telefono) + dato('Correo', c.correo) +

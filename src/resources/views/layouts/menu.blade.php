@@ -39,11 +39,13 @@
             ['route' => 'recepcion.audiencias_hoy',   'label' => 'Audiencias de hoy',       'icon' => 'bi bi-person-check',        'roles' => \App\Support\LlegadasAudiencia::ROLES,
                 'si' => fn () => \App\Support\LlegadasAudiencia::migrado()],
             ['route' => 'configuracion',              'label' => 'Administración',          'icon' => 'bi bi-lock-fill',           'roles' => ['Super Usuario', 'Delegado', 'Enlace']],
-            ['route' => 'agenda',                     'label' => 'Agenda',                  'icon' => 'bi bi-calendar-week',       'roles' => ['Super Usuario', 'Administrador', 'Auxiliar', 'Orientador', 'Conciliador', 'Notificador', 'Delegado', 'Excepcion',  'Cumplimientos', 'Directivo','Turnos', ...$recepcion]],
+            ['route' => 'agenda',                     'label' => 'Agenda',                  'icon' => 'bi bi-calendar-week',       'roles' => ['Super Usuario', 'Administrador', 'Auxiliar', 'Orientador', 'Conciliador', 'Notificador', 'Delegado', 'Excepcion', \App\Support\CasosExcepcion::ROL,  'Cumplimientos', 'Directivo','Turnos', ...$recepcion]],
             ['route' => 'todas_notificaciones',       'label' => 'Búsqueda Notificaciones', 'icon' => 'bi bi-search',              'roles' => ['Super Usuario', 'Administrador','Directivo', 'Delegado']],
             ['route' => 'capacitaciones',             'label' => 'Capacitaciones',          'icon' => 'bi bi-backpack4-fill',      'roles' => ['Capacitacion Admin']],
             ['route' => 'subir_doc_masivo',           'label' => 'Carga Masiva',            'icon' => 'bi bi-bank',                'roles' => []],
-            ['route' => 'excepcion',                  'label' => 'Casos de Excepción',      'icon' => 'bi-person-vcard',           'roles' => ['Super Usuario', 'Excepcion', 'Directivo', 'Delegado']],
+            ['route' => 'excepcion',                  'label' => 'Casos de Excepción',      'icon' => 'bi-person-vcard',           'roles' => ['Super Usuario', \App\Support\CasosExcepcion::ROL, 'Excepcion', 'Directivo', 'Delegado'], 'activo' => ['excepcion', 'excepciones.*', 'atender_excepcion']],
+            ['route' => 'estadisticas.excepciones',   'label' => 'Estadísticas de excepción', 'icon' => 'bi bi-bar-chart-line',     'roles' => [\App\Support\CasosExcepcion::ROL]],
+            ['route' => 'nueva_cita',                 'label' => 'Crear turno',             'icon' => 'bi bi-calendar-plus',       'roles' => [\App\Support\CasosExcepcion::ROL]],
             ['route' => 'index_conciliadores',        'label' => 'Conciliadores',           'icon' => 'bi bi-person-fill',         'roles' => ['Super Usuario', 'Delegado']],
             ['route' => 'indexDireccionGeneral',      'label' => 'Dirección General',       'icon' => 'bi bi-bank',                'roles' => []],
             ['route' => 'expedientes',                'label' => 'Expediente',              'icon' => 'bi bi-graph-down',          'roles' => ['Capacitacion Admin']],
@@ -71,7 +73,7 @@
             ['route' => 'todas_audiencias',           'label' => 'Audiencias',              'icon' => 'bi bi-people-fill',         'roles' => ['Super Usuario', 'Administrador', 'Conciliador', 'Directivo','Excepcion', 'Delegado']],
             ['route' => 'index_notificaciones',       'label' => 'Notificaciones',          'icon' => 'bi bi-envelope',            'roles' => ['Super Usuario', 'Enlace', 'Directivo','Excepcion','Notificador', 'Delegado']],
             ['route' => 'create_asesoria',            'label' => 'Asesorías',               'icon' => 'bi bi-person-check-fill',   'roles' => ['Super Usuario', 'Orientador', 'Delegado', 'Auxiliar'], 'especialidad' => 'asesoria_crear'],
-            ['route' => 'estadisticas.index',        'label' => 'Panel estadístico',       'icon' => 'bi bi-bar-chart-line-fill', 'roles' => ['Super Usuario', 'Estadistica', 'Directivo']],
+            ['route' => 'estadisticas.index',        'label' => 'Panel estadístico',       'icon' => 'bi bi-bar-chart-line-fill', 'roles' => ['Super Usuario', 'Estadistica', 'Directivo'], 'activo' => 'estadisticas.*'],
             ['route' => 'seer.estadistica',           'label' => 'Estadísticas',            'icon' => 'bi bi-clipboard-data-fill', 'roles' => ['Super Usuario', 'Auxiliar', 'Orientador', 'Administrador', 'Enlace', 'Estadistica', 'Directivo', 'Notificador', 'Delegado','Excepcion', 'Cumplimientos']],
             ['route' => 'reportes_conciliador',       'label' => 'Estadísticas',            'icon' => 'bi bi-clipboard-data-fill', 'roles' => ['Conciliador']],
             ['route' => 'misestadisticas',            'label' => 'Estadísticas',            'icon' => 'bi bi-clipboard-data-fill', 'roles' => ['Cumplimientos']],
@@ -116,7 +118,8 @@
                     $destino = $item['url'];
                 } elseif (isset($item['route']) && \Illuminate\Support\Facades\Route::has($item['route'])) {
                     $destino = route($item['route']);
-                    $activo  = request()->routeIs($item['route']);
+                    // 'activo' (opcional): patrón de rutas que también marcan el renglón, p. ej. sus secciones.
+                    $activo  = request()->routeIs($item['activo'] ?? $item['route']);
                 }
             }
         @endphp

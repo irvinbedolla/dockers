@@ -2,33 +2,22 @@
 
 namespace App\Support;
 
-use App\Models\Ajuste;
 use App\Models\User;
 
 /**
- * Flujo nuevo "cita en línea → solicitud": prellenado, aviso al auxiliar,
- * "Mi módulo" y llamado en pantallas. Todo cuelga de este interruptor
- * global (Administración → Flujo de citas):
+ * Flujo "cita → solicitud": prellenado con revisión, aviso al auxiliar de
+ * quién sigue, "Mi módulo" y llamado en pantallas.
  *
- *   apagado  Como siempre. Nada nuevo se ve ni se ejecuta.
- *   pruebas  Sólo las citas de prueba y los auxiliares piloto usan el flujo
- *            nuevo; todo lo demás sigue tradicional.
- *   activo   El banderazo: todas las citas en línea, en todo el estado.
- *
- * Una cita es de prueba si se marcó así en /turnos/nuevo (sólo Super
- * Usuario) o si se agendó con uno de los correos de prueba.
+ * Ya está activo para siempre en todas las sedes, para las citas en línea y
+ * las de ventanilla (se quitó el interruptor de Administración → Flujo de
+ * citas). Lo único que queda de la etapa de pruebas son las citas de prueba:
+ * un Super Usuario las marca en /turnos/nuevo, no salen en la pantalla de
+ * espera ni en los conteos y se borran con `php artisan citas:limpiar-pruebas`.
  */
 class FlujoCita
 {
-    public const APAGADO = 'apagado';
-    public const PRUEBAS = 'pruebas';
-    public const ACTIVO  = 'activo';
-
-    public const ESTADOS = [
-        self::APAGADO => 'Apagado',
-        self::PRUEBAS => 'Pruebas',
-        self::ACTIVO  => 'Activo',
-    ];
+    /** Minutos antes de que le toque a la siguiente persona en que se avisa al auxiliar. */
+    public const AVISO_MINUTOS = 10;
 
     /** ¿Ya corrió la migración de la fase 0? (se pregunta una vez por petición) */
     public static function migrado(): bool
@@ -46,107 +35,33 @@ class FlujoCita
         return $listo ??= self::migrado() && \Illuminate\Support\Facades\Schema::hasColumn('recepcion', 'atencion_fin_at');
     }
 
-    public static function estado(): string
-    {
-        $estado = (string) Ajuste::valor('flujo_cita.estado', self::APAGADO);
-
-        return array_key_exists($estado, self::ESTADOS) ? $estado : self::APAGADO;
-    }
-
-    public static function apagado(): bool
-    {
-        return self::estado() === self::APAGADO;
-    }
-
-    /** ¿El flujo nuevo aplica a esta cita? */
+    /** ¿El flujo aplica a esta cita? Siempre, una vez corrida la migración. */
     public static function aplicaA(object $cita): bool
     {
-        return match (self::estado()) {
-            self::ACTIVO  => true,
-            self::PRUEBAS => (bool) data_get($cita, 'es_prueba'),
-            default       => false,
-        };
+        return self::migrado();
     }
 
-    /** ¿Esta persona ve "Mi módulo" y lo demás del flujo nuevo? */
+    /** ¿Esta persona ve "Mi módulo" y lo demás del flujo? */
     public static function habilitadoPara(?User $usuario): bool
     {
-        if ($usuario === null) {
-            return false;
-        }
-
-        return match (self::estado()) {
-            self::ACTIVO  => true,
-            self::PRUEBAS => $usuario->hasRole('Super Usuario') || in_array((int) $usuario->id, self::pilotos(), true),
-            default       => false,
-        };
+        return $usuario !== null && self::migrado();
     }
 
-    /** @return string[] correos en minúsculas */
-    public static function correosPrueba(): array
+    /** ¿El formulario de cita pide CURP y domicilio (para el prellenado)? */
+    public static function camposExtra(bool $ventanilla = false): bool
     {
-        $texto = (string) Ajuste::valor('flujo_cita.correos_prueba', '');
-
-        return array_values(array_unique(array_filter(array_map(
-            fn ($c) => mb_strtolower(trim($c)),
-            preg_split('/[\s,;]+/', $texto) ?: []
-        ))));
-    }
-
-    public static function esCorreoPrueba(?string $correo): bool
-    {
-        $correo = mb_strtolower(trim((string) $correo));
-
-        return $correo !== '' && in_array($correo, self::correosPrueba(), true);
-    }
-
-    /** @return int[] ids de los auxiliares piloto */
-    public static function pilotos(): array
-    {
-        $ids = json_decode((string) Ajuste::valor('flujo_cita.pilotos', '[]'), true);
-
-        return array_values(array_map('intval', is_array($ids) ? $ids : []));
-    }
-
-    /**
-     * ¿El formulario de cita pide CURP y domicilio (para el prellenado)?
-     *   activo  → siempre.
-     *   pruebas → en /generar-cita sólo con ?pruebas=1; en ventanilla sólo
-     *             a un Super Usuario. La operación real no cambia.
-     */
-    public static function camposExtra(bool $ventanilla): bool
-    {
-        if (! self::migrado()) {
-            return false;
-        }
-
-        return match (self::estado()) {
-            self::ACTIVO  => true,
-            self::PRUEBAS => $ventanilla
-                ? (auth()->check() && auth()->user()->hasRole('Super Usuario'))
-                : request()->boolean('pruebas'),
-            default       => false,
-        };
+        return self::migrado();
     }
 
     /**
      * CURP y domicilio del formulario de cita, validados, listos para
-     * Recepcion::create. Con el flujo activo son obligatorios; en pruebas,
-     * sólo si el formulario los traía (camposExtra).
+     * Recepcion::create. Son obligatorios.
      *
      * @return array{0: array, 1: ?string} [columnas, error]
      */
     public static function camposDeCita(\Illuminate\Http\Request $request): array
     {
         if (! self::migrado()) {
-            return [[], null];
-        }
-
-        // Con el banderazo (activo) son obligatorios aunque el formulario no
-        // los traiga (p. ej. una página abierta desde antes de activarlo: se
-        // regresa con el aviso y ya muestra los campos). En pruebas, sólo si
-        // el formulario los pidió.
-        if (! $request->has('curp') && self::estado() !== self::ACTIVO) {
             return [[], null];
         }
 
@@ -180,9 +95,9 @@ class FlujoCita
         ], null];
     }
 
-    /** Minutos antes de la hora de la cita en que se avisa al auxiliar (fase 3). */
+    /** Minutos antes de que siga la próxima persona en que se avisa al auxiliar. */
     public static function minutosAviso(): int
     {
-        return max(1, min(60, (int) Ajuste::valor('flujo_cita.aviso_minutos', 10)));
+        return self::AVISO_MINUTOS;
     }
 }

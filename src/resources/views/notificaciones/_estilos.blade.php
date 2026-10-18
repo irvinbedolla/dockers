@@ -46,7 +46,12 @@
     }
 
     .nt-tabla { margin: 0; }
+    /* style.css pinta las cabeceras con .table:not(.table-sm) thead th
+       (gris claro, más específico); con este selector se le gana y la
+       cabecera queda oscura con letra blanca. */
+    .nt-tabla.table:not(.table-sm) thead th,
     .nt-tabla thead th {
+        --bs-table-bg: #354647;
         background: #354647;
         color: #fff !important;
         font-size: 12px;

@@ -321,6 +321,10 @@ class HomeController extends Controller
             'observaciones' => $data["conflicto"]
         ) + $camposFlujo;
     
+            // Motivo exacto del caso de excepción (CasosExcepcion::MOTIVOS).
+            if (\App\Support\CasosExcepcion::conMotivo()) {
+                $data_insertar['motivo_excepcion'] = \App\Support\CasosExcepcion::motivoValido($data['motivo_excepcion'] ?? null);
+            }
             // En transacción: si el INSERT falla, también se deshace el folio
             // que se apartó en folios_citas y no quedan números saltados.
             $recepcion = DB::transaction(fn () => Recepcion::create($data_insertar));

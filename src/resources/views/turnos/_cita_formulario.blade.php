@@ -14,6 +14,7 @@
                                 @csrf
                                 <input type="hidden" name="orientacion" id="orientacion" value="No">
                                 <input type="hidden" name="excepcion" id="excepcion" value="No">
+                                <input type="hidden" name="motivo_excepcion" id="motivo_excepcion" value="">
                                 <input type="hidden" name="delegacion" id="delegacion" value="">
                                 <input type="hidden" name="fecha_turno" id="fecha_turno" value="">
                                 <input type="hidden" name="hora_turno" id="hora_turno" value="">
@@ -148,6 +149,46 @@
                                                    placeholder="Escríbelo otra vez" required>
                                             <div class="invalid-feedback" id="gcCorreo2Error">Los correos no coinciden.</div>
                                         </div>
+                                        {{-- Recepción (Morelia 01, 02 y General): si la persona no trae correo,
+                                             se puede usar el institucional (App\Support\Recepcion::CORREO). --}}
+                                        @if ($ventanilla && \App\Support\Recepcion::es(auth()->user()))
+                                            <div class="col-12">
+                                                <div class="gc-correo-recepcion" role="note">
+                                                    <i class="bi bi-envelope-at" aria-hidden="true"></i>
+                                                    <span>
+                                                        <b>¿La persona no tiene correo?</b> Usa el de recepción,
+                                                        <b>{{ \App\Support\Recepcion::CORREO }}</b>: es válido para registrar el turno cuando la persona no cuenta con correo.
+                                                    </span>
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="gcUsarCorreoRecepcion" data-correo="{{ \App\Support\Recepcion::CORREO }}">
+                                                        Usar este correo
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <style>
+                                                .gc-correo-recepcion { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 10px 14px; border-radius: 10px; background: #EEF2F2; color: #5E6E6F; font-size: 13px; }
+                                                .gc-correo-recepcion > .bi { font-size: 18px; color: #496163; }
+                                                .gc-correo-recepcion > span { flex: 1 1 280px; }
+                                                .gc-correo-recepcion b { color: #2E3C3D; }
+                                                .gc-correo-recepcion.is-usado { background: #E5F3EA; }
+                                            </style>
+                                            <script>
+                                                document.addEventListener('DOMContentLoaded', function () {
+                                                    var boton = document.getElementById('gcUsarCorreoRecepcion');
+                                                    if (!boton) { return; }
+                                                    boton.addEventListener('click', function () {
+                                                        ['gcCorreo', 'gcCorreo2'].forEach(function (id) {
+                                                            var campo = document.getElementById(id);
+                                                            if (!campo) { return; }
+                                                            campo.value = boton.getAttribute('data-correo');
+                                                            campo.dispatchEvent(new Event('input', { bubbles: true }));
+                                                            campo.dispatchEvent(new Event('change', { bubbles: true }));
+                                                        });
+                                                        boton.closest('.gc-correo-recepcion').classList.add('is-usado');
+                                                        boton.textContent = 'Correo de recepción puesto';
+                                                    });
+                                                });
+                                            </script>
+                                        @endif
                                         <div class="col-md-6">
                                             <label class="form-label" for="gcTelefono">Teléfono o celular <span class="gc-req">*</span></label>
                                             <input type="tel" id="gcTelefono" name="telefono" class="form-control" inputmode="numeric" autocomplete="tel-national"
@@ -170,7 +211,7 @@
                                             <div class="form-text">Nos ayuda a darte la atención adecuada.</div>
                                             <div class="invalid-feedback">Elige una opción.</div>
                                         </div>
-                                        {{-- CURP y domicilio para el prellenado (flujo nuevo, App\Support\FlujoCita). --}}
+                                        {{-- CURP y domicilio para el prellenado (App\Support\FlujoCita). --}}
                                         @if (\App\Support\FlujoCita::camposExtra($ventanilla))
                                             @include('turnos._campos_flujo')
                                         @endif
@@ -189,41 +230,16 @@
                                             <select id="gcTipoCaso" name="tipo_caso" class="form-select" onchange="cambiaExcepcion(this); blockCalendar();" required>
                                                 <option value="">Elige una opción</option>
                                                 <option value="Ninguno" style="font-weight: bold;">No, ninguno de estos</option>
-                                                <optgroup label="Discriminación en el empleo por:">
-                                                    <option value="Acoso u hostigamiento sexual">Acoso u hostigamiento sexual</option>
-                                                    <option value="Discriminación">Condición social</option>
-                                                    <option value="Discriminación">Embarazo</option>
-                                                    <option value="Discriminación">Raza</option>
-                                                    <option value="Discriminación">Razones de sexo</option>
-                                                    <option value="Discriminación">Religión</option>
-                                                    <option value="Discriminación">Orientación sexual</option>
-                                                    <option value="Discriminación">Origen étnico</option>
-                                                </optgroup>
-                                                <optgroup label="Designación de beneficiarios:">
-                                                    <option value="Designacion">Designación de beneficiarios por muerte</option>
-                                                </optgroup>
-                                                <optgroup label="Prestaciones de seguridad social por:">
-                                                    <option value="Prestaciones">Accidentes de trabajo</option>
-                                                    <option value="Prestaciones">Enfermedades</option>
-                                                    <option value="Prestaciones">Guarderías</option>
-                                                    <option value="Prestaciones">Invalidez</option>
-                                                    <option value="Prestaciones">Maternidad</option>
-                                                    <option value="Prestaciones">Riesgos de trabajo</option>
-                                                    <option value="Prestaciones">Prestaciones en especie</option>
-                                                    <option value="Prestaciones">Vida</option>
-                                                </optgroup>
-                                                <optgroup label="Derechos fundamentales y libertades laborales:">
-                                                    <option value="Libertades_publicas">Libertad de asociación</option>
-                                                    <option value="Libertades_publicas">Libertad sindical</option>
-                                                    <option value="Libertades_publicas">Reconocimiento efectivo de la negociación colectiva</option>
-                                                    <option value="Libertades_publicas">Trabajo infantil</option>
-                                                    <option value="Libertades_publicas">Trabajo forzoso u obligatorio</option>
-                                                </optgroup>
-                                                <optgroup label="Disputa de titularidad o estatutos sindicales:">
-                                                    <option value="Titularidad">Contratos colectivos</option>
-                                                    <option value="Titularidad">Contratos ley</option>
-                                                    <option value="Titularidad">Impugnación de los estatutos de los sindicatos o su modificación</option>
-                                                </optgroup>
+                                                {{-- Catálogo en App\Support\CasosExcepcion::MOTIVOS. El value es el de
+                                                     siempre (recepcion.tipo_caso, el grupo); data-motivo es el motivo
+                                                     exacto y viaja en motivo_excepcion, para el reporte por motivo. --}}
+                                                @foreach (\App\Support\CasosExcepcion::motivosAgrupados() as $grupo => $opciones)
+                                                    <optgroup label="{{ $grupo }}">
+                                                        @foreach ($opciones as $op)
+                                                            <option value="{{ $op['valor'] }}" data-motivo="{{ $op['clave'] }}">{{ $op['texto'] }}</option>
+                                                        @endforeach
+                                                    </optgroup>
+                                                @endforeach
                                             </select>
                                             <div class="form-text" id="gcAyudaCaso">Si no estás seguro, elige "No, ninguno de estos".</div>
                                             <div class="invalid-feedback">Elige una opción.</div>
@@ -252,10 +268,9 @@
                                     </div>
                                 </fieldset>
 
-                                {{-- Cita de prueba del flujo nuevo (App\Support\FlujoCita): sólo
-                                     Super Usuario y sólo mientras el flujo no esté apagado. --}}
+                                {{-- Cita de prueba del flujo (App\Support\FlujoCita): sólo Super Usuario. --}}
                                 @if ($ventanilla && auth()->check() && auth()->user()->hasRole('Super Usuario')
-                                     && \App\Support\FlujoCita::migrado() && ! \App\Support\FlujoCita::apagado())
+                                     && \App\Support\FlujoCita::migrado())
                                     <div class="form-check mb-3" style="background:#FBF4E1;border-radius:8px;padding:10px 12px 10px 36px;">
                                         <input class="form-check-input" type="checkbox" name="es_prueba" value="1" id="gcEsPrueba">
                                         <label class="form-check-label" for="gcEsPrueba" style="font-weight:600;color:#7A5D10;">

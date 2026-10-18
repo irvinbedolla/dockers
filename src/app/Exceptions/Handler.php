@@ -43,6 +43,11 @@ class Handler extends ExceptionHandler
      */
     public function register()
     {
+        // Todo /api/* responde errores en JSON (401, 403, 404, 422…), aunque la
+        // petición no mande Accept: application/json. Sin esto un 401 de la
+        // API terminaba en una redirección al login web.
+        $this->shouldRenderJsonWhen(fn ($request) => $request->is('api/*') || $request->expectsJson());
+
         $this->reportable(function (Throwable $e) {
             //
         });

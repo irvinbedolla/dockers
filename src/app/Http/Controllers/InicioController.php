@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\AccesosOrientador;
 use App\Support\AccesosRecepcion;
+use App\Support\CasosExcepcion;
 use App\Support\AgendaContexto;
 use App\Support\ResumenSedes;
 use App\Support\Saludo;
@@ -31,8 +33,12 @@ class InicioController extends Controller
         // la tabla de posiciones; los demás roles, la tabla. Se resuelve antes
         // de la bifurcación. Las cifras del mes (convenios, montos y tasa) se
         // mudaron al Panel estadístico (EstadisticasController).
-        $accesos    = AccesosRecepcion::aplica($usuario) ? AccesosRecepcion::para($usuario) : null;
-        $posiciones = $accesos ? null : TablaPosiciones::resumen();
+        // Conciliación, Género e Igualdad ve sus casos de excepción de hoy.
+        $casos      = CasosExcepcion::es($usuario) ? CasosExcepcion::inicio() : null;
+        $accesos    = ! $casos && AccesosRecepcion::aplica($usuario) ? AccesosRecepcion::para($usuario) : null;
+        // Orientadores y auxiliares con módulo: quién sigue, sus citas y sus solicitudes.
+        $orientador = ! $casos && ! $accesos && AccesosOrientador::aplica($usuario) ? AccesosOrientador::para($usuario) : null;
+        $posiciones = ($accesos || $casos) ? null : TablaPosiciones::resumen();
 
         if (in_array('Directivo', $userRole, true)) {
             return view('inicio.index', [
@@ -41,6 +47,8 @@ class InicioController extends Controller
                 'saludo'       => $saludo,
                 'posiciones'   => $posiciones,
                 'accesos'      => $accesos,
+                'casos'        => $casos,
+                'orientador'   => $orientador,
                 'resumen'      => ResumenSedes::totales(),
                 'resumenSedes' => ResumenSedes::detalle(),
             ]);
@@ -48,6 +56,6 @@ class InicioController extends Controller
 
         ['sedes' => $sedes, 'conciliadores' => $conciliadores] = AgendaContexto::para($usuario);
 
-        return view('inicio.index', compact('usuario', 'userRole', 'saludo', 'posiciones', 'accesos', 'sedes', 'conciliadores'));
+        return view('inicio.index', compact('usuario', 'userRole', 'saludo', 'posiciones', 'accesos', 'casos', 'orientador', 'sedes', 'conciliadores'));
     }
 }

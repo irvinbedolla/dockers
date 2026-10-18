@@ -11,7 +11,7 @@ class Recepcion extends Model
     use HasFactory;
     protected $table = 'recepcion';
     protected $primaryKey = 'id';
-    protected $fillable = ['consecutivo','codigo','fecha','hora','hora_fin','auxiliar','solicitante','tipo','lugar_auxiliar','estatus','delegacion','exepcion','edad','sexo','vulnerables','conflicto','tipo_caso','prestacionSS','orientacion','tarjeta','folio','resultado','INS', 'telefono', 'correo', 'estado','municipio', 'observaciones', 'modulo_id', 'origen',
+    protected $fillable = ['consecutivo','codigo','fecha','hora','hora_fin','auxiliar','solicitante','tipo','lugar_auxiliar','estatus','delegacion','exepcion','edad','sexo','vulnerables','conflicto','tipo_caso','motivo_excepcion','prestacionSS','orientacion','tarjeta','folio','resultado','INS', 'telefono', 'correo', 'estado','municipio', 'observaciones', 'modulo_id', 'origen',
         'es_prueba', 'curp', 'domicilio', 'llamado_at', 'atencion_inicio_at', 'atencion_fin_at'];
 
     protected $casts = [
@@ -34,14 +34,6 @@ class Recepcion extends Model
         static::creating(function (Recepcion $cita) {
             if (empty($cita->codigo)) {
                 $cita->codigo = FolioCita::generar($cita->delegacion, $cita->tipo);
-            }
-
-            // Citas agendadas con un correo de prueba (Administración → Flujo de
-            // citas) quedan marcadas solas: así se prueba desde el formulario
-            // público sin tocar las citas reales.
-            if (! $cita->es_prueba && \App\Support\FlujoCita::migrado()
-                && \App\Support\FlujoCita::esCorreoPrueba($cita->correo)) {
-                $cita->es_prueba = true;
             }
         });
     }

@@ -62,6 +62,15 @@ class AgendaContexto
             ];
         }
 
+        // Conciliación, Género e Igualdad: sólo citas en línea de excepción,
+        // de todas las sedes y sin conciliadores (CasosExcepcion).
+        if (CasosExcepcion::soloRol($usuario)) {
+            return [
+                'sedes'         => self::TODAS_LAS_SEDES,
+                'conciliadores' => new \Illuminate\Database\Eloquent\Collection(),
+            ];
+        }
+
         if ($usuario->hasAnyRole(self::ROLES_SIN_LIMITE)) {
             return [
                 'sedes'         => self::TODAS_LAS_SEDES,

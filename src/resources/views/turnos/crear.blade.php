@@ -20,8 +20,10 @@
     <section class="section">
         <div class="section-header mb-3">
             <div>
-                <a href="{{ route('turnos') }}" class="text-decoration-none small" style="color: #829A9C;">
-                    <i class="bi bi-arrow-left"></i> Turnos
+                {{-- Conciliación, Género e Igualdad no entra a la lista de turnos: vuelve a sus casos. --}}
+                @php($soloExcepcion = \App\Support\CasosExcepcion::soloRol(auth()->user()))
+                <a href="{{ $soloExcepcion ? route('excepcion') : route('turnos') }}" class="text-decoration-none small" style="color: #829A9C;">
+                    <i class="bi bi-arrow-left"></i> {{ $soloExcepcion ? 'Casos de excepción' : 'Turnos' }}
                 </a>
                 <h3 class="page__heading mb-0">Nuevo turno</h3>
             </div>

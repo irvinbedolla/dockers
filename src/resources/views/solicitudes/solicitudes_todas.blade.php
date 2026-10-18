@@ -95,7 +95,7 @@
                                                                 </button>
                                                             @endcan
 
-                                                            @if(in_array($solicitud->estatus, ['Archivada', 'Incompetencia', 'Comparecencia', 'Reagendada', 'No conciliacion', 'Incumplimiento', 'Conciliacion', 'Concluida', 'Reinstalacion', 'Confirmado', 'Desistimiento', 'Prevencion']))
+                                                            @if(in_array($solicitud->estatus, ['Archivada', 'Incompetencia', 'Comparecencia', 'Reagendada', 'No conciliacion', 'Incumplimiento', 'Conciliacion', 'Concluida', 'Reinstalacion', 'Confirmado', 'Desistimiento', 'Prevencion', 'Canalizada']))
                                                                 <div class="dropdown w-100">
                                                                     @can('solicitudes_ver_documentos')
                                                                         <button class="btn btn-secondary btn-sm text-dark fw-semibold dropdown-toggle w-100" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="background-color: #e2e6ea; border-color: #d3d9df; color: #000000 !important;">

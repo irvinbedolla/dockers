@@ -132,6 +132,10 @@ class RecepcionController extends Controller
                     'edad'            => $data["edad"] ?? null,
                     'sexo'            => $data["sexo"] ?? null,
                     'tipo_caso'       => $tipo_caso,
+                    // Motivo exacto del caso de excepción (CasosExcepcion::MOTIVOS).
+                    ...(\App\Support\CasosExcepcion::conMotivo()
+                        ? ['motivo_excepcion' => \App\Support\CasosExcepcion::motivoValido($data['motivo_excepcion'] ?? null)]
+                        : []),
                     'prestacionSS'    => $prestacionSS,
                     'vulnerables'     => $vulnerables,
                     'conflicto'       => $data["conflicto"] ?? null,
@@ -949,75 +953,9 @@ class RecepcionController extends Controller
         return !$inhabil;
     }
 
-    public function index_excepciones()
-    {
-        $fecha_actual = date('Y-m-d');
-        $recepciones = Recepcion::where('exepcion', 'Si')->where('fecha',$fecha_actual)->orderBy('hora')->get();
+    // Bandeja, formato y canalización de casos de excepción: ahora en
+    // CasosExcepcionController (App\Support\CasosExcepcion / FormatoExcepcion).
 
-        return view('excepciones.index',compact('recepciones'));
-    }
-
-    public function atender_excepcion($id){
-        
-        $recepcion = Recepcion::find($id);
-        return view('excepciones.atender', compact('recepcion'));
-    }
-    public function solicitud_excepcion($id){
-        
-        $recepcion = Recepcion::find($id);
-        $recepcion->update(['exepcion' => 'No']);
-         return redirect()->route('solicitud');
-    }
-
-    public function guardar_excepcion(Request $request){
-
-        $data = $request->all();
-        $id_user = auth()->user()->id;
-        $fecha_actual = date('Y-m-d');
-        $hora_actual= date('H:i');
-        $data_insertar = array(
-            'id_turno'          => $data['id'],
-            'id_user'           => $id_user,
-            'observaciones'     => $data['observaciones'],
-            'dependencia'       => $data['dependencia'],
-            'expediente'        => $data['expediente'], 
-            'situacion_laboral' => $data['situacion_laboral'],
-            'frecuencia'        => $data['frecuencia'],
-            'descripcion_conductas' => $data['descripcion_conductas'] ?? null,
-            'tipo_caso'         => $data['tipo_caso'],
-            'vulnerables'       => $data['vulnerables'],
-            'jefe_inmediato'    => $data['jefe_inmediato'],
-            'empresa'           => $data['empresa'],
-            'ubicacion'         =>$data['ubicacion'],
-            'puesto'            => $data['puesto'],
-            'area_adscripcion'   => $data['area_adscripcion'],
-            'fecha'             => $fecha_actual, 
-            'hora'              => $hora_actual ,
-        );
-
-        if(!isset($data['descripcion_persona'])){
-            $data_insertar['descripcion_persona'] =null;
-        }
-        else{
-            $data_insertar['descripcion_persona'] =  $data['descripcion_persona'];
-        }
-        if(isset($data['motivo'])){
-            $data_insertar['motivos'] =  $data['motivo'];
-        }
-        else{
-            $data_insertar['motivos'] = null;
-        }
-        
-        
-        SeerCasosExcepcion::create($data_insertar);
-        
-        $data_update = DB::table('recepcion')
-        ->where('id', $data["id"])
-        ->update(['estatus' => 'atendido']);
-
-        return redirect()->route('excepcion');
-
-    }
     public function Verpdfcasosprevistos($id){
         $recepcion = Recepcion::find($id);
         $caso = SeerCasosExcepcion::where('id_turno', $id)->first();

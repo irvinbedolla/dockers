@@ -12,15 +12,21 @@
         const urlSolicitudes    = "{{ route('solicitudes.eventos') }}";
         const urlInhabiles      = "{{ route('agenda.inhabiles') }}";
         const urlCitasLinea     = "{{ route('agenda.citas_linea') }}";
+        // Agenda del notificador: sus notificaciones pendientes (App\Support\AgendaNotificador).
+        const urlMisNotificaciones = "{{ route('agenda.mis_notificaciones') }}";
+        const CAL_SOLO_NOTIFICADOR = @json(\App\Support\AgendaNotificador::soloNotificador(auth()->user()));
         // Base del acuse en PDF de una cita (citas/{id}/documento). Es sólo
         // lectura. A propósito NO se expone citas/{id}/confirmar: es el destino
         // del QR y cambia el estatus según la hora en que se abre.
         const urlAcuseCita      = "{{ url('citas') }}";
+        // Casos de excepción: sólo quien atiende (CasosExcepcion::atiende) ve el botón.
+        const urlAtenderExcepcion = @json(\App\Support\CasosExcepcion::atiende(auth()->user()) ? url('excepciones/atender') : null);
 
         // La recepción abre en su única pastilla, "Citas en línea", en vez de
         // "Todos". Se decide en PHP con la misma regla que el resto del
         // sistema (App\Support\Recepcion) y no adivinando desde el DOM.
-        const CAL_SOLO_CITAS    = @json(\App\Support\Recepcion::es(auth()->user()));
+        // Conciliación, Género e Igualdad también: sólo citas en línea de excepción.
+        const CAL_SOLO_CITAS    = @json(\App\Support\Recepcion::es(auth()->user()) || \App\Support\CasosExcepcion::soloRol(auth()->user()));
         // La recepción consulta, no opera: el detalle de un evento no lleva
         // los botones que mandan a pantallas que no son suyas.
         const CAL_ES_RECEPCION  = CAL_SOLO_CITAS;
@@ -36,5 +42,7 @@
         const urlBloqueos       = "{{ route('calendario.bloqueos') }}"; 
     </script>
 
+    {{-- Vista de celulares: va antes que calendar.js, que la usa al arrancar. --}}
+    <script src="{{ asset('assets/js/agenda-movil.js') }}?v={{ @filemtime(public_path('assets/js/agenda-movil.js')) }}"></script>
     <script src="{{ asset('assets/js/calendar.js') }}?v={{ @filemtime(public_path('assets/js/calendar.js')) }}"></script>
     <script src="{{ asset('assets/js/general/menu.js') }}"></script>
