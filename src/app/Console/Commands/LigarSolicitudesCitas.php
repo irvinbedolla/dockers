@@ -12,9 +12,10 @@ use Illuminate\Support\Facades\DB;
  * solas al guardar (PrellenadoCita::ligar); esto es para las anteriores.
  *
  * Regla (aproximada, por eso queda como recepcion_vinculo = 'historico'):
- * la cita de Solicitud con la misma CURP del solicitante, del mismo día de
- * la solicitud o de hasta 30 días antes, que no esté ligada a otra; si hay
- * varias, la más cercana. Sólo sirve para citas que ya pedían CURP.
+ * la cita de Solicitud con la misma CURP del solicitante, de hasta 30 días
+ * antes o después de la solicitud (en línea se puede llenar antes de la
+ * cita), que no esté ligada a otra; si hay varias, la más cercana. Sólo
+ * sirve para citas que ya pedían CURP.
  *
  *   php artisan citas:ligar-solicitudes              últimos 180 días
  *   php artisan citas:ligar-solicitudes --dias=365
@@ -55,9 +56,9 @@ class LigarSolicitudesCitas extends Command
             $cita = DB::table('recepcion')
                 ->where('curp', strtoupper(trim($sol->curp)))
                 ->where('tipo', 'Solicitud')
-                ->whereBetween('fecha', [now()->parse($fecha)->subDays(self::VENTANA)->toDateString(), $fecha])
+                ->whereBetween('fecha', [now()->parse($fecha)->subDays(self::VENTANA)->toDateString(), now()->parse($fecha)->addDays(self::VENTANA)->toDateString()])
                 ->where('estatus', '!=', 'expirada')
-                ->orderByDesc('fecha')->orderByDesc('hora')
+                ->orderByRaw('ABS(DATEDIFF(fecha, ?))', [$fecha])->orderByDesc('hora')
                 ->get(['id'])
                 ->first(fn ($c) => ! isset($usadas[$c->id]));
 

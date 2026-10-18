@@ -61,25 +61,31 @@ class PrellenadoCita
         session()->forget(self::SESION);
     }
 
+    /** Solicitud en línea: días antes y después de hoy en que se busca su cita. */
+    public const VENTANA_EN_LINEA = 30;
+
     /**
-     * Al guardar la solicitud (trabajador o patronal) la liga con su cita:
-     *   1. la del prellenado, si se capturó desde la cita;
-     *   2. si no, la de HOY con la misma CURP del solicitante que aún no
-     *      tenga solicitud (así cuenta aunque se haya usado "Nueva solicitud").
-     * La cita queda atendida y sale de la pantalla y de "quién sigue".
+     * Al guardar la solicitud la liga con su cita:
+     *   1. la del prellenado, si el auxiliar la capturó desde la cita;
+     *   2. si no, por la CURP del solicitante, una cita que aún no tenga
+     *      solicitud: la de HOY si la captura el Centro, o la más cercana
+     *      a hoy (± VENTANA_EN_LINEA días) si la persona la llenó en línea
+     *      ($enLinea), porque puede llenarla antes o después de su cita.
+     * Si la cita es de hoy, queda atendida y sale de la pantalla y de "quién
+     * sigue". Una cita futura no se toca: todavía tiene que venir.
      */
-    public static function ligar(object $solicitud, ?string $curp = null): void
+    public static function ligar(object $solicitud, ?string $curp = null, bool $enLinea = false): void
     {
         if (! FlujoCita::migrado()) {
             return;
         }
 
-        $p = self::paraVista();
+        $p = $enLinea ? null : self::paraVista();
         if ($p) {
             $citaId  = (int) $p['cita_id'];
             $vinculo = 'prellenado';
             self::descartar();
-        } elseif ($porCurp = self::citaDeHoyPorCurp($curp)) {
+        } elseif ($porCurp = $enLinea ? self::citaCercanaPorCurp($curp) : self::citaDeHoyPorCurp($curp)) {
             $citaId  = (int) $porCurp->id;
             $vinculo = 'curp';
         } else {
@@ -92,7 +98,7 @@ class PrellenadoCita
 
         // La solicitud ya quedó: la cita termina aquí aunque no piquen "Terminar".
         $cita = Recepcion::find($citaId);
-        if ($cita && in_array($cita->estatus, ['pendiente', 'confirmada'], true)) {
+        if ($cita && $cita->fecha && $cita->fecha->isToday() && in_array($cita->estatus, ['pendiente', 'confirmada'], true)) {
             $ahora = now();
             $cita->forceFill(array_filter([
                 'estatus'            => 'atendido',
@@ -121,6 +127,25 @@ class PrellenadoCita
             ->orderByRaw("CASE estatus WHEN 'confirmada' THEN 0 WHEN 'atendido' THEN 1 ELSE 2 END")
             ->when($yo, fn ($q) => $q->orderByRaw('auxiliar = ? DESC', [$yo]))
             ->orderBy('hora')
+            ->first();
+    }
+
+    /** Solicitud en línea: la cita con esa CURP sin solicitud más cercana a hoy (± VENTANA_EN_LINEA días). */
+    public static function citaCercanaPorCurp(?string $curp): ?Recepcion
+    {
+        $curp = Curp::normalizar($curp);
+        if (strlen($curp) !== 18) {
+            return null;
+        }
+
+        $hoy = now()->toDateString();
+
+        return Recepcion::whereBetween('fecha', [now()->subDays(self::VENTANA_EN_LINEA)->toDateString(), now()->addDays(self::VENTANA_EN_LINEA)->toDateString()])
+            ->where('curp', $curp)
+            ->where('tipo', 'Solicitud')
+            ->where('estatus', '!=', 'expirada')
+            ->whereNotExists(fn ($q) => $q->selectRaw(1)->from('seer_general as g')->whereColumn('g.recepcion_id', 'recepcion.id'))
+            ->orderByRaw('ABS(DATEDIFF(fecha, ?))', [$hoy])
             ->first();
     }
 

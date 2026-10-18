@@ -4352,6 +4352,8 @@ class SeerController extends Controller
                  SeerPerGeneral::create($general_insert);
                  $general_record = SeerPerGeneral::latest('id')->first();
                  $new_id = $general_record->id;
+                 // Solicitud en línea (Centro): se liga con su cita por la CURP (App\Support\PrellenadoCita).
+                 \App\Support\PrellenadoCita::ligar($general_record, is_array($solicitante_data) ? ($solicitante_data['curp'] ?? null) : null, true);
 
                  
                  // 2. Crear SeerMotivo
@@ -4710,6 +4712,8 @@ class SeerController extends Controller
 
                 $general_record = SeerPerGeneral::crearConGuia($general_insert);
                 $new_id = $general_record->id;
+                // Solicitud en línea: se liga con su cita por la CURP (App\Support\PrellenadoCita).
+                \App\Support\PrellenadoCita::ligar($general_record, is_array($solicitante_data) ? ($solicitante_data['curp'] ?? null) : null, true);
 
                 // Mover archivos temporales a carpeta final: documentosSolicitud/{new_id}/
                 // y actualizar los campos en arrays ANTES de insertar solicitante/citados.
@@ -21368,6 +21372,8 @@ class SeerController extends Controller
                 // A) Insertar Solicitud Principal
                 $solicitud = SeerPerGeneral::create($solicitudData);
                 $realId = $solicitud->id;
+                // Solicitud en línea: se liga con su cita por la CURP (App\Support\PrellenadoCita).
+                \App\Support\PrellenadoCita::ligar($solicitud, $solicitanteData['curp'] ?? null, true);
 
                 // B) Insertar Solicitante
                 if (!empty($solicitanteData)) {

@@ -44,6 +44,14 @@ class FlujoCita
             && \Illuminate\Support\Facades\Schema::hasColumn('seer_general', 'recepcion_vinculo');
     }
 
+    /** ¿Ya corrió la migración de recepcion.creado_por / atendido_por? */
+    public static function conResponsables(): bool
+    {
+        static $listo = null;
+
+        return $listo ??= \Illuminate\Support\Facades\Schema::hasColumn('recepcion', 'atendido_por');
+    }
+
     /** ¿El flujo aplica a esta cita? Siempre, una vez corrida la migración. */
     public static function aplicaA(object $cita): bool
     {
