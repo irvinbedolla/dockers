@@ -79,6 +79,22 @@
         .cx-acciones { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
         .cx-vacio { padding: 30px 10px; text-align: center; color: var(--tn-tenue); }
         .cx-vacio .bi { display: block; font-size: 26px; margin-bottom: 6px; color: #C5CFCF; }
+
+        /* Pulso verde: hay una solicitud que revisar. Va en un ::after para no
+           pisar el borde/sombra del botón (p. ej. la pestaña activa). */
+        .cx-pulso { position: relative; border-color: #1E7B3C !important; }
+        .cx-pulso::after {
+            content: ''; position: absolute; inset: -1px; border-radius: inherit; pointer-events: none;
+            animation: cxPulso 1.8s ease-out infinite;
+        }
+        @keyframes cxPulso {
+            0%   { box-shadow: 0 0 0 0 rgba(30, 123, 60, .55); }
+            70%  { box-shadow: 0 0 0 9px rgba(30, 123, 60, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(30, 123, 60, 0); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .cx-pulso::after { animation: none; box-shadow: 0 0 0 3px rgba(30, 123, 60, .35); }
+        }
     </style>
 @endsection
 
@@ -118,7 +134,8 @@
                 <a class="cx-pestana {{ $conteos['pendientes'] ? 'cx-pestana--alerta' : '' }} {{ $vista === 'pendientes' ? 'is-activa' : '' }}" href="{{ $con(['vista' => 'pendientes', 'desde' => null, 'hasta' => null]) }}">
                     <i class="bi bi-hourglass-split" aria-hidden="true"></i> Por atender <b>{{ number_format($conteos['pendientes']) }}</b>
                 </a>
-                <a class="cx-pestana {{ $vista === 'solicitudes' ? 'is-activa' : '' }}" href="{{ $con(['vista' => 'solicitudes', 'desde' => null, 'hasta' => null]) }}">
+                <a class="cx-pestana {{ $vista === 'solicitudes' ? 'is-activa' : '' }} {{ $conteos['solicitudes'] ? 'cx-pulso' : '' }}" href="{{ $con(['vista' => 'solicitudes', 'desde' => null, 'hasta' => null]) }}"
+                   @if ($conteos['solicitudes']) title="Hay {{ $conteos['solicitudes'] }} {{ $conteos['solicitudes'] === 1 ? 'solicitud' : 'solicitudes' }} con caso de excepción" @endif>
                     <i class="bi bi-folder2-open" aria-hidden="true"></i> Solicitudes <b>{{ number_format($conteos['solicitudes']) }}</b>
                 </a>
             </nav>
@@ -269,7 +286,7 @@
                                                     <a class="btn btn-sm btn-outline-secondary" href="{{ route('excepciones.formato.pdf', ['tipo' => 'cita', 'id' => $f->id]) }}" target="_blank" rel="noopener" title="Formato en PDF"><i class="bi bi-file-earmark-pdf"></i></a>
                                                 @endif
                                                 @if ($f->solicitud_id)
-                                                    <a class="btn btn-sm btn-outline-secondary" href="{{ route('excepciones.solicitud', $f->solicitud_id) }}" title="Solicitud {{ $f->nue }}"><i class="bi bi-folder2-open"></i> Solicitud</a>
+                                                    <a class="btn btn-sm btn-outline-success cx-pulso" href="{{ route('excepciones.solicitud', $f->solicitud_id) }}" title="Ya tiene solicitud: {{ $f->nue ?: 'sin expediente' }}"><i class="bi bi-folder2-open"></i> Solicitud</a>
                                                 @endif
                                             </div>
                                         </td>
