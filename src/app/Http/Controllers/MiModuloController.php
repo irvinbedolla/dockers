@@ -6,7 +6,9 @@ use App\Models\Modulo;
 use App\Models\User;
 use App\Support\FlujoCita;
 use App\Support\FolioCita;
+use App\Support\HorarioCitas;
 use App\Support\PantallaEspera;
+use App\Support\SigueEnModulo;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -14,15 +16,17 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * "Mi módulo" (flujo cita → solicitud): lo que tiene hoy el módulo de quien
- * entra. Turno actual, el que sigue con cuántos minutos faltan y la lista del
- * día (fase 1), el prellenado de la solicitud (fase 2), los avisos con sonido
- * (fase 3) y los botones Llamar / Iniciar atención / Terminar / No se
- * presentó que mueven la pantalla de espera (fase 4).
+ * entra. Turno actual, el que sigue con cuándo empieza y la lista del día
+ * (fase 1), el prellenado de la solicitud (fase 2), el aviso de quién sigue
+ * en todas las pantallas (fase 3) y los botones Llamar / Iniciar atención /
+ * Terminar / No se presentó que mueven la pantalla de espera (fase 4).
  *
  * El turno actual y el siguiente salen de la misma regla que la pantalla de
- * espera (PantallaEspera), para que el auxiliar y la sala vean lo mismo.
+ * espera (PantallaEspera::turnoDeModulo), para que el auxiliar y la sala vean
+ * lo mismo; los tiempos, de la duración en Horarios de citas (SigueEnModulo).
  *
- * Sólo se ve si el interruptor lo habilita (FlujoCita::habilitadoPara).
+ * Lo ve quien tiene módulo asignado (orientadores y auxiliares) y el Super
+ * Usuario.
  */
 class MiModuloController extends Controller
 {
@@ -192,46 +196,46 @@ class MiModuloController extends Controller
     }
 
     /**
-     * Fase 3: citas de sus módulos que llegan en los próximos N minutos
-     * (Administración → Flujo de citas). Lo consulta el aviso que va en todas
-     * las pantallas (mi_modulo/_avisos). Un Super Usuario sin módulo recibe
-     * los de las citas de prueba de todas las sedes, para poder probar.
+     * Fase 3: quién sigue en cada uno de sus módulos y cuándo (SigueEnModulo).
+     * Lo consulta el aviso que va en todas las pantallas (mi_modulo/_avisos),
+     * también mientras captura una solicitud: "ya llegó y sigue" y
+     * "prepárate, en 10 minutos sigue…". Un Super Usuario sin módulo recibe
+     * los módulos con citas de prueba de hoy, para poder probar.
      */
     public function avisos(Request $request)
     {
         $usuario = $request->user();
         abort_unless(self::puedeVer($usuario), 403);
 
-        $ahora    = now();
-        $minutos  = FlujoCita::minutosAviso();
-        $propios  = self::propios($usuario)->pluck('id');
-        $soloSU   = $propios->isEmpty() && $usuario->hasRole('Super Usuario');
+        $ahora   = now();
+        $modulos = self::propios($usuario);
+        $soloSU  = $modulos->isEmpty() && $usuario->hasRole('Super Usuario');
 
-        $citas = DB::table('recepcion as r')
-            ->join('modulos as m', 'm.id', '=', 'r.modulo_id')
-            ->where('r.fecha', $ahora->toDateString())
-            ->whereIn('r.estatus', ['pendiente', 'confirmada'])
-            ->whereBetween('r.hora', [$ahora->format('H:i:s'), $ahora->copy()->addMinutes($minutos)->format('H:i:s')])
-            ->whereNull('r.llamado_at')
-            ->when($soloSU, fn ($q) => $q->where('r.es_prueba', 1), fn ($q) => $q->whereIn('r.modulo_id', $propios))
-            ->orderBy('r.hora')
-            ->get(['r.id', 'r.codigo', 'r.consecutivo', 'r.hora', 'r.tipo', 'r.estatus', 'r.es_prueba', 'r.solicitante', 'm.nombre as modulo', 'm.delegacion'])
-            ->filter(fn ($c) => FlujoCita::aplicaA($c))
-            ->map(fn ($c) => [
-                'id'        => $c->id,
-                'folio'     => FolioCita::mostrar($c),
-                'hora'      => substr($c->hora, 0, 5),
-                'minutos'   => max(0, (int) floor($ahora->diffInSeconds(Carbon::parse($ahora->toDateString().' '.$c->hora), false) / 60)),
-                'tipo'      => $c->tipo,
-                'persona'   => PantallaEspera::nombreCorto($c->solicitante),
-                'modulo'    => preg_replace('/^m[oó]dulo\b/i', 'Módulo', $c->modulo).' · '.$c->delegacion,
-                'enSala'    => $c->estatus === 'confirmada',
-                'prueba'    => (bool) $c->es_prueba,
-                'iniciar'   => $c->tipo === 'Solicitud' ? route('mi_modulo.prellenar', $c->id) : null,
-            ])
-            ->values();
+        if ($soloSU) {
+            $modulos = Modulo::where('activo', 1)
+                ->whereIn('id', DB::table('recepcion')->where('fecha', $ahora->toDateString())
+                    ->where('es_prueba', 1)->whereNotNull('modulo_id')->distinct()->pluck('modulo_id'))
+                ->orderBy('delegacion')->orderBy('orden')
+                ->get();
+        }
 
-        return response()->json(['avisos' => $citas, 'minutos' => $minutos])->header('Cache-Control', 'no-store');
+        $resumen = [];
+        foreach ($modulos->groupBy('delegacion') as $sede => $deLaSede) {
+            $citas = PantallaEspera::citasVigentes((string) $sede, $ahora, true, SigueEnModulo::COLUMNAS);
+            if ($soloSU) {
+                $citas = $citas->filter(fn ($c) => (bool) $c->es_prueba);
+            }
+
+            foreach ($deLaSede as $modulo) {
+                $resumen[] = SigueEnModulo::resumen($modulo, $citas->where('modulo_id', $modulo->id)->values(), $ahora);
+            }
+        }
+
+        return response()->json([
+            'minutos'  => FlujoCita::minutosAviso(),
+            'generado' => $ahora->toIso8601String(),
+            'modulos'  => $resumen,
+        ])->header('Cache-Control', 'no-store');
     }
 
     /** Otra cita del mismo módulo ya llamada y sin terminar (se atiende de una en una). */
@@ -290,11 +294,14 @@ class MiModuloController extends Controller
         $hoy   = $ahora->toDateString();
         $aviso = FlujoCita::minutosAviso();
 
-        // Turno actual y siguiente: la misma regla que la pantalla de espera.
-        $tablero  = PantallaEspera::calcular($modulo->delegacion, $ahora, ! FlujoCita::apagado());
-        $suyo     = collect($tablero['modulos'])->firstWhere('id', $modulo->id);
-        $actualId = $suyo['actual']['id'] ?? null;
-        $sigueId  = $suyo['siguiente']['id'] ?? null;
+        // Turno actual y siguiente: la misma regla que la pantalla de espera;
+        // los tiempos, con la duración de Horarios de citas.
+        $vigentes = PantallaEspera::citasVigentes($modulo->delegacion, $ahora, true, SigueEnModulo::COLUMNAS)
+            ->where('modulo_id', $modulo->id)->values();
+        [$actualFila, $sigueFila] = PantallaEspera::turnoDeModulo($vigentes, $ahora);
+        $actualId = $actualFila->id ?? null;
+        $sigueId  = $sigueFila->id ?? null;
+        $tiempos  = SigueEnModulo::tiempos($actualFila, $sigueFila, $ahora);
 
         $citas = DB::table('recepcion as r')
             ->leftJoin('municipios as mu', 'mu.id', '=', 'r.municipio')
@@ -364,8 +371,9 @@ class MiModuloController extends Controller
                 'sede'     => $modulo->delegacion,
                 'tramites' => implode(', ', (array) $modulo->tramites),
             ],
-            'estado'       => FlujoCita::estado(),
             'minutosAviso' => $aviso,
+            'duracion'     => (int) HorarioCitas::config($modulo->delegacion, 'Solicitud')->duracion,
+            'tiempos'      => $tiempos,
             'generado'     => $ahora->toIso8601String(),
             'actual'       => $citas->firstWhere('esActual', true),
             'siguiente'    => $citas->firstWhere('esSiguiente', true),
