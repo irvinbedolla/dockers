@@ -8,6 +8,7 @@ use App\Support\ConveniosDelMes;
 use App\Support\ConveniosPagados;
 use App\Support\CasosExcepcion;
 use App\Support\DesempenoNotificadores;
+use App\Support\EmbudoCasos;
 use App\Support\EstadisticasExcepcion;
 use App\Support\ResumenSedes;
 use App\Support\TasaConciliacion;
@@ -59,6 +60,39 @@ class EstadisticasController extends Controller
                 DesempenoNotificadores::base(),
                 DesempenoNotificadores::rango(now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString())
             ),
+        ]);
+    }
+
+    /**
+     * /estadisticas/seguimiento: cuántos casos llegan a cada etapa (cita,
+     * solicitud, audiencia, resultado, pago) y cuántos días tardan
+     * (App\Support\EmbudoCasos). Por omisión, los últimos tres meses.
+     */
+    public function seguimiento(Request $request)
+    {
+        $sedes = Sedes::orderBy('id')->pluck('nombre');
+        $mes   = fn ($v) => is_string($v) && preg_match('/^\d{4}-\d{2}$/', $v) ? $v : null;
+
+        $desde = $mes($request->query('desde')) ?? now()->subMonths(2)->format('Y-m');
+        $hasta = $mes($request->query('hasta')) ?? now()->format('Y-m');
+        if ($desde > $hasta) {
+            [$desde, $hasta] = [$hasta, $desde];
+        }
+        $sede = in_array($request->query('sede'), $sedes->all(), true) ? $request->query('sede') : null;
+
+        $inicio = Carbon::parse($desde.'-01')->startOfMonth();
+        $fin    = Carbon::parse($hasta.'-01')->endOfMonth();
+        $nombre = fn (Carbon $c) => \Illuminate\Support\Str::ucfirst($c->locale('es')->translatedFormat('F Y'));
+
+        return view('estadisticas.seguimiento', [
+            'sedes'   => $sedes,
+            'filtros' => [
+                'desde' => $desde,
+                'hasta' => $hasta,
+                'sede'  => $sede,
+                'texto' => ($desde === $hasta ? $nombre($inicio) : $nombre($inicio).' a '.$nombre($fin)).($sede ? ' · '.$sede : ' · todas las sedes'),
+            ],
+            'datos'   => EmbudoCasos::calcular($inicio->toDateString(), $fin->toDateString(), $sede),
         ]);
     }
 

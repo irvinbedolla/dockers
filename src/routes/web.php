@@ -231,6 +231,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Secciones del panel: todo lo de notificaciones (antes, filtro avanzado del historial).
     Route::get('/estadisticas/notificaciones',          [EstadisticasController::class, 'notificaciones'])->name('estadisticas.notificaciones')
         ->middleware('role:Super Usuario|Estadistica|Directivo');
+    // Seguimiento de casos: de la cita al pago, por etapas y tiempos (App\Support\EmbudoCasos).
+    Route::get('/estadisticas/seguimiento',             [EstadisticasController::class, 'seguimiento'])->name('estadisticas.seguimiento')
+        ->middleware('role:Super Usuario|Estadistica|Directivo');
     // Casos de excepción (art. 685 Ter): también los ve Conciliación, Género e Igualdad.
     Route::get('/estadisticas/excepciones',             [EstadisticasController::class, 'excepciones'])->name('estadisticas.excepciones')
         ->middleware(CasosExcepcionAcceso::class.':estadisticas');
@@ -596,6 +599,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/seer/estadistica',                                     [SeerController::class, 'estadistica'])->name('seer.estadistica');
     Route::get('seer/historial',                                        [SeerController::class, 'ver_historial'])->name('persona.historial');
     Route::get('/solicitudes/home',                                     [SeerController::class, 'solicitudes'])->name('solicitudes_index')->middleware('especialidad:solicitudes_revisar');
+    // Seguimiento del caso: de la cita a en qué quedó (App\Support\SeguimientoCaso).
+    Route::get('/seguimiento',                                          [App\Http\Controllers\SeguimientoController::class, 'index'])->name('seguimiento')->middleware('especialidad:solicitudes_revisar');
     Route::post('/seer/aserorias',                                      [SeerController::class, 'store_asesorias'])->name('seer.store_asesoria');
     Route::post('/seer/EliminarAserorias',                               [SeerController::class, 'destroy_asesorias'])->name('seer.destroy_asesoria');
     Route::get('/seer/index',                                           [SeerController::class, 'index'])->name('seer');
