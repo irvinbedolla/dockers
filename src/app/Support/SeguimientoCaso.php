@@ -62,6 +62,7 @@ class SeguimientoCaso
 
     public const ETAPAS = [
         'cita'         => 'Cita',
+        'excepcion'    => 'Excepción',
         'solicitud'    => 'Solicitud',
         'notificacion' => 'Notificación',
         'audiencia'    => 'Audiencia',
@@ -69,24 +70,60 @@ class SeguimientoCaso
         'cumplimiento' => 'Cumplimiento',
     ];
 
-    /** Sedes que puede consultar (las mismas que su agenda), con variantes sin acento. */
+    /** Ven todos los casos de todas las sedes. */
+    public const VEN_TODO = ['Super Usuario', 'Directivo'];
+
+    /**
+     * Sedes que puede consultar, con variantes sin acento:
+     *   - Super Usuario y Directivo: todas;
+     *   - Conciliación, Género e Igualdad: todas, pero sólo casos de
+     *     excepción (soloExcepcion);
+     *   - los demás: las de su agenda (AgendaContexto).
+     */
     public static function sedes(User $usuario): array
     {
-        $sedes = AgendaContexto::para($usuario)['sedes'] ?? [];
+        $sedes = $usuario->hasAnyRole(self::VEN_TODO) || CasosExcepcion::es($usuario)
+            ? CasosExcepcion::SEDES
+            : (AgendaContexto::para($usuario)['sedes'] ?? []);
 
         return array_values(array_unique(array_merge($sedes, array_map(fn ($s) => Str::ascii($s), $sedes))));
+    }
+
+    /** Conciliación, Género e Igualdad sólo ve casos de excepción (salvo que también vea todo). */
+    public static function soloExcepcion(User $usuario): bool
+    {
+        return CasosExcepcion::es($usuario) && ! $usuario->hasAnyRole(self::VEN_TODO);
+    }
+
+    /** Motivo del caso de excepción para mostrar: el exacto de la cita o, si no, el grupo. */
+    public static function motivoExcepcion(?object $cita, ?object $formato = null): ?string
+    {
+        $clave = $cita->motivo_excepcion ?? null;
+        if ($clave && isset(CasosExcepcion::MOTIVOS[$clave])) {
+            return CasosExcepcion::MOTIVOS[$clave][3];
+        }
+        $tipos = $formato ? (json_decode((string) ($formato->tipos ?? ''), true) ?: []) : [];
+        if ($tipos) {
+            return implode(', ', array_map(fn ($t) => CasosExcepcion::TIPOS[$t] ?? $t, $tipos));
+        }
+        $grupo = trim((string) ($cita->tipo_caso ?? ''));
+
+        return $grupo !== '' && $grupo !== 'Ninguno' ? str_replace('_', ' ', $grupo) : null;
     }
 
     /**
      * Todos los casos de sus sedes, del más reciente al más antiguo: cada
      * solicitud (con su cita, si la tiene) y cada cita que todavía no tiene
      * solicitud. Filtros: q (folio de cita, NUE, CURP o nombre), sede y
-     * estado ('tramite', 'resueltos' o 'citas').
+     * estado ('tramite', 'resueltos', 'citas' o 'excepcion'). Con
+     * $soloExcepcion, sólo casos de excepción (Conciliación, Género e
+     * Igualdad).
      */
-    public static function tabla(array $sedes, array $filtros, int $porPagina = 25): LengthAwarePaginator
+    public static function tabla(array $sedes, array $filtros, int $porPagina = 25, bool $soloExcepcion = false): LengthAwarePaginator
     {
         $texto  = trim(preg_replace('/\s+/', ' ', (string) ($filtros['q'] ?? '')));
         $estado = (string) ($filtros['estado'] ?? '');
+        $excepcion = $soloExcepcion || $estado === 'excepcion';
         if (! empty($filtros['sede'])) {
             $sedes = array_values(array_intersect($sedes, [$filtros['sede'], Str::ascii($filtros['sede'])])) ?: ['__ninguna__'];
         }
@@ -104,6 +141,7 @@ class SeguimientoCaso
             ->when($estado === 'tramite', fn ($q) => $q->whereNotIn('g.estatus', self::RESUELTOS))
             ->when($estado === 'resueltos', fn ($q) => $q->whereIn('g.estatus', self::RESUELTOS))
             ->when($estado === 'citas', fn ($q) => $q->whereRaw('1 = 0'))
+            ->when($excepcion, fn ($q) => $q->where(fn ($w) => $w->where('g.caso_excepcion', 'Si')->orWhere('r.exepcion', 'Si')))
             ->when($texto !== '', fn ($q) => $q->where(function ($w) use ($folio, $curp, $nombre, $like) {
                 $w->where('g.NUE', 'like', $like);
                 if ($folio) {
@@ -124,6 +162,7 @@ class SeguimientoCaso
             ->when(FlujoCita::migrado(), fn ($q) => $q->where('r.es_prueba', 0))
             ->whereNotExists(fn ($q) => $q->selectRaw(1)->from('seer_general as g')->whereColumn('g.recepcion_id', 'r.id'))
             ->when(in_array($estado, ['tramite', 'resueltos'], true), fn ($q) => $q->whereRaw('1 = 0'))
+            ->when($excepcion, fn ($q) => $q->where('r.exepcion', 'Si'))
             ->when($texto !== '', fn ($q) => $q->where(function ($w) use ($folio, $curp, $nombre, $like) {
                 $w->whereRaw('1 = 0');
                 if ($folio) {
@@ -148,7 +187,7 @@ class SeguimientoCaso
         $cids  = $filas->pluck('cid')->filter()->map(fn ($i) => (int) $i)->all();
 
         $gen = DB::table('seer_general as g')->whereIn('g.id', $sids ?: [0])
-            ->get(['g.id', 'g.NUE', 'g.fecha', 'g.created_at', 'g.estatus', 'g.delegacion', 'g.user_id',
+            ->get(['g.id', 'g.NUE', 'g.fecha', 'g.created_at', 'g.estatus', 'g.delegacion', 'g.user_id', 'g.caso_excepcion',
                 DB::raw('(SELECT s.nombre FROM seer_solicitante s WHERE s.id_solicitud = g.id ORDER BY s.id LIMIT 1) AS persona')])
             ->keyBy('id');
         $cit = DB::table('recepcion')->whereIn('id', $cids ?: [0])->get()->keyBy('id');
@@ -171,6 +210,8 @@ class SeguimientoCaso
                 'sede'     => $g->delegacion ?? $c->delegacion ?? '',
                 'estado'   => $g ? (self::ESTATUS[$g->estatus] ?? (string) $g->estatus) : 'Cita '.$c->estatus.', sin solicitud',
                 'tono'     => $g ? (in_array($g->estatus, self::FAVORABLES, true) ? 'favorable' : ($resuelto ? 'resuelto' : 'tramite')) : 'cita',
+                'excepcion' => (($g->caso_excepcion ?? null) === 'Si' || ($c->exepcion ?? null) === 'Si')
+                    ? (self::motivoExcepcion($c) ?? 'Caso de excepción') : null,
                 'atendio'  => self::nombre($c->atendido_por_nombre ?? null) ?: $capturo,
                 'creo'     => $c && $c->origen !== 'linea' ? (self::nombre($c->creado_por_nombre ?? null) ?: null) : null,
                 'proxima'  => $g ? ($prox[(int) $g->id] ?? null) : null,
@@ -211,7 +252,7 @@ class SeguimientoCaso
      * La historia completa de un caso ('s123' solicitud o 'c45' cita), o
      * null si no existe o no es de sus sedes.
      */
-    public static function linea(string $clave, array $sedes): ?array
+    public static function linea(string $clave, array $sedes, bool $soloExcepcion = false): ?array
     {
         if (! preg_match('/^([sc])(\d+)$/', $clave, $m)) {
             return null;
@@ -231,6 +272,11 @@ class SeguimientoCaso
             return null;
         }
 
+        $esExcepcion = (($cita->exepcion ?? null) === 'Si') || ($solicitud && CasosExcepcion::solicitudEsCaso($solicitud));
+        if ($soloExcepcion && ! $esExcepcion) {
+            return null;
+        }
+
         $eventos = collect();
         $hechas  = [];
 
@@ -238,6 +284,9 @@ class SeguimientoCaso
             self::eventosCita($cita, $eventos);
             $hechas['cita'] = true;
         }
+
+        // Caso de excepción (art. 685 Ter): formato, canalización y aceptación.
+        $formato = $esExcepcion ? self::eventosExcepcion($cita, $solicitud, $eventos, $hechas) : null;
 
         $persona = self::nombre($cita->solicitante ?? null);
         $curp    = $cita->curp ?? null;
@@ -272,7 +321,9 @@ class SeguimientoCaso
         $capturo  = $solicitud && $solicitud->user_id ? (self::usuarios([(int) $solicitud->user_id])[(int) $solicitud->user_id] ?? null) : null;
         $ultimaConc = $solicitud ? DB::table('audiencias')->where('id_solicitud', $solicitud->id)->whereNotNull('id_conciliador')
             ->orderByDesc('fecha')->orderByDesc('hora')->value('id_conciliador') : null;
+        $atendioExc = $formato && $formato->id_user ? (self::usuarios([(int) $formato->id_user])[(int) $formato->id_user] ?? null) : null;
         $responsables = array_values(array_filter([
+            $atendioExc ? ['rol' => 'Atendió el caso de excepción', 'nombre' => $atendioExc, 'icono' => 'shield-check'] : null,
             $cita ? ['rol' => $cita->origen === 'linea' ? 'Agendó su cita' : 'Le creó el turno',
                      'nombre' => $cita->origen === 'linea' ? 'La persona, en línea' : (self::nombre($cita->creado_por_nombre ?? null) ?: 'Sin registro'), 'icono' => 'calendar-plus'] : null,
             ($cita || $capturo) ? ['rol' => 'Lo atendió', 'nombre' => self::nombre($cita->atendido_por_nombre ?? null) ?: ($capturo ?: 'Sin registro'), 'icono' => 'person-check'] : null,
@@ -303,7 +354,10 @@ class SeguimientoCaso
             'proxima'   => $prox,
             'responsables' => $responsables,
             'dias'      => ($inicio && $fin) ? (int) $inicio->copy()->startOfDay()->diffInDays($fin->copy()->startOfDay()) : null,
-            'etapas'    => collect(self::ETAPAS)->map(fn ($nombre, $k) => ['nombre' => $nombre, 'hecha' => ! empty($hechas[$k])])->all(),
+            'excepcion' => $esExcepcion ? (self::motivoExcepcion($cita, $formato) ?? 'Caso de excepción') : null,
+            'etapas'    => collect(self::ETAPAS)
+                ->when(! $esExcepcion, fn ($e) => $e->except('excepcion'))
+                ->map(fn ($nombre, $k) => ['nombre' => $nombre, 'hecha' => ! empty($hechas[$k])])->all(),
             'eventos'   => $eventos->all(),
         ];
     }
@@ -341,6 +395,71 @@ class SeguimientoCaso
         if ($c->estatus === 'expirada') {
             $eventos->push(self::evento('cita', $fecha.' '.$c->hora, 'No se presentó a su cita', 'La cita quedó expirada.', 'person-x', 'alerta', 7));
         }
+    }
+
+    /**
+     * Formato 685 Ter, oficios de canalización y aceptación firmada. Devuelve
+     * el formato (o null). Los PDFs sólo se ligan a quien puede consultar los
+     * casos de excepción (la ruta lo cuida igual).
+     */
+    private static function eventosExcepcion(?object $cita, ?object $solicitud, Collection $eventos, array &$hechas): ?object
+    {
+        $formato = DB::table('seer_casos_excepcion')
+            ->where(function ($q) use ($cita, $solicitud) {
+                $q->whereRaw('1 = 0');
+                if ($cita) {
+                    $q->orWhere('id_turno', $cita->id);
+                }
+                if ($solicitud && CasosExcepcion::conFormato()) {
+                    $q->orWhere('id_solicitud', $solicitud->id);
+                }
+            })
+            ->orderByDesc('id')
+            ->first();
+
+        if (! $formato) {
+            return null;
+        }
+
+        $usuario = auth()->user();
+        $docs    = $usuario && (CasosExcepcion::consulta($usuario) || CasosExcepcion::es($usuario));
+        $origen  = $cita ? ['tipo' => 'cita', 'id' => $cita->id] : ['tipo' => 'solicitud', 'id' => $solicitud->id];
+        $atendio = $formato->id_user ? (self::usuarios([(int) $formato->id_user])[(int) $formato->id_user] ?? null) : null;
+        $terminado = ! empty($formato->terminado_at ?? null) || ! CasosExcepcion::conFormato();
+        $resultado = CasosExcepcion::RESULTADOS[$formato->resultado ?? ''] ?? null;
+        $tipos = array_map(fn ($t) => CasosExcepcion::TIPOS[$t] ?? $t, json_decode((string) ($formato->tipos ?? ''), true) ?: []);
+
+        $hechas['excepcion'] = $terminado;
+        $eventos->push(self::evento('excepcion', ($formato->terminado_at ?? null) ?: $formato->created_at,
+            $terminado ? 'Se llenó el Formato 685 Ter' : 'Formato 685 Ter en captura',
+            implode(' · ', array_filter([
+                $tipos ? implode(', ', $tipos) : null,
+                $resultado,
+                $atendio ? 'lo atendió '.$atendio : null,
+            ])), 'shield-check', $terminado ? 'ok' : 'neutro', 8, false,
+            $docs ? [self::doc('Formato 685 Ter', 'excepciones.formato.pdf', $origen)] : []));
+
+        if (OficioCanalizacion::migrado()) {
+            $oficios = DB::table('excepcion_oficios')->where('caso_id', $formato->id)->orderBy('fecha')->orderBy('id')->get();
+            foreach ($oficios as $o) {
+                $inst   = CasosExcepcion::INSTITUCIONES[$o->institucion] ?? (string) $o->institucion;
+                $numero = $o->numero ?: ($o->consecutivo ? OficioCanalizacion::numero((int) $o->consecutivo, (int) $o->anio) : null);
+                // La fecha del oficio no trae hora: si es el mismo día en que se registró, se usa ese momento.
+                $diaOficio = $o->fecha ? substr((string) $o->fecha, 0, 10) : null;
+                $mismoDia  = $o->created_at && (! $diaOficio || substr((string) $o->created_at, 0, 10) === $diaOficio);
+                $eventos->push(self::evento('excepcion', $mismoDia ? $o->created_at : $diaOficio.' 12:00:00',
+                    'Se canalizó a '.$inst, $numero ? 'Oficio '.$numero : 'Oficio sin número todavía', 'send-check', 'alerta', 9, ! $mismoDia,
+                    $docs ? [self::doc('Oficio de canalización', 'excepciones.oficio.pdf', $origen + ['institucion' => $o->institucion])] : []));
+
+                if (! empty($o->aceptacion_firmada ?? null)) {
+                    $eventos->push(self::evento('excepcion', ($o->aceptacion_firmada_at ?? null) ?: $o->updated_at,
+                        'Firmó la aceptación de la canalización', $inst, 'pen', 'ok', 9, false,
+                        $docs ? [self::doc('Aceptación de canalización', 'excepciones.aceptacion.pdf', $origen + ['institucion' => $o->institucion])] : []));
+                }
+            }
+        }
+
+        return $formato;
     }
 
     private static function eventosSolicitud(object $g, Collection $eventos, array &$hechas): void

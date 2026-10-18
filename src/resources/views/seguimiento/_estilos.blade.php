@@ -20,6 +20,7 @@
     .sg-chip--favorable { background: #E5F3EA; color: #1E7B3C; }
     .sg-chip--resuelto { background: #E7ECEC; color: #354647; }
     .sg-chip--cita { background: #EEF0F3; color: #5F6B7A; }
+    .sg-chip--excepcion { background: #F6E4EA; color: #8C1D40; white-space: normal; }
     .sg-origen { display: inline-block; padding: 0 7px; border-radius: 6px; font-size: 10.5px; font-weight: 700; background: var(--tn-fondo); color: var(--tn-suave); }
     .sg-origen--linea { background: #FBF4E1; color: #8A6A12; }
 
@@ -43,7 +44,7 @@
     .sg-proxima > .bi { font-size: 18px; color: #A9862B; }
     .sg-proxima b { color: #4F3C08; }
 
-    .sg-etapas { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; margin: 18px 0 6px; }
+    .sg-etapas { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px; margin: 18px 0 6px; }
     .sg-etapa { text-align: center; font-size: 11.5px; font-weight: 700; color: var(--tn-tenue); }
     .sg-etapa::before { content: ""; display: block; height: 6px; border-radius: 99px; background: #E3E8E8; margin-bottom: 6px; }
     .sg-etapa.is-hecha { color: var(--tn-verde); }
@@ -80,7 +81,7 @@
         .sg-evento__punto { grid-column: 1; grid-row: 1 / span 4; width: 28px; height: 28px; }
         .sg-evento__titulo, .sg-evento__detalle, .sg-docs { grid-column: 2; }
         .sg-hueco span, .sg-hoy span { grid-column: 2; }
-        .sg-etapas { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .sg-etapas { grid-auto-flow: row; grid-template-columns: repeat(3, minmax(0, 1fr)); }
         .sg-cabeza .text-end { text-align: left !important; }
     }
     @media print {

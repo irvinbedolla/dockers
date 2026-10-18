@@ -45,6 +45,9 @@
                 <div class="sg-cabeza">
                     <div>
                         <h4 class="sg-persona">{{ $caso['persona'] }}</h4>
+                        @if ($caso['excepcion'])
+                            <span class="sg-chip sg-chip--excepcion mt-1"><i class="bi bi-shield-exclamation"></i> Caso de excepción · {{ $caso['excepcion'] }}</span>
+                        @endif
                         <div class="sg-datos">
                             @if ($caso['nue'])<span class="sg-dato">NUE <b>{{ $caso['nue'] }}</b></span>@endif
                             @if ($caso['folio'])<span class="sg-dato">Cita <b>{{ $caso['folio'] }}</b></span>@endif

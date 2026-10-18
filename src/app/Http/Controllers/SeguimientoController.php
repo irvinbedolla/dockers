@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Support\AgendaContexto;
+use App\Support\CasosExcepcion;
 use App\Support\SeguimientoCaso;
 use App\Support\VistaSolicitud;
 use Illuminate\Http\Request;
@@ -19,7 +20,9 @@ use Illuminate\Support\Str;
  *                                choca con Controller::solicitud()) (se abre en un
  *                                modal; sólo HTML, sin layout).
  *
- * Cada quien consulta sólo las sedes que ve en su agenda.
+ * Super Usuario y Directivo ven todo; Conciliación, Género e Igualdad,
+ * todas las sedes pero sólo casos de excepción; los demás, las sedes de su
+ * agenda (SeguimientoCaso::sedes / soloExcepcion).
  */
 class SeguimientoController extends Controller
 {
@@ -28,12 +31,16 @@ class SeguimientoController extends Controller
         'tramite'   => 'En trámite',
         'resueltos' => 'Resueltos',
         'citas'     => 'Citas sin solicitud',
+        'excepcion' => 'Casos de excepción',
     ];
 
     public function index(Request $request)
     {
         $usuario  = $request->user();
-        $visibles = AgendaContexto::para($usuario)['sedes'] ?? [];
+        $solo     = SeguimientoCaso::soloExcepcion($usuario);
+        $visibles = $usuario->hasAnyRole(SeguimientoCaso::VEN_TODO) || CasosExcepcion::es($usuario)
+            ? CasosExcepcion::SEDES
+            : (AgendaContexto::para($usuario)['sedes'] ?? []);
         $filtros  = [
             'q'      => trim((string) $request->query('q', '')),
             'sede'   => in_array($request->query('sede'), $visibles, true) ? $request->query('sede') : '',
@@ -41,16 +48,17 @@ class SeguimientoController extends Controller
         ];
 
         return view('seguimiento.index', [
-            'casos'   => SeguimientoCaso::tabla(SeguimientoCaso::sedes($usuario), $filtros),
+            'casos'   => SeguimientoCaso::tabla(SeguimientoCaso::sedes($usuario), $filtros, 25, $solo),
             'filtros' => $filtros,
             'sedes'   => $visibles,
-            'estados' => self::ESTADOS,
+            'estados' => $solo ? array_diff_key(self::ESTADOS, ['excepcion' => 1]) : self::ESTADOS,
+            'soloExcepcion' => $solo,
         ]);
     }
 
     public function ver(Request $request, string $clave)
     {
-        $caso = SeguimientoCaso::linea($clave, SeguimientoCaso::sedes($request->user()));
+        $caso = SeguimientoCaso::linea($clave, SeguimientoCaso::sedes($request->user()), SeguimientoCaso::soloExcepcion($request->user()));
         abort_unless($caso, 404, 'Ese caso no existe o no es de tus sedes.');
 
         return view('seguimiento.ver', ['caso' => $caso]);
@@ -61,6 +69,7 @@ class SeguimientoController extends Controller
         $datos = VistaSolicitud::datos($id);
         $sedes = SeguimientoCaso::sedes($request->user());
         abort_unless($datos && (in_array($datos['general']->delegacion, $sedes, true) || in_array(Str::ascii((string) $datos['general']->delegacion), $sedes, true)), 404);
+        abort_if(SeguimientoCaso::soloExcepcion($request->user()) && ! CasosExcepcion::solicitudEsCaso($datos['general']), 404);
 
         return view('solicitudes._vista', $datos);
     }

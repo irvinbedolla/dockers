@@ -20,10 +20,13 @@
     <section class="section tn">
         <div class="section-header mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
             <div>
-                <a href="{{ route('solicitudes_index') }}" class="text-decoration-none small" style="color: var(--tn-verde-claro);">
-                    <i class="bi bi-arrow-left"></i> Solicitudes
+                <a href="{{ $soloExcepcion ? route('excepcion') : route('solicitudes_index') }}" class="text-decoration-none small" style="color: var(--tn-verde-claro);">
+                    <i class="bi bi-arrow-left"></i> {{ $soloExcepcion ? 'Casos de excepción' : 'Solicitudes' }}
                 </a>
                 <h3 class="page__heading mb-0">Seguimiento de casos</h3>
+                @if ($soloExcepcion)
+                    <span class="sg-chip sg-chip--excepcion"><i class="bi bi-shield-exclamation"></i> Sólo casos de excepción, todas las sedes</span>
+                @endif
             </div>
             <span class="small" style="color: var(--tn-tenue);">{{ number_format($casos->total()) }} {{ $casos->total() === 1 ? 'caso' : 'casos' }}</span>
         </div>
@@ -95,7 +98,12 @@
                                             @endif
                                         </td>
                                         <td>{{ $c['nue'] ?: '—' }}</td>
-                                        <td><span class="sg-chip sg-chip--{{ $c['tono'] }}">{{ $c['estado'] }}</span></td>
+                                        <td>
+                                            <span class="sg-chip sg-chip--{{ $c['tono'] }}">{{ $c['estado'] }}</span>
+                                            @if ($c['excepcion'])
+                                                <small class="mt-1"><span class="sg-chip sg-chip--excepcion" title="Caso de excepción"><i class="bi bi-shield-exclamation"></i> {{ $c['excepcion'] }}</span></small>
+                                            @endif
+                                        </td>
                                         <td>{{ $c['atendio'] ?: '—' }}</td>
                                         <td>
                                             @if ($c['proxima'])
