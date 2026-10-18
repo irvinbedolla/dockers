@@ -61,18 +61,37 @@ class PrellenadoCita
         session()->forget(self::SESION);
     }
 
-    public static function ligar(object $solicitud): void
+    /**
+     * Al guardar la solicitud (trabajador o patronal) la liga con su cita:
+     *   1. la del prellenado, si se capturó desde la cita;
+     *   2. si no, la de HOY con la misma CURP del solicitante que aún no
+     *      tenga solicitud (así cuenta aunque se haya usado "Nueva solicitud").
+     * La cita queda atendida y sale de la pantalla y de "quién sigue".
+     */
+    public static function ligar(object $solicitud, ?string $curp = null): void
     {
-        $p = self::paraVista();
-        if (! $p || ! FlujoCita::migrado()) {
+        if (! FlujoCita::migrado()) {
             return;
         }
 
-        DB::table('seer_general')->where('id', $solicitud->id)->update(['recepcion_id' => $p['cita_id']]);
-        self::descartar();
+        $p = self::paraVista();
+        if ($p) {
+            $citaId  = (int) $p['cita_id'];
+            $vinculo = 'prellenado';
+            self::descartar();
+        } elseif ($porCurp = self::citaDeHoyPorCurp($curp)) {
+            $citaId  = (int) $porCurp->id;
+            $vinculo = 'curp';
+        } else {
+            return;
+        }
+
+        DB::table('seer_general')->where('id', $solicitud->id)->update(
+            ['recepcion_id' => $citaId] + (FlujoCita::conSeguimiento() ? ['recepcion_vinculo' => $vinculo] : [])
+        );
 
         // La solicitud ya quedó: la cita termina aquí aunque no piquen "Terminar".
-        $cita = Recepcion::find($p['cita_id']);
+        $cita = Recepcion::find($citaId);
         if ($cita && in_array($cita->estatus, ['pendiente', 'confirmada'], true)) {
             $ahora = now();
             $cita->forceFill(array_filter([
@@ -83,6 +102,26 @@ class PrellenadoCita
             ]))->save();
             PantallaEspera::olvidar((string) $cita->delegacion);
         }
+    }
+
+    /** Cita de hoy con esa CURP que todavía no tiene solicitud (la que ya llegó, primero). */
+    public static function citaDeHoyPorCurp(?string $curp): ?Recepcion
+    {
+        $curp = Curp::normalizar($curp);
+        if (strlen($curp) !== 18) {
+            return null;
+        }
+
+        $yo = auth()->id();
+
+        return Recepcion::where('fecha', now()->toDateString())
+            ->where('curp', $curp)
+            ->whereIn('estatus', ['confirmada', 'pendiente', 'atendido'])
+            ->whereNotExists(fn ($q) => $q->selectRaw(1)->from('seer_general as g')->whereColumn('g.recepcion_id', 'recepcion.id'))
+            ->orderByRaw("CASE estatus WHEN 'confirmada' THEN 0 WHEN 'atendido' THEN 1 ELSE 2 END")
+            ->when($yo, fn ($q) => $q->orderByRaw('auxiliar = ? DESC', [$yo]))
+            ->orderBy('hora')
+            ->first();
     }
 
     /** Campo del formulario del trabajador (solicitanteAux) => valor. */

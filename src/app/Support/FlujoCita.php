@@ -35,6 +35,15 @@ class FlujoCita
         return $listo ??= self::migrado() && \Illuminate\Support\Facades\Schema::hasColumn('recepcion', 'atencion_fin_at');
     }
 
+    /** Seguimiento: ¿ya corrió la migración de recepcion.confirmada_at y seer_general.recepcion_vinculo? */
+    public static function conSeguimiento(): bool
+    {
+        static $listo = null;
+
+        return $listo ??= \Illuminate\Support\Facades\Schema::hasColumn('recepcion', 'confirmada_at')
+            && \Illuminate\Support\Facades\Schema::hasColumn('seer_general', 'recepcion_vinculo');
+    }
+
     /** ¿El flujo aplica a esta cita? Siempre, una vez corrida la migración. */
     public static function aplicaA(object $cita): bool
     {

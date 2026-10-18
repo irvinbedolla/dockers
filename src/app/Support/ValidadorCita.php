@@ -69,7 +69,8 @@ class ValidadorCita
             return ['resultado' => 'tarde', 'cambio' => true];
         }
 
-        $cita->update(['estatus' => 'confirmada']);
+        // Cuándo llegó (para el seguimiento del caso).
+        $cita->update(['estatus' => 'confirmada'] + (FlujoCita::conSeguimiento() ? ['confirmada_at' => $ahora] : []));
 
         return ['resultado' => 'confirmada', 'cambio' => true];
     }
