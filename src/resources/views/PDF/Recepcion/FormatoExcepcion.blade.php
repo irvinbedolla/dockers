@@ -113,6 +113,7 @@
     <div class="datos" style="margin-top: 0">
         <div class="preg"><b class="n">1.</b><b>Tipo de situación que enfrenta</b> <i>(marque la opción que corresponda)</i>:
             <div class="op">{!! $caja(in_array('discriminacion', $tipos, true)) !!} He sido objeto de discriminación. Señale el motivo: {!! $linea(in_array('discriminacion', $tipos, true) ? ($datos['motivos'] ?? null) : null, '180pt') !!}</div>
+            <div class="op">{!! $caja(in_array('acoso_laboral', $tipos, true)) !!} He sido objeto de acoso / hostigamiento laboral (violencia laboral).</div>
             <div class="op">{!! $caja(in_array('acoso_sexual', $tipos, true)) !!} He recibido acoso sexual por parte de un superior jerárquico o de un compañero de trabajo.</div>
             <div class="op">{!! $caja(in_array('riesgo_trabajo', $tipos, true)) !!} He sufrido un riesgo o accidente de trabajo. En caso de ser afirmativo, señale:</div>
             <div class="op" style="margin-left: 28pt">{!! $caja(($datos['riesgo_lugar'] ?? null) === 'dentro') !!} <i>Dentro del centro de trabajo.</i> &nbsp;&nbsp;&nbsp; {!! $caja(($datos['riesgo_lugar'] ?? null) === 'fuera') !!} <i>Fuera del centro de trabajo.</i></div>

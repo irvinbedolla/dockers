@@ -42,6 +42,7 @@ class CasosExcepcion
     /** 1. Tipo de situación (pueden marcarse varias). Clave => texto corto. */
     public const TIPOS = [
         'discriminacion'    => 'Discriminación',
+        'acoso_laboral'     => 'Acoso / hostigamiento laboral (violencia laboral)',
         'acoso_sexual'      => 'Acoso u hostigamiento sexual',
         'riesgo_trabajo'    => 'Riesgo o accidente de trabajo',
         'violencia_laboral' => 'Malos tratos o violencia laboral',
@@ -50,6 +51,7 @@ class CasosExcepcion
     /** Como lo dice el formato impreso. */
     public const TIPOS_FORMATO = [
         'discriminacion'    => 'He sido objeto de discriminación.',
+        'acoso_laboral'     => 'He sido objeto de acoso / hostigamiento laboral (violencia laboral).',
         'acoso_sexual'      => 'He recibido acoso sexual por parte de un superior jerárquico o de un compañero de trabajo.',
         'riesgo_trabajo'    => 'He sufrido un riesgo o accidente de trabajo.',
         'violencia_laboral' => 'He sido objeto de malos tratos o violencia laboral.',

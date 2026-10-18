@@ -168,6 +168,8 @@ class FormatoExcepcion
 
         return match (true) {
             $t === ''                                                           => [],
+            // Antes que "acoso": "Acoso u hostigamiento laboral" no es sexual.
+            str_contains($t, 'laboral') && (str_contains($t, 'acoso') || str_contains($t, 'hostigamiento')) => ['acoso_laboral'],
             str_contains($t, 'acoso') || str_contains($t, 'hostigamiento')     => ['acoso_sexual'],
             str_contains($t, 'riesgo') || str_contains($t, 'accidente') || str_contains($t, 'enfermedad') => ['riesgo_trabajo'],
             str_contains($t, 'malos tratos') || str_contains($t, 'violencia')  => ['violencia_laboral'],

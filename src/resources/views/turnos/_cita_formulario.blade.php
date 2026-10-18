@@ -198,6 +198,7 @@
                                                     <option value="Discriminación">Religión</option>
                                                     <option value="Discriminación">Orientación sexual</option>
                                                     <option value="Discriminación">Origen étnico</option>
+                                                    <option value="Acoso u hostigamiento laboral">Acoso / hostigamiento laboral (violencia laboral)</option>
                                                 </optgroup>
                                                 <optgroup label="Designación de beneficiarios:">
                                                     <option value="Designacion">Designación de beneficiarios por muerte</option>
