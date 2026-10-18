@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\AccesosOrientador;
 use App\Support\AccesosRecepcion;
 use App\Support\CasosExcepcion;
 use App\Support\AgendaContexto;
@@ -35,6 +36,8 @@ class InicioController extends Controller
         // Conciliación, Género e Igualdad ve sus casos de excepción de hoy.
         $casos      = CasosExcepcion::es($usuario) ? CasosExcepcion::inicio() : null;
         $accesos    = ! $casos && AccesosRecepcion::aplica($usuario) ? AccesosRecepcion::para($usuario) : null;
+        // Orientadores y auxiliares con módulo: quién sigue, sus citas y sus solicitudes.
+        $orientador = ! $casos && ! $accesos && AccesosOrientador::aplica($usuario) ? AccesosOrientador::para($usuario) : null;
         $posiciones = ($accesos || $casos) ? null : TablaPosiciones::resumen();
 
         if (in_array('Directivo', $userRole, true)) {
@@ -45,6 +48,7 @@ class InicioController extends Controller
                 'posiciones'   => $posiciones,
                 'accesos'      => $accesos,
                 'casos'        => $casos,
+                'orientador'   => $orientador,
                 'resumen'      => ResumenSedes::totales(),
                 'resumenSedes' => ResumenSedes::detalle(),
             ]);
@@ -52,6 +56,6 @@ class InicioController extends Controller
 
         ['sedes' => $sedes, 'conciliadores' => $conciliadores] = AgendaContexto::para($usuario);
 
-        return view('inicio.index', compact('usuario', 'userRole', 'saludo', 'posiciones', 'accesos', 'casos', 'sedes', 'conciliadores'));
+        return view('inicio.index', compact('usuario', 'userRole', 'saludo', 'posiciones', 'accesos', 'casos', 'orientador', 'sedes', 'conciliadores'));
     }
 }

@@ -14,7 +14,8 @@
     Consulta /mi-modulo/avisos cada 30 s (MiModuloController::avisos).
     Sólo se incluye si MiModuloController::puedeVer().
 --}}
-@php $flujoEnMiModulo = request()->routeIs('mi_modulo'); @endphp
+{{-- En Mi módulo y en el Inicio ya está "quién sigue" en la pantalla: ahí sólo salen los avisos. --}}
+@php $flujoEnMiModulo = request()->routeIs('mi_modulo') || request()->routeIs('inicio'); @endphp
 <div id="flujoAvisos" class="flujo-avisos" aria-live="polite"></div>
 <style>
     .flujo-avisos { position: fixed; right: 18px; bottom: 18px; z-index: 2000; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; width: 360px; max-width: calc(100vw - 24px); pointer-events: none; }
@@ -57,7 +58,7 @@
     var URL = @json(route('mi_modulo.avisos'));
     var URL_MODULO = @json(route('mi_modulo'));
     var TOKEN = @json(csrf_token());
-    var CON_TARJETA = @json(! $flujoEnMiModulo); // En Mi módulo ya están las tarjetas Ahora / Sigue.
+    var CON_TARJETA = @json(! $flujoEnMiModulo); // En Mi módulo e Inicio ya está quién sigue.
     var caja = document.getElementById('flujoAvisos');
     var hoy = new Date().toISOString().slice(0, 10);
     var clave = 'flujo-avisos-' + hoy;
