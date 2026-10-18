@@ -27,6 +27,9 @@ class Recepcion
 
     public const ROLES = [self::MORELIA_01, self::MORELIA_02, self::REGIONAL];
 
+    /** Correo institucional que recepción puede usar si la persona no tiene uno. */
+    public const CORREO = 'recepcion@cclmichoacan.gob.mx';
+
     /** Ven las citas en línea de todas las sedes, además de su agenda normal. */
     public const SUPERVISAN = ['Super Usuario', 'Administrador', 'Directivo'];
 

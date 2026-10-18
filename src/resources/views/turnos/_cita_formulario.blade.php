@@ -149,6 +149,46 @@
                                                    placeholder="Escríbelo otra vez" required>
                                             <div class="invalid-feedback" id="gcCorreo2Error">Los correos no coinciden.</div>
                                         </div>
+                                        {{-- Recepción (Morelia 01, 02 y General): si la persona no trae correo,
+                                             se puede usar el institucional (App\Support\Recepcion::CORREO). --}}
+                                        @if ($ventanilla && \App\Support\Recepcion::es(auth()->user()))
+                                            <div class="col-12">
+                                                <div class="gc-correo-recepcion" role="note">
+                                                    <i class="bi bi-envelope-at" aria-hidden="true"></i>
+                                                    <span>
+                                                        <b>¿La persona no tiene correo?</b> Usa el de recepción,
+                                                        <b>{{ \App\Support\Recepcion::CORREO }}</b>: es válido para registrar el turno cuando la persona no cuenta con correo.
+                                                    </span>
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="gcUsarCorreoRecepcion" data-correo="{{ \App\Support\Recepcion::CORREO }}">
+                                                        Usar este correo
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <style>
+                                                .gc-correo-recepcion { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 10px 14px; border-radius: 10px; background: #EEF2F2; color: #5E6E6F; font-size: 13px; }
+                                                .gc-correo-recepcion > .bi { font-size: 18px; color: #496163; }
+                                                .gc-correo-recepcion > span { flex: 1 1 280px; }
+                                                .gc-correo-recepcion b { color: #2E3C3D; }
+                                                .gc-correo-recepcion.is-usado { background: #E5F3EA; }
+                                            </style>
+                                            <script>
+                                                document.addEventListener('DOMContentLoaded', function () {
+                                                    var boton = document.getElementById('gcUsarCorreoRecepcion');
+                                                    if (!boton) { return; }
+                                                    boton.addEventListener('click', function () {
+                                                        ['gcCorreo', 'gcCorreo2'].forEach(function (id) {
+                                                            var campo = document.getElementById(id);
+                                                            if (!campo) { return; }
+                                                            campo.value = boton.getAttribute('data-correo');
+                                                            campo.dispatchEvent(new Event('input', { bubbles: true }));
+                                                            campo.dispatchEvent(new Event('change', { bubbles: true }));
+                                                        });
+                                                        boton.closest('.gc-correo-recepcion').classList.add('is-usado');
+                                                        boton.textContent = 'Correo de recepción puesto';
+                                                    });
+                                                });
+                                            </script>
+                                        @endif
                                         <div class="col-md-6">
                                             <label class="form-label" for="gcTelefono">Teléfono o celular <span class="gc-req">*</span></label>
                                             <input type="tel" id="gcTelefono" name="telefono" class="form-control" inputmode="numeric" autocomplete="tel-national"
