@@ -13154,50 +13154,6 @@ class SeerController extends Controller
         return view('notificaciones.index_busqueda', compact('notificaciones', 'notificadoresPorSede'));
     }
 
-    public function notificaciones_busqueda(Request $request){
-        
-        $request->validate([
-            'fecha_inicio' => 'required',
-            'fecha_final' => 'required',
-        ]);
-
-        $data = $request->all();
-        $fecha_inicio = $data["fecha_inicio"];
-        $fecha_fin = $data["fecha_final"];
-        $id = auth()->user()->id;
-        $user = User::find($id);
-        $roles = Role::pluck('name','name')->all();
-        $userRole = $user->roles->pluck('name')->all();
-        //$fecha_actual = date('y-m-d');
-        $personas = User::whereHas('roles', function ($query) {
-            return $query->where('name', '=', 'Notificador');
-        })
-        ->where('delegacion', $user["delegacion"])
-        ->get();
-
-        $notificaciones = SeerPerGeneral::join('seer_citados','seer_citados.id_solicitud','=','seer_general.id')
-        ->leftJoin('users', 'seer_citados.id_notificador', '=', 'users.id')
-        ->select('seer_general.id as id_solicitud','seer_citados.id as id','seer_general.NUE','seer_general.delegacion',
-            'seer_citados.nombre','seer_citados.primer_apellido','seer_citados.segundo_apellido',
-            'seer_citados.colonia','seer_citados.calle','seer_citados.n_ext','seer_citados.n_int','seer_citados.estatus','seer_citados.tipo_notificacion','users.name as notificador_nombre')
-        ->where('seer_general.delegacion', $user["delegacion"])
-        //->where('seer_citados.id_notificador', '!=', 0)
-        ->where('seer_citados.notificacion',"!=", "Trabajador")
-        ->where('seer_general.estatus', '!=', 'Pendiente')
-        ->whereBetween('seer_general.fecha', [$data["fecha_inicio"], $data["fecha_final"]])
-        ->orderBy('seer_citados.created_at', 'desc')
-        ->get();
-
-        $notificadoresPorSede = User::whereHas('roles', function ($query) {
-                $query->where('name', 'Notificador');
-            })
-            ->select('id', 'name', 'delegacion')
-            ->get()
-            ->groupBy('delegacion');
-
-        return view('notificaciones.index_busqueda',compact('notificaciones','personas','userRole','fecha_inicio','fecha_fin','notificadoresPorSede'));
-    }
-    
     //PDF COMPARECE REPRESENTANTE LEGAL SIN PODER
     public function VerPDFCompareceSinPoder($id){
         $solicitud = SeerPerGeneral::find($id);
