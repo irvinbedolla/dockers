@@ -48,7 +48,6 @@
             ['route' => 'index_conciliadores',        'label' => 'Conciliadores',           'icon' => 'bi bi-person-fill',         'roles' => ['Super Usuario', 'Delegado']],
             ['route' => 'indexDireccionGeneral',      'label' => 'Dirección General',       'icon' => 'bi bi-bank',                'roles' => []],
             ['route' => 'expedientes',                'label' => 'Expediente',              'icon' => 'bi bi-graph-down',          'roles' => ['Capacitacion Admin']],
-            ['route' => 'persona.historial',          'label' => 'Historial',               'icon' => 'bi bi-file-text-fill',      'roles' => ['Super Usuario', 'Capacitacion Admin', 'Delegado']],
             ['route' => 'crear_inidencia',            'label' => 'Incidencia Crear',        'icon' => 'bi bi-bank',                'roles' => []],
             ['route' => 'crear_inidencia',            'label' => 'Incidencia',              'icon' => 'bi bi-bank',                'roles' => []],
             //['route' => 'Historial_Notificacador',    'label' => 'Mis Notificaciones',      'icon' => 'bi bi-file-person',         'roles' => ['Notificador']],

@@ -600,7 +600,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/revisar/indexRatificaciones',                          [SeerController::class, 'todas_ratificaciones'])->name('todas_ratificaciones');
     Route::get('/revisar/indexCumplimientos',                           [SeerController::class, 'todos_complimientos'])->name('todos_complimientos');
     Route::get('/seer/estadistica',                                     [SeerController::class, 'estadistica'])->name('seer.estadistica');
-    Route::get('seer/historial',                                        [SeerController::class, 'ver_historial'])->name('persona.historial');
     Route::get('/solicitudes/home',                                     [SeerController::class, 'solicitudes'])->name('solicitudes_index')->middleware('especialidad:solicitudes_revisar');
     // Seguimiento del caso: de la cita a en qué quedó (App\Support\SeguimientoCaso).
     Route::middleware('especialidad:solicitudes_revisar')->group(function () {
@@ -638,7 +637,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/solicitud/archivar_audienciaParte3',              [SeerController::class, 'guardar_audiencia_archivo_parte3'])->name('archivar_audiencia_parte3');
         Route::post('/solicitud/emitir_multas',                         [SeerController::class, 'emitir_multas'])->name('emitir_multas');
         Route::post('/solicitud/editar',                                [SeerController::class, 'editar_solicitud_con'])->name('editar_solicitud');
-        Route::post('/historial/auxiliar',                              [SeerController::class, 'historial_auxiliar'])->name('historial_auxiliar');
         Route::get('/solicitudes/solicitudes',                          [SeerController::class, 'solicitudes_todas'])->name('solicitudes_todas');
         Route::post('/audiencia/guardar',                               [SeerController::class, 'concluir_audiencia_conciliador'])->name('concluir_audiencia_conciliador');
         Route::post('/audiencia/guardarNC',                             [SeerController::class, 'concluir_audiencia_noconciliacion'])->name('concluir_audiencia_noconcialiacion');
@@ -747,7 +745,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/agregar_citado_edicion',              [SeerController::class, 'agregar_citado_edicion'])->name('agregar_citado_edicion');
         Route::post('/audiencia/agregar_citado',            [SeerController::class, 'agregar_citado_audiencia_directo'])->name('agregar_citado_audiencia_directo');
         Route::delete('/borrar_citado_edicion',             [SeerController::class, 'borrar_citado_edicion'])->name('borrar_citado_edicion');
-        Route::post('/historial/notificador',               [SeerController::class, 'historial_notificador'])->name('historial_notificador');
     //Ratificaciones
         Route::get('/ratificaciones/atender',               [TurnosController::class, 'revisar_ratificaciones_hoy'])->name('ratificacion_atender');
         Route::post('/ratificaciones/buscar',               [TurnosController::class, 'busqueda_ratificaciones'])->name('ratificacion_buscar');
