@@ -234,6 +234,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Seguimiento de casos: de la cita al pago, por etapas y tiempos (App\Support\EmbudoCasos).
     Route::get('/estadisticas/seguimiento',             [EstadisticasController::class, 'seguimiento'])->name('estadisticas.seguimiento')
         ->middleware('role:Super Usuario|Estadistica|Directivo');
+    // Incidencias: retrocesos, cambios de fecha, borrados y marcas, con quién y por qué (App\Support\BitacoraIncidencias).
+    Route::get('/estadisticas/incidencias',             [EstadisticasController::class, 'incidencias'])->name('estadisticas.incidencias')
+        ->middleware('role:Super Usuario|Estadistica|Directivo');
+    Route::get('/estadisticas/incidencias.csv',         [EstadisticasController::class, 'incidenciasCsv'])->name('estadisticas.incidencias.csv')
+        ->middleware('role:Super Usuario|Estadistica|Directivo');
     // Casos de excepción (art. 685 Ter): también los ve Conciliación, Género e Igualdad.
     Route::get('/estadisticas/excepciones',             [EstadisticasController::class, 'excepciones'])->name('estadisticas.excepciones')
         ->middleware(CasosExcepcionAcceso::class.':estadisticas');

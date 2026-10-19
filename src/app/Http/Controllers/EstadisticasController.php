@@ -9,11 +9,13 @@ use App\Support\ConveniosPagados;
 use App\Support\CasosExcepcion;
 use App\Support\DesempenoNotificadores;
 use App\Support\EmbudoCasos;
+use App\Support\BitacoraIncidencias;
 use App\Support\EstadisticasExcepcion;
 use App\Support\ResumenSedes;
 use App\Support\TasaConciliacion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 /**
@@ -55,6 +57,8 @@ class EstadisticasController extends Controller
             'excepcionesMes' => EstadisticasExcepcion::resumen(
                 EstadisticasExcepcion::rango(now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()), null
             ),
+            // Tarjeta de incidencias: hoy, este mes y este año.
+            'incidenciasMes' => BitacoraIncidencias::cifras(),
             // Tarjeta de la sección de notificaciones: cifras del mes.
             'notificacionesMes' => DesempenoNotificadores::resumen(
                 DesempenoNotificadores::base(),
@@ -234,5 +238,100 @@ class EstadisticasController extends Controller
         }
 
         return [$filtros, EstadisticasExcepcion::rango($filtros['desde'], $filtros['hasta']), $filtros['sede'] ?? null];
+    }
+
+    /**
+     * /estadisticas/incidencias: retrocesos, correcciones y borrados hechos a
+     * mano en ratificaciones, solicitudes, audiencias y cumplimientos, con
+     * quién, cuándo y por qué (App\Support\BitacoraIncidencias). Cuántas hay
+     * por año, mes y día, y por usuario.
+     */
+    public function incidencias(Request $request)
+    {
+        $f = $this->filtrosIncidencias($request);
+        [$desde, $hasta, $texto] = BitacoraIncidencias::periodo($f);
+        $mesDias = $f['mes'] ?: ($f['anio'] === (int) now()->year ? (int) now()->month : 12);
+
+        return view('estadisticas.incidencias', [
+            'filtros'    => $f,
+            'texto'      => $texto,
+            'sedes'      => Sedes::orderBy('id')->pluck('nombre'),
+            'usuarios'   => BitacoraIncidencias::usuarios(),
+            'anios'      => range((int) now()->year, 2024),
+            'cifras'     => BitacoraIncidencias::cifras($f),
+            'porMes'     => BitacoraIncidencias::porMes($f['anio'], $f),
+            'porDia'     => BitacoraIncidencias::porDia($f['anio'], $mesDias, $f),
+            'mesDias'    => $mesDias,
+            'porArea'    => BitacoraIncidencias::porArea($desde, $hasta, $f),
+            'porAccion'  => BitacoraIncidencias::porAccion($desde, $hasta, $f),
+            'porUsuario' => BitacoraIncidencias::porUsuario($desde, $hasta, $f),
+            'porSede'    => $f['sede'] ? [] : BitacoraIncidencias::porSede($desde, $hasta, $f),
+            'registro'   => BitacoraIncidencias::registro($desde, $hasta, $f),
+            'marcadas'   => BitacoraIncidencias::marcadas(),
+        ]);
+    }
+
+    public function incidenciasCsv(Request $request)
+    {
+        $f = $this->filtrosIncidencias($request);
+        [$desde, $hasta, $texto] = BitacoraIncidencias::periodo($f);
+        $filas  = BitacoraIncidencias::consultaRegistro($desde, $hasta, $f)->get();
+        $nombre = 'incidencias_'.$desde->format('Y-m-d').'_'.$hasta->format('Y-m-d').'.csv';
+
+        return response()->streamDownload(function () use ($filas, $texto) {
+            $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF");
+            fputcsv($out, ['Incidencias', $texto]);
+            fputcsv($out, ['Fecha', 'Área', 'Movimiento', 'Expediente', 'Sede', 'Estatus antes', 'Estatus después', 'Cambios', 'Motivo', 'Lo hizo']);
+            foreach ($filas as $r) {
+                fputcsv($out, [
+                    Carbon::parse($r->created_at)->format('Y-m-d H:i'),
+                    BitacoraIncidencias::AREAS[$r->area] ?? $r->area,
+                    BitacoraIncidencias::ACCIONES[$r->accion] ?? $r->accion,
+                    $r->NUE,
+                    $r->delegacion,
+                    $r->estatus_previo,
+                    $r->estatus_nuevo,
+                    implode('; ', BitacoraIncidencias::cambios($r)),
+                    $r->motivo,
+                    $r->user_nombre,
+                ]);
+            }
+            fclose($out);
+        }, $nombre, ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    /** Año (por omisión el actual), mes y día opcionales, y el resto de filtros. */
+    private function filtrosIncidencias(Request $request): array
+    {
+        $hoy  = now();
+        $anio = (int) $request->query('anio', $hoy->year);
+        $anio = $anio >= 2024 && $anio <= $hoy->year ? $anio : (int) $hoy->year;
+        $mes  = (int) $request->query('mes', 0);
+        $mes  = $mes >= 1 && $mes <= 12 ? $mes : 0;
+        $dia  = (string) $request->query('dia', '');
+
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $dia) && strtotime($dia) && substr($dia, 0, 4) >= 2024) {
+            $d    = Carbon::parse($dia);
+            $anio = (int) $d->year;
+            $mes  = (int) $d->month;
+            $dia  = $d->toDateString();
+        } else {
+            $dia = '';
+        }
+
+        $sedes   = Sedes::pluck('nombre')->all();
+        $usuario = (int) $request->query('usuario', 0);
+
+        return [
+            'anio'    => $anio,
+            'mes'     => $mes,
+            'dia'     => $dia,
+            'area'    => array_key_exists((string) $request->query('area'), BitacoraIncidencias::AREAS) ? (string) $request->query('area') : '',
+            'accion'  => array_key_exists((string) $request->query('accion'), BitacoraIncidencias::ACCIONES) ? (string) $request->query('accion') : '',
+            'usuario' => max(0, $usuario),
+            'sede'    => in_array($request->query('sede'), $sedes, true) ? (string) $request->query('sede') : '',
+            'q'       => Str::limit(trim((string) $request->query('q', '')), 60, ''),
+        ];
     }
 }
