@@ -51,8 +51,6 @@
             ['route' => 'persona.historial',          'label' => 'Historial',               'icon' => 'bi bi-file-text-fill',      'roles' => ['Super Usuario', 'Capacitacion Admin', 'Delegado']],
             ['route' => 'crear_inidencia',            'label' => 'Incidencia Crear',        'icon' => 'bi bi-bank',                'roles' => []],
             ['route' => 'crear_inidencia',            'label' => 'Incidencia',              'icon' => 'bi bi-bank',                'roles' => []],
-            ['route' => 'incidencias.busqueda.index', 'label' => 'Incidencias Consulta',    'icon' => 'bi bi-bank',                'roles' => ['Super Usuario', 'Administrador', 'Delegado']],
-            ['route' => 'incidencias.busqueda.index', 'label' => 'Incidencias',             'icon' => 'bi bi-bank',                'roles' => []],
             //['route' => 'Historial_Notificacador',    'label' => 'Mis Notificaciones',      'icon' => 'bi bi-file-person',         'roles' => ['Notificador']],
             ['route' => 'ratificacion',               'label' => 'Mis Ratificaciones',      'icon' => 'bi bi-bank',                'roles' => ['Solicitante']],
             ['route' => 'mis_solicitudes',            'label' => 'Mis Solicitudes',         'icon' => 'bi bi-file-person',         'roles' => ['Solicitante']],
