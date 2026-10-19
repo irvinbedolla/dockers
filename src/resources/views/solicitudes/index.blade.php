@@ -110,6 +110,13 @@
                         <span class="sl-acceso__texto">Consulta y seguimiento</span>
                     </span>
                 </a>
+                <a class="sl-acceso" href="{{ route('seguimiento') }}">
+                    <span class="sl-acceso__icono"><i class="bi bi-signpost-2" aria-hidden="true"></i></span>
+                    <span>
+                        <span class="sl-acceso__titulo">Seguimiento del caso</span>
+                        <span class="sl-acceso__texto">Todos los casos: de la cita a en qué quedó</span>
+                    </span>
+                </a>
                 @if ($conModulo)
                     <a class="sl-acceso" href="{{ route('mi_modulo') }}">
                         <span class="sl-acceso__icono"><i class="bi bi-person-workspace" aria-hidden="true"></i></span>

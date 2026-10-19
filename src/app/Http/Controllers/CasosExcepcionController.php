@@ -76,34 +76,10 @@ class CasosExcepcionController extends Controller
      */
     public function verSolicitud(int $id)
     {
-        $general = DB::table('seer_general')->where('id', $id)->first();
-        abort_unless($general && CasosExcepcion::solicitudEsCaso($general), 404);
+        $datos = \App\Support\VistaSolicitud::datos($id);
+        abort_unless($datos && CasosExcepcion::solicitudEsCaso($datos['general']), 404);
 
-        $solicitantes = DB::table('seer_solicitante as s')
-            ->leftJoin('municipios as m', 'm.id', '=', 's.municipio_domicilio')
-            ->where('s.id_solicitud', $id)
-            ->select('s.*', 'm.nombre as municipio')
-            ->get();
-
-        $citados = DB::table('seer_citados as c')
-            ->leftJoin('municipios as m', 'm.id', '=', 'c.municipio_citado')
-            ->where('c.id_solicitud', $id)
-            ->select('c.*', 'm.nombre as municipio')
-            ->get();
-
-        $audiencias = DB::table('audiencias as a')
-            ->leftJoin('users as u', 'u.id', '=', 'a.id_conciliador')
-            ->where('a.id_solicitud', $id)
-            ->orderBy('a.fecha')->orderBy('a.hora')
-            ->get(['a.numero_audiencia', 'a.folio_audiencia', 'a.fecha', 'a.hora', 'a.sala', 'a.estatus', 'u.name as conciliador']);
-
-        $cita = $general->recepcion_id
-            ? DB::table('recepcion')->where('id', $general->recepcion_id)->first()
-            : null;
-
-        $conciliador = $general->conciliador_id ? DB::table('users')->where('id', $general->conciliador_id)->value('name') : null;
-
-        return view('excepciones.solicitud', compact('general', 'solicitantes', 'citados', 'audiencias', 'cita', 'conciliador'));
+        return view('excepciones.solicitud', $datos);
     }
 
     // ------------------------------------------------------------------

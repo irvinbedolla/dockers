@@ -266,6 +266,17 @@
                     </div>
                 </a>
 
+                <a class="tn-tarjeta es-acceso" href="{{ route('estadisticas.seguimiento') }}">
+                    <div class="es-acceso__cabeza">
+                        <span class="es-acceso__icono"><i class="bi bi-signpost-2"></i></span>
+                        <div>
+                            <h2 class="es-acceso__titulo">Seguimiento de casos</h2>
+                            <span class="es-acceso__sub">De la cita al pago: etapas y días que tardan</span>
+                        </div>
+                        <i class="bi bi-chevron-right es-acceso__ir" aria-hidden="true"></i>
+                    </div>
+                </a>
+
                 @php($xm = $excepcionesMes)
                 <a class="tn-tarjeta es-acceso" href="{{ route('estadisticas.excepciones') }}">
                     <div class="es-acceso__cabeza">

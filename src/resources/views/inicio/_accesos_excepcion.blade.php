@@ -63,6 +63,9 @@
         </div>
         <div class="ar-cifra">{{ number_format($casos['solicitudes']['total']) }}</div>
         <span class="ar-nota">Sólo consulta: se abren en modo vista.</span>
+        @if (\Illuminate\Support\Facades\Route::has('seguimiento'))
+            <a class="ar-chip" href="{{ route('seguimiento') }}"><i class="bi bi-signpost-2" aria-hidden="true"></i> Seguimiento de casos</a>
+        @endif
         <a class="ar-pie" href="{{ $casos['solicitudes']['url'] }}">Ver solicitudes <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
     </div>
 </div>
