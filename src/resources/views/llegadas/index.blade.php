@@ -7,7 +7,9 @@
     La recepción marca a cada persona y el conciliador asignado recibe un
     aviso con sonido; el conciliador ve esta misma pantalla sólo para
     consultar. Las ratificaciones cuya cita ya se validó con QR aparecen
-    marcadas solas. Se actualiza cada 30 s.
+    marcadas solas. Lo abierto cuya hora ya pasó y le falta alguien sale en
+    rojo ("Se pasó la hora"); lo que ya se cerró hoy sale en gris con su
+    estatus y sin poder marcar. Se actualiza cada 30 s.
 
     No sustituye la comparecencia, que el conciliador registra con
     identificación dentro de la audiencia o la ratificación.
@@ -35,6 +37,8 @@
         .ll-filtro.is-activo { border-color: var(--tn-verde); box-shadow: inset 0 0 0 1px var(--tn-verde); }
         .ll-filtro--faltan b { background: #FBF4E1; color: #7A5D10; }
         .ll-filtro--completas b { background: #E5F3EA; color: #1E7B3C; }
+        .ll-filtro--tarde b { background: #FDECEA; color: #B42318; }
+        .ll-filtro--cerradas b { background: #E7ECEC; color: #354647; }
         .ll-mias { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--tn-tinta); margin-left: auto; }
 
         .ll-lista { display: grid; gap: 10px; }
@@ -42,6 +46,12 @@
         .ll-item.is-parcial { border-left-color: #CEA845; }
         .ll-item.is-completa { border-left-color: #2F9E5B; }
         .ll-item.is-mia { box-shadow: 0 0 0 2px rgba(73, 97, 99, .18); }
+        .ll-item.is-tarde { border-left-color: #D92D20; background: #FFFBFA; }
+        .ll-item.is-cerrada { border-left-color: #B8C4C4; background: #F8FAFA; }
+        .ll-item.is-cerrada .ll-hora, .ll-item.is-cerrada .ll-nombre, .ll-item.is-cerrada .ll-nue { color: #6B7A7B; }
+        .ll-tarde { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: 999px; background: #FDECEA; color: #B42318; font-size: 12px; font-weight: 800; white-space: nowrap; }
+        .ll-cerrada { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: 999px; background: #E7ECEC; color: #354647; font-size: 12px; font-weight: 700; white-space: nowrap; }
+        .ll-nollego { display: inline-flex; align-items: center; gap: 6px; padding: 4px 11px; border-radius: 999px; background: #F3F5F5; color: #8A9899; font-weight: 600; font-size: 12.5px; white-space: nowrap; }
         .ll-hora { font-size: 24px; font-weight: 800; color: var(--tn-tinta); line-height: 1; font-variant-numeric: tabular-nums; }
         .ll-lugar { margin-top: 6px; display: inline-block; padding: 2px 9px; border-radius: 999px; background: #EEF2F2; color: var(--tn-verde); font-size: 11.5px; font-weight: 700; }
         .ll-cab { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; align-items: baseline; margin-bottom: 6px; }
@@ -157,6 +167,11 @@
             return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
         });
     }
+    function tiempo(min) {
+        if (min < 60) { return min + ' min'; }
+        var h = Math.floor(min / 60), m = min % 60;
+        return h + ' h' + (m ? ' ' + m + ' min' : '');
+    }
     function sinAcentos(t) { return String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
 
     // Lo que se ve antes de la pestaña y el filtro de llegada.
@@ -177,9 +192,23 @@
         }).join('');
     }
 
+    var FILTROS = {
+        todas: function () { return true; },
+        faltan: function (r) { return r.abierto && !r.completa; },
+        tarde: function (r) { return r.atraso !== null; },
+        completas: function (r) { return r.completa; },
+        cerradas: function (r) { return !r.abierto; }
+    };
+
     function pintarFiltros(lista) {
-        var completas = lista.filter(function (r) { return r.completa; }).length;
-        var op = [['todas', 'Todas', lista.length, ''], ['faltan', 'Faltan por llegar', lista.length - completas, 'll-filtro--faltan'], ['completas', 'Completas', completas, 'll-filtro--completas']];
+        var cuenta = function (k) { return lista.filter(FILTROS[k]).length; };
+        var op = [
+            ['todas', 'Todas', lista.length, ''],
+            ['faltan', 'Faltan por llegar', cuenta('faltan'), 'll-filtro--faltan'],
+            ['tarde', 'Se pasó la hora', cuenta('tarde'), 'll-filtro--tarde'],
+            ['completas', 'Completas', cuenta('completas'), 'll-filtro--completas'],
+            ['cerradas', 'Ya cerradas', cuenta('cerradas'), 'll-filtro--cerradas']
+        ];
         document.getElementById('llFiltros').innerHTML = op.map(function (o) {
             return '<button type="button" class="ll-filtro ' + o[3] + (filtro === o[0] ? ' is-activo' : '') + '" data-filtro="' + o[0] + '">' + o[1] + ' <b>' + o[2] + '</b></button>';
         }).join('');
@@ -189,9 +218,11 @@
         var accion;
         if (p.llegada) {
             accion = '<span class="ll-ok" title="' + esc(p.por) + '"><i class="bi ' + (p.cita ? 'bi-qr-code' : 'bi-check-circle-fill') + '"></i> Llegó ' + esc(p.llegada) + '</span>';
-            if (MARCA) {
+            if (MARCA && r.abierto) {
                 accion += '<button type="button" class="ll-deshacer" data-tipo="' + r.tipo + '" data-id="' + r.id + '" data-clave="' + esc(p.clave) + '" data-llego="0" title="' + esc(p.por) + '">Deshacer</button>';
             }
+        } else if (!r.abierto) {
+            accion = '<span class="ll-nollego">No se registró su llegada</span>';
         } else if (MARCA) {
             accion = '<button type="button" class="btn ll-llego" data-tipo="' + r.tipo + '" data-id="' + r.id + '" data-clave="' + esc(p.clave) + '" data-llego="1"><i class="bi bi-person-check"></i> Llegó</button>';
         } else {
@@ -204,7 +235,10 @@
     }
 
     function itemHtml(r) {
-        var estado = r.completa ? 'is-completa' : (r.llegaron > 0 ? 'is-parcial' : '');
+        var estado = !r.abierto ? 'is-cerrada' : (r.completa ? 'is-completa' : (r.atraso !== null ? 'is-tarde' : (r.llegaron > 0 ? 'is-parcial' : '')));
+        var etiqueta = !r.abierto
+            ? '<span class="ll-cerrada"><i class="bi bi-lock"></i> Cerrada · ' + esc(r.estatus) + '</span>'
+            : (r.atraso !== null ? '<span class="ll-tarde"><i class="bi bi-alarm"></i> Se pasó la hora · ' + tiempo(r.atraso) + '</span>' : '');
         var cita = '';
         if (r.cita) {
             cita = '<div class="ll-cita"><i class="bi bi-qr-code"></i> Cita ' + esc(r.cita.folio) +
@@ -215,7 +249,7 @@
             '<div><div class="ll-cab"><div>' +
                 (tab === 'todas' ? '<span class="ll-tipo ll-tipo--' + r.tipo + '">' + CORTO[r.tipo] + '</span>' : '') +
                 '<span class="ll-nue">' + esc(r.nue) + '</span> <span class="ll-conc">· ' + esc(r.conciliador || 'Sin conciliador') + '</span></div>' +
-                '<span class="ll-estado">' + (r.completa ? 'Todos llegaron' : 'Llegaron ' + r.llegaron + ' de ' + r.partes.length) + '</span></div>' +
+                '<span class="d-inline-flex gap-2 align-items-center flex-wrap">' + etiqueta + '<span class="ll-estado">' + (r.completa ? 'Todos llegaron' : 'Llegaron ' + r.llegaron + ' de ' + r.partes.length) + '</span></span></div>' +
             cita +
             (r.partes.length ? r.partes.map(function (p) { return parteHtml(r, p); }).join('') : '<span class="ll-conc">Sin partes registradas.</span>') +
             '</div></article>';
@@ -226,15 +260,11 @@
         pintarTabs(lista);
         var deTab = tab === 'todas' ? lista : lista.filter(function (r) { return r.tipo === tab; });
         pintarFiltros(deTab);
-        var visibles = deTab.filter(function (r) {
-            if (filtro === 'faltan') { return !r.completa; }
-            if (filtro === 'completas') { return r.completa; }
-            return true;
-        });
+        var visibles = deTab.filter(FILTROS[filtro] || FILTROS.todas);
 
         var vacio = (datos.registros || []).length
             ? (mias && !lista.length ? 'Hoy no tienes nada asignado en ' + esc(datos.sede) + '. Quita "Sólo las mías" para ver todo.' : 'Nada coincide.')
-            : 'No hay audiencias, ratificaciones ni cumplimientos pendientes hoy en ' + esc(datos.sede) + '.';
+            : 'No hay audiencias, ratificaciones ni cumplimientos hoy en ' + esc(datos.sede) + '.';
 
         document.getElementById('llLista').innerHTML = visibles.length ? visibles.map(itemHtml).join('') : '<div class="ll-vacio">' + vacio + '</div>';
 

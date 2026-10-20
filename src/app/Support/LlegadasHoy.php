@@ -11,7 +11,8 @@ use Illuminate\Support\Str;
 
 /**
  * "Llegadas hoy": quién ya llegó a su audiencia, ratificación o cumplimiento
- * del día. La recepción (Morelia 02) lo marca y el conciliador asignado
+ * del día. Trae también lo que ya se cerró hoy (con su estatus, sin poder
+ * marcar) y señala lo abierto cuya hora ya pasó y le falta alguien. La recepción (Morelia 02) lo marca y el conciliador asignado
  * recibe un aviso con sonido (llegadas/_avisos). El conciliador también ve
  * la pantalla, sólo para consultar.
  *
@@ -54,6 +55,31 @@ class LlegadasHoy
 
     /** Ratificaciones que ya no esperan a nadie. */
     private const RATIFICACION_CERRADA = ['Concluida', 'Concluida Pagos', 'Incumplimiento', 'Archivada', 'Prevencion', 'no atendido'];
+
+    /** Minutos de gracia antes de marcar "Se pasó la hora". */
+    public const TOLERANCIA_MINUTOS = 5;
+
+    /** Cómo se lee el estatus de lo que ya se cerró hoy. */
+    private const CERRADO = [
+        'Reagendada'                    => 'Reagendada',
+        'No conciliacion reagendada'    => 'Reagendada',
+        'Conciliacion'                  => 'Con convenio',
+        'No conciliacion'               => 'Sin convenio',
+        'Archivada'                     => 'Archivada',
+        'Archivada en Audiencia'        => 'Archivada',
+        'Incompetencia'                 => 'Incompetencia',
+        'Desistimiento'                 => 'Desistimiento',
+        'Reinstalacion'                 => 'Reinstalación',
+        'Concluida'                     => 'Concluida',
+        'Concluida Pagos'               => 'Concluida',
+        'Incumplimiento'                => 'Incumplimiento',
+        'Prevencion'                    => 'En prevención',
+        'no atendido'                   => 'No atendida',
+        'Pagado'                        => 'Pagado',
+        'No pagado'                     => 'No pagado',
+        'Incomparecencia trabajador'    => 'No se presentó el trabajador',
+        'Pagado con pena convencional'  => 'Pagado con pena convencional',
+    ];
 
     /** El aviso al conciliador sólo trae llegadas de los últimos minutos. */
     private const MINUTOS_AVISO = 90;
@@ -247,10 +273,9 @@ class LlegadasHoy
             ->join('seer_general as g', 'g.id', '=', 'a.id_solicitud')
             ->leftJoin('users as u', 'u.id', '=', 'a.id_conciliador')
             ->where('a.fecha', $fecha)
-            ->where('a.estatus', 'Pendiente')
             ->whereIn('a.delegacion', self::variantes($sedes))
             ->orderBy('a.hora')->orderBy('a.sala')
-            ->get(['a.id', 'a.id_solicitud', 'a.hora', 'a.sala', 'a.delegacion', 'a.id_conciliador', 'g.NUE', 'u.name as conciliador']);
+            ->get(['a.id', 'a.id_solicitud', 'a.hora', 'a.sala', 'a.delegacion', 'a.id_conciliador', 'a.estatus', 'g.NUE', 'u.name as conciliador']);
 
         if ($audiencias->isEmpty()) {
             return collect();
@@ -258,8 +283,10 @@ class LlegadasHoy
 
         $partes = self::partesAudiencia($audiencias);
 
-        return self::armar('audiencia', $audiencias, fn ($a) => [
+        return self::armar('audiencia', $fecha, $audiencias, fn ($a) => [
             'hora'   => $a->hora,
+            'estatus' => $a->estatus,
+            'abierto' => $a->estatus === 'Pendiente',
             'lugar'  => $a->sala ?: 'Sin sala',
             'sede'   => $a->delegacion,
             'nue'    => $a->NUE,
@@ -274,7 +301,6 @@ class LlegadasHoy
         $turnos = self::consultaRatificaciones()
             ->where('t.fecha', $fecha)
             ->whereIn('t.delegacion', self::variantes($sedes))
-            ->whereNotIn('t.estatus', self::RATIFICACION_CERRADA)
             ->orderBy('t.hora')
             ->get();
 
@@ -286,11 +312,13 @@ class LlegadasHoy
             ->get(array_merge(['id', 'codigo', 'consecutivo', 'estatus'], FlujoCita::conSeguimiento() ? ['confirmada_at'] : []))
             ->keyBy('id');
 
-        return self::armar('ratificacion', $turnos, function ($t) use ($citas) {
+        return self::armar('ratificacion', $fecha, $turnos, function ($t) use ($citas) {
             $cita = $t->recepcion_id ? ($citas[$t->recepcion_id] ?? null) : null;
 
             return [
                 'hora'   => $t->hora,
+                'estatus' => $t->estatus,
+                'abierto' => ! in_array($t->estatus, self::RATIFICACION_CERRADA, true),
                 'lugar'  => 'Ratificación',
                 'sede'   => $t->delegacion,
                 'nue'    => $t->NUE ?: 'Sin expediente',
@@ -313,8 +341,10 @@ class LlegadasHoy
             ->orderBy('p.hora')
             ->get();
 
-        return self::armar('cumplimiento', $pagos, fn ($p) => [
+        return self::armar('cumplimiento', $fecha, $pagos, fn ($p) => [
             'hora'   => $p->hora,
+            'estatus' => $p->estatus,
+            'abierto' => $p->estatus === 'Pendiente',
             'lugar'  => $p->tipo_pago === 'Ratificacion' ? 'Pago de ratificación' : 'Pago de audiencia',
             'sede'   => $p->delegacion,
             'nue'    => $p->NUE ?: 'Sin expediente',
@@ -325,8 +355,10 @@ class LlegadasHoy
     }
 
     /** Une cada registro con sus llegadas y arma lo que pinta la pantalla. */
-    private static function armar(string $tipo, Collection $filas, callable $datos): Collection
+    private static function armar(string $tipo, string $fecha, Collection $filas, callable $datos): Collection
     {
+        $ahora = now();
+
         $llegadas = DB::table(self::TABLA.' as l')
             ->leftJoin('users as u', 'u.id', '=', 'l.registrado_por')
             ->where('l.tipo', $tipo)
@@ -334,7 +366,7 @@ class LlegadasHoy
             ->get(['l.registro_id', 'l.clave', 'l.llegada_at', 'l.origen', 'u.name as por'])
             ->groupBy('registro_id');
 
-        return $filas->map(function ($fila) use ($tipo, $datos, $llegadas) {
+        return $filas->map(function ($fila) use ($tipo, $fecha, $ahora, $datos, $llegadas) {
             $d      = $datos($fila);
             $deEste = ($llegadas[$fila->id] ?? collect())->keyBy('clave');
             $lista  = array_map(function ($p) use ($deEste) {
@@ -348,6 +380,14 @@ class LlegadasHoy
             }, $d['partes']);
 
             $llegaron = count(array_filter($lista, fn ($p) => $p['llegada']));
+            $completa = $lista && $llegaron === count($lista);
+
+            // Abierta, le falta alguien y ya pasó su hora (con unos minutos de gracia).
+            $atraso = null;
+            if ($d['abierto'] && ! $completa && $d['hora']) {
+                $minutos = (int) floor(Carbon::parse($fecha.' '.substr((string) $d['hora'], 0, 5))->diffInMinutes($ahora, false));
+                $atraso  = $minutos > self::TOLERANCIA_MINUTOS ? $minutos : null;
+            }
 
             return [
                 'tipo'           => $tipo,
@@ -361,7 +401,10 @@ class LlegadasHoy
                 'cita'           => $d['cita'] ?? null,
                 'partes'         => $lista,
                 'llegaron'       => $llegaron,
-                'completa'       => $lista && $llegaron === count($lista),
+                'completa'       => $completa,
+                'abierto'        => (bool) $d['abierto'],
+                'estatus'        => $d['abierto'] ? null : (self::CERRADO[$d['estatus']] ?? (string) $d['estatus']),
+                'atraso'         => $atraso,
             ];
         });
     }
@@ -382,7 +425,7 @@ class LlegadasHoy
         if ($tipo === 'cumplimiento') {
             $p = self::consultaCumplimientos()->where('p.id', $id)->first();
 
-            return $p ? ['fecha' => Carbon::parse($p->fecha)->toDateString(), 'sede' => $p->delegacion, 'abierto' => true, 'partes' => self::partesCumplimiento($p)] : null;
+            return $p ? ['fecha' => Carbon::parse($p->fecha)->toDateString(), 'sede' => $p->delegacion, 'abierto' => $p->estatus === 'Pendiente', 'partes' => self::partesCumplimiento($p)] : null;
         }
 
         return null;
@@ -408,11 +451,10 @@ class LlegadasHoy
             ->leftJoin('seer_general as g', fn ($j) => $j->on('g.id', '=', 'p.id_solicitud')->where('p.tipo_pago', '=', 'Audiencia'))
             ->leftJoin('turnos as t', fn ($j) => $j->on('t.id', '=', 'p.id_solicitud')->where('p.tipo_pago', '=', 'Ratificacion'))
             ->leftJoin('users as u', 'u.id', '=', 'p.id_conciliador')
-            ->where('p.estatus', 'Pendiente')
             ->whereIn('p.tipo_pago', ['Audiencia', 'Ratificacion'])
             ->where(fn ($w) => $w->whereNull('p.incidencia')->orWhere('p.incidencia', 0))
             ->select([
-                'p.id', 'p.fecha', 'p.hora', 'p.delegacion', 'p.tipo_pago', 'p.id_conciliador', 'u.name as conciliador',
+                'p.id', 'p.fecha', 'p.hora', 'p.delegacion', 'p.tipo_pago', 'p.estatus', 'p.id_conciliador', 'u.name as conciliador',
                 DB::raw("COALESCE(NULLIF(p.NUE, ''), g.NUE, t.NUE) as NUE"),
                 DB::raw("COALESCE(NULLIF(p.nombre_trabajador, ''),
                     (SELECT s.nombre FROM seer_solicitante s WHERE s.id_solicitud = g.id ORDER BY s.id LIMIT 1),
