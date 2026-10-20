@@ -273,9 +273,13 @@
     }
 
     function actualizar() {
+        // "Actualizando…" sólo si la respuesta tarda; si es rápida no parpadea.
         var etiqueta = document.getElementById('llActualizado');
-        etiqueta.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Actualizando…';
+        var lento = setTimeout(function () {
+            etiqueta.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Actualizando…';
+        }, 400);
         return fetch(URL_DATOS, { headers: { 'Accept': 'application/json' }, cache: 'no-store', credentials: 'same-origin' })
+            .finally(function () { clearTimeout(lento); })
             .then(function (r) { if (!r.ok) { throw new Error(r.status); } return r.json(); })
             .then(function (j) { datos = j; pintar(); })
             .catch(function () { document.getElementById('llActualizado').textContent = 'Sin conexión, reintentando…'; });

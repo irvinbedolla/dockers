@@ -6,7 +6,8 @@
     No sale en enlaces que abren otra pestaña, descargan, son anclas (#) o
     abren modales, ni en lo marcado con data-sin-carga (p. ej. formularios
     que sólo descargan un archivo). Si la página no cambia (una descarga),
-    se quita sola a los 20 s.
+    se quita sola a los 20 s. Sólo aparece si la espera pasa de 300 ms: en
+    un servidor rápido no parpadea.
 --}}
 <div id="cargaPagina" class="carga-pagina" role="progressbar" aria-label="Cargando" aria-hidden="true"><span></span></div>
 <style>
@@ -22,6 +23,13 @@
     var barra = document.getElementById('cargaPagina');
     if (!barra) { return; }
     var reloj = null;
+    var espera = null;
+
+    // Sólo si tarda: una página que responde rápido no debe parpadear.
+    function pronto() {
+        clearTimeout(espera);
+        espera = setTimeout(mostrar, 300);
+    }
 
     function mostrar() {
         barra.classList.remove('is-activa');
@@ -33,6 +41,7 @@
         reloj = setTimeout(ocultar, 20000);
     }
     function ocultar() {
+        clearTimeout(espera);
         barra.classList.remove('is-activa');
         barra.setAttribute('aria-hidden', 'true');
         document.body.classList.remove('carga-activa');
@@ -52,7 +61,7 @@
         if (destino.origin !== location.origin) { return; }
         if (destino.pathname === location.pathname && destino.search === location.search && destino.hash) { return; }
         // Deja que el resto de los manejadores decidan; si alguno canceló, no se muestra.
-        setTimeout(function () { if (!e.defaultPrevented) { mostrar(); } }, 0);
+        setTimeout(function () { if (!e.defaultPrevented) { pronto(); } }, 0);
     });
 
     document.addEventListener('submit', function (e) {
@@ -61,7 +70,7 @@
         if (f.closest('[data-sin-carga]') || (quien && quien.hasAttribute('data-sin-carga'))) { return; }
         var target = (quien && quien.getAttribute('formtarget')) || f.getAttribute('target');
         if (target && target !== '_self') { return; }
-        setTimeout(function () { if (!e.defaultPrevented) { mostrar(); } }, 0);
+        setTimeout(function () { if (!e.defaultPrevented) { pronto(); } }, 0);
     });
 
     // Al volver con "Atrás" (página en caché) la barra no debe quedarse puesta.
