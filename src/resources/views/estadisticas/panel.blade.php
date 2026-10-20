@@ -277,6 +277,23 @@
                     </div>
                 </a>
 
+                @php($im = $incidenciasMes)
+                <a class="tn-tarjeta es-acceso" href="{{ route('estadisticas.incidencias') }}">
+                    <div class="es-acceso__cabeza">
+                        <span class="es-acceso__icono" style="background:#FBF4E1;color:#8A6A12;"><i class="bi bi-arrow-counterclockwise"></i></span>
+                        <div>
+                            <h2 class="es-acceso__titulo">Incidencias</h2>
+                            <span class="es-acceso__sub">Retrocesos y correcciones: qué, por qué y quién</span>
+                        </div>
+                        <i class="bi bi-chevron-right es-acceso__ir" aria-hidden="true"></i>
+                    </div>
+                    <div class="es-acceso__cifras">
+                        <div><b>{{ number_format($im['hoy']) }}</b><span>Hoy</span></div>
+                        <div><b>{{ number_format($im['mes']) }}</b><span>Este mes</span></div>
+                        <div><b>{{ number_format($im['anio']) }}</b><span>Este año</span></div>
+                    </div>
+                </a>
+
                 @php($xm = $excepcionesMes)
                 <a class="tn-tarjeta es-acceso" href="{{ route('estadisticas.excepciones') }}">
                     <div class="es-acceso__cabeza">

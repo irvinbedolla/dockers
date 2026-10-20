@@ -43,7 +43,6 @@ use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\RecepcionController;
 use App\Http\Controllers\CitaDireccionController;
 use App\Http\Controllers\CorreosController;
-use App\Http\Controllers\ConciliadoresController;
 use App\Http\Controllers\AdministracionController;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -234,6 +233,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Seguimiento de casos: de la cita al pago, por etapas y tiempos (App\Support\EmbudoCasos).
     Route::get('/estadisticas/seguimiento',             [EstadisticasController::class, 'seguimiento'])->name('estadisticas.seguimiento')
         ->middleware('role:Super Usuario|Estadistica|Directivo');
+    // Incidencias: retrocesos, cambios de fecha, borrados y marcas, con quién y por qué (App\Support\BitacoraIncidencias).
+    Route::get('/estadisticas/incidencias',             [EstadisticasController::class, 'incidencias'])->name('estadisticas.incidencias')
+        ->middleware('role:Super Usuario|Estadistica|Directivo');
+    Route::get('/estadisticas/incidencias.csv',         [EstadisticasController::class, 'incidenciasCsv'])->name('estadisticas.incidencias.csv')
+        ->middleware('role:Super Usuario|Estadistica|Directivo');
     // Casos de excepción (art. 685 Ter): también los ve Conciliación, Género e Igualdad.
     Route::get('/estadisticas/excepciones',             [EstadisticasController::class, 'excepciones'])->name('estadisticas.excepciones')
         ->middleware(CasosExcepcionAcceso::class.':estadisticas');
@@ -403,10 +407,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/indidencias/update',              [IncidenciasController::class, 'incidencias_update'])->name('incidencias_update');
 
         //Conciliadores
-        Route::get('/conciliador/index',                [ConciliadoresController::class, 'index'])->name('index_conciliadores');
-        Route::post('/conciliador/update_perimsos/',    [ConciliadoresController::class, 'update'])->name('conciliadores_permisos');
         Route::get('/conciliador/firmaCitatorios',      [SeerController::class, 'firmaCitatorios_index'])->name('firma_citatorio'); //Citatorios a firmar por los conciliadores
-        Route::get('/conciliador/prueba',               [TurnosController::class, 'actualizar_folio']);
     });
 
     /*
@@ -422,7 +423,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/solicitud/guardar',               [SeerController::class, 'concluir_audiencia'])->name('concluir_audiencia');
         Route::post('/reagendar_audiencia',             [SeerController::class, 'reagendar_audiencia'])->name('reagendar_audiencia');
         Route::post('/reagendar_audiencia_parte3',      [SeerController::class, 'reagendar_audiencia_parte3'])->name('reagendar_audiencia_parte3');
-        Route::get('/conciliador/index',                [ConciliadoresController::class, 'index'])->name('index_conciliadores');
         Route::get('/conciliador/firmaCitatorios',      [SeerController::class, 'firmaCitatorios_index'])->name('firma_citatorio');
         Route::post('/solicitud/archivar_audiencia',    [SeerController::class, 'guardar_audiencia_archivo'])->name('archivar_audiencia');
         Route::post('/solicitud/archivar_audienciaParte3', [SeerController::class, 'guardar_audiencia_archivo_parte3'])->name('archivar_audiencia_parte3');
@@ -493,6 +493,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
      |-- SUB-GRUPO DE CONTROL DE ACCESO: AUXILIARES DE CONCILIACIÓN / RECEPCIÓN
      |-- (Pre-registro presencial, validación inicial y asignación de turnos rápidos)
      |*/
+    // Todos los turnos con filtro por día, sede, tipo, origen y estatus. Los
+    // mismos roles de recepción que antes (con turnos_ver) y además Directivo,
+    // que sólo consulta y descarga la agenda.
+    Route::get('/turnos/todos', TurnosHistorialController::class)->name('turnos.todos')
+        ->middleware([Recepcion::middleware('Super Usuario', 'Auxiliar', 'Recepción General', 'Turnos', 'Recepción Morelia 1', 'Recepción Morelia 2', 'Directivo'), 'role_or_permission:Directivo|turnos_ver']);
+    // Descargar la agenda de un día o una semana en Excel, PDF o imagen (App\Support\AgendaTurnos).
+    Route::get('/turnos/agenda/descargar', App\Http\Controllers\TurnosAgendaController::class)->name('turnos.agenda.descargar')
+        ->middleware('role:'.implode('|', App\Support\AgendaTurnos::ROLES));
+
     // Los roles de recepción se suman desde App\Support\Recepcion: un nombre
     // con acento mal escrito aquí no truena, sólo deja fuera a la persona.
     Route::middleware([Recepcion::middleware('Super Usuario', 'Auxiliar', 'Recepción General', 'Turnos', 'Recepción Morelia 1', 'Recepción Morelia 2')])->group(function () {
@@ -508,8 +517,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/turnos/create',             [RecepcionController::class, 'create'])->name('turnos.create');
         Route::post('/turnos/store',             [RecepcionController::class, 'store_turnos'])->name('turnos.store');
         Route::get('/turnos/turnos',             [RecepcionController::class, 'turnos'])->name('turnos.listado');
-        // Todos los turnos con filtro por día, sede, tipo, origen y estatus.
-        Route::get('/turnos/todos',              TurnosHistorialController::class)->name('turnos.todos')->middleware('permission:turnos_ver');
         Route::post('/turnos/{id}/reasignar',    ReasignarTurnoController::class)->name('turnos.reasignar')->whereNumber('id')->middleware('permission:turnos_asignar');
         Route::get('/turnos/activo/{id}',        [RecepcionController::class, 'activo'])->name('turnos.activo');
         Route::get('/turnos/noactivo/{id}',      [RecepcionController::class, 'noactivo'])->name('turnos.noactivo');
@@ -538,12 +545,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/notificaciones/asignar-lote',         [NotificacionesController::class, 'asignarLote'])->name('notificaciones.asignar_lote')
             ->middleware('permission:por_notificar_asignar');
         Route::get('/notificaciones/busqueda',              [NotificacionesController::class, 'historial'])->name('notificaciones_consultar_busqueda')->middleware(SinNotificador::class);
-        Route::post('/notificaciones/resultado',            [SeerController::class, 'notificaciones_busqueda'])->name('notificaciones_busqueda');
         Route::get('/notificaciones/detalles/{id}',         [SeerController::class, 'seer_detalles'])->name('seer_detalles');
         Route::get('/seer/estatus/{id}',                    [SeerController::class, 'seer_estatus'])->name('seer.notificador');
         Route::post('/seer/updateNotificador',              [SeerController::class, 'update_notificador'])->name('seer.cambioEstatus');
         Route::get('/notificador/mihistorial',              [NotificacionesController::class, 'misNotificaciones'])->name('Historial_Notificacador');
-        Route::get('/notificador/historial',                [SeerController::class, 'todas_notificaciones'])->name('todas_notificaciones')->middleware(SinNotificador::class);
         Route::get('/notificaciones/home',                  [NotificacionesController::class, 'inicio'])->name('index_notificaciones');
         // Quien escribe /notificaciones a mano llega al inicio del apartado en vez de a un 404.
         Route::redirect('/notificaciones',                  '/notificaciones/home');
@@ -597,7 +602,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/revisar/indexRatificaciones',                          [SeerController::class, 'todas_ratificaciones'])->name('todas_ratificaciones');
     Route::get('/revisar/indexCumplimientos',                           [SeerController::class, 'todos_complimientos'])->name('todos_complimientos');
     Route::get('/seer/estadistica',                                     [SeerController::class, 'estadistica'])->name('seer.estadistica');
-    Route::get('seer/historial',                                        [SeerController::class, 'ver_historial'])->name('persona.historial');
     Route::get('/solicitudes/home',                                     [SeerController::class, 'solicitudes'])->name('solicitudes_index')->middleware('especialidad:solicitudes_revisar');
     // Seguimiento del caso: de la cita a en qué quedó (App\Support\SeguimientoCaso).
     Route::middleware('especialidad:solicitudes_revisar')->group(function () {
@@ -635,7 +639,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/solicitud/archivar_audienciaParte3',              [SeerController::class, 'guardar_audiencia_archivo_parte3'])->name('archivar_audiencia_parte3');
         Route::post('/solicitud/emitir_multas',                         [SeerController::class, 'emitir_multas'])->name('emitir_multas');
         Route::post('/solicitud/editar',                                [SeerController::class, 'editar_solicitud_con'])->name('editar_solicitud');
-        Route::post('/historial/auxiliar',                              [SeerController::class, 'historial_auxiliar'])->name('historial_auxiliar');
         Route::get('/solicitudes/solicitudes',                          [SeerController::class, 'solicitudes_todas'])->name('solicitudes_todas');
         Route::post('/audiencia/guardar',                               [SeerController::class, 'concluir_audiencia_conciliador'])->name('concluir_audiencia_conciliador');
         Route::post('/audiencia/guardarNC',                             [SeerController::class, 'concluir_audiencia_noconciliacion'])->name('concluir_audiencia_noconcialiacion');
@@ -744,7 +747,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/agregar_citado_edicion',              [SeerController::class, 'agregar_citado_edicion'])->name('agregar_citado_edicion');
         Route::post('/audiencia/agregar_citado',            [SeerController::class, 'agregar_citado_audiencia_directo'])->name('agregar_citado_audiencia_directo');
         Route::delete('/borrar_citado_edicion',             [SeerController::class, 'borrar_citado_edicion'])->name('borrar_citado_edicion');
-        Route::post('/historial/notificador',               [SeerController::class, 'historial_notificador'])->name('historial_notificador');
     //Ratificaciones
         Route::get('/ratificaciones/atender',               [TurnosController::class, 'revisar_ratificaciones_hoy'])->name('ratificacion_atender');
         Route::post('/ratificaciones/buscar',               [TurnosController::class, 'busqueda_ratificaciones'])->name('ratificacion_buscar');

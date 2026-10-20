@@ -19,6 +19,9 @@
         'expirada'   => 'Expiradas',
     ];
     $estatusActivo = $filtros['estatus'] ?? null;
+    // El acuse vive en las rutas de quien crea turnos (CreaTurnos); Directivo sólo consulta.
+    $puedeAcuse = auth()->user()->hasAnyRole(array_merge(\App\Http\Middleware\CreaTurnos::ROLES, \App\Support\Recepcion::ROLES))
+        || \App\Support\CasosExcepcion::es(auth()->user());
 @endphp
 
 @section('page_css')
@@ -166,16 +169,29 @@
     <section class="section tn">
         <div class="section-header d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
             <div>
-                <a href="{{ route('turnos') }}" class="text-decoration-none small" style="color: var(--tn-verde-claro);">
-                    <i class="bi bi-arrow-left"></i> Turnos
-                </a>
+                @if (auth()->user()->hasRole('Directivo') && ! auth()->user()->hasRole('Super Usuario'))
+                    <a href="{{ route('inicio') }}" class="text-decoration-none small" style="color: var(--tn-verde-claro);">
+                        <i class="bi bi-arrow-left"></i> Inicio
+                    </a>
+                @else
+                    <a href="{{ route('turnos') }}" class="text-decoration-none small" style="color: var(--tn-verde-claro);">
+                        <i class="bi bi-arrow-left"></i> Turnos
+                    </a>
+                @endif
                 <h3 class="page__heading mb-0">Todos los turnos</h3>
             </div>
-            @can('turnos_crear')
-                <a class="btn tn-boton-dorado shadow-sm" href="{{ route('nueva_cita') }}" onclick="crear_turnos();">
-                    <i class="bi bi-plus-lg me-1"></i> Nuevo turno
-                </a>
-            @endcan
+            <div class="d-flex gap-2 flex-wrap">
+                @if (auth()->user()->hasAnyRole(\App\Support\AgendaTurnos::ROLES))
+                    <button type="button" class="btn btn-outline-secondary shadow-sm" data-bs-toggle="modal" data-bs-target="#agModal">
+                        <i class="bi bi-download me-1"></i> Descargar agenda
+                    </button>
+                @endif
+                @can('turnos_crear')
+                    <a class="btn tn-boton-dorado shadow-sm" href="{{ route('nueva_cita') }}" onclick="crear_turnos();">
+                        <i class="bi bi-plus-lg me-1"></i> Nuevo turno
+                    </a>
+                @endcan
+            </div>
         </div>
 
         <div class="section-body">
@@ -360,9 +376,11 @@
                                             <span class="tn-estatus tn-estatus--{{ $estatus }}">{{ $estatus }}</span>
                                         </td>
                                         <td class="text-end text-nowrap">
-                                            <a class="btn btn-outline-secondary btn-sm" href="{{ route('citas.documento', $turno->id) }}" target="_blank" rel="noopener" title="Acuse de la cita">
-                                                <i class="bi bi-file-pdf"></i> Acuse
-                                            </a>
+                                            @if ($puedeAcuse)
+                                                <a class="btn btn-outline-secondary btn-sm" href="{{ route('citas.documento', $turno->id) }}" target="_blank" rel="noopener" title="Acuse de la cita">
+                                                    <i class="bi bi-file-pdf"></i> Acuse
+                                                </a>
+                                            @endif
                                             {{-- Reasignar módulo: mismo diálogo y reglas que Administración → Módulos
                                                  (pendiente o confirmada, hoy o después, sin excepción). Las opciones
                                                  sólo vienen para las citas que se pueden mover y si hay permiso. --}}
@@ -394,6 +412,77 @@
         'opciones'     => $opciones,
         'urlReasignar' => route('turnos.reasignar', ['id' => '__ID__']),
     ])
+
+    {{-- Descargar la agenda de un día o una semana (App\Support\AgendaTurnos). --}}
+    @if (auth()->user()->hasAnyRole(\App\Support\AgendaTurnos::ROLES))
+        @push('modals')
+            <div class="modal fade tn" id="agModal" tabindex="-1" aria-labelledby="agModalTitulo" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <form class="modal-content" method="GET" action="{{ route('turnos.agenda.descargar') }}" id="agForm">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="agModalTitulo"><i class="bi bi-calendar-week me-1"></i> Descargar agenda de turnos</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row g-3">
+                                <div class="col-sm-6">
+                                    <label for="agFecha" class="form-label small fw-semibold">Día</label>
+                                    <input type="date" class="form-control" id="agFecha" name="fecha" value="{{ $fecha ?? $hoy }}" required>
+                                </div>
+                                <div class="col-sm-6">
+                                    <label class="form-label small fw-semibold d-block">Periodo</label>
+                                    <div class="btn-group w-100" role="group" aria-label="Periodo">
+                                        <input type="radio" class="btn-check" name="periodo" id="agDia" value="dia" checked>
+                                        <label class="btn btn-outline-secondary" for="agDia">Ese día</label>
+                                        <input type="radio" class="btn-check" name="periodo" id="agSemana" value="semana">
+                                        <label class="btn btn-outline-secondary" for="agSemana">Su semana</label>
+                                    </div>
+                                    <div class="form-text" id="agSemanaTexto"></div>
+                                </div>
+                                <div class="col-sm-6">
+                                    <label for="agSede" class="form-label small fw-semibold">Sede</label>
+                                    <select class="form-select" id="agSede" name="sede">
+                                        <option value="">Todas las sedes</option>
+                                        @foreach ($sedesPermitidas as $s)
+                                            <option value="{{ $s }}" @selected(($filtros['sede'] ?? '') === $s)>{{ $s }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-sm-6">
+                                    <label for="agExcepcion" class="form-label small fw-semibold">Casos de excepción</label>
+                                    <select class="form-select" id="agExcepcion" name="excepcion">
+                                        @foreach (['incluir' => 'Incluirlos', 'excluir' => 'Excluirlos', 'solo' => 'Sólo esos casos'] as $valor => $texto)
+                                            <option value="{{ $valor }}">{{ $texto }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                @role('Super Usuario')
+                                    <div class="col-12">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" value="1" id="agPruebas" name="pruebas">
+                                            <label class="form-check-label small" for="agPruebas">Incluir citas de prueba</label>
+                                        </div>
+                                    </div>
+                                @endrole
+                            </div>
+                            <p class="small mt-3 mb-0" style="color: var(--tn-tenue);">
+                                Incluye hora, módulo, folio, trámite, quién llega, quién le atiende, a qué hora llegó, la atención y en qué quedó.
+                                Excel trae una hoja de resumen y una por sede; la imagen se abre en otra pestaña y se descarga sola.
+                            </p>
+                        </div>
+                        <div class="modal-footer justify-content-between">
+                            <button type="button" class="btn btn-link text-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <div class="d-flex gap-2 flex-wrap">
+                                <button type="submit" name="formato" value="xlsx" class="btn btn-success"><i class="bi bi-file-earmark-excel me-1"></i> Excel</button>
+                                <button type="submit" name="formato" value="pdf" class="btn btn-danger"><i class="bi bi-file-earmark-pdf me-1"></i> PDF</button>
+                                <button type="submit" name="formato" value="png" formtarget="_blank" class="btn btn-outline-secondary"><i class="bi bi-image me-1"></i> Imagen</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        @endpush
+    @endif
 @endsection
 
 @push('body_end')
@@ -405,6 +494,32 @@
 
 @section('scripts')
     <script src="{{ asset('assets/js/turnos/turnos.js') }}"></script>
+    <script>
+        // Descargar agenda: muestra qué semana se va a bajar.
+        (function () {
+            var fecha = document.getElementById('agFecha');
+            var texto = document.getElementById('agSemanaTexto');
+            if (!fecha || !texto) return;
+            var meses = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+            function pinta() {
+                var semana = document.getElementById('agSemana').checked;
+                if (!semana || !fecha.value) { texto.textContent = ''; return; }
+                var d = new Date(fecha.value + 'T12:00:00');
+                var lunes = new Date(d); lunes.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+                var domingo = new Date(lunes); domingo.setDate(lunes.getDate() + 6);
+                texto.textContent = 'Del ' + lunes.getDate() + ' ' + meses[lunes.getMonth()] + ' al ' + domingo.getDate() + ' ' + meses[domingo.getMonth()];
+            }
+            fecha.addEventListener('change', pinta);
+            document.querySelectorAll('input[name="periodo"]').forEach(function (r) { r.addEventListener('change', pinta); });
+            // Bajar un archivo no cambia de página: se cierra el diálogo.
+            document.getElementById('agForm').addEventListener('submit', function (e) {
+                var formato = e.submitter ? e.submitter.value : '';
+                if (formato !== 'png') {
+                    setTimeout(function () { bootstrap.Modal.getInstance(document.getElementById('agModal'))?.hide(); }, 300);
+                }
+            });
+        })();
+    </script>
     <script>
         // Elegir un día o un filtro de lista ya filtra; no hace falta el botón.
         (function () {

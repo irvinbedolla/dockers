@@ -9,6 +9,7 @@ use App\Models\SeerSolicitante;
 use App\Models\SeerCitados;
 use App\Models\Turnos;
 use App\Models\Incidencias;
+use App\Services\BitacoraAdministracionRecorder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -142,15 +143,21 @@ class IncidenciasBusquedaController extends Controller
         $tipo = (string) $request->get('tipo');
         $motivo = trim((string) $request->get('motivo_incidencia'));
 
+        // La marca queda en la bitácora (quién, cuándo y por qué): se ve en
+        // Panel estadístico → Incidencias.
         if($tipo == 'SOLICITUD'){
-            SeerPerGeneral::where('id', $expediente_id)->update(['incidencia' => true]);
-            SeerPerGeneral::where('id', $expediente_id)->update(['motivo_incidencia' => $motivo]);
+            BitacoraAdministracionRecorder::actualizar('marcar_incidencia', SeerPerGeneral::findOrFail($expediente_id), [
+                'incidencia'        => 1,
+                'motivo_incidencia' => $motivo,
+            ], $motivo);
             Audiencias::where('id_solicitud', $expediente_id)->update(['incidencia' => true]);
             Pagos::where('id_solicitud', $expediente_id)->where('tipo_pago', 'Audiencia')->update(['incidencia' => true]);
         }
         else{
-            Turnos::where('id', $expediente_id)->update(['incidencia' => true]);
-            Turnos::where('id', $expediente_id)->update(['motivo_incidencia' => $motivo]);
+            BitacoraAdministracionRecorder::actualizar('marcar_incidencia', Turnos::findOrFail($expediente_id), [
+                'incidencia'        => 1,
+                'motivo_incidencia' => $motivo,
+            ], $motivo);
             Pagos::where('id_solicitud', $expediente_id)->where('tipo_pago', 'Ratificacion')->update(['incidencia' => true]);
         }
 
@@ -175,17 +182,17 @@ class IncidenciasBusquedaController extends Controller
         $tipo = (string) $request->get('tipo');
 
         if ($tipo === 'SOLICITUD') {
-            SeerPerGeneral::where('id', $expediente_id)->update([
-                'incidencia' => false,
+            BitacoraAdministracionRecorder::actualizar('desmarcar_incidencia', SeerPerGeneral::findOrFail($expediente_id), [
+                'incidencia'        => 0,
                 'motivo_incidencia' => null,
-            ]);
+            ], null);
             Audiencias::where('id_solicitud', $expediente_id)->update(['incidencia' => false]);
             Pagos::where('id_solicitud', $expediente_id)->where('tipo_pago', 'Audiencia')->update(['incidencia' => false]);
         } else {
-            Turnos::where('id', $expediente_id)->update([
-                'incidencia' => false,
+            BitacoraAdministracionRecorder::actualizar('desmarcar_incidencia', Turnos::findOrFail($expediente_id), [
+                'incidencia'        => 0,
                 'motivo_incidencia' => null,
-            ]);
+            ], null);
             Pagos::where('id_solicitud', $expediente_id)->where('tipo_pago', 'Ratificacion')->update(['incidencia' => false]);
         }
 

@@ -2994,36 +2994,6 @@ class TurnosController extends Controller
     }
 
 
-    public function actualizar_folio(){
-        $tableName = 'turnos'; // Reemplaza con el nombre real de tu tabla
-        $idColumn = 'id'; // Columna para ordenar la secuencia (usualmente 'id')
-        $delegacionColumn = 'delegacion'; // Columna de agrupación
-        $consecutivoColumn = 'consecutivo'; // Columna a actualizar
-
-        $sql = "
-            UPDATE {$tableName} AS r
-            JOIN (
-                SELECT 
-                    {$idColumn},
-                    {$delegacionColumn},
-                    @consecutivo_delegacion := IF(
-                        @delegacion_actual = {$delegacionColumn}, 
-                        @consecutivo_delegacion + 1, 
-                        1
-                    ) AS nuevo_consecutivo,                    
-                    @delegacion_actual := {$delegacionColumn} AS dummy_var 
-                FROM 
-                    {$tableName}
-                ORDER BY 
-                    {$delegacionColumn} ASC, 
-                    {$idColumn} ASC 
-            ) AS subquery 
-            ON r.{$idColumn} = subquery.{$idColumn}
-            SET 
-                r.{$consecutivoColumn} = subquery.nuevo_consecutivo;";
-
-        DB::statement($sql);
-    }
     //Conveio de PTU cuando el trabajador NO SIGUE laborando
     public function VerPDFConvenioPTU_rat($id){
         $ratificacion = Turnos::find($id);

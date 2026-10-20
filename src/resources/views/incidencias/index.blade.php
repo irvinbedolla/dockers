@@ -8,6 +8,9 @@
 			<div class="card">
 				<div class="card-header">
 					<h3 class="card-title mb-0">Búsqueda de incidencias</h3>
+					@if (\Illuminate\Support\Facades\Route::has('estadisticas.incidencias') && auth()->user()?->hasAnyRole(['Super Usuario', 'Estadistica', 'Directivo']))
+						<a href="{{ route('estadisticas.incidencias') }}" class="small">Ver el registro de incidencias</a>
+					@endif
 				</div>
 				<div class="card-body">
 					@if (session('status'))
@@ -58,11 +61,9 @@
 								</tr>
 							</thead>
 							<tbody>
-								@if (!empty($q) && (empty($resultados) || $resultados->isEmpty()))
-									<tr>
-										<td colspan="6" class="text-center text-muted">Sin coincidencias para "{{ $q }}"</td>
-									</tr>
-								@elseif(!empty($resultados) && $resultados->isNotEmpty())
+								{{-- Sin renglones de aviso con colspan: DataTables no los acepta
+								     ("Requested unknown parameter"). El aviso va en language.emptyTable. --}}
+								@if(!empty($resultados) && $resultados->isNotEmpty())
 									@foreach($resultados as $resultado)
 										<tr>
 											@php($esSuperUsuario = auth()->check() && auth()->user()->hasRole('Super Usuario'))
@@ -105,10 +106,6 @@
 											</td>
 										</tr>
 									@endforeach
-								@else
-									<tr>
-										<td colspan="6" class="text-center text-muted">Selecciona un tipo de búsqueda para comenzar.</td>
-									</tr>
 								@endif
 							</tbody>
 						</table>
@@ -182,7 +179,7 @@
 					"infoEmpty": "Mostrando 0 a 0 de 0 filas",
 					"infoFiltered": "(filtrado de un total de _MAX_ registros)",
 					"zeroRecords": "No se encontraron coincidencias.",
-					"emptyTable": "Selecciona un tipo de búsqueda o no hay datos disponibles.",
+					"emptyTable": @json(!empty($q) ? 'Sin coincidencias para "'.$q.'"' : 'Selecciona un tipo de búsqueda para comenzar.'),
 					"paginate": {
 						"first": "Primero",
 						"last": "Último",
@@ -225,10 +222,6 @@
 				}
 			}
 
-			function clearResultsTable() {
-				if (!resultsTbody) return;
-				resultsTbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Selecciona un tipo de búsqueda para comenzar.</td></tr>';
-			}
 
 			if (tipoSel) {
 				applyTipoUI(tipoSel.value);
