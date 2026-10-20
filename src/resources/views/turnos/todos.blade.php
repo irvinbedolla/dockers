@@ -418,7 +418,7 @@
         @push('modals')
             <div class="modal fade tn" id="agModal" tabindex="-1" aria-labelledby="agModalTitulo" aria-hidden="true">
                 <div class="modal-dialog modal-dialog-centered">
-                    <form class="modal-content" method="GET" action="{{ route('turnos.agenda.descargar') }}" id="agForm">
+                    <form class="modal-content" method="GET" action="{{ route('turnos.agenda.descargar') }}" id="agForm" data-sin-carga>
                         <div class="modal-header">
                             <h5 class="modal-title" id="agModalTitulo"><i class="bi bi-calendar-week me-1"></i> Descargar agenda de turnos</h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>

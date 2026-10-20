@@ -273,6 +273,8 @@
     }
 
     function actualizar() {
+        var etiqueta = document.getElementById('llActualizado');
+        etiqueta.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Actualizando…';
         return fetch(URL_DATOS, { headers: { 'Accept': 'application/json' }, cache: 'no-store', credentials: 'same-origin' })
             .then(function (r) { if (!r.ok) { throw new Error(r.status); } return r.json(); })
             .then(function (j) { datos = j; pintar(); })
@@ -290,6 +292,12 @@
             var b = e.target.closest('[data-clave]');
             if (!b || b.disabled) { return; }
             b.disabled = true;
+            // Mientras el servidor responde: el botón muestra que está guardando.
+            if (b.classList.contains('ll-llego')) {
+                b.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Guardando…';
+            } else {
+                b.textContent = 'Quitando…';
+            }
             fetch(URL_MARCAR.replace('__T__', b.getAttribute('data-tipo')).replace('__ID__', b.getAttribute('data-id')), {
                 method: 'POST',
                 credentials: 'same-origin',
@@ -301,7 +309,7 @@
                     if (!res.ok) { aviso(res.status === 419 ? 'La sesión expiró; recarga la página.' : (res.j.message || 'No se pudo guardar.')); }
                     return actualizar();
                 })
-                .catch(function () { aviso('Sin conexión; intenta de nuevo.'); b.disabled = false; });
+                .catch(function () { aviso('Sin conexión; intenta de nuevo.'); pintar(); });
         });
     }
 

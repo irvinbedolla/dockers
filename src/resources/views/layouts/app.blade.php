@@ -735,6 +735,8 @@
             @include('llegadas._avisos')
         @endif
     @endauth
+    {{-- Barra "cargando" al cambiar de página. --}}
+    @include('layouts._carga_pagina')
     @stack('body_end')
 
 </body>
