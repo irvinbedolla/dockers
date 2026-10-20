@@ -18,7 +18,20 @@ use Illuminate\Support\Str;
  */
 class AgendaTurnos
 {
+    /** Descargan la agenda de todas las sedes. */
     public const ROLES = ['Super Usuario', 'Directivo'];
+
+    /**
+     * Super Usuario y Directivo siempre; el Delegado sólo si tiene el permiso
+     * turnos_ver (se le da en Roles o en su usuario), y nada más de su región.
+     */
+    public static function puedeDescargar(?User $usuario): bool
+    {
+        return $usuario !== null && (
+            $usuario->hasAnyRole(self::ROLES)
+            || ($usuario->hasRole('Delegado') && $usuario->can('turnos_ver'))
+        );
+    }
 
     public const PERIODOS = [
         'dia'    => 'Un día',
@@ -83,7 +96,7 @@ class AgendaTurnos
         return [
             'titulo'     => 'Agenda de turnos',
             'periodo'    => $periodo,
-            'sedesTexto' => ! empty($f['sede']) ? $f['sede'] : 'Todas las sedes',
+            'sedesTexto' => ! empty($f['sede']) ? $f['sede'] : (count($visibles) >= count(Recepcion::TODAS_LAS_SEDES) ? 'Todas las sedes' : implode(' y ', $visibles)),
             'excepcion'  => self::EXCEPCION[$f['excepcion']],
             'pruebas'    => ! empty($f['pruebas']),
             'desde'      => $desde,

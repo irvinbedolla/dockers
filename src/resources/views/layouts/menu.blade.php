@@ -77,7 +77,11 @@
             ['route' => 'solicitudes_pendientes',     'label' => 'Solicitudes Pendientes',  'icon' => 'bi bi-file-earmark-text-fill', 'roles' => []],
             ['route' => 'index_tercer_encuentro',     'label' => 'Tercer Encuentro',        'icon' => 'bi bi-bank',                'roles' => ['Tercer Encuentro']],
             ['route' => 'turnos',                     'label' => 'Turnos',                  'icon' => 'bi bi-file-person',         'roles' => ['Super Usuario', 'Turnos', ...$recepcion]],
-            ['route' => 'turnos.todos',               'label' => 'Turnos',                  'icon' => 'bi bi-file-person',         'roles' => ['Directivo']],
+            // Directivo siempre; el Delegado sólo con el permiso turnos_ver (ve su región).
+            ['route' => 'turnos.todos',               'label' => 'Turnos',                  'icon' => 'bi bi-file-person',         'roles' => ['Directivo', 'Delegado'],
+                // Quien ya tiene el "Turnos" de recepción (arriba) no lo ve dos veces: desde ahí llega a Todos los turnos.
+                'si' => fn () => ! auth()->user()->hasAnyRole(['Super Usuario', 'Turnos', ...$recepcion])
+                    && (auth()->user()->hasRole('Directivo') || auth()->user()->can('turnos_ver'))],
             ['route' => 'recepcion.escaner',          'label' => 'Escanear cita',           'icon' => 'bi bi-qr-code-scan',        'roles' => ['Super Usuario', ...$recepcion]],
             // Sólo la recepción Morelia 01 por ahora; la pantalla dice "Próximamente".
             ['route' => 'correspondencia',            'label' => 'Correspondencia',         'icon' => 'bi bi-envelope-paper',      'roles' => [\App\Support\Recepcion::MORELIA_01]],

@@ -497,13 +497,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
      |-- (Pre-registro presencial, validación inicial y asignación de turnos rápidos)
      |*/
     // Todos los turnos con filtro por día, sede, tipo, origen y estatus. Los
-    // mismos roles de recepción que antes (con turnos_ver) y además Directivo,
-    // que sólo consulta y descarga la agenda.
+    // mismos roles de recepción que antes (con turnos_ver), Directivo, que sólo
+    // consulta y descarga la agenda, y Delegado si se le da turnos_ver (su región).
     Route::get('/turnos/todos', TurnosHistorialController::class)->name('turnos.todos')
-        ->middleware([Recepcion::middleware('Super Usuario', 'Auxiliar', 'Recepción General', 'Turnos', 'Recepción Morelia 1', 'Recepción Morelia 2', 'Directivo'), 'role_or_permission:Directivo|turnos_ver']);
+        ->middleware([Recepcion::middleware('Super Usuario', 'Auxiliar', 'Recepción General', 'Turnos', 'Recepción Morelia 1', 'Recepción Morelia 2', 'Directivo', 'Delegado'), 'role_or_permission:Directivo|turnos_ver']);
     // Descargar la agenda de un día o una semana en Excel, PDF o imagen (App\Support\AgendaTurnos).
     Route::get('/turnos/agenda/descargar', App\Http\Controllers\TurnosAgendaController::class)->name('turnos.agenda.descargar')
-        ->middleware('role:'.implode('|', App\Support\AgendaTurnos::ROLES));
+        ->middleware('role:'.implode('|', [...App\Support\AgendaTurnos::ROLES, 'Delegado']));
 
     // Los roles de recepción se suman desde App\Support\Recepcion: un nombre
     // con acento mal escrito aquí no truena, sólo deja fuera a la persona.

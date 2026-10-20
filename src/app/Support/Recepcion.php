@@ -222,6 +222,10 @@ class Recepcion
         if (self::es($usuario)) {
             return self::sedes($usuario);
         }
+        // El Delegado ve su región, igual que en la agenda (AgendaContexto).
+        if ($usuario->hasRole('Delegado')) {
+            return AgendaContexto::sedesDeRegion($usuario->delegacion);
+        }
 
         return $usuario->delegacion ? [$usuario->delegacion] : [];
     }

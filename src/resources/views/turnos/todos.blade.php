@@ -169,7 +169,8 @@
     <section class="section tn">
         <div class="section-header d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
             <div>
-                @if (auth()->user()->hasRole('Directivo') && ! auth()->user()->hasRole('Super Usuario'))
+                {{-- Directivo y Delegado no entran a la pantalla de Turnos de recepción. --}}
+                @if (! auth()->user()->hasAnyRole(array_merge(\App\Http\Middleware\CreaTurnos::ROLES, \App\Support\Recepcion::ROLES)))
                     <a href="{{ route('inicio') }}" class="text-decoration-none small" style="color: var(--tn-verde-claro);">
                         <i class="bi bi-arrow-left"></i> Inicio
                     </a>
@@ -181,7 +182,7 @@
                 <h3 class="page__heading mb-0">Todos los turnos</h3>
             </div>
             <div class="d-flex gap-2 flex-wrap">
-                @if (auth()->user()->hasAnyRole(\App\Support\AgendaTurnos::ROLES))
+                @if (\App\Support\AgendaTurnos::puedeDescargar(auth()->user()))
                     <button type="button" class="btn btn-outline-secondary shadow-sm" data-bs-toggle="modal" data-bs-target="#agModal">
                         <i class="bi bi-download me-1"></i> Descargar agenda
                     </button>
@@ -414,7 +415,7 @@
     ])
 
     {{-- Descargar la agenda de un día o una semana (App\Support\AgendaTurnos). --}}
-    @if (auth()->user()->hasAnyRole(\App\Support\AgendaTurnos::ROLES))
+    @if (\App\Support\AgendaTurnos::puedeDescargar(auth()->user()))
         @push('modals')
             <div class="modal fade tn" id="agModal" tabindex="-1" aria-labelledby="agModalTitulo" aria-hidden="true">
                 <div class="modal-dialog modal-dialog-centered">
@@ -442,7 +443,9 @@
                                 <div class="col-sm-6">
                                     <label for="agSede" class="form-label small fw-semibold">Sede</label>
                                     <select class="form-select" id="agSede" name="sede">
-                                        <option value="">Todas las sedes</option>
+                                        @if (count($sedesPermitidas) > 1)
+                                            <option value="">{{ count($sedesPermitidas) >= count(\App\Support\Recepcion::TODAS_LAS_SEDES) ? 'Todas las sedes' : 'Mis sedes ('.implode(' y ', $sedesPermitidas).')' }}</option>
+                                        @endif
                                         @foreach ($sedesPermitidas as $s)
                                             <option value="{{ $s }}" @selected(($filtros['sede'] ?? '') === $s)>{{ $s }}</option>
                                         @endforeach
