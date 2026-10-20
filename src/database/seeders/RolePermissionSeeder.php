@@ -56,10 +56,6 @@ class RolePermissionSeeder extends Seeder
 
             'casos_excepcion_atencion',
             'casos_excepcion_canalizacion',
-            'conciliadores_permisos',
-            'conciliadores_permisos_consultar',
-            'conciliadores_permisos_editar',
-            'conciliadores_permisos_crear',
             'cumplimientos_consultar',
             'cumplimientos_generar_cumplimiento',
             'cumplimientos_generar_incumplimiento',
@@ -193,10 +189,6 @@ class RolePermissionSeeder extends Seeder
 
             'casos_excepcion_atencion',
             'casos_excepcion_canalizacion',
-            'conciliadores_permisos',
-            'conciliadores_permisos_consultar',
-            'conciliadores_permisos_editar',
-            'conciliadores_permisos_crear',
             'cumplimientos_consultar',
             'cumplimientos_generar_cumplimiento',
             'cumplimientos_generar_incumplimiento',

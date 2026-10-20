@@ -45,7 +45,6 @@
             ['route' => 'excepcion',                  'label' => 'Casos de Excepción',      'icon' => 'bi-person-vcard',           'roles' => ['Super Usuario', \App\Support\CasosExcepcion::ROL, 'Excepcion', 'Directivo', 'Delegado'], 'activo' => ['excepcion', 'excepciones.*', 'atender_excepcion']],
             ['route' => 'estadisticas.excepciones',   'label' => 'Estadísticas de excepción', 'icon' => 'bi bi-bar-chart-line',     'roles' => [\App\Support\CasosExcepcion::ROL]],
             ['route' => 'nueva_cita',                 'label' => 'Crear turno',             'icon' => 'bi bi-calendar-plus',       'roles' => [\App\Support\CasosExcepcion::ROL]],
-            ['route' => 'index_conciliadores',        'label' => 'Conciliadores',           'icon' => 'bi bi-person-fill',         'roles' => ['Super Usuario', 'Delegado']],
             ['route' => 'indexDireccionGeneral',      'label' => 'Dirección General',       'icon' => 'bi bi-bank',                'roles' => []],
             ['route' => 'expedientes',                'label' => 'Expediente',              'icon' => 'bi bi-graph-down',          'roles' => ['Capacitacion Admin']],
             ['route' => 'crear_inidencia',            'label' => 'Incidencia Crear',        'icon' => 'bi bi-bank',                'roles' => []],

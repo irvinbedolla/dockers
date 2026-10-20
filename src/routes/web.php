@@ -43,7 +43,6 @@ use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\RecepcionController;
 use App\Http\Controllers\CitaDireccionController;
 use App\Http\Controllers\CorreosController;
-use App\Http\Controllers\ConciliadoresController;
 use App\Http\Controllers\AdministracionController;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -408,10 +407,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/indidencias/update',              [IncidenciasController::class, 'incidencias_update'])->name('incidencias_update');
 
         //Conciliadores
-        Route::get('/conciliador/index',                [ConciliadoresController::class, 'index'])->name('index_conciliadores');
-        Route::post('/conciliador/update_perimsos/',    [ConciliadoresController::class, 'update'])->name('conciliadores_permisos');
         Route::get('/conciliador/firmaCitatorios',      [SeerController::class, 'firmaCitatorios_index'])->name('firma_citatorio'); //Citatorios a firmar por los conciliadores
-        Route::get('/conciliador/prueba',               [TurnosController::class, 'actualizar_folio']);
     });
 
     /*
@@ -427,7 +423,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/solicitud/guardar',               [SeerController::class, 'concluir_audiencia'])->name('concluir_audiencia');
         Route::post('/reagendar_audiencia',             [SeerController::class, 'reagendar_audiencia'])->name('reagendar_audiencia');
         Route::post('/reagendar_audiencia_parte3',      [SeerController::class, 'reagendar_audiencia_parte3'])->name('reagendar_audiencia_parte3');
-        Route::get('/conciliador/index',                [ConciliadoresController::class, 'index'])->name('index_conciliadores');
         Route::get('/conciliador/firmaCitatorios',      [SeerController::class, 'firmaCitatorios_index'])->name('firma_citatorio');
         Route::post('/solicitud/archivar_audiencia',    [SeerController::class, 'guardar_audiencia_archivo'])->name('archivar_audiencia');
         Route::post('/solicitud/archivar_audienciaParte3', [SeerController::class, 'guardar_audiencia_archivo_parte3'])->name('archivar_audiencia_parte3');
