@@ -72,6 +72,14 @@ class ValidadorCita
         // Cuándo llegó (para el seguimiento del caso).
         $cita->update(['estatus' => 'confirmada'] + (FlujoCita::conSeguimiento() ? ['confirmada_at' => $ahora] : []));
 
+        // Si es de Ratificación, cuenta como llegada en "Llegadas hoy" y le
+        // avisa al conciliador. Nunca debe impedir la validación.
+        try {
+            LlegadasHoy::desdeCita($cita);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
         return ['resultado' => 'confirmada', 'cambio' => true];
     }
 }
