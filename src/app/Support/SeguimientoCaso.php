@@ -17,7 +17,7 @@ use Illuminate\Support\Str;
  *
  *   cita (recepcion) ── seer_general.recepcion_id ──> solicitud (seer_general)
  *     → notificación de los citados (seer_citados)
- *     → audiencias (audiencias, audiencia_llegadas, seer_conciliadores)
+ *     → audiencias (audiencias, llegadas, seer_conciliadores)
  *     → resultado (seer_general.estatus / fecha_terminacion)
  *     → cumplimiento (pago_solicitud)
  *
@@ -532,8 +532,9 @@ class SeguimientoCaso
         $conciliadores = self::usuarios($audiencias->pluck('id_conciliador')->filter()->map(fn ($i) => (int) $i)->all());
         $resultados = DB::table('seer_conciliadores')->where('id_solicitud', $g->id)->whereNotNull('audiencia_id')
             ->get(['audiencia_id', 'monto', 'tipo'])->keyBy('audiencia_id');
-        $llegadas = LlegadasAudiencia::migrado()
-            ? DB::table('audiencia_llegadas')->whereIn('audiencia_id', $audiencias->pluck('id')->all() ?: [0])->orderBy('llegada_at')->get(['audiencia_id', 'parte', 'nombre', 'llegada_at'])
+        $llegadas = LlegadasHoy::migrado()
+            ? DB::table(LlegadasHoy::TABLA)->where('tipo', 'audiencia')->whereIn('registro_id', $audiencias->pluck('id')->all() ?: [0])->orderBy('llegada_at')
+                ->get(['registro_id as audiencia_id', 'parte', 'nombre', 'llegada_at'])
             : collect();
 
         foreach ($audiencias->values() as $i => $a) {

@@ -46,5 +46,7 @@
         .btn.uf-dia:not(.btn-social):not(.btn-social-icon):hover { border-color: var(--tn-verde-claro) !important; color: var(--tn-verde); background: #fff; }
         .btn-check:checked + .btn.uf-dia:not(.btn-social):not(.btn-social-icon):hover { background: #354647; color: #fff; }
         .uf-seccion__num .bi { font-size: 13px; }
+        .uf-sinotifico { padding: 10px 14px; border: 1px solid #EBDDB0; border-radius: 10px; background: #FBF6E7; }
+        .uf-sinotifico .form-check-label { font-weight: 600; }
         @media (max-width: 768px) { .uf-opciones { grid-template-columns: 1fr; } }
     </style>

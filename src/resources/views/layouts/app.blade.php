@@ -730,9 +730,9 @@
         @if (\App\Http\Controllers\MiModuloController::puedeVer(auth()->user()))
             @include('mi_modulo._avisos')
         @endif
-        {{-- Aviso al conciliador cuando la recepción marca que llegó una parte a su audiencia. --}}
-        @if (\App\Support\LlegadasAudiencia::migrado() && auth()->user()->hasRole('Conciliador'))
-            @include('audiencias._avisos_llegada')
+        {{-- Aviso al conciliador cuando llega alguien a su audiencia, ratificación o cumplimiento. --}}
+        @if (\App\Support\LlegadasHoy::migrado() && auth()->user()->hasRole('Conciliador'))
+            @include('llegadas._avisos')
         @endif
     @endauth
     @stack('body_end')

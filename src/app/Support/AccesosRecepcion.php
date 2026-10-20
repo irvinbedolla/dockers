@@ -95,13 +95,13 @@ class AccesosRecepcion
                 'etiqueta' => 'Audiencias',
                 'total'    => DB::table('audiencias')->where('fecha', $hoy)->whereIn('delegacion', $variantes)
                     ->whereNotIn('estatus', AgendaAudiencias::LIBERAN)->count(),
-                // Ahí marca quién llegó a su audiencia (LlegadasAudiencia).
-                'url'      => LlegadasAudiencia::migrado() ? route('recepcion.audiencias_hoy') : null,
+                // Ahí marca quién llegó (LlegadasHoy).
+                'url'      => LlegadasHoy::migrado() ? route('llegadas.index', ['tipo' => 'audiencia']) : null,
             ]);
             $desglose[] = [
                 'etiqueta' => 'Cumplimientos',
                 'total'    => DB::table('pago_solicitud')->where('fecha', $hoy)->whereIn('delegacion', $variantes)->count(),
-                'url'      => null,
+                'url'      => LlegadasHoy::migrado() ? route('llegadas.index', ['tipo' => 'cumplimiento']) : null,
             ];
         }
 

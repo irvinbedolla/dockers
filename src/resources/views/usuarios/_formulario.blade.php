@@ -1,7 +1,8 @@
 {{--
     Campos del alta y de la edición de usuarios (crear.blade.php y
     editar.blade.php). Espera: $user (nuevo o existente), $roles, $rolesActuales,
-    $agenda (PermisosConciliador::resumen), $sedes, $sistemas y $soyYo.
+    $agenda (PermisosConciliador::resumen), $supervisaSinotifico, $sedes,
+    $sistemas y $soyYo.
     La CURP vive en users.profile_photo_path.
 --}}
 @php
@@ -112,6 +113,25 @@
                 {{ $errors->first('roles') ?: $errors->first('roles.*') ?: 'Elige al menos un rol.' }}
             </div>
             <div class="form-text">Puede tener varios: por ejemplo, Recepción General y Auxiliar de Solicitudes en una sede chica.</div>
+        </div>
+        {{-- SíNotifico: los Enlaces asignan notificaciones, pero sólo los
+             elegidos aquí supervisan a los notificadores de su sede en la app. --}}
+        @php
+            $supervisaMarcado = old('sinotifico_supervisa', ($supervisaSinotifico ?? false) ? '1' : '0') === '1';
+        @endphp
+        <div class="col-12" id="ufSinotifico" @if (! in_array('Enlace', $marcados, true)) hidden @endif>
+            <div class="uf-sinotifico">
+                <div class="form-check form-switch mb-0">
+                    <input type="hidden" name="sinotifico_supervisa" value="0">
+                    <input class="form-check-input" type="checkbox" role="switch" id="sinotifico_supervisa" name="sinotifico_supervisa" value="1"
+                           @checked($supervisaMarcado)>
+                    <label class="form-check-label" for="sinotifico_supervisa">Supervisa notificadores en SíNotifico</label>
+                </div>
+                <div class="form-text mt-1">
+                    Ve en la app cómo van los notificadores de su sede: asignadas, pendientes y fuera de plazo.
+                    Delegados, Directivos y Super Usuarios ya lo tienen por su rol.
+                </div>
+            </div>
         </div>
         <div class="col-md-6">
             <label for="delegacion">Sede <span class="req">*</span></label>
@@ -316,6 +336,13 @@
             // Las subsedes no tienen subsede propia: su conciliador vive en la sede principal.
         }
         if (rolConciliador) { rolConciliador.addEventListener('change', revisarAgenda); }
+
+        // SíNotifico: la opción de supervisar sólo aplica con el rol Enlace.
+        var bloqueSinotifico = document.getElementById('ufSinotifico');
+        var rolEnlace = cajaRoles.querySelector('input[name="roles[]"][value="Enlace"]');
+        if (bloqueSinotifico && rolEnlace) {
+            rolEnlace.addEventListener('change', function () { bloqueSinotifico.hidden = !rolEnlace.checked; });
+        }
         if (sede) { sede.addEventListener('change', revisarAgenda); }
         revisarAgenda();
 

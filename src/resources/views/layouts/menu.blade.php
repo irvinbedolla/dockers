@@ -35,9 +35,9 @@
             // Flujo nuevo cita → solicitud: sólo si el interruptor lo habilita para esta persona.
             ['route' => 'mi_modulo',                  'label' => 'Mi módulo',               'icon' => 'bi bi-person-workspace',    'roles' => '*',
                 'si' => fn () => \App\Http\Controllers\MiModuloController::puedeVer(auth()->user())],
-            // Recepción de audiencias (Morelia 02): marcar quién llegó.
-            ['route' => 'recepcion.audiencias_hoy',   'label' => 'Audiencias de hoy',       'icon' => 'bi bi-person-check',        'roles' => \App\Support\LlegadasAudiencia::ROLES,
-                'si' => fn () => \App\Support\LlegadasAudiencia::migrado()],
+            // Llegadas hoy: la recepción (Morelia 02) marca quién llegó; el conciliador sólo consulta.
+            ['route' => 'llegadas.index',             'label' => 'Llegadas hoy',            'icon' => 'bi bi-person-check',        'roles' => \App\Support\LlegadasHoy::roles(),
+                'si' => fn () => \App\Support\LlegadasHoy::migrado()],
             ['route' => 'configuracion',              'label' => 'Administración',          'icon' => 'bi bi-lock-fill',           'roles' => ['Super Usuario', 'Delegado', 'Enlace']],
             ['route' => 'agenda',                     'label' => 'Agenda',                  'icon' => 'bi bi-calendar-week',       'roles' => ['Super Usuario', 'Administrador', 'Auxiliar', 'Orientador', 'Conciliador', 'Notificador', 'Delegado', 'Excepcion', \App\Support\CasosExcepcion::ROL,  'Cumplimientos', 'Directivo','Turnos', ...$recepcion]],
             ['route' => 'capacitaciones',             'label' => 'Capacitaciones',          'icon' => 'bi bi-backpack4-fill',      'roles' => ['Capacitacion Admin']],

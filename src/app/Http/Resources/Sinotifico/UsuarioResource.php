@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Sinotifico;
 
+use App\Support\Sinotifico\Acceso;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -13,8 +14,8 @@ class UsuarioResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        $roles = $this->getRoleNames()
-            ->intersect(config('sinotifico.roles'))
+        $roles = collect(Acceso::ROLES_VISIBLES)
+            ->intersect($this->getRoleNames())
             ->values();
 
         return [
@@ -22,8 +23,14 @@ class UsuarioResource extends JsonResource
             'nombre' => $this->name,
             'email' => $this->email,
             'roles' => $roles,
-            // El primero según el orden de config: Notificador tiene prioridad.
-            'rol' => collect(config('sinotifico.roles'))->first(fn ($r) => $roles->contains($r)),
+            // El primero según Acceso::ROLES_VISIBLES: Notificador tiene prioridad.
+            'rol' => $roles->first(),
+            // Qué partes de la app abre: su lista de campo y/o la supervisión.
+            'acceso' => [
+                'notifica' => Acceso::notifica($this->resource),
+                'supervisa' => Acceso::supervisa($this->resource),
+            ],
+            'distintivo' => Acceso::distintivo($this->resource),
             'sede' => $this->delegacion ? [
                 'nombre' => $this->delegacion,
                 'clave' => config('sinotifico.sedes')[$this->delegacion] ?? null,

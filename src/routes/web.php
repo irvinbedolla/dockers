@@ -255,15 +255,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Conciliación, Género e Igualdad también entra, sólo a las de excepción.
     Route::get('/agenda/citas-en-linea',                AgendaCitasController::class)->name('agenda.citas_linea')
         ->middleware(VeCitasEnLinea::class);
-    // Audiencias de hoy: la recepción de audiencias (Morelia 02) marca qué parte
-    // llegó y el conciliador recibe el aviso. Ver App\Support\LlegadasAudiencia.
-    Route::middleware('role:'.implode('|', \App\Support\LlegadasAudiencia::ROLES))->group(function () {
-        Route::get('/recepcion/audiencias-hoy',          [App\Http\Controllers\LlegadasAudienciaController::class, 'index'])->name('recepcion.audiencias_hoy');
-        Route::get('/recepcion/audiencias-hoy/datos',    [App\Http\Controllers\LlegadasAudienciaController::class, 'datos'])->name('recepcion.audiencias_hoy.datos');
-        Route::post('/recepcion/audiencias/{id}/llegada', [App\Http\Controllers\LlegadasAudienciaController::class, 'marcar'])->name('recepcion.audiencias_hoy.llegada')
-            ->whereNumber('id')->middleware('throttle:120,1');
+    // Llegadas hoy: audiencias, ratificaciones y cumplimientos del día. La
+    // recepción de audiencias (Morelia 02) marca quién llegó y el conciliador
+    // asignado recibe el aviso; el conciliador ve la pantalla sólo para
+    // consultar. Ver App\Support\LlegadasHoy.
+    Route::middleware('role:'.implode('|', \App\Support\LlegadasHoy::roles()))->group(function () {
+        Route::get('/recepcion/llegadas-hoy',            [App\Http\Controllers\LlegadasHoyController::class, 'index'])->name('llegadas.index');
+        Route::get('/recepcion/llegadas-hoy/datos',      [App\Http\Controllers\LlegadasHoyController::class, 'datos'])->name('llegadas.datos');
+        Route::post('/recepcion/llegadas/{tipo}/{id}',   [App\Http\Controllers\LlegadasHoyController::class, 'marcar'])->name('llegadas.marcar')
+            ->whereIn('tipo', array_keys(\App\Support\LlegadasHoy::TIPOS))->whereNumber('id')->middleware('throttle:120,1');
     });
-    Route::get('/audiencias/llegadas/avisos',           [App\Http\Controllers\LlegadasAudienciaController::class, 'avisos'])->name('audiencias.llegadas_avisos')
+    Route::permanentRedirect('/recepcion/audiencias-hoy',   '/recepcion/llegadas-hoy');
+    Route::get('/llegadas/avisos',                      [App\Http\Controllers\LlegadasHoyController::class, 'avisos'])->name('llegadas.avisos')
         ->middleware('role:Super Usuario|Conciliador');
 
     // Escáner de QR de citas. La cámara sólo se permite en esta pantalla
