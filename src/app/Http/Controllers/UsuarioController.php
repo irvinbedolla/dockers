@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\PermisosConciliador;
 use App\Models\User;
 use App\Support\FotoPerfil;
+use App\Support\Sinotifico\Acceso;
 use App\Support\TablaPosiciones;
 use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\DB;
@@ -21,7 +22,7 @@ class UsuarioController extends Controller
     {
         // Todo el personal (sin solicitantes), activos e inactivos: desde aquí
         // se reactivan. Son ~150, así que el filtro se hace en el navegador.
-        $usuarios = User::with('roles:id,name')
+        $usuarios = User::with('roles:id,name', 'permissions:id,name')
             ->whereHas('roles', fn ($q) => $q->where('name', '!=', 'Solicitante'))
             ->orderByRaw("estatus = 'Activo' DESC")
             ->orderBy('name')
@@ -68,6 +69,7 @@ class UsuarioController extends Controller
             'roles'         => $this->rolesAsignables(),
             'rolesActuales' => [],
             'agenda'        => PermisosConciliador::resumen(null),
+            'supervisaSinotifico' => false,
             'soyYo'     => false,
             'sedes'    => self::SEDES,
             'sistemas' => self::SISTEMAS,
@@ -93,6 +95,7 @@ class UsuarioController extends Controller
             'type'        => ['required', Rule::in(array_keys(self::SISTEMAS))],
             'password'    => ['required', 'string', 'min:8', 'max:72', 'same:confirm-password'],
             'foto_perfil' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:8192', 'dimensions:min_width=200,min_height=200'],
+            'sinotifico_supervisa' => ['nullable', 'boolean'],
         ] + $this->reglasAgenda($request), $this->mensajes());
 
         $foto = null;
@@ -120,6 +123,7 @@ class UsuarioController extends Controller
             $user->forceFill(['estatus' => $request->boolean('activo', true) ? 'Activo' : 'Inactivo'])->save();
             $user->syncRoles($this->conRolBase($datos['roles']));
             $this->guardarAgenda($user, $datos);
+            Acceso::elegirSupervisor($user, $request->boolean('sinotifico_supervisa'));
 
             return $user;
         });
@@ -165,6 +169,7 @@ class UsuarioController extends Controller
             'roles'     => $roles,
             'rolesActuales' => $rolesActuales,
             'agenda'        => PermisosConciliador::resumen($user->id),
+            'supervisaSinotifico' => Acceso::supervisaPorEleccion($user),
             'sedes'     => self::SEDES,
             'sistemas'  => self::SISTEMAS,
             'soyYo'     => (int) $user->id === (int) auth()->id(),
@@ -196,6 +201,7 @@ class UsuarioController extends Controller
             'type'        => ['required', Rule::in(array_keys(self::SISTEMAS))],
             'password'    => ['nullable', 'string', 'min:8', 'max:72', 'same:confirm-password'],
             'foto_perfil' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:8192', 'dimensions:min_width=200,min_height=200'],
+            'sinotifico_supervisa' => ['nullable', 'boolean'],
         ] + $this->reglasAgenda($request), $this->mensajes());
 
         // Uno mismo no se quita el acceso ni el rol de Super Usuario: no habría
@@ -253,6 +259,8 @@ class UsuarioController extends Controller
             // de permisos (el DELETE a mano borraba por model_id sin tipo).
             $user->syncRoles($this->conRolBase($datos['roles']));
             $this->guardarAgenda($user, $datos);
+            // Supervisión en SíNotifico: sólo para Enlaces elegidos a mano.
+            Acceso::elegirSupervisor($user, $request->boolean('sinotifico_supervisa'));
         });
 
         TablaPosiciones::olvidar();
