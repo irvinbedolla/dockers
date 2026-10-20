@@ -142,17 +142,11 @@ class NotificacionesController extends Controller
                       ->orWhere('m.nombre', 'like', $t);
                 });
             })
-            // Próxima audiencia del expediente: sirve para priorizar.
-            ->leftJoinSub(
-                DB::table('audiencias')
-                    ->select('id_solicitud', DB::raw('MIN(fecha) as proxima'))
-                    ->where('fecha', '>=', Carbon::today()->toDateString())
-                    ->groupBy('id_solicitud'),
-                'a', 'a.id_solicitud', '=', 'c.id_solicitud'
-            );
+            // Audiencia a la que se cita a esta parte
+            ->leftJoin('audiencias as a', 'a.id', '=', 'c.audiencia_id');
 
         match ($orden) {
-            'audiencia' => $consulta->orderByRaw('a.proxima IS NULL')->orderBy('a.proxima')->orderByDesc('c.created_at'),
+            'audiencia' => $consulta->orderByRaw('a.fecha IS NULL')->orderBy('a.fecha')->orderByDesc('c.created_at'),
             'antiguos'  => $consulta->orderBy('c.created_at'),
             default     => $consulta->orderByDesc('c.created_at'),
         };
@@ -163,7 +157,7 @@ class NotificacionesController extends Controller
                 'c.nombre', 'c.primer_apellido', 'c.segundo_apellido',
                 'c.colonia', 'c.tipo_vialidad', 'c.calle', 'c.n_ext', 'c.n_int', 'c.cp',
                 'm.nombre as municipio', 'e.nombre as estado',
-                'c.estatus', 'c.tipo_notificacion', 'c.created_at', 'a.proxima',
+                'c.estatus', 'c.tipo_notificacion', 'c.created_at', 'a.fecha as proxima',
             ])
             ->paginate((int) ($filtros['por'] ?? 25))
             ->withQueryString();

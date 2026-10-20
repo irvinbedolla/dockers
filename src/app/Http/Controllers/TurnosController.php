@@ -584,7 +584,11 @@ class TurnosController extends Controller
         $año_actual = date('Y');
         $fecha_actual = date('Y-m-d');
         $hora_actual =  date("H:i:s");
-        $user = auth()->user()->id;
+        $user = 0;
+        if(auth()->user()){
+            $user = auth()->user()->id;
+        }
+        
         if(isset($data["folio"])){
             request()->validate([
                 'folio'             => 'required',
@@ -705,7 +709,7 @@ class TurnosController extends Controller
                 'num_ext'           => $data["N_Ext"],
                 'codigo_postal'     => $data["cp"],
                 'idAbogado'         => $data["folio"],
-                'user_id'           => $user,
+                'user_id'           => $user ?? 0,
                 'fecha'             => $data["fecha"],
                 'hora'              => $data["hora"],
                 'hora_fin'          => $data["hora"],
