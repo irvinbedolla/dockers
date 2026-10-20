@@ -1,11 +1,12 @@
 {{--
-    Aviso al conciliador: "Llegó el trabajador de MOR/SOL/2026/03940 · Sala 4".
-    Lo marca la recepción en "Audiencias de hoy" (App\Support\LlegadasAudiencia).
-    Va en el layout para que le llegue esté en la pantalla que esté.
+    Aviso al conciliador: "Llegó el trabajador · Audiencia MOR/SOL/2026/03940 · Sala 4".
+    Lo marca la recepción en "Llegadas hoy" (App\Support\LlegadasHoy), o sale
+    solo cuando la persona valida con QR su cita de ratificación. Va en el
+    layout para que le llegue esté en la pantalla que esté.
 
-    Consulta /audiencias/llegadas/avisos cada 30 s; cada llegada se avisa una
-    sola vez (se recuerda en el navegador por día). Suena una campana y, si la
-    persona dio permiso, sale también la notificación del sistema operativo.
+    Consulta /llegadas/avisos cada 30 s; cada llegada se avisa una sola vez
+    (se recuerda en el navegador por día). Suena una campana y, si la persona
+    dio permiso, sale también la notificación del sistema operativo.
 --}}
 <div id="llegadaAvisos" class="llegada-avisos" aria-live="polite"></div>
 <style>
@@ -21,12 +22,15 @@
     .llegada-aviso__cerrar { border: 0; background: none; font-size: 18px; color: #8A9899; line-height: 1; cursor: pointer; }
     .llegada-aviso__nombre { font-size: 16px; font-weight: 800; margin: 4px 0 2px; overflow-wrap: anywhere; }
     .llegada-aviso__texto { color: #5E6E6F; }
-    .llegada-aviso__acciones { margin-top: 10px; }
+    .llegada-aviso__acciones { margin-top: 10px; display: flex; gap: 6px; flex-wrap: wrap; }
     .llegada-aviso__acciones .btn { font-size: 12.5px; font-weight: 700; background: #496163; color: #fff; }
+    .llegada-aviso__acciones .btn.is-claro { background: #fff; color: #496163; border: 1px solid #C9D3D3; }
+    @media (max-width: 576px) { .llegada-avisos { left: 10px; right: 10px; max-width: none; } }
 </style>
 <script>
 (function () {
-    var URL = @json(route('audiencias.llegadas_avisos'));
+    var URL = @json(route('llegadas.avisos'));
+    var URL_LISTA = @json(route('llegadas.index'));
     var caja = document.getElementById('llegadaAvisos');
     var clave = 'llegadas-avisos-' + new Date().toISOString().slice(0, 10);
 
@@ -47,22 +51,25 @@
     }
 
     function mostrar(a) {
+        var donde = a.tipo;
         var div = document.createElement('div');
         div.className = 'llegada-aviso';
         div.setAttribute('role', 'alert');
         div.innerHTML =
-            '<div class="llegada-aviso__cabeza"><span class="llegada-aviso__titulo"><i class="bi bi-person-check-fill me-1"></i>Llegó ' + esc(a.quien) + '</span>' +
+            '<div class="llegada-aviso__cabeza"><span class="llegada-aviso__titulo"><i class="bi ' + (a.cita ? 'bi-qr-code' : 'bi-person-check-fill') + ' me-1"></i>Llegó ' + esc(a.quien) + '</span>' +
             '<button type="button" class="llegada-aviso__cerrar" aria-label="Cerrar">&times;</button></div>' +
             '<div class="llegada-aviso__nombre">' + esc(a.nombre) + '</div>' +
-            '<div class="llegada-aviso__texto">' + esc(a.nue) + ' · ' + esc(a.sala || 'Sin sala') + ' · audiencia de las ' + esc(a.hora) + '<br>Registrado a las ' + esc(a.llegada) + '</div>' +
-            '<div class="llegada-aviso__acciones"><a class="btn btn-sm" href="' + esc(a.url) + '">Ir a la audiencia</a></div>';
+            '<div class="llegada-aviso__texto">' + esc(donde) + ' · ' + esc(a.nue) + (a.lugar ? ' · ' + esc(a.lugar) : '') + ' · a las ' + esc(a.hora) +
+            '<br>' + (a.cita ? 'Validó su cita en recepción' : 'Registrado') + ' a las ' + esc(a.llegada) + '</div>' +
+            '<div class="llegada-aviso__acciones">' + (a.url ? '<a class="btn btn-sm" href="' + esc(a.url) + '">Abrir</a>' : '') +
+            '<a class="btn btn-sm is-claro" href="' + esc(URL_LISTA) + '">Ver llegadas</a></div>';
         div.querySelector('.llegada-aviso__cerrar').addEventListener('click', function () { div.remove(); });
         caja.appendChild(div);
         setTimeout(function () { if (div.isConnected) { div.remove(); } }, 15 * 60 * 1000);
 
         campana();
         if ('Notification' in window && Notification.permission === 'granted') {
-            try { new Notification('Llegó ' + a.quien + ' · ' + a.sala, { body: a.nombre + ' · ' + a.nue, tag: 'llegada-' + a.id }); } catch (e) {}
+            try { new Notification('Llegó ' + a.quien + ' · ' + donde, { body: a.nombre + ' · ' + a.nue, tag: 'llegada-' + a.id }); } catch (e) {}
         }
     }
 
