@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Sinotifico\LoginRequest;
 use App\Http\Resources\Sinotifico\UsuarioResource;
 use App\Models\User;
+use App\Support\Sinotifico\Acceso;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -45,9 +46,9 @@ class AuthController extends Controller
             ], 403);
         }
 
-        if (! $usuario->hasAnyRole(config('sinotifico.roles'))) {
+        if (! Acceso::puedeEntrar($usuario)) {
             return response()->json([
-                'message' => 'Tu cuenta no tiene acceso a SíNotifico. Pide al administrador el rol de Notificador.',
+                'message' => 'Tu cuenta no tiene acceso a SíNotifico. Pide al administrador que te lo habilite.',
             ], 403);
         }
 

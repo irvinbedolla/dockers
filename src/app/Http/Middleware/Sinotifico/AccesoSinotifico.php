@@ -2,17 +2,21 @@
 
 namespace App\Http\Middleware\Sinotifico;
 
+use App\Support\Sinotifico\Acceso;
 use Closure;
 use Illuminate\Http\Request;
 
 /**
  * Revisa en cada petición, no solo al iniciar sesión, que la cuenta siga
- * pudiendo usar SíNotifico: si la desactivan o le quitan el rol mientras
+ * pudiendo usar SíNotifico: si la desactivan o le quitan el permiso mientras
  * tiene un token vigente, el siguiente intento se rechaza.
+ *
+ * Con parámetro limita la ruta a una parte de la app:
+ *   AccesoSinotifico::class.':notificar'  sólo quien tiene lista de campo.
  */
 class AccesoSinotifico
 {
-    public function handle(Request $request, Closure $next)
+    public function handle(Request $request, Closure $next, ?string $parte = null)
     {
         $usuario = $request->user();
 
@@ -32,8 +36,12 @@ class AccesoSinotifico
             return response()->json(['message' => 'Este acceso no es válido para SíNotifico.'], 403);
         }
 
-        if (! $usuario->hasAnyRole(config('sinotifico.roles'))) {
+        if (! Acceso::puedeEntrar($usuario)) {
             return response()->json(['message' => 'Tu cuenta no tiene acceso a SíNotifico.'], 403);
+        }
+
+        if ($parte === 'notificar' && ! Acceso::notifica($usuario)) {
+            return response()->json(['message' => 'Esta sección es sólo para notificadores.'], 403);
         }
 
         return $next($request);

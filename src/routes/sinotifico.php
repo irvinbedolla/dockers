@@ -26,8 +26,10 @@ Route::middleware(['auth:sanctum', AccesoSinotifico::class])->group(function () 
     Route::post('/auth/logout', [AuthController::class, 'logout'])->name('auth.logout');
 
     // Lista de trabajo del notificador (visitas agrupadas por domicilio).
-    Route::get('/diligencias', [DiligenciaController::class, 'index'])->name('diligencias.index');
-    Route::get('/diligencias/{id}', [DiligenciaController::class, 'show'])
-        ->whereNumber('id')
-        ->name('diligencias.show');
+    Route::middleware(AccesoSinotifico::class.':notificar')->group(function () {
+        Route::get('/diligencias', [DiligenciaController::class, 'index'])->name('diligencias.index');
+        Route::get('/diligencias/{id}', [DiligenciaController::class, 'show'])
+            ->whereNumber('id')
+            ->name('diligencias.show');
+    });
 });

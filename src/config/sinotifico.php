@@ -11,15 +11,10 @@
 return [
 
     /*
-     | Roles de SICONCILIO que pueden entrar a SíNotifico. El notificador usa
-     | la app en campo; delegados y administradores la usan para supervisar.
+     | Quién entra y qué ve no se configura aquí: son los permisos
+     | sinotifico_* de Spatie (ver App\Support\Sinotifico\Acceso y la
+     | migración 2026_10_20_120000_add_sinotifico_permissions).
      */
-    'roles' => [
-        'Notificador',
-        'Delegado',
-        'Administrador',
-        'Super Usuario',
-    ],
 
     /*
      | Vigencia del token en horas. Una jornada de campo completa, con margen
