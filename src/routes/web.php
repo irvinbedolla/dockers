@@ -493,6 +493,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
      |-- SUB-GRUPO DE CONTROL DE ACCESO: AUXILIARES DE CONCILIACIÓN / RECEPCIÓN
      |-- (Pre-registro presencial, validación inicial y asignación de turnos rápidos)
      |*/
+    // Todos los turnos con filtro por día, sede, tipo, origen y estatus. Los
+    // mismos roles de recepción que antes (con turnos_ver) y además Directivo,
+    // que sólo consulta y descarga la agenda.
+    Route::get('/turnos/todos', TurnosHistorialController::class)->name('turnos.todos')
+        ->middleware([Recepcion::middleware('Super Usuario', 'Auxiliar', 'Recepción General', 'Turnos', 'Recepción Morelia 1', 'Recepción Morelia 2', 'Directivo'), 'role_or_permission:Directivo|turnos_ver']);
+    // Descargar la agenda de un día o una semana en Excel, PDF o imagen (App\Support\AgendaTurnos).
+    Route::get('/turnos/agenda/descargar', App\Http\Controllers\TurnosAgendaController::class)->name('turnos.agenda.descargar')
+        ->middleware('role:'.implode('|', App\Support\AgendaTurnos::ROLES));
+
     // Los roles de recepción se suman desde App\Support\Recepcion: un nombre
     // con acento mal escrito aquí no truena, sólo deja fuera a la persona.
     Route::middleware([Recepcion::middleware('Super Usuario', 'Auxiliar', 'Recepción General', 'Turnos', 'Recepción Morelia 1', 'Recepción Morelia 2')])->group(function () {
@@ -508,8 +517,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/turnos/create',             [RecepcionController::class, 'create'])->name('turnos.create');
         Route::post('/turnos/store',             [RecepcionController::class, 'store_turnos'])->name('turnos.store');
         Route::get('/turnos/turnos',             [RecepcionController::class, 'turnos'])->name('turnos.listado');
-        // Todos los turnos con filtro por día, sede, tipo, origen y estatus.
-        Route::get('/turnos/todos',              TurnosHistorialController::class)->name('turnos.todos')->middleware('permission:turnos_ver');
         Route::post('/turnos/{id}/reasignar',    ReasignarTurnoController::class)->name('turnos.reasignar')->whereNumber('id')->middleware('permission:turnos_asignar');
         Route::get('/turnos/activo/{id}',        [RecepcionController::class, 'activo'])->name('turnos.activo');
         Route::get('/turnos/noactivo/{id}',      [RecepcionController::class, 'noactivo'])->name('turnos.noactivo');
