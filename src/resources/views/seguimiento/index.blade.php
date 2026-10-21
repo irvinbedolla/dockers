@@ -58,6 +58,18 @@
                             @endforeach
                         </select>
                     </div>
+                    <div>
+                        <label for="sgFecha">Fecha</label>
+                        <input type="date" id="sgFecha" name="fecha" class="form-control" value="{{ $filtros['fecha'] }}" onchange="this.form.submit()">
+                    </div>
+                    <div>
+                        <label for="sgEn">Fecha de</label>
+                        <select id="sgEn" name="en" class="form-select" onchange="if (this.form.fecha.value) this.form.submit()">
+                            @foreach ($fechas as $valor => $texto)
+                                <option value="{{ $valor }}" @selected(($filtros['en'] ?: 'registro') === $valor)>{{ $texto }}</option>
+                            @endforeach
+                        </select>
+                    </div>
                     <button type="submit" class="btn tn-boton-dorado"><i class="bi bi-search me-1"></i> Buscar</button>
                     @if (array_filter($filtros))
                         <a href="{{ route('seguimiento') }}" class="btn btn-outline-secondary">Limpiar</a>
