@@ -118,6 +118,7 @@ Route::post('/poderes/publico',                     [PoderController::class, 'pu
 // citas_exito, turnos_publico), así que cambiar la dirección no toca nada más.
 Route::get('/generar-cita',                         [HomeController::class, 'citas'])->name('citas');
 Route::post('/generar-cita',                        [HomeController::class, 'turnos_publico'])->name('turnos_publico');
+Route::get('/fuera-de-servicio',                    [HomeController::class, 'fuera_servicio'])->name('citas.fuera_servicio');
 Route::get('/generar-cita/exito',                   [HomeController::class, 'citas_exito'])->name('citas_exito');
 // Direcciones viejas. Las GET ya circulan en el portal, correos y carteles:
 // 301 a la nueva. El POST se conserva para quien tenga el formulario abierto

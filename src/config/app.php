@@ -85,6 +85,13 @@ return [
     'locale' => 'es',
 
     /*
+    | Citas en línea (/generar-cita). Apagadas, la página sólo muestra un
+    | aviso de "fuera de servicio" y pide registrarse de forma presencial.
+    | Para volver a abrirlas: CITAS_EN_LINEA=true en el .env.
+    */
+    'citas_en_linea' => (bool) env('CITAS_EN_LINEA', false),
+
+    /*
     |--------------------------------------------------------------------------
     | Application Fallback Locale
     |--------------------------------------------------------------------------

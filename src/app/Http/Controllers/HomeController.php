@@ -222,12 +222,28 @@ class HomeController extends Controller
     }
 
     public function citas(){
+        // Citas en línea apagadas (CITAS_EN_LINEA): aviso de fuera de servicio.
+        if (! config('app.citas_en_linea')) {
+            return redirect()->route('citas.fuera_servicio');
+        }
         $estados = Estados::all();
         $municipios=Municipios::where('estado',16)->get();
         return view('turnos', compact('estados', 'municipios'));
     }
 
+    public function fuera_servicio(){
+        // Ya reabiertas, la liga vieja no se queda en el aviso.
+        if (config('app.citas_en_linea')) {
+            return redirect()->route('citas');
+        }
+        return response()->view('fuera_servicio')->header('Cache-Control', 'no-store');
+    }
+
     public function turnos_publico(Request $request){
+        // Citas en línea apagadas: no se registra nada aunque manden el formulario.
+        if (! config('app.citas_en_linea')) {
+            return redirect()->route('citas.fuera_servicio');
+        }
         
         
         if (!$request->filled('fecha_turno') || !$request->filled('hora_turno')) {
