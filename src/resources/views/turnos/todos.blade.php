@@ -186,6 +186,9 @@
                     <button type="button" class="btn btn-outline-secondary shadow-sm" data-bs-toggle="modal" data-bs-target="#agModal">
                         <i class="bi bi-download me-1"></i> Descargar agenda
                     </button>
+                    <button type="button" class="btn btn-outline-secondary shadow-sm" data-bs-toggle="modal" data-bs-target="#ocModal">
+                        <i class="bi bi-calendar3 me-1"></i> Ocupación
+                    </button>
                 @endif
                 @can('turnos_crear')
                     <a class="btn tn-boton-dorado shadow-sm" href="{{ route('nueva_cita') }}" onclick="crear_turnos();">
@@ -413,6 +416,11 @@
         'opciones'     => $opciones,
         'urlReasignar' => route('turnos.reasignar', ['id' => '__ID__']),
     ])
+
+    {{-- Calendario de ocupación de la agenda (App\Support\OcupacionTurnos). Mismos permisos que la descarga. --}}
+    @if (\App\Support\AgendaTurnos::puedeDescargar(auth()->user()))
+        @include('turnos._ocupacion')
+    @endif
 
     {{-- Descargar la agenda de un día o una semana (App\Support\AgendaTurnos). --}}
     @if (\App\Support\AgendaTurnos::puedeDescargar(auth()->user()))

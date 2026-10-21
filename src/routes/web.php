@@ -501,6 +501,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // consulta y descarga la agenda, y Delegado si se le da turnos_ver (su región).
     Route::get('/turnos/todos', TurnosHistorialController::class)->name('turnos.todos')
         ->middleware([Recepcion::middleware('Super Usuario', 'Auxiliar', 'Recepción General', 'Turnos', 'Recepción Morelia 1', 'Recepción Morelia 2', 'Directivo', 'Delegado'), 'role_or_permission:Directivo|turnos_ver']);
+    // Ocupación de la agenda de turnos contra el cupo de Horarios de citas (App\Support\OcupacionTurnos).
+    Route::get('/turnos/ocupacion', App\Http\Controllers\TurnosOcupacionController::class)->name('turnos.ocupacion')
+        ->middleware('role:'.implode('|', [...App\Support\AgendaTurnos::ROLES, 'Delegado']));
     // Descargar la agenda de un día o una semana en Excel, PDF o imagen (App\Support\AgendaTurnos).
     Route::get('/turnos/agenda/descargar', App\Http\Controllers\TurnosAgendaController::class)->name('turnos.agenda.descargar')
         ->middleware('role:'.implode('|', [...App\Support\AgendaTurnos::ROLES, 'Delegado']));
