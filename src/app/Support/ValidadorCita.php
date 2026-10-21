@@ -87,6 +87,29 @@ class ValidadorCita
         return ['resultado' => 'confirmada', 'cambio' => true];
     }
 
+    /**
+     * ¿Quién puede reactivar una cita expirada? La recepción y el Super
+     * Usuario (como el escáner). Con $cita, además que sea de sus sedes y de
+     * los trámites que recibe (Morelia 02 sólo ratificaciones).
+     */
+    public static function puedeReactivar(?User $usuario, ?Recepcion $cita = null): bool
+    {
+        if ($usuario === null || ! $usuario->hasAnyRole(['Super Usuario', ...\App\Support\Recepcion::ROLES])) {
+            return false;
+        }
+        if ($cita === null) {
+            return true;
+        }
+
+        $sedes = $usuario->hasAnyRole(\App\Support\Recepcion::SUPERVISAN)
+            ? \App\Support\Recepcion::TODAS_LAS_SEDES
+            : \App\Support\Recepcion::sedes($usuario);
+        $tramites = \App\Support\Recepcion::tramitesVisibles($usuario);
+
+        return in_array($cita->delegacion, $sedes, true)
+            && ($tramites === null || in_array($cita->tipo, $tramites, true));
+    }
+
     /** ¿Se puede atender de todos modos? Sólo si expiró hoy. */
     public static function puedeAtenderTarde(Recepcion $cita, ?Carbon $ahora = null): bool
     {

@@ -220,8 +220,14 @@ class RecepcionController extends Controller
             ->limit(6)
             ->get(['id', 'consecutivo', 'solicitante', 'tipo', 'hora', 'lugar_auxiliar', 'origen', 'delegacion']);
 
+        // Quien lleva 30 min o más en sala sin que lo llamen, y cuántas se
+        // atendieron aunque llegaron tarde (escáner → "Atenderla de todos modos").
+        $tramitesHoy    = \App\Support\Recepcion::tramitesVisibles($user);
+        $esperandoMucho = \App\Support\SigueEnModulo::esperandoEnSedes($sedesVisibles, $tramitesHoy, now());
+        $llegaronTarde  = \App\Support\FlujoCita::conTardias() ? (clone $hoy)->where('llego_tarde', 1)->count() : 0;
+
         return view('turnos.index',compact('auxiliares_morelia','total', 'last_hora_solicitud', 'last_hora_ratificacion', 'last_sede_solicitud', 'last_sede_ratificacion',
-            'sedesVisibles', 'hoyPorEstatus', 'hoyEnLinea', 'proximos'));
+            'sedesVisibles', 'hoyPorEstatus', 'hoyEnLinea', 'proximos', 'esperandoMucho', 'llegaronTarde'));
     }
 
     public function create()
@@ -1027,14 +1033,20 @@ class RecepcionController extends Controller
                 default                   => '3', // tarde, expirada
             };
 
-            return view('recepcion.confirmacion', compact('cita', 'bandera', 'fecha_hora'));
+            // Expiró hoy y la persona está aquí: recepción puede atenderla de todos modos.
+            $puedeTarde = $bandera === '3'
+                && \App\Support\ValidadorCita::puedeReactivar(auth()->user(), $cita)
+                && \App\Support\ValidadorCita::puedeAtenderTarde($cita->fresh());
+
+            return view('recepcion.confirmacion', compact('cita', 'bandera', 'fecha_hora', 'puedeTarde'));
         }
         catch (\Throwable $e) {
             $bandera = '4';
             $cita = null;
             $fecha_hora = null;
+            $puedeTarde = false;
 
-            return view('recepcion.confirmacion', compact('cita', 'bandera', 'fecha_hora'));
+            return view('recepcion.confirmacion', compact('cita', 'bandera', 'fecha_hora', 'puedeTarde'));
         }
     }
 }

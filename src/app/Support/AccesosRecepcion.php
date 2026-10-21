@@ -12,7 +12,8 @@ use Illuminate\Support\Str;
  *
  *   1. Crear un turno, ya con el trámite elegido;
  *   2. Turnos de hoy, desglosados por trámite;
- *   3. Citas en línea de hoy;
+ *   3. Citas en línea de hoy (y si alguien lleva mucho en sala sin que lo
+ *      llamen, o se atendió aunque llegó tarde);
  *   4. Su pantalla de sala de espera.
  *
  * Qué trámites ve cada una:
@@ -121,6 +122,10 @@ class AccesosRecepcion
                 'total'     => (clone $enLinea)->count(),
                 'porLlegar' => (clone $enLinea)->where('estatus', 'pendiente')->count(),
                 'enSala'    => (clone $enLinea)->where('estatus', 'confirmada')->count(),
+                'tarde'     => FlujoCita::conTardias() ? (clone $hoyTurnos)->where('llego_tarde', 1)->count() : 0,
+                // De todos los turnos de hoy (en línea o ventanilla): 30 min o más en sala sin que los llamen.
+                'esperando' => SigueEnModulo::esperandoEnSedes($sedes, $tramites ?: ['__ninguno__'], now())->count(),
+                'urlEspera' => route('turnos'),
                 'url'       => route('turnos.todos', ['fecha' => $hoy, 'origen' => 'linea']),
             ],
             'pantallas' => collect($sedes)

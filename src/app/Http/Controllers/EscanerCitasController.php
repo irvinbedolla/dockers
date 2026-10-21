@@ -7,6 +7,7 @@ use App\Support\FolioCita;
 use App\Support\Recepcion;
 use App\Support\ValidadorCita;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -100,8 +101,11 @@ class EscanerCitasController extends Controller
      * "Atenderla de todos modos": la cita expiró hoy (llegó tarde o el módulo
      * la marcó como no presentada) y la persona sí está. Vuelve a la fila de
      * su módulo, después de quienes llegaron a tiempo.
+     *
+     * Lo usan el escáner (JSON), Todos los turnos (JSON) y la página que abre
+     * el QR desde el celular (formulario: regresa a esa página).
      */
-    public function atenderTarde(Request $request, int $id): JsonResponse
+    public function atenderTarde(Request $request, int $id): JsonResponse|RedirectResponse
     {
         $cita = Cita::find($id);
         abort_unless($cita && in_array($cita->delegacion, $this->sedes($request), true), 404);
@@ -110,6 +114,10 @@ class EscanerCitasController extends Controller
         abort_if($tramites !== null && ! in_array($cita->tipo, $tramites, true), 403);
 
         if (! ValidadorCita::atenderTarde($cita, $request->user())) {
+            if (! $request->expectsJson()) {
+                return back()->with('atenderTarde', ['ok' => false, 'mensaje' => 'Sólo se reactiva una cita que expiró hoy.']);
+            }
+
             return response()->json([
                 'resultado' => 'error',
                 'titulo'    => 'Ya no se puede reactivar',
@@ -122,6 +130,11 @@ class EscanerCitasController extends Controller
 
         $cita = $cita->fresh();
         $modulo = $cita->lugar_auxiliar ? "Pasa a {$cita->lugar_auxiliar}" : 'Pasa a sala';
+
+        if (! $request->expectsJson()) {
+            return redirect()->route('citas.confirmar', $cita->id)
+                ->with('atenderTarde', ['ok' => true, 'mensaje' => $modulo.'. Va después de quienes llegaron a tiempo.']);
+        }
 
         return response()->json([
             'resultado' => 'confirmada_tarde',

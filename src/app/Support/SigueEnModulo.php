@@ -5,6 +5,7 @@ namespace App\Support;
 use App\Models\Modulo;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
@@ -42,6 +43,48 @@ class SigueEnModulo
         $desde = $llego->greaterThan($hora) ? $llego : $hora;
 
         return max(0, (int) floor($desde->diffInSeconds($ahora, false) / 60));
+    }
+
+    /**
+     * Para las pantallas de recepción (Inicio de Turnos e Inicio): quienes
+     * llevan ESPERA_ALERTA min o más en sala sin que los llamen en esas sedes,
+     * los que más llevan primero.
+     *
+     * @param  array<int, string>  $sedes
+     * @param  array<int, string>|null  $tramites  null = todos
+     * @return Collection<int, object>  folio, solicitante, tipo, hora, modulo, delegacion, minutos, tarde
+     */
+    public static function esperandoEnSedes(array $sedes, ?array $tramites, Carbon $ahora): Collection
+    {
+        if ($sedes === [] || ! FlujoCita::conSeguimiento()) {
+            return collect();
+        }
+
+        return DB::table('recepcion as r')
+            ->leftJoin('modulos as m', 'm.id', '=', 'r.modulo_id')
+            ->where('r.fecha', $ahora->toDateString())
+            ->whereIn('r.delegacion', $sedes)
+            ->when($tramites, fn ($q, $t) => $q->whereIn('r.tipo', $t))
+            ->where('r.estatus', 'confirmada')
+            ->whereNotNull('r.confirmada_at')
+            ->when(FlujoCita::migrado(), fn ($q) => $q->where('r.es_prueba', 0)->whereNull('r.llamado_at'))
+            ->orderBy('r.hora')
+            ->get(array_merge(
+                ['r.id', 'r.codigo', 'r.consecutivo', 'r.tipo', 'r.fecha', 'r.hora', 'r.estatus', 'r.solicitante', 'r.delegacion', 'r.lugar_auxiliar', 'r.confirmada_at', 'm.nombre as modulo'],
+                FlujoCita::migrado() ? ['r.llamado_at'] : [],
+                FlujoCita::conTardias() ? ['r.llego_tarde'] : []
+            ))
+            ->map(function ($c) use ($ahora) {
+                $c->minutos = self::esperando($c, $ahora);
+                $c->folio   = FolioCita::mostrar($c);
+                $c->modulo  = preg_replace('/^m[oó]dulo\b/i', 'Módulo', (string) ($c->modulo ?: $c->lugar_auxiliar ?: 'Sin módulo'));
+                $c->tarde   = ! empty($c->llego_tarde ?? null);
+
+                return $c;
+            })
+            ->filter(fn ($c) => $c->minutos !== null && $c->minutos >= self::ESPERA_ALERTA)
+            ->sortByDesc('minutos')
+            ->values();
     }
 
     /** Columnas de más que necesita de PantallaEspera::citasVigentes. */

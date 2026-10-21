@@ -46,6 +46,13 @@
             margin-bottom: 4px;
         }
 
+        /* Llegó tarde / cuánto lleva en sala sin que la llamen (Mi módulo usa lo mismo). */
+        .tn-marca { display: inline-block; margin-top: 4px; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+        .tn-marca--tarde { background: #FBF4E1; color: #7A5D10; }
+        .tn-marca--sala  { background: #EEF0F3; color: #5F6B7A; }
+        .tn-marca--espera { background: #FBE3E3; color: #A61B1B; }
+        .tn-tarde-error { display: block; font-size: 11.5px; color: #A61B1B; margin-top: 4px; white-space: normal; }
+
         .tn-dia { display: flex; align-items: stretch; gap: 6px; }
         .tn-dia .form-control { min-width: 150px; }
         .tn-dia .btn { padding-inline: 10px; }
@@ -345,6 +352,9 @@
                                     @php
                                         $enLinea = $turno->origen === 'linea';
                                         $estatus = strtolower((string) $turno->estatus);
+                                        $esHoy   = $turno->fecha === $hoy;
+                                        // Minutos en sala sin que la llamen (sólo hoy); desde 30, en rojo.
+                                        $enSala  = $esHoy ? \App\Support\SigueEnModulo::esperando((object) ['estatus' => $estatus, 'llamado_at' => $turno->llamado_at ?? null, 'confirmada_at' => $turno->confirmada_at ?? null, 'hora' => $turno->hora], $ahora) : null;
                                     @endphp
                                     <tr>
                                         <td class="text-center tn-folio">{{ \App\Support\FolioCita::mostrar($turno) }}</td>
@@ -378,8 +388,21 @@
                                         @if ($multiSede)<td>{{ $turno->delegacion }}</td>@endif
                                         <td class="text-center">
                                             <span class="tn-estatus tn-estatus--{{ $estatus }}">{{ $estatus }}</span>
+                                            @if (! empty($turno->llego_tarde) && $estatus !== 'expirada')
+                                                <br><span class="tn-marca tn-marca--tarde" title="Recepción la atendió aunque llegó tarde">Llegó tarde</span>
+                                            @endif
+                                            @if ($enSala !== null && $enSala > 0)
+                                                <br><span class="tn-marca {{ $enSala >= \App\Support\SigueEnModulo::ESPERA_ALERTA ? 'tn-marca--espera' : 'tn-marca--sala' }}" title="En sala sin que la llamen">En sala {{ $enSala }} min</span>
+                                            @endif
                                         </td>
                                         <td class="text-end text-nowrap">
+                                            @if ($puedeTarde && $esHoy && $estatus === 'expirada')
+                                                <button type="button" class="btn btn-warning btn-sm me-1 tn-tarde" data-url="{{ route('recepcion.escaner.tarde', $turno->id) }}"
+                                                        data-resumen="{{ \App\Support\FolioCita::mostrar($turno) }} · {{ $turno->solicitante }}"
+                                                        title="La persona sí está: vuelve a la fila de su módulo, después de quienes llegaron a tiempo">
+                                                    <i class="bi bi-person-check-fill"></i> Atender de todos modos
+                                                </button>
+                                            @endif
                                             @if ($puedeAcuse)
                                                 <a class="btn btn-outline-secondary btn-sm" href="{{ route('citas.documento', $turno->id) }}" target="_blank" rel="noopener" title="Acuse de la cita">
                                                     <i class="bi bi-file-pdf"></i> Acuse
@@ -530,6 +553,26 @@
                 }
             });
         })();
+    </script>
+    <script>
+        // "Atender de todos modos": la cita expiró hoy y la persona sí está (mismo
+        // endpoint que el escáner). Al terminar se recarga la lista.
+        document.querySelectorAll('.tn-tarde').forEach(function (b) {
+            b.addEventListener('click', async function () {
+                if (!confirm('¿Atender de todos modos ' + b.dataset.resumen + '?\nVuelve a la fila de su módulo, después de quienes llegaron a tiempo.')) return;
+                b.disabled = true;
+                var token = document.querySelector('meta[name="csrf-token"]');
+                var aviso = function (t) { var s = document.createElement('span'); s.className = 'tn-tarde-error'; s.textContent = t; b.after(s); };
+                try {
+                    var r = await fetch(b.dataset.url, { method: 'POST', credentials: 'same-origin',
+                        headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': token ? token.content : '' } });
+                    var d = r.ok ? await r.json() : null;
+                    if (d && d.resultado === 'confirmada_tarde') { location.reload(); return; }
+                    aviso(d ? d.mensaje : (r.status === 419 ? 'La sesión expiró; recarga la página.' : 'No se pudo (' + r.status + ').'));
+                } catch (e) { aviso('Sin conexión.'); }
+                b.disabled = false;
+            });
+        });
     </script>
     <script>
         // Elegir un día o un filtro de lista ya filtra; no hace falta el botón.
