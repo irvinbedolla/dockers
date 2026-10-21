@@ -275,6 +275,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/recepcion/escanear',            [EscanerCitasController::class, 'index'])->name('recepcion.escaner');
         Route::post('/recepcion/escanear/validar',   [EscanerCitasController::class, 'validar'])->name('recepcion.escaner.validar')
             ->middleware('throttle:90,1');
+        // Cita que expiró hoy pero la persona sí está: atenderla de todos modos.
+        Route::post('/recepcion/escanear/{id}/tarde', [EscanerCitasController::class, 'atenderTarde'])->name('recepcion.escaner.tarde')
+            ->whereNumber('id')->middleware('throttle:30,1');
     });
 
     // Mi perfil: lo poco que cada quien puede cambiar de su propia cuenta.

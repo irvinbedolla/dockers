@@ -53,6 +53,14 @@ class FlujoCita
         return $listo ??= \Illuminate\Support\Facades\Schema::hasColumn('recepcion', 'atendido_por');
     }
 
+    /** ¿Ya corrió la migración de recepcion.llego_tarde (atender una cita que expiró)? */
+    public static function conTardias(): bool
+    {
+        static $listo = null;
+
+        return $listo ??= \Illuminate\Support\Facades\Schema::hasColumn('recepcion', 'llego_tarde');
+    }
+
     /** ¿El flujo aplica a esta cita? Siempre, una vez corrida la migración. */
     public static function aplicaA(object $cita): bool
     {

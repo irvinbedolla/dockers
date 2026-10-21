@@ -138,6 +138,9 @@ class AgendaTurnos
         if (FlujoCita::conResponsables()) {
             array_push($columnas, 'r.creado_por_nombre', 'r.atendido_por_nombre');
         }
+        if (FlujoCita::conTardias()) {
+            $columnas[] = 'r.llego_tarde';
+        }
 
         return DB::table('recepcion as r')
             ->leftJoin('modulos as m', 'm.id', '=', 'r.modulo_id')
@@ -204,6 +207,17 @@ class AgendaTurnos
         return $dias;
     }
 
+    /** Estatus para la agenda; distingue las que se atendieron aunque llegaron tarde. */
+    private static function etiqueta(string $estatus, bool $tarde): string
+    {
+        $texto = self::ESTATUS[$estatus] ?? Str::ucfirst($estatus);
+        if (! $tarde || $estatus === 'expirada') {
+            return $texto;
+        }
+
+        return $estatus === 'confirmada' ? 'Llegó tarde' : $texto.' (llegó tarde)';
+    }
+
     public static function dia(Carbon|string $fecha): string
     {
         $c = $fecha instanceof Carbon ? $fecha : Carbon::parse($fecha);
@@ -246,7 +260,8 @@ class AgendaTurnos
             'atendio'       => $atendio ? Str::title(mb_strtolower($atendio)) : '',
             'creo'          => ($r->creado_por_nombre ?? null) ?: ($r->origen === 'linea' ? 'La persona (en línea)' : ''),
             'estatus_clave' => $estatus,
-            'estatus'       => self::ESTATUS[$estatus] ?? Str::ucfirst($estatus),
+            // Se atendió aunque llegó tarde: no es lo mismo que "no llegó".
+            'estatus'       => self::etiqueta($estatus, ! empty($r->llego_tarde)),
             'excepcion'     => $esExcepcion,
             'motivo'        => $esExcepcion ? (SeguimientoCaso::motivoExcepcion($r) ?? 'Sin motivo capturado') : '',
         ];

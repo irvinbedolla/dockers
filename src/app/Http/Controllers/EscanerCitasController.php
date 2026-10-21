@@ -82,11 +82,52 @@ class EscanerCitasController extends Controller
             ]);
         }
 
+        $cita = $cita->fresh();
+
         return response()->json([
             'resultado' => $resultado,
             'titulo'    => $this->titulo($resultado),
             'mensaje'   => $this->mensaje($resultado, $cita),
-            'cita'      => $this->resumen($cita->fresh()),
+            'cita'      => $this->resumen($cita),
+            // Expiró hoy pero la persona está aquí: se ofrece atenderla de todos modos.
+            'atenderTarde' => ValidadorCita::puedeAtenderTarde($cita)
+                ? route('recepcion.escaner.tarde', $cita->id)
+                : null,
+        ]);
+    }
+
+    /**
+     * "Atenderla de todos modos": la cita expiró hoy (llegó tarde o el módulo
+     * la marcó como no presentada) y la persona sí está. Vuelve a la fila de
+     * su módulo, después de quienes llegaron a tiempo.
+     */
+    public function atenderTarde(Request $request, int $id): JsonResponse
+    {
+        $cita = Cita::find($id);
+        abort_unless($cita && in_array($cita->delegacion, $this->sedes($request), true), 404);
+
+        $tramites = Recepcion::tramitesVisibles($request->user());
+        abort_if($tramites !== null && ! in_array($cita->tipo, $tramites, true), 403);
+
+        if (! ValidadorCita::atenderTarde($cita, $request->user())) {
+            return response()->json([
+                'resultado' => 'error',
+                'titulo'    => 'Ya no se puede reactivar',
+                'mensaje'   => 'Sólo se reactiva una cita que expiró hoy.',
+                'cita'      => $this->resumen($cita->fresh()),
+            ]);
+        }
+
+        Log::info('Cita expirada atendida de todos modos', ['cita' => $cita->id, 'por' => $request->user()->id]);
+
+        $cita = $cita->fresh();
+        $modulo = $cita->lugar_auxiliar ? "Pasa a {$cita->lugar_auxiliar}" : 'Pasa a sala';
+
+        return response()->json([
+            'resultado' => 'confirmada_tarde',
+            'titulo'    => 'Se atenderá aunque llegó tarde',
+            'mensaje'   => $modulo.'. Va después de quienes llegaron a tiempo.',
+            'cita'      => $this->resumen($cita),
         ]);
     }
 
