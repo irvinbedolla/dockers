@@ -126,6 +126,8 @@
     @livewireStyles
 </head>
 <body onload="validarcheckfolio()">
+    {{-- Con $turno: Mi módulo abre este formulario con los datos de la ratificación para revisarlos (MiModuloController::ratificacion). --}}
+    @php $enAtencion = isset($turno); @endphp
     <!-- Navbar Superior -->
     <nav class="navbar navbar-expand-lg navbar-light navbar-institucional fixed-top px-4">
         <div class="container-fluid">
@@ -142,9 +144,26 @@
             <section class="section">
                 <div class="card shadow-sm border-0">
                     <div class="card-header card-header-guinda py-3">
-                        <h4 class="m-0 text-center fs-5"><i class="bi bi-calendar-check me-2"></i>Genera tu Cita para Ratificación</h4>
+                        @if ($enAtencion)
+                            <h4 class="m-0 text-center fs-5"><i class="bi bi-pencil-square me-2"></i>Revisión de la ratificación · Folio {{ \App\Support\FolioCita::mostrar($cita) }}</h4>
+                        @else
+                            <h4 class="m-0 text-center fs-5"><i class="bi bi-calendar-check me-2"></i>Genera tu Cita para Ratificación</h4>
+                        @endif
                     </div>
                     <div class="card-body p-4">
+                        @if ($enAtencion)
+                            <div class="alert alert-info mb-4">
+                                <i class="bi bi-info-circle-fill me-2"></i>
+                                Estos son los datos que se capturaron al agendar la cita. Revísalos con la persona, corrige lo necesario y da clic en <b>Finalizar</b>;
+                                después, en Mi módulo, da clic en <b>Terminar</b> para confirmar la ratificación.
+                            </div>
+                            @if ($errors->any())
+                                <div class="alert alert-danger mb-4">
+                                    <strong>Revisa los datos:</strong>
+                                    <ul class="mb-0">@foreach ($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul>
+                                </div>
+                            @endif
+                        @endif
                         <!-- Alertas Flash Mejoradas -->
                         @if(session()->has('success'))
                             <div class="alert alert-success border-2 shadow-sm rounded-3 p-4 mb-4" role="alert">
@@ -179,7 +198,7 @@
                                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                             </div>
                         @endif
-                        <form class="needs-validation" novalidate method="POST" action="{{ route('turnos.publico') }}" enctype="multipart/form-data" id="formRatificacion">
+                        <form class="needs-validation" novalidate method="POST" action="{{ $enAtencion ? route('mi_modulo.ratificacion.guardar', ['id' => $cita->id]) : route('turnos.publico') }}" enctype="multipart/form-data" id="formRatificacion">
                             @csrf
                             <!-- Folio Interno -->
                             <input type="hidden" id="origen" name="origen" value="{{ $origen }}">
@@ -194,7 +213,7 @@
                                 </div>
                                 <div class="col-12 col-md-4">
                                     <label for="folio_input" class="form-label fw-bold">Folio Interno de Registro <span class="text-danger">*</span></label>
-                                    <input type="number" name="folio" id="folio_input" class="form-control" placeholder="Ingrese número de folio" required>
+                                    <input type="number" name="folio" id="folio_input" class="form-control" placeholder="Ingrese número de folio" required @if ($enAtencion) readonly @endif>
                                     <div class="invalid-feedback">El folio es obligatorio.</div>
                                 </div>
                             </div>
@@ -282,8 +301,11 @@
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label fw-bold">Subir Identificación (PDF máx. 10MB) <span class="text-danger">*</span></label>
-                                        <input type="file" id="documentoidentificacion" name="documentoidentificacion" class="form-control" accept=".pdf" required>
+                                        <input type="file" id="documentoidentificacion" name="documentoidentificacion" class="form-control" accept=".pdf" @unless ($enAtencion) required @endunless>
                                         <div class="invalid-feedback">Adjunte identificación en formato PDF.</div>
+                                        @if ($enAtencion && $turno->documentoidentificacion)
+                                            <div class="form-text">Ya se cargó al agendar; sube otra sólo si quieres reemplazarla.</div>
+                                        @endif
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label fw-bold">Documento de la CURP (Opcional) (PDF máx. 10MB) </label>
@@ -489,7 +511,7 @@
                                     </div>
                                     <div class="col-md-3">
                                         <label class="form-label fw-bold">Sede para el trámite <span class="text-danger">*</span></label>
-                                        <select id="sede" name="sede" class="form-select" onchange="modalCalendar();" required>
+                                        <select id="sede" name="sede" class="form-select" onchange="modalCalendar();" required @if ($enAtencion) disabled title="La sede, fecha y hora son las de la cita" @endif>
                                             <option value="">Seleccione Sede</option>
                                             <option value="Morelia">Morelia</option>
                                             <option value="Uruapan">Uruapan</option>
@@ -501,7 +523,7 @@
                                         <div class="invalid-feedback">Sede obligatoria.</div>
                                     </div>
                                     <div class="col-md-3 d-flex align-items-end">
-                                        <button type="button" id="botonCalendar" class="btn btn-guinda w-100 py-2" data-bs-toggle="modal" data-bs-target="#calendarModal" disabled>
+                                        <button type="button" id="botonCalendar" class="btn btn-guinda w-100 py-2" data-bs-toggle="modal" data-bs-target="#calendarModal" disabled @if ($enAtencion) hidden @endif>
                                             <i class="bi bi-calendar3 me-2"></i>Seleccionar Fecha/Horario
                                         </button>
                                     </div>
@@ -526,12 +548,22 @@
 
                                 <!-- Botones de Acción -->
                                 <div class="text-center pt-3 border-top">
-                                    <button id="btnGuardar" type="submit" class="btn btn-oro btn-lg px-5 me-2">
-                                        <i class="bi bi-box-arrow-down me-1"></i> Guardar Cita
-                                    </button>
-                                    <a href="{{ route('publico') }}" class="btn btn-outline-secondary btn-lg px-4">
-                                        Regresar
-                                    </a>
+                                    @if ($enAtencion)
+                                    <p class="text-muted small font-italic">Presiona "Finalizar" para confirmar los datos cambiados/actuales de la ratificación</p>
+                                        <button id="btnGuardar" type="submit" class="btn btn-oro btn-lg px-5 me-2">
+                                            <i class="bi bi-check2-circle me-1"></i> Finalizar
+                                        </button>
+                                        <a href="{{ route('mi_modulo', ['modulo' => $cita->modulo_id]) }}" class="btn btn-outline-secondary btn-lg px-4">
+                                            Regresar a Mi módulo
+                                        </a>
+                                    @else
+                                        <button id="btnGuardar" type="submit" class="btn btn-oro btn-lg px-5 me-2">
+                                            <i class="bi bi-box-arrow-down me-1"></i> Guardar Cita
+                                        </button>
+                                        <a href="{{ route('publico') }}" class="btn btn-outline-secondary btn-lg px-4">
+                                            Regresar
+                                        </a>
+                                    @endif
                                 </div>
                             </div>
                         </form>
@@ -941,5 +973,113 @@
             }
         });
     </script>
+    @if ($enAtencion)
+    @php
+        $prellenado = [
+            'folio'               => $turno->idAbogado,
+            'primero_trabajador'  => $turno->primero_trabajador,
+            'segundo_trabajador'  => $turno->segundo_trabajador,
+            'trabajador'          => $turno->trabajador,
+            'nacionalidad'        => $turno->nacionalidad,
+            'trabajador_edad'     => $turno->edad,
+            'trabajador_sexo'     => $turno->sexo,
+            'trabajador_curp'     => $turno->trabajador_curp,
+            'tipo_identificacion' => $turno->tipo_identificacion,
+            'tipo_otros'          => $turno->tipo_otros,
+            'num_identificacion'  => $turno->num_identificacion,
+            'estado_rat'          => $turno->estado_rat,
+            'municipio_rat'       => $turno->municipio_rat,
+            'tipo_vialidad'       => $turno->tipo_vialidad,
+            'vialidad_calle'      => $turno->calle,
+            'colonia'             => $turno->colonia,
+            'N_Ext'               => $turno->num_ext,
+            'N_Int'               => $turno->num_int,
+            'cp'                  => $turno->codigo_postal,
+            'JLCA'                => $turno->JLCA,
+            'fecha_inicio'        => $turno->fecha_inicio,
+            'fecha_termino'       => $turno->fecha_termino,
+            'categoria'           => $turno->categoria,
+            'frecuencia'          => $turno->frecuencia,
+            'salario'             => $turno->salario,
+            'dias'                => $turno->dias,
+            'motivo'              => $turno->motivo,
+            'monto'               => $turno->monto,
+            'tipo_pago'           => $turno->tipo_pago,
+            'Especifique'         => $turno->Especifique,
+            'sede'                => $turno->delegacion ?: $cita->delegacion,
+            'fecha'               => $cita->fecha ? $cita->fecha->format('Y-m-d') : $turno->fecha,
+            'hora'                => $cita->hora ? $cita->hora->format('H:i') : $turno->hora,
+        ];
+        $prellenadoPrestaciones = collect(['Aguinaldo', 'Vacaciones', 'PrimaVacacional', 'PagoPTU', 'Gratificación', 'PrimaAntigüedad', 'Otras'])
+                ->mapWithKeys(fn ($c) => [$c => (bool) $turno->{$c}]);
+    @endphp
+    <script>
+        // Mi módulo: llena el formulario con los datos de la ratificación (o con lo
+        // que se envió, si regresó por un error de validación). Va después del
+        // script de arriba para que sus escuchadores ya estén puestos.
+        document.addEventListener('DOMContentLoaded', function () {
+            var fecha = function (v) { return v ? String(v).substring(0, 10) : ''; };
+            var datos = @json($prellenado);
+            var prestaciones = @json($prellenadoPrestaciones);
+            var previo = @json(session()->getOldInput());
+            if (previo && Object.keys(previo).length) {
+                Object.keys(prestaciones).forEach(function (c) { prestaciones[c] = c in previo; });
+                Object.keys(previo).forEach(function (k) { if (k in datos) { datos[k] = previo[k]; } });
+            }
+            datos.fecha_inicio = fecha(datos.fecha_inicio);
+            datos.fecha_termino = fecha(datos.fecha_termino);
+
+            var form = document.getElementById('formRatificacion');
+            // Los <select> aceptan el valor aunque venga con otras mayúsculas.
+            function poner(campo, valor) {
+                if (!campo || valor === null || valor === undefined) { return; }
+                valor = String(valor);
+                if (campo.tagName === 'SELECT') {
+                    var op = Array.prototype.find.call(campo.options, function (o) { return o.value === valor; })
+                        || Array.prototype.find.call(campo.options, function (o) { return o.value.toUpperCase() === valor.toUpperCase(); });
+                    if (op) { campo.value = op.value; }
+                } else {
+                    campo.value = valor;
+                }
+            }
+            Object.keys(datos).forEach(function (k) {
+                if (k === 'municipio_rat' || k === 'fecha' || k === 'hora') { return; }
+                poner(form.querySelector('[name="' + k + '"]'), datos[k]);
+            });
+            Object.keys(prestaciones).forEach(function (k) {
+                var cb = form.querySelector('input[type="checkbox"][name="' + k + '"]');
+                if (cb) { cb.checked = prestaciones[k]; }
+            });
+
+            // Muestra/oculta las secciones que dependen de otros campos.
+            ['tipo_identificacion', 'motivo', 'otras', 'nacionalidad'].forEach(function (id) {
+                var el = document.getElementById(id);
+                if (el) { el.dispatchEvent(new Event('change')); }
+            });
+
+            // Los municipios se cargan por AJAX al cambiar el estado: se elige el
+            // municipio en cuanto llegan las opciones.
+            var municipio = document.getElementById('municipio_rat');
+            $('select[name="estado_rat"]').trigger('change');
+            var intentos = 0;
+            var espera = setInterval(function () {
+                var lista = Array.prototype.some.call(municipio.options, function (o) { return o.value === String(datos.municipio_rat); });
+                if (lista || ++intentos > 50) {
+                    clearInterval(espera);
+                    poner(municipio, datos.municipio_rat);
+                }
+            }, 100);
+
+            // La sede, fecha y hora son las de la cita.
+            document.getElementById('fechaSeleccionada').value = datos.fecha || '';
+            document.getElementById('horaSeleccionada').value = datos.hora || '';
+            document.getElementById('fechaResumen').textContent = datos.fecha || '';
+            document.getElementById('horaResumen').textContent = datos.hora || '';
+            document.getElementById('resumenCita').style.display = 'block';
+
+            document.getElementById('datos_formulario').style.display = 'block';
+        });
+    </script>
+    @endif
 </body>
 </html>

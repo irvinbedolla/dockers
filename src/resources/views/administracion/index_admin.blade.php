@@ -62,6 +62,13 @@
             'titulo' => 'Cambiar fecha de cumplimiento',
             'texto'  => 'Reprogramar un cumplimiento agendado.',
             'roles'  => ['Super Usuario', 'Delegado', 'Enlace'],
+        ],
+        [
+            'ruta'   => 'historial_ediciones',
+            'icono'  => 'bi-clock-history',
+            'titulo' => 'Historial de ediciones',
+            'texto'  => 'Cambios guardados al revisar solicitudes y audiencias.',
+            'roles'  => ['Super Usuario'],
         ]
     ];
 

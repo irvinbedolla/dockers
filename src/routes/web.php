@@ -52,6 +52,7 @@ use App\Http\Controllers\IncidenciasBusquedaController;
 use App\Http\Controllers\AsistenciaController;
 use App\Http\Controllers\RetrocesoHistorialController;
 use App\Http\Controllers\BitacoraAdministracionController;
+use App\Http\Controllers\HistorialEdicionController;
 use App\Http\Controllers\HistorialEdicionRatificacionController;
 
 
@@ -198,7 +199,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/mi-modulo/datos',                      [App\Http\Controllers\MiModuloController::class, 'datos'])->name('mi_modulo.datos');
     Route::get('/mi-modulo/avisos',                     [App\Http\Controllers\MiModuloController::class, 'avisos'])->name('mi_modulo.avisos');
     Route::post('/mi-modulo/citas/{id}/solicitud',      [App\Http\Controllers\MiModuloController::class, 'prellenar'])->name('mi_modulo.prellenar')->whereNumber('id');
-    Route::post('/mi-modulo/prellenado/descartar',      [App\Http\Controllers\MiModuloController::class, 'descartar'])->name('mi_modulo.descartar');
+    // Ratificación en atención: formulario de la cita con los datos de su turno (turnos.recepcion_id).
+    Route::get('/mi-modulo/citas/{id}/ratificacion',    [App\Http\Controllers\MiModuloController::class, 'ratificacion'])->name('mi_modulo.ratificacion')->whereNumber('id');
+    Route::post('/mi-modulo/citas/{id}/ratificacion',   [App\Http\Controllers\MiModuloController::class, 'guardarRatificacion'])->name('mi_modulo.ratificacion.guardar')->whereNumber('id');
+    Route::post('/mi-modulo/prellenado/descartar',     [App\Http\Controllers\MiModuloController::class, 'descartar'])->name('mi_modulo.descartar');
     // Fase 4: Llamar / Iniciar atención / Terminar / No se presentó (mueven la pantalla de espera).
     Route::post('/mi-modulo/citas/{id}/{accion}',       [App\Http\Controllers\MiModuloController::class, 'accion'])->name('mi_modulo.accion')
         ->whereNumber('id')->whereIn('accion', App\Http\Controllers\MiModuloController::ACCIONES)->middleware('throttle:60,1');
@@ -361,6 +365,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/administracion/historial/{tipo}',      [BitacoraAdministracionController::class, 'index'])->name('administracion_historial')
             ->where('tipo', 'borrar_cumplimiento|cambio_fecha_audiencia|cambio_fecha_cumplimiento')
             ->middleware('role:Super Usuario');
+
+        // Historial de ediciones guardadas desde "Revisar audiencia": solo Super Usuario
+        Route::get('/administracion/historial-ediciones',      [HistorialEdicionController::class, 'index'])->name('historial_ediciones')->middleware('role:Super Usuario');
+        Route::get('/administracion/historial-ediciones/{id}', [HistorialEdicionController::class, 'show'])->name('historial_ediciones_detalle')->middleware('role:Super Usuario');
     });
 
     /*
