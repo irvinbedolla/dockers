@@ -74,6 +74,12 @@
         .mm-tabla tr.is-espera td { background: #FFF6F5; }
         .mm-mensaje { font-size: 13px; font-weight: 600; padding: 8px 12px; border-radius: 10px; margin-bottom: 12px; background: #E5F3EA; color: #1E7B3C; }
         .mm-mensaje.is-error { background: #FBE9E7; color: #9A2B1C; }
+        /* Aviso "cita sin datos de ratificación" (SweetAlert). */
+        .sweet-alert .mm-aviso { text-align: left; font-size: 15px; line-height: 1.5; color: #3F4A4B; }
+        .sweet-alert .mm-aviso p { margin: 0 0 10px; }
+        .sweet-alert .mm-aviso ol { margin: 0 0 4px; padding-left: 22px; }
+        .sweet-alert .mm-aviso li { margin-bottom: 6px; }
+        .sweet-alert .mm-aviso a { font-weight: 700; }
         @media (max-width: 900px) { .mm-par { grid-template-columns: 1fr; } }
     </style>
 @endsection
@@ -109,7 +115,7 @@
             @if (! $modulo)
                 <div class="tn-tarjeta mm-vacio">No tienes un módulo activo asignado. Pídelo en Administración → Módulos.</div>
             @else
-                <div class="mm-mensaje" id="mmMensaje" role="status" hidden></div>
+                <div class="mm-mensaje" id="mmMensaje" role="status" @if (! session('success')) hidden @endif>{{ session('success') }}</div>
                 <div class="mm-alerta" id="mmAlerta" role="alert" hidden></div>
                 <div class="mm-par">
                     <div class="tn-tarjeta mm-turno" id="mmActual"></div>
@@ -144,6 +150,7 @@
     var URL = @json($urlDatos);
     var URL_PRELLENAR = @json(route('mi_modulo.prellenar', ['id' => '__ID__']));
     var URL_ACCION = @json(route('mi_modulo.accion', ['id' => '__ID__', 'accion' => '__ACCION__']));
+    var URL_RATIFICACION = @json(route('mi_modulo.ratificacion', ['id' => '__ID__']));
     var TOKEN = @json(csrf_token());
     var datos = @json($datos);
 
@@ -173,6 +180,7 @@
         caja.hidden = false;
     }
     function vigente(c) { return c.estatus === 'pendiente' || c.estatus === 'confirmada'; }
+    function esRatificacion(c) { return c.tipo === 'Ratificación' || c.tipo === 'Ratificacion'; }
     function faltan(c) {
         if (c.estatus === 'atendido' || c.estatus === 'expirada') { return '—'; }
         if (c.minutos > 0) { return c.minutos + ' min'; }
@@ -181,6 +189,10 @@
     }
     // Fase 2: abre la captura de siempre con los datos de la cita.
     function iniciar(c) {
+        // Ratificación en atención: volver al formulario con los datos de su turno.
+        if (c.flujoNuevo && esRatificacion(c) && vigente(c) && c.enAtencion) {
+            return '<a href="' + esc(URL_RATIFICACION.replace('__ID__', c.id)) + '" class="btn tn-boton-dorado"><i class="bi bi-pencil-square me-1"></i> Revisar datos de la ratificación</a>';
+        }
         if (!c.flujoNuevo || c.tipo !== 'Solicitud' || !vigente(c)) { return ''; }
         return '<form method="POST" action="' + esc(URL_PRELLENAR.replace('__ID__', c.id)) + '">' +
             '<input type="hidden" name="_token" value="' + esc(TOKEN) + '">' +
@@ -276,13 +288,32 @@
             .then(function (j) { datos = j; pintar(); })
             .catch(function () { document.getElementById('mmActualizado').textContent = 'Sin conexión, reintentando…'; });
     }
-    function mensaje(texto, error) {
+    function mensaje(texto, error, largo) {
         var m = document.getElementById('mmMensaje');
         m.textContent = texto;
         m.classList.toggle('is-error', !!error);
         m.hidden = false;
         clearTimeout(mensaje.t);
-        mensaje.t = setTimeout(function () { m.hidden = true; }, error ? 9000 : 5000);
+        mensaje.t = setTimeout(function () { m.hidden = true; }, error || largo ? 12000 : 5000);
+    }
+    if (!document.getElementById('mmMensaje').hidden) {
+        mensaje.t = setTimeout(function () { document.getElementById('mmMensaje').hidden = true; }, 12000);
+    }
+    // La cita de ratificación se agendó sin el formulario (p. ej. desde recepción): no hay datos que revisar.
+    function avisoSinRatificacion(a) {
+        var titulo = 'Sin datos de ratificación';
+        var paso1 = a.urlNueva
+            ? 'Captúrala en <a href="' + esc(a.urlNueva) + '" target="_blank" rel="noopener">Ratificaciones → Nueva Ratificación</a>.'
+            : 'Captúrala en <b>Ratificaciones → Nueva Ratificación</b>.';
+        var html = '<div class="mm-aviso">' +
+            '<p>La cita <b>' + esc(a.folio) + '</b> se agendó sin llenar el formulario de ratificación (por ejemplo, desde recepción), por eso no hay información que mostrar.</p>' +
+            '<p><b>Qué hacer:</b></p><ol><li>' + paso1 + '</li><li>Busca la ratificación en el apartado de <b>Confirmadas</b> y concluye.</li><li>Regresa a Mi módulo y da clic en <b>Terminar</b>.</li></ol></div>';
+        if (typeof swal === 'function') {
+            swal({ title: titulo, text: html, html: true, type: 'warning', confirmButtonText: 'Entendido' });
+        } else {
+            window.alert(titulo + '\n\nLa cita ' + a.folio + ' se agendó sin llenar el formulario de ratificación (por ejemplo, desde recepción).\n' +
+                '1. Captúrala en Ratificaciones → Nueva Ratificación.\n2. Busca la ratificación en el apartado de Confirmadas y concluye.\n3. Regresa a Mi módulo y da clic en Terminar.');
+        }
     }
     function confirmar(titulo, texto, si) {
         if (typeof swal === 'function') {
@@ -301,7 +332,10 @@
         })
             .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { ok: r.ok, j: j, status: r.status }; }); })
             .then(function (res) {
-                if (res.ok) { mensaje(res.j.mensaje || 'Listo.'); }
+                // Ratificación con turno ligado: se abre su formulario para revisarlo.
+                if (res.ok && res.j.ir) { window.location.href = res.j.ir; return; }
+                if (res.ok && res.j.aviso) { avisoSinRatificacion(res.j.aviso); }
+                if (res.ok) { mensaje(res.j.mensaje || 'Listo.', false, accion === 'terminar' && /Confirmadas/.test(res.j.mensaje || '')); }
                 else if (res.status === 419) { mensaje('La sesión expiró; recarga la página.', true); }
                 else { mensaje(res.j.message || 'No se pudo completar la acción.', true); }
                 actualizar();
@@ -325,6 +359,9 @@
 
     pintar();
     setInterval(actualizar, 20000);
+    @if (session('aviso_ratificacion'))
+        avisoSinRatificacion(@json(session('aviso_ratificacion')));
+    @endif
 
     // Fase 3: las notificaciones del sistema operativo piden permiso con un clic.
     var permiso = document.getElementById('mmPermiso');

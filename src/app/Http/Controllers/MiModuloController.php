@@ -169,6 +169,16 @@ class MiModuloController extends Controller
 
         PantallaEspera::olvidar((string) $cita->delegacion);
 
+        // Ratificaciones: al iniciar se abre el formulario de la cita con los
+        // datos de su turno; al terminar, la ratificación queda confirmada.
+        $turno = self::esRatificacion($cita) && in_array($accion, ['atender', 'terminar'], true)
+            ? $this->turnoDeCita($cita)
+            : null;
+        if ($turno && $accion === 'terminar') {
+            \App\Services\HistorialRatificacionRecorder::actualizar($turno, ['estatus' => 'Confirmado'],
+                'Atención terminada en Mi módulo (folio '.FolioCita::mostrar($cita).')');
+        }
+
         \Illuminate\Support\Facades\Log::info('flujo_cita.'.$accion, [
             'cita'    => $cita->id,
             'folio'   => FolioCita::mostrar($cita),
@@ -185,7 +195,126 @@ class MiModuloController extends Controller
             'ausente'  => 'Folio '.$folio.' marcado como no presentado.',
         ];
 
+        if (self::esRatificacion($cita) && $accion === 'atender') {
+            return response()->json($turno
+                ? ['ok' => true, 'mensaje' => $mensajes[$accion], 'ir' => route('mi_modulo.ratificacion', ['id' => $cita->id])]
+                : ['ok' => true, 'mensaje' => $mensajes[$accion], 'aviso' => $this->avisoSinRatificacion($cita)]);
+        }
+        if ($turno && $accion === 'terminar') {
+            $mensajes['terminar'] .= ' La ratificación quedó confirmada: revísala en Ratificaciones → Confirmadas.';
+        }
+
         return response()->json(['ok' => true, 'mensaje' => $mensajes[$accion]]);
+    }
+
+    /**
+     * Ratificación en atención: el formulario de citas/{origen} con los datos
+     * de su turno (turnos.recepcion_id) para revisarlos y corregirlos.
+     */
+    public function ratificacion(Request $request, int $id)
+    {
+        [$cita, $turno] = $this->ratificacionEnAtencion($request, $id);
+
+        return view('citas', [
+            'estados'    => \App\Models\Estados::all(),
+            'municipios' => \App\Models\Municipios::all(),
+            'origen'     => 'modulo',
+            'turno'      => $turno,
+            'cita'       => $cita,
+        ]);
+    }
+
+    /** "Finalizar" del formulario: guarda los cambios y regresa a Mi módulo para terminar. */
+    public function guardarRatificacion(Request $request, int $id)
+    {
+        [$cita, $turno] = $this->ratificacionEnAtencion($request, $id);
+
+        $request->validate([
+            'primero_trabajador'      => 'required',
+            'trabajador'              => 'required',
+            'trabajador_edad'         => 'required',
+            'trabajador_sexo'         => 'required',
+            'trabajador_curp'         => 'required',
+            'tipo_identificacion'     => 'required',
+            'num_identificacion'      => 'required',
+            'documentoidentificacion' => 'nullable|file|mimes:pdf|max:10240',
+            'cuantificacion'          => 'nullable|file|mimes:pdf|max:10240',
+            'fecha_inicio'            => 'required',
+            'categoria'               => 'required',
+            'monto'                   => 'required',
+            'frecuencia'              => 'required',
+            'tipo_pago'               => 'required',
+            'dias'                    => 'required',
+            'JLCA'                    => 'required',
+            'motivo'                  => 'required',
+            'salario'                 => 'required',
+            'municipio_rat'           => 'required',
+            'estado_rat'              => 'required',
+            'tipo_vialidad'           => 'required',
+            'vialidad_calle'          => 'required',
+            'colonia'                 => 'required',
+            'N_Ext'                   => 'required',
+            'cp'                      => 'required',
+        ]);
+
+        $mayus = fn (?string $v) => $v === null ? null : mb_strtoupper($v);
+        $prestacion = fn (string $campo) => $request->has($campo) && $request->input('motivo') === 'Pago de prestaciones' ? 1 : 0;
+
+        $cambios = [
+            'primero_trabajador'  => $mayus($request->input('primero_trabajador')),
+            'segundo_trabajador'  => $mayus($request->input('segundo_trabajador')),
+            'trabajador'          => $mayus($request->input('trabajador')),
+            'nacionalidad'        => $request->input('nacionalidad'),
+            'edad'                => $request->input('trabajador_edad'),
+            'sexo'                => $request->input('trabajador_sexo'),
+            'trabajador_curp'     => $mayus($request->input('trabajador_curp')),
+            'tipo_identificacion' => $request->input('tipo_identificacion'),
+            'tipo_otros'          => $request->input('tipo_identificacion') === 'Otro' ? $request->input('tipo_otros') : null,
+            'num_identificacion'  => $mayus($request->input('num_identificacion')),
+            'estado_rat'          => $request->input('estado_rat'),
+            'municipio_rat'       => $request->input('municipio_rat'),
+            'tipo_vialidad'       => $request->input('tipo_vialidad'),
+            'calle'               => $request->input('vialidad_calle'),
+            'colonia'             => $request->input('colonia'),
+            'num_ext'             => $request->input('N_Ext'),
+            'num_int'             => $request->input('N_Int'),
+            'codigo_postal'       => $request->input('cp'),
+            'JLCA'                => $request->input('JLCA'),
+            'fecha_inicio'        => $request->input('fecha_inicio'),
+            'fecha_termino'       => $request->input('fecha_termino') ?: null,
+            'categoria'           => $mayus($request->input('categoria')),
+            'frecuencia'          => $request->input('frecuencia'),
+            'salario'             => $request->input('salario'),
+            'dias'                => $request->input('dias'),
+            'motivo'              => $request->input('motivo'),
+            'monto'               => $request->input('monto'),
+            'tipo_pago'           => $request->input('tipo_pago'),
+            'Aguinaldo'           => $prestacion('Aguinaldo'),
+            'Vacaciones'          => $prestacion('Vacaciones'),
+            'PrimaVacacional'     => $prestacion('PrimaVacacional'),
+            'PagoPTU'             => $prestacion('PagoPTU'),
+            'Gratificación'       => $prestacion('Gratificación'),
+            'PrimaAntigüedad'     => $prestacion('PrimaAntigüedad'),
+            'Otras'               => $prestacion('Otras'),
+            'Especifique'         => $prestacion('Otras') ? $request->input('Especifique') : null,
+        ];
+
+        // Los documentos sólo se reemplazan si suben uno nuevo (mismos nombres que store_publico).
+        $curp = $cambios['trabajador_curp'];
+        if ($request->hasFile('documentoidentificacion')) {
+            $cambios['documentoidentificacion'] = $curp.'_IDENTIFICACION.pdf';
+            \Illuminate\Support\Facades\Storage::disk('s3')->putFileAs('documentos_ratificacion/'.$turno->id, $request->file('documentoidentificacion'), $cambios['documentoidentificacion']);
+        }
+        if ($request->hasFile('cuantificacion')) {
+            $cambios['documentoCuanti'] = $curp.'_CUANTIFICACION.pdf';
+            \Illuminate\Support\Facades\Storage::disk('s3')->putFileAs('documentos_ratificacion/'.$turno->id, $request->file('cuantificacion'), $cambios['documentoCuanti']);
+        }
+
+        \App\Services\HistorialRatificacionRecorder::actualizar($turno, $cambios,
+            'Revisión de datos en Mi módulo (folio '.FolioCita::mostrar($cita).')');
+
+        return redirect()->route('mi_modulo', ['modulo' => $cita->modulo_id])
+            ->with('success', 'Datos de la ratificación del folio '.FolioCita::mostrar($cita).' guardados. Da clic en "Terminar" para confirmarla.');
     }
 
     public function descartar(Request $request)
@@ -236,6 +365,58 @@ class MiModuloController extends Controller
             'generado' => $ahora->toIso8601String(),
             'modulos'  => $resumen,
         ])->header('Cache-Control', 'no-store');
+    }
+
+    private static function esRatificacion(object $cita): bool
+    {
+        return in_array($cita->tipo, ['Ratificación', 'Ratificacion'], true);
+    }
+
+    /** El turno (ratificación) que se agendó con esta cita. */
+    private function turnoDeCita(\App\Models\Recepcion $cita): ?\App\Models\Turnos
+    {
+        return \App\Models\Turnos::where('recepcion_id', $cita->id)->latest('id')->first();
+    }
+
+    /**
+     * La cita de ratificación de su módulo, vigente y ya en atención, con su
+     * turno; si no hay turno ligado, regresa a Mi módulo.
+     *
+     * @return array{0: \App\Models\Recepcion, 1: \App\Models\Turnos}
+     */
+    private function ratificacionEnAtencion(Request $request, int $id): array
+    {
+        abort_unless(self::puedeVer($request->user()), 403);
+
+        $cita = \App\Models\Recepcion::findOrFail($id);
+
+        abort_unless($this->esDeSusModulos($request->user(), $cita), 403, 'La cita no es de tu módulo.');
+        abort_unless(self::esRatificacion($cita), 422, 'La cita no es de ratificación.');
+        abort_unless(in_array($cita->estatus, self::VIGENTES, true) && $cita->atencion_inicio_at, 422,
+            'Primero inicia la atención de la cita en Mi módulo.');
+
+        $turno = $this->turnoDeCita($cita);
+        if (! $turno) {
+            abort(redirect()->route('mi_modulo', ['modulo' => $cita->modulo_id])
+                ->with('aviso_ratificacion', $this->avisoSinRatificacion($cita)));
+        }
+
+        return [$cita, $turno];
+    }
+
+    /**
+     * Aviso de Mi módulo cuando la cita de ratificación no tiene turno ligado:
+     * se agendó sin el formulario (p. ej. desde recepción), así que no hay
+     * datos que revisar y hay que capturarla en Ratificaciones → Nueva Ratificación.
+     */
+    private function avisoSinRatificacion(\App\Models\Recepcion $cita): array
+    {
+        return [
+            'folio'    => FolioCita::mostrar($cita),
+            'urlNueva' => request()->user()?->can('ratificaciones_crear')
+                ? route('create_cita', ['origen' => 'interno'])
+                : null,
+        ];
     }
 
     /** Otra cita del mismo módulo ya llamada y sin terminar (se atiende de una en una). */

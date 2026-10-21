@@ -198,7 +198,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/mi-modulo/datos',                      [App\Http\Controllers\MiModuloController::class, 'datos'])->name('mi_modulo.datos');
     Route::get('/mi-modulo/avisos',                     [App\Http\Controllers\MiModuloController::class, 'avisos'])->name('mi_modulo.avisos');
     Route::post('/mi-modulo/citas/{id}/solicitud',      [App\Http\Controllers\MiModuloController::class, 'prellenar'])->name('mi_modulo.prellenar')->whereNumber('id');
-    Route::post('/mi-modulo/prellenado/descartar',      [App\Http\Controllers\MiModuloController::class, 'descartar'])->name('mi_modulo.descartar');
+    // Ratificación en atención: formulario de la cita con los datos de su turno (turnos.recepcion_id).
+    Route::get('/mi-modulo/citas/{id}/ratificacion',    [App\Http\Controllers\MiModuloController::class, 'ratificacion'])->name('mi_modulo.ratificacion')->whereNumber('id');
+    Route::post('/mi-modulo/citas/{id}/ratificacion',   [App\Http\Controllers\MiModuloController::class, 'guardarRatificacion'])->name('mi_modulo.ratificacion.guardar')->whereNumber('id');
+    Route::post('/mi-modulo/prellenado/descartar',     [App\Http\Controllers\MiModuloController::class, 'descartar'])->name('mi_modulo.descartar');
     // Fase 4: Llamar / Iniciar atención / Terminar / No se presentó (mueven la pantalla de espera).
     Route::post('/mi-modulo/citas/{id}/{accion}',       [App\Http\Controllers\MiModuloController::class, 'accion'])->name('mi_modulo.accion')
         ->whereNumber('id')->whereIn('accion', App\Http\Controllers\MiModuloController::ACCIONES)->middleware('throttle:60,1');
