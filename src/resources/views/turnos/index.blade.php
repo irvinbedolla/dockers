@@ -94,6 +94,17 @@
         .tn-pantallas a:hover { background: var(--tn-verde); border-color: var(--tn-verde); color: #fff; }
         .tn-accion__texto { display: block; font-size: 12.5px; opacity: .75; }
 
+        /* Aviso: gente que lleva mucho en sala sin que la llamen (SigueEnModulo::esperandoEnSedes). */
+        .tn-espera {
+            display: flex; gap: 12px; align-items: flex-start;
+            margin-bottom: 16px; padding: 12px 16px; border-radius: 12px;
+            background: #FBE3E3; color: #8A1717; font-size: 13.5px;
+        }
+        .tn-espera > i { font-size: 18px; line-height: 1.2; }
+        .tn-espera ul { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 2px; }
+        .tn-espera b { font-weight: 700; }
+        .tn-espera a { color: inherit; font-weight: 700; }
+
         .tn-cuerpo {
             display: grid;
             grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
@@ -238,6 +249,24 @@
                     @endif
                 </div>
 
+                @if ($esperandoMucho->isNotEmpty())
+                    <div class="tn-espera" role="alert">
+                        <i class="bi bi-hourglass-split" aria-hidden="true"></i>
+                        <div>
+                            <b>{{ $esperandoMucho->count() === 1 ? '1 persona lleva' : $esperandoMucho->count().' personas llevan' }} {{ \App\Support\SigueEnModulo::ESPERA_ALERTA }} min o más en sala sin que la llamen.</b>
+                            Avísale a su módulo.
+                            <ul>
+                                @foreach ($esperandoMucho->take(8) as $e)
+                                    <li>{{ $e->folio }} · {{ $e->solicitante }} · {{ $e->tipo }} de las {{ substr($e->hora, 0, 5) }} → <b>{{ $e->modulo }}</b>@if (count($sedesVisibles) > 1) ({{ $e->delegacion }})@endif · {{ $e->minutos }} min @if ($e->tarde)<span style="opacity:.8">(llegó tarde)</span>@endif</li>
+                                @endforeach
+                            </ul>
+                            @if ($esperandoMucho->count() > 8)
+                                <a href="{{ route('turnos.todos', ['fecha' => $hoyFecha, 'estatus' => 'confirmada']) }}">Ver todas</a>
+                            @endif
+                        </div>
+                    </div>
+                @endif
+
                 <div class="tn-cuerpo">
                     <div class="tn-tarjeta">
                         <p class="tn-titulo-seccion">Hoy</p>
@@ -256,6 +285,12 @@
                                 <span class="tn-cifra__num">{{ $hoyEnLinea }}</span>
                                 <span class="tn-cifra__etiqueta"><span class="tn-origen tn-origen--linea">Citas en línea</span></span>
                             </a>
+                            @if ($llegaronTarde)
+                                <div class="tn-cifra" title="Expiraron, pero recepción las atendió de todos modos">
+                                    <span class="tn-cifra__num">{{ $llegaronTarde }}</span>
+                                    <span class="tn-cifra__etiqueta"><span class="tn-origen" style="background:#FBF4E1;color:#7A5D10;">Llegaron tarde</span></span>
+                                </div>
+                            @endif
                         </div>
                     </div>
 

@@ -99,7 +99,10 @@ class TurnosHistorialController extends Controller
                 'r.correo', 'r.telefono', 'r.origen', 'u.name as auxiliar',
                 'r.modulo_id', 'r.auxiliar as auxiliar_id',
                 // Citas de prueba del flujo nuevo (columna de la fase 0).
-                ...(\App\Support\FlujoCita::migrado() ? ['r.es_prueba'] : []),
+                ...(\App\Support\FlujoCita::migrado() ? ['r.es_prueba', 'r.llamado_at'] : []),
+                // En sala desde cuándo (aviso de espera larga) y si se atendió aunque llegó tarde.
+                ...(\App\Support\FlujoCita::conSeguimiento() ? ['r.confirmada_at'] : []),
+                ...(\App\Support\FlujoCita::conTardias() ? ['r.llego_tarde'] : []),
             ])
             ->paginate(self::POR_PAGINA)
             ->withQueryString();
@@ -119,6 +122,9 @@ class TurnosHistorialController extends Controller
 
         return view('turnos.todos', [
             'opciones'        => $opciones,
+            // "Atenderla de todos modos" para las que expiraron hoy (ValidadorCita::atenderTarde).
+            'puedeTarde'      => \App\Support\ValidadorCita::puedeReactivar($request->user()) && \App\Support\FlujoCita::conTardias(),
+            'ahora'           => now(),
             'turnos'          => $turnos,
             'filtros'         => $filtros,
             'fecha'           => $fecha,

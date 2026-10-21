@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\Recepcion;
+use App\Models\User;
 use Illuminate\Support\Carbon;
 
 /**
@@ -19,6 +20,9 @@ use Illuminate\Support\Carbon;
  * Una cita atendida o confirmada de un día pasado ya no se toca: antes se
  * marcaba expirada al volver a escanear un QR viejo, y eso borraba el dato de
  * que sí se atendió.
+ *
+ * Si expiró hoy (llegó tarde o el módulo la marcó "No se presentó") y la
+ * persona sí está, recepción puede atenderla de todos modos: atenderTarde().
  */
 class ValidadorCita
 {
@@ -81,5 +85,69 @@ class ValidadorCita
         }
 
         return ['resultado' => 'confirmada', 'cambio' => true];
+    }
+
+    /**
+     * ¿Quién puede reactivar una cita expirada? La recepción y el Super
+     * Usuario (como el escáner). Con $cita, además que sea de sus sedes y de
+     * los trámites que recibe (Morelia 02 sólo ratificaciones).
+     */
+    public static function puedeReactivar(?User $usuario, ?Recepcion $cita = null): bool
+    {
+        if ($usuario === null || ! $usuario->hasAnyRole(['Super Usuario', ...\App\Support\Recepcion::ROLES])) {
+            return false;
+        }
+        if ($cita === null) {
+            return true;
+        }
+
+        $sedes = $usuario->hasAnyRole(\App\Support\Recepcion::SUPERVISAN)
+            ? \App\Support\Recepcion::TODAS_LAS_SEDES
+            : \App\Support\Recepcion::sedes($usuario);
+        $tramites = \App\Support\Recepcion::tramitesVisibles($usuario);
+
+        return in_array($cita->delegacion, $sedes, true)
+            && ($tramites === null || in_array($cita->tipo, $tramites, true));
+    }
+
+    /** ¿Se puede atender de todos modos? Sólo si expiró hoy. */
+    public static function puedeAtenderTarde(Recepcion $cita, ?Carbon $ahora = null): bool
+    {
+        return FlujoCita::conTardias()
+            && $cita->estatus === 'expirada'
+            && $cita->fecha->isSameDay($ahora ?? now());
+    }
+
+    /**
+     * Recepción decide atender una cita que expiró hoy: vuelve a "confirmada"
+     * con la hora real de llegada y la marca llego_tarde. En Mi módulo va
+     * después de quienes llegaron a tiempo (PantallaEspera::turnoDeModulo) y
+     * en los reportes se distingue de "no llegó".
+     */
+    public static function atenderTarde(Recepcion $cita, User $quien, ?Carbon $ahora = null): bool
+    {
+        $ahora = $ahora ?? now();
+        if (! self::puedeAtenderTarde($cita, $ahora)) {
+            return false;
+        }
+
+        $cita->update([
+            'estatus'         => 'confirmada',
+            'llego_tarde'     => true,
+            'llego_tarde_por' => $quien->id,
+        ]
+            // Si el módulo ya la había llamado y la marcó "no se presentó", que la vuelva a llamar.
+            + (FlujoCita::migrado() ? ['llamado_at' => null] : [])
+            + (FlujoCita::conSeguimiento() ? ['confirmada_at' => $ahora] : []));
+
+        PantallaEspera::olvidar((string) $cita->delegacion);
+
+        try {
+            LlegadasHoy::desdeCita($cita);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
+        return true;
     }
 }

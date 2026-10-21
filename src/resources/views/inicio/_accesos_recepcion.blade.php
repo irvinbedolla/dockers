@@ -55,6 +55,15 @@
         <div class="ar-chips">
             <span class="ar-chip">Por llegar <b>{{ $accesos['enLinea']['porLlegar'] }}</b></span>
             <span class="ar-chip">En sala <b>{{ $accesos['enLinea']['enSala'] }}</b></span>
+            @if ($accesos['enLinea']['tarde'] ?? 0)
+                <span class="ar-chip" title="Expiraron, pero se atienden de todos modos">Llegaron tarde <b>{{ $accesos['enLinea']['tarde'] }}</b></span>
+            @endif
+            @if ($accesos['enLinea']['esperando'] ?? 0)
+                <a class="ar-chip" href="{{ $accesos['enLinea']['urlEspera'] }}" style="background:#FBE3E3;border-color:#F1BDBD;color:#8A1717;"
+                   title="Llevan {{ \App\Support\SigueEnModulo::ESPERA_ALERTA }} min o más en sala sin que las llamen">
+                    <i class="bi bi-hourglass-split" aria-hidden="true"></i> {{ \App\Support\SigueEnModulo::ESPERA_ALERTA }}+ min en sala <b style="color:inherit">{{ $accesos['enLinea']['esperando'] }}</b>
+                </a>
+            @endif
         </div>
         <a class="ar-pie" href="{{ $accesos['enLinea']['url'] }}">Ver citas en línea <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
     </div>

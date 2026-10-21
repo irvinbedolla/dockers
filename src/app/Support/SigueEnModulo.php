@@ -5,6 +5,7 @@ namespace App\Support;
 use App\Models\Modulo;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
@@ -23,6 +24,69 @@ use Illuminate\Support\Str;
  */
 class SigueEnModulo
 {
+    /** Minutos en sala sin que la llamen a partir de los cuales se avisa al módulo. */
+    public const ESPERA_ALERTA = 30;
+
+    /**
+     * Minutos que lleva en sala sin que la llamen: desde que llegó y confirmó,
+     * o desde su hora si llegó antes (esperar antes de su hora no es retraso
+     * del módulo). null si no está esperando.
+     */
+    public static function esperando(object $c, Carbon $ahora): ?int
+    {
+        if (($c->estatus ?? null) !== 'confirmada' || ! empty($c->llamado_at ?? null) || empty($c->confirmada_at ?? null)) {
+            return null;
+        }
+
+        $llego = Carbon::parse($c->confirmada_at);
+        $hora  = Carbon::parse($ahora->toDateString().' '.substr((string) $c->hora, 0, 8));
+        $desde = $llego->greaterThan($hora) ? $llego : $hora;
+
+        return max(0, (int) floor($desde->diffInSeconds($ahora, false) / 60));
+    }
+
+    /**
+     * Para las pantallas de recepción (Inicio de Turnos e Inicio): quienes
+     * llevan ESPERA_ALERTA min o más en sala sin que los llamen en esas sedes,
+     * los que más llevan primero.
+     *
+     * @param  array<int, string>  $sedes
+     * @param  array<int, string>|null  $tramites  null = todos
+     * @return Collection<int, object>  folio, solicitante, tipo, hora, modulo, delegacion, minutos, tarde
+     */
+    public static function esperandoEnSedes(array $sedes, ?array $tramites, Carbon $ahora): Collection
+    {
+        if ($sedes === [] || ! FlujoCita::conSeguimiento()) {
+            return collect();
+        }
+
+        return DB::table('recepcion as r')
+            ->leftJoin('modulos as m', 'm.id', '=', 'r.modulo_id')
+            ->where('r.fecha', $ahora->toDateString())
+            ->whereIn('r.delegacion', $sedes)
+            ->when($tramites, fn ($q, $t) => $q->whereIn('r.tipo', $t))
+            ->where('r.estatus', 'confirmada')
+            ->whereNotNull('r.confirmada_at')
+            ->when(FlujoCita::migrado(), fn ($q) => $q->where('r.es_prueba', 0)->whereNull('r.llamado_at'))
+            ->orderBy('r.hora')
+            ->get(array_merge(
+                ['r.id', 'r.codigo', 'r.consecutivo', 'r.tipo', 'r.fecha', 'r.hora', 'r.estatus', 'r.solicitante', 'r.delegacion', 'r.lugar_auxiliar', 'r.confirmada_at', 'm.nombre as modulo'],
+                FlujoCita::migrado() ? ['r.llamado_at'] : [],
+                FlujoCita::conTardias() ? ['r.llego_tarde'] : []
+            ))
+            ->map(function ($c) use ($ahora) {
+                $c->minutos = self::esperando($c, $ahora);
+                $c->folio   = FolioCita::mostrar($c);
+                $c->modulo  = preg_replace('/^m[oó]dulo\b/i', 'Módulo', (string) ($c->modulo ?: $c->lugar_auxiliar ?: 'Sin módulo'));
+                $c->tarde   = ! empty($c->llego_tarde ?? null);
+
+                return $c;
+            })
+            ->filter(fn ($c) => $c->minutos !== null && $c->minutos >= self::ESPERA_ALERTA)
+            ->sortByDesc('minutos')
+            ->values();
+    }
+
     /** Columnas de más que necesita de PantallaEspera::citasVigentes. */
     public const COLUMNAS = ['r.delegacion', 'r.exepcion', 'r.solicitante'];
 
@@ -108,6 +172,13 @@ class SigueEnModulo
                 'iniciar' => ! $actual && $siguiente->tipo === 'Solicitud' ? route('mi_modulo.prellenar', $siguiente->id) : null,
             ] : null,
             'antes'     => $antes ? self::persona($antes) : null,
+            // Quien lleva mucho en sala sin que la llamen (aviso al módulo).
+            'esperando' => $suyas
+                ->map(fn ($c) => ['c' => $c, 'min' => self::esperando($c, $ahora)])
+                ->filter(fn ($x) => $x['min'] !== null && $x['min'] >= self::ESPERA_ALERTA)
+                ->map(fn ($x) => self::persona($x['c']) + ['minutos' => $x['min']])
+                ->values()
+                ->all(),
         ];
     }
 
@@ -120,6 +191,7 @@ class SigueEnModulo
             'tipo'    => (string) $c->tipo,
             'hora'    => substr((string) $c->hora, 0, 5),
             'enSala'  => $c->estatus === 'confirmada',
+            'tarde'   => (bool) ($c->llego_tarde ?? false),
             'prueba'  => (bool) ($c->es_prueba ?? false),
         ];
     }

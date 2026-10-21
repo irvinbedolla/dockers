@@ -13,13 +13,15 @@ use Maatwebsite\Excel\Facades\Excel;
 /**
  * Turnos → Todos los turnos → "Descargar agenda": la agenda de un día o de
  * una semana, de una sede o de todas, en Excel, PDF o imagen
- * (App\Support\AgendaTurnos). Sólo Super Usuario y Directivo (ruta).
+ * (App\Support\AgendaTurnos). Super Usuario y Directivo de todas las sedes;
+ * el Delegado con permiso turnos_ver, de su región.
  */
 class TurnosAgendaController extends Controller
 {
     public function __invoke(Request $request)
     {
         $usuario = $request->user();
+        abort_unless(AgendaTurnos::puedeDescargar($usuario), 403);
 
         $f = $request->validate([
             'fecha'     => ['required', 'date_format:Y-m-d'],

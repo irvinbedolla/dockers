@@ -115,7 +115,9 @@ class SeguimientoCaso
      * Todos los casos de sus sedes, del más reciente al más antiguo: cada
      * solicitud (con su cita, si la tiene) y cada cita que todavía no tiene
      * solicitud. Filtros: q (folio de cita, NUE, CURP o nombre), sede y
-     * estado ('tramite', 'resueltos', 'citas' o 'excepcion'). Con
+     * estado ('tramite', 'resueltos', 'citas' o 'excepcion'), y fecha (Y-m-d)
+     * con en: 'registro' (cuándo se creó la solicitud o la cita), 'cita' (el
+     * día de la cita) o 'audiencia' (tiene una audiencia ese día). Con
      * $soloExcepcion, sólo casos de excepción (Conciliación, Género e
      * Igualdad).
      */
@@ -135,6 +137,10 @@ class SeguimientoCaso
         $nombre = $texto !== '' && ! $folio && ! $curp && ! preg_match('/\d/', $texto) && mb_strlen($texto) >= 3;
         $like   = '%'.str_replace(['%', '_'], ['\%', '\_'], mb_strtoupper($texto)).'%';
 
+        $dia = (string) ($filtros['fecha'] ?? '');
+        $en  = $dia !== '' ? ((string) ($filtros['en'] ?? '') ?: 'registro') : '';
+        $deDia = [$dia.' 00:00:00', $dia.' 23:59:59'];
+
         $solicitudes = DB::table('seer_general as g')
             ->leftJoin('recepcion as r', 'r.id', '=', 'g.recepcion_id')
             ->whereIn('g.delegacion', $sedes)
@@ -142,6 +148,11 @@ class SeguimientoCaso
             ->when($estado === 'resueltos', fn ($q) => $q->whereIn('g.estatus', self::RESUELTOS))
             ->when($estado === 'citas', fn ($q) => $q->whereRaw('1 = 0'))
             ->when($excepcion, fn ($q) => $q->where(fn ($w) => $w->where('g.caso_excepcion', 'Si')->orWhere('r.exepcion', 'Si')))
+            ->when($en === 'registro', fn ($q) => $q->where(fn ($w) => $w->whereBetween('g.created_at', $deDia)
+                ->orWhere(fn ($v) => $v->whereNull('g.created_at')->whereDate('g.fecha', $dia))))
+            ->when($en === 'cita', fn ($q) => $q->where('r.fecha', $dia))
+            ->when($en === 'audiencia', fn ($q) => $q->whereExists(fn ($e) => $e->selectRaw(1)->from('audiencias as a')
+                ->whereColumn('a.id_solicitud', 'g.id')->where('a.fecha', $dia)))
             ->when($texto !== '', fn ($q) => $q->where(function ($w) use ($folio, $curp, $nombre, $like) {
                 $w->where('g.NUE', 'like', $like);
                 if ($folio) {
@@ -163,6 +174,10 @@ class SeguimientoCaso
             ->whereNotExists(fn ($q) => $q->selectRaw(1)->from('seer_general as g')->whereColumn('g.recepcion_id', 'r.id'))
             ->when(in_array($estado, ['tramite', 'resueltos'], true), fn ($q) => $q->whereRaw('1 = 0'))
             ->when($excepcion, fn ($q) => $q->where('r.exepcion', 'Si'))
+            ->when($en === 'registro', fn ($q) => $q->whereBetween('r.created_at', $deDia))
+            ->when($en === 'cita', fn ($q) => $q->where('r.fecha', $dia))
+            // Una cita sin solicitud no tiene audiencias.
+            ->when($en === 'audiencia', fn ($q) => $q->whereRaw('1 = 0'))
             ->when($texto !== '', fn ($q) => $q->where(function ($w) use ($folio, $curp, $nombre, $like) {
                 $w->whereRaw('1 = 0');
                 if ($folio) {

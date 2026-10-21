@@ -316,6 +316,8 @@ class MiModuloController extends Controller
                 'r.tipo_caso', 'r.conflicto', 'r.vulnerables', 'r.prestacionSS', 'r.observaciones',
                 'r.llamado_at', 'r.atencion_inicio_at',
                 ...(FlujoCita::conFinAtencion() ? ['r.atencion_fin_at'] : []),
+                ...(FlujoCita::conSeguimiento() ? ['r.confirmada_at'] : []),
+                ...(FlujoCita::conTardias() ? ['r.llego_tarde'] : []),
                 'mu.nombre as municipio',
             ])
             ->map(function ($c) use ($ahora, $hoy, $aviso, $actualId, $sigueId) {
@@ -350,6 +352,9 @@ class MiModuloController extends Controller
                     'esSiguiente' => $c->id === $sigueId,
                     'llamado'     => $c->llamado_at ? substr((string) $c->llamado_at, 11, 5) : null,
                     'enAtencion'  => (bool) $c->atencion_inicio_at,
+                    'llegoTarde'  => (bool) ($c->llego_tarde ?? false),
+                    // Minutos en sala sin que la llamen (aviso si pasa de SigueEnModulo::ESPERA_ALERTA).
+                    'esperando'   => SigueEnModulo::esperando($c, $ahora),
                     // Minutos, para los promedios del día.
                     'espera'      => $c->llamado_at
                         ? max(0, (int) round(Carbon::parse($hoy.' '.$c->hora)->diffInSeconds(Carbon::parse($c->llamado_at), false) / 60))
@@ -372,6 +377,7 @@ class MiModuloController extends Controller
                 'tramites' => implode(', ', (array) $modulo->tramites),
             ],
             'minutosAviso' => $aviso,
+            'esperaAlerta' => SigueEnModulo::ESPERA_ALERTA,
             'duracion'     => (int) HorarioCitas::config($modulo->delegacion, 'Solicitud')->duracion,
             'tiempos'      => $tiempos,
             'generado'     => $ahora->toIso8601String(),
@@ -383,6 +389,7 @@ class MiModuloController extends Controller
                 'atendidas'  => $citas->where('estatus', 'atendido')->count(),
                 'enSala'     => $citas->where('estatus', 'confirmada')->count(),
                 'porLlegar'  => $citas->where('estatus', 'pendiente')->where('minutos', '>=', -5)->count(),
+                'esperandoMucho' => $citas->filter(fn ($c) => $c['esperando'] !== null && $c['esperando'] >= SigueEnModulo::ESPERA_ALERTA)->count(),
                 'esperaProm'   => $promedio('espera'),
                 'atencionProm' => $promedio('duracion'),
             ],

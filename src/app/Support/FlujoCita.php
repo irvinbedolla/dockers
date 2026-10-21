@@ -10,9 +10,10 @@ use App\Models\User;
  *
  * Ya está activo para siempre en todas las sedes, para las citas en línea y
  * las de ventanilla (se quitó el interruptor de Administración → Flujo de
- * citas). Lo único que queda de la etapa de pruebas son las citas de prueba:
- * un Super Usuario las marca en /turnos/nuevo, no salen en la pantalla de
- * espera ni en los conteos y se borran con `php artisan citas:limpiar-pruebas`.
+ * citas). Lo único que queda de la etapa de pruebas son las citas de prueba
+ * (recepcion.es_prueba): las crea `php artisan citas:demo-flujo`, no salen en
+ * la pantalla de espera ni en los conteos y se borran con
+ * `php artisan citas:limpiar-pruebas`.
  */
 class FlujoCita
 {
@@ -50,6 +51,14 @@ class FlujoCita
         static $listo = null;
 
         return $listo ??= \Illuminate\Support\Facades\Schema::hasColumn('recepcion', 'atendido_por');
+    }
+
+    /** ¿Ya corrió la migración de recepcion.llego_tarde (atender una cita que expiró)? */
+    public static function conTardias(): bool
+    {
+        static $listo = null;
+
+        return $listo ??= \Illuminate\Support\Facades\Schema::hasColumn('recepcion', 'llego_tarde');
     }
 
     /** ¿El flujo aplica a esta cita? Siempre, una vez corrida la migración. */

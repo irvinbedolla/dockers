@@ -66,6 +66,12 @@
         .mm-acciones--fila .btn { padding: 2px 9px; font-size: 12px; white-space: nowrap; }
         .mm-chip--llamado { background: #E7EEF9; color: #2A4F8A; }
         .mm-chip--atencion { background: #E5F3EA; color: #1E7B3C; }
+        .mm-chip--tarde { background: #FBF4E1; color: #7A5D10; }
+        .mm-chip--sala { background: #EEF2F2; color: var(--tn-suave); }
+        .mm-chip--espera { background: #FDECEA; color: #B42318; }
+        .mm-alerta { display: flex; gap: 10px; align-items: flex-start; padding: 10px 14px; border-radius: 10px; margin-bottom: 12px; background: #FDECEA; color: #8A1C12; font-size: 13.5px; }
+        .mm-alerta .bi { font-size: 18px; color: #B42318; }
+        .mm-tabla tr.is-espera td { background: #FFF6F5; }
         .mm-mensaje { font-size: 13px; font-weight: 600; padding: 8px 12px; border-radius: 10px; margin-bottom: 12px; background: #E5F3EA; color: #1E7B3C; }
         .mm-mensaje.is-error { background: #FBE9E7; color: #9A2B1C; }
         @media (max-width: 900px) { .mm-par { grid-template-columns: 1fr; } }
@@ -104,6 +110,7 @@
                 <div class="tn-tarjeta mm-vacio">No tienes un módulo activo asignado. Pídelo en Administración → Módulos.</div>
             @else
                 <div class="mm-mensaje" id="mmMensaje" role="status" hidden></div>
+                <div class="mm-alerta" id="mmAlerta" role="alert" hidden></div>
                 <div class="mm-par">
                     <div class="tn-tarjeta mm-turno" id="mmActual"></div>
                     <div class="tn-tarjeta mm-turno" id="mmSiguiente"></div>
@@ -150,7 +157,20 @@
             (c.enLinea ? ' <span class="mm-chip mm-chip--linea">En línea</span>' : '') +
             (c.prueba ? ' <span class="mm-chip mm-chip--prueba">Prueba</span>' : '') +
             (vigente(c) && c.enAtencion ? ' <span class="mm-chip mm-chip--atencion">En atención</span>'
-                : (vigente(c) && c.llamado ? ' <span class="mm-chip mm-chip--llamado">Llamado ' + esc(c.llamado) + '</span>' : ''));
+                : (vigente(c) && c.llamado ? ' <span class="mm-chip mm-chip--llamado">Llamado ' + esc(c.llamado) + '</span>' : '')) +
+            (c.llegoTarde ? ' <span class="mm-chip mm-chip--tarde" title="Recepción la reactivó: va después de quienes llegaron a tiempo">Llegó tarde</span>' : '') +
+            (c.esperando !== null && c.esperando !== undefined
+                ? ' <span class="mm-chip ' + (c.esperando >= datos.esperaAlerta ? 'mm-chip--espera' : 'mm-chip--sala') + '">En sala' + (c.esperando > 0 ? ' ' + esc(c.esperando) + ' min' : '') + '</span>' : '');
+    }
+    // Quien lleva mucho en sala sin que la llamen.
+    function alerta() {
+        var caja = document.getElementById('mmAlerta');
+        var largos = (datos.citas || []).filter(function (c) { return c.esperando !== null && c.esperando >= datos.esperaAlerta; });
+        if (!largos.length) { caja.hidden = true; return; }
+        caja.innerHTML = '<i class="bi bi-hourglass-split"></i><div><b>' + (largos.length === 1 ? '1 persona lleva' : largos.length + ' personas llevan') +
+            ' ' + datos.esperaAlerta + ' min o más esperando en sala sin que la llamen:</b> ' +
+            largos.map(function (c) { return esc(c.folio) + ' · ' + esc(c.solicitante || 'Sin nombre') + ' (' + c.esperando + ' min)'; }).join(', ') + '</div>';
+        caja.hidden = false;
     }
     function vigente(c) { return c.estatus === 'pendiente' || c.estatus === 'confirmada'; }
     function faltan(c) {
@@ -227,6 +247,7 @@
             '</dl>' + (c.flujoNuevo ? acciones(c, false) : iniciar(c));
     }
     function pintar() {
+        alerta();
         document.getElementById('mmActual').innerHTML = ficha(datos.actual, 'Ahora', false);
         document.getElementById('mmSiguiente').innerHTML = ficha(datos.siguiente, 'Sigue', true);
         var k = datos.cifras;
@@ -238,7 +259,8 @@
         document.getElementById('mmLista').innerHTML = datos.citas.length
             ? datos.citas.map(function (c) {
                 var hecha = c.estatus === 'atendido' || c.estatus === 'expirada';
-                return '<tr class="' + (c.esActual ? 'is-actual' : '') + (hecha ? ' is-hecha' : '') + '">' +
+                var largo = c.esperando !== null && c.esperando >= datos.esperaAlerta;
+                return '<tr class="' + (c.esActual ? 'is-actual' : '') + (hecha ? ' is-hecha' : '') + (largo ? ' is-espera' : '') + '">' +
                     '<td><b>' + esc(c.hora) + '</b></td><td>' + esc(c.folio) + '</td><td>' + esc(c.solicitante) + '</td>' +
                     '<td>' + esc(c.tipo) + '</td><td>' + chips(c) + '</td>' +
                     '<td class="text-end mm-faltan' + (c.porLlegar ? ' is-pronto' : '') + '">' + faltan(c) + '</td>' +

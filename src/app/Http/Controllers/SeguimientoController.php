@@ -34,6 +34,13 @@ class SeguimientoController extends Controller
         'excepcion' => 'Casos de excepción',
     ];
 
+    /** A qué se refiere el filtro de fecha (SeguimientoCaso::tabla). */
+    public const FECHAS = [
+        'registro'  => 'Registro del caso',
+        'cita'      => 'Día de la cita',
+        'audiencia' => 'Día de audiencia',
+    ];
+
     public function index(Request $request)
     {
         $usuario  = $request->user();
@@ -41,10 +48,15 @@ class SeguimientoController extends Controller
         $visibles = $usuario->hasAnyRole(SeguimientoCaso::VEN_TODO) || CasosExcepcion::es($usuario)
             ? CasosExcepcion::SEDES
             : (AgendaContexto::para($usuario)['sedes'] ?? []);
+        $fecha    = (string) $request->query('fecha', '');
+        $fecha    = preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha) && checkdate((int) substr($fecha, 5, 2), (int) substr($fecha, 8, 2), (int) substr($fecha, 0, 4)) ? $fecha : '';
         $filtros  = [
             'q'      => trim((string) $request->query('q', '')),
             'sede'   => in_array($request->query('sede'), $visibles, true) ? $request->query('sede') : '',
             'estado' => array_key_exists((string) $request->query('estado', ''), self::ESTADOS) ? (string) $request->query('estado', '') : '',
+            'fecha'  => $fecha,
+            // Sólo cuenta con fecha; sin ella no ensucia "Limpiar".
+            'en'     => $fecha !== '' && array_key_exists((string) $request->query('en'), self::FECHAS) ? (string) $request->query('en') : ($fecha !== '' ? 'registro' : ''),
         ];
 
         return view('seguimiento.index', [
@@ -52,6 +64,7 @@ class SeguimientoController extends Controller
             'filtros' => $filtros,
             'sedes'   => $visibles,
             'estados' => $solo ? array_diff_key(self::ESTADOS, ['excepcion' => 1]) : self::ESTADOS,
+            'fechas'  => self::FECHAS,
             'soloExcepcion' => $solo,
         ]);
     }

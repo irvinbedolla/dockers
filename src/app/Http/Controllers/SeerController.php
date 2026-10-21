@@ -16156,14 +16156,15 @@ class SeerController extends Controller
         $tipo = $pago->tipo_pago;
 
         if ($idSolicitud == 0) {
+            // Pagos sin solicitud ligada (id_solicitud = 0): se agrupan por NUE, no por id_solicitud.
             $cumplimientos = Pagos::where('NUE', $pago->NUE)
+                ->where('tipo_pago', 'Audiencia')
                 ->select('id', 'id_solicitud', 'NUE', 'fecha', 'hora', 'monto', 'descripcion', 'observaciones','estatus', 'forma_pago')
                 ->get();
-            $cantidad_pagos = Pagos::where('id_solicitud', $cumplimientos->id_solicitud)->where('tipo_pago', 'Audiencia')->count();
-            $monto_total = Pagos::where('id_solicitud', $cumplimientos->id_solicitud)->where('tipo_pago', 'Audiencia')->sum('monto');
+            $cantidad_pagos = Pagos::where('NUE', $pago->NUE)->whereIn('estatus', ['Pendiente', 'Incomparecencia trabajador'])->where('tipo_pago', 'Audiencia')->count();
+            $monto_total = Pagos::where('NUE', $pago->NUE)->where('tipo_pago', 'Audiencia')->sum('monto');
             $cumplimientos = $this->calcularMontoCumplimiento($cumplimientos);
-            $solicitud = SeerPerGeneral::find($cumplimientos->id_solicitud);
-            
+            $solicitud = SeerPerGeneral::where('NUE', $pago->NUE)->first();
         }
         else {
             $cumplimientos = Pagos::join('seer_general','seer_general.id',"=",'pago_solicitud.id_solicitud')

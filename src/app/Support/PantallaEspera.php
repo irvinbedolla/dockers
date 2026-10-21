@@ -25,8 +25,9 @@ use Illuminate\Support\Str;
  *     pantalla pública.
  *
  * Qué se considera "vigente" (puede aparecer):
- *   - confirmada (la persona ya llegó y escaneó su QR) y no atendida, de las
- *     últimas HORAS_CONFIRMADA horas;
+ *   - confirmada (la persona ya llegó y escaneó su QR) y no atendida, de
+ *     cualquier hora del día: quien está en sala no se cae de la fila aunque
+ *     el módulo vaya muy atrasado;
  *   - pendiente cuya hora no ha rebasado la tolerancia de llegada.
  *
  * El turno "ahora" de cada módulo es su cita vigente más temprana cuya hora
@@ -39,7 +40,9 @@ use Illuminate\Support\Str;
  * o la marca como no presentada; volver a llamar la anuncia otra vez.
  *
  * "Sigue" en cada módulo es quien ya llegó y confirmó su cita (en sala), en
- * orden de hora; si nadie ha llegado, la siguiente cita por hora.
+ * orden de hora; las que se atendieron aunque llegaron tarde
+ * (recepcion.llego_tarde) van después de quienes llegaron a tiempo. Si nadie
+ * ha llegado, la siguiente cita por hora.
  */
 class PantallaEspera
 {
@@ -55,9 +58,6 @@ class PantallaEspera
 
     /** Minutos antes de su hora en que una cita ya se muestra como "ahora". */
     private const ADELANTO = 5;
-
-    /** Una confirmada que nadie terminó deja de mostrarse después de esto. */
-    private const HORAS_CONFIRMADA = 3;
 
     /** Audiencias y cumplimientos que empezaron hace más de esto ya no salen. */
     private const MINUTOS_ATRAS = 60;
@@ -114,16 +114,16 @@ class PantallaEspera
         $conFlujo   = FlujoCita::migrado();
         $sinPruebas = ! $conPruebas && $conFlujo;
         $tolerancia = $ahora->copy()->subMinutes(ValidadorCita::TOLERANCIA_MINUTOS)->format('H:i:s');
-        $limiteConf = $ahora->copy()->subHours(self::HORAS_CONFIRMADA)->format('H:i:s');
 
         return DB::table('recepcion as r')
             ->leftJoin('modulos as m', 'm.id', '=', 'r.modulo_id')
             ->where('r.fecha', $ahora->toDateString())
             ->where('r.delegacion', $sede)
             ->when($sinPruebas, fn ($q) => $q->where('r.es_prueba', 0))
-            ->where(function ($q) use ($tolerancia, $limiteConf, $conFlujo) {
+            ->where(function ($q) use ($tolerancia, $conFlujo) {
                 $q->where(fn ($p) => $p->where('r.estatus', 'pendiente')->where('r.hora', '>=', $tolerancia))
-                  ->orWhere(fn ($c) => $c->where('r.estatus', 'confirmada')->where('r.hora', '>=', $limiteConf));
+                  // En sala: sigue en la fila hasta que la atiendan, a la hora que sea.
+                  ->orWhere('r.estatus', 'confirmada');
                 // Ya llamada por el auxiliar y sin terminar: sigue aunque se le haya pasado la hora.
                 if ($conFlujo) {
                     $q->orWhere(fn ($l) => $l->whereNotNull('r.llamado_at')->whereIn('r.estatus', ['pendiente', 'confirmada']));
@@ -134,7 +134,9 @@ class PantallaEspera
             ->get(array_merge([
                 'r.id', 'r.codigo', 'r.consecutivo', 'r.tipo', 'r.hora', 'r.estatus',
                 'r.origen', 'r.modulo_id', 'r.lugar_auxiliar', 'm.nombre as modulo_nombre',
-            ], $conFlujo ? ['r.es_prueba', 'r.llamado_at', 'r.atencion_inicio_at'] : [], $extra));
+            ], $conFlujo ? ['r.es_prueba', 'r.llamado_at', 'r.atencion_inicio_at'] : [],
+               FlujoCita::conSeguimiento() ? ['r.confirmada_at'] : [],
+               FlujoCita::conTardias() ? ['r.llego_tarde'] : [], $extra));
     }
 
     /**
@@ -159,8 +161,12 @@ class PantallaEspera
             && ($actual === null || ($c->id !== $actual->id
                 && ($llamada || $c->hora >= $actual->hora || self::esperaLlamado($c)))));
 
-        // Sigue quien ya llegó y confirmó (en sala); si nadie ha llegado, la siguiente por hora.
-        $siguiente = $pendientes->first(fn ($c) => $c->estatus === 'confirmada') ?? $pendientes->first();
+        // Sigue quien ya llegó y confirmó (en sala), primero quienes llegaron a
+        // tiempo y luego las que se atendieron aunque llegaron tarde; si nadie
+        // ha llegado, la siguiente por hora.
+        $siguiente = $pendientes->first(fn ($c) => $c->estatus === 'confirmada' && empty($c->llego_tarde ?? null))
+            ?? $pendientes->first(fn ($c) => $c->estatus === 'confirmada')
+            ?? $pendientes->first();
 
         return [$actual, $siguiente];
     }

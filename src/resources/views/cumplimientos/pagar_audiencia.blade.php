@@ -131,7 +131,7 @@
                                                 <td class="text-center fw-bold">${{ number_format($monto_total, 2) }}</td>
                                                 <td></td><td></td>
                                                 <td class="text-center">
-                                                @if($solicitud->estatus === 'Concluida' && !$cumplimientos->contains('estatus', 'Pendiente'))
+                                                @if($solicitud && $solicitud->estatus === 'Concluida' && !$cumplimientos->contains('estatus', 'Pendiente'))
                                                     <a class="btn btn-primary btn-sm" href="{{ route('PDFcumplimientoTotal', $solicitud->id) }}"  target="_blank"><i class="bi bi-file-earmark-text"></i> Constancia de Cumplimiento Total</a>
                                                 @endif
                                                 </td>
@@ -277,8 +277,7 @@ Dicha cantidad corresponde al cumplimiento (total o parcial, según corresponda)
                 // este proyecto no carga.
                 "responsive": false,
                 "destroy": true,
-                "paging": true,
-                "pageLength": 10,
+                "paging": false,
                 "searching": true,
                 "ordering": true,
                 "info": true,

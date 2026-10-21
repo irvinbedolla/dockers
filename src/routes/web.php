@@ -257,8 +257,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware(VeCitasEnLinea::class);
     // Llegadas hoy: audiencias, ratificaciones y cumplimientos del día. La
     // recepción de audiencias (Morelia 02) marca quién llegó y el conciliador
-    // asignado recibe el aviso; el conciliador ve la pantalla sólo para
-    // consultar. Ver App\Support\LlegadasHoy.
+    // asignado (y el auxiliar que la lleva) recibe el aviso; ellos ven la
+    // pantalla sólo para consultar. Ver App\Support\LlegadasHoy.
     Route::middleware('role:'.implode('|', \App\Support\LlegadasHoy::roles()))->group(function () {
         Route::get('/recepcion/llegadas-hoy',            [App\Http\Controllers\LlegadasHoyController::class, 'index'])->name('llegadas.index');
         Route::get('/recepcion/llegadas-hoy/datos',      [App\Http\Controllers\LlegadasHoyController::class, 'datos'])->name('llegadas.datos');
@@ -267,7 +267,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
     Route::permanentRedirect('/recepcion/audiencias-hoy',   '/recepcion/llegadas-hoy');
     Route::get('/llegadas/avisos',                      [App\Http\Controllers\LlegadasHoyController::class, 'avisos'])->name('llegadas.avisos')
-        ->middleware('role:Super Usuario|Conciliador');
+        ->middleware('role:Super Usuario|'.implode('|', \App\Support\LlegadasHoy::CONSULTAN));
 
     // Escáner de QR de citas. La cámara sólo se permite en esta pantalla
     // (ver ContentSecurityPolicy). Super Usuario y las tres recepciones.
@@ -275,6 +275,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/recepcion/escanear',            [EscanerCitasController::class, 'index'])->name('recepcion.escaner');
         Route::post('/recepcion/escanear/validar',   [EscanerCitasController::class, 'validar'])->name('recepcion.escaner.validar')
             ->middleware('throttle:90,1');
+        // Cita que expiró hoy pero la persona sí está: atenderla de todos modos.
+        Route::post('/recepcion/escanear/{id}/tarde', [EscanerCitasController::class, 'atenderTarde'])->name('recepcion.escaner.tarde')
+            ->whereNumber('id')->middleware('throttle:30,1');
     });
 
     // Mi perfil: lo poco que cada quien puede cambiar de su propia cuenta.
@@ -497,13 +500,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
      |-- (Pre-registro presencial, validación inicial y asignación de turnos rápidos)
      |*/
     // Todos los turnos con filtro por día, sede, tipo, origen y estatus. Los
-    // mismos roles de recepción que antes (con turnos_ver) y además Directivo,
-    // que sólo consulta y descarga la agenda.
+    // mismos roles de recepción que antes (con turnos_ver), Directivo, que sólo
+    // consulta y descarga la agenda, y Delegado si se le da turnos_ver (su región).
     Route::get('/turnos/todos', TurnosHistorialController::class)->name('turnos.todos')
-        ->middleware([Recepcion::middleware('Super Usuario', 'Auxiliar', 'Recepción General', 'Turnos', 'Recepción Morelia 1', 'Recepción Morelia 2', 'Directivo'), 'role_or_permission:Directivo|turnos_ver']);
+        ->middleware([Recepcion::middleware('Super Usuario', 'Auxiliar', 'Recepción General', 'Turnos', 'Recepción Morelia 1', 'Recepción Morelia 2', 'Directivo', 'Delegado'), 'role_or_permission:Directivo|turnos_ver']);
+    // Ocupación de la agenda de turnos contra el cupo de Horarios de citas (App\Support\OcupacionTurnos).
+    Route::get('/turnos/ocupacion', App\Http\Controllers\TurnosOcupacionController::class)->name('turnos.ocupacion')
+        ->middleware('role:'.implode('|', [...App\Support\AgendaTurnos::ROLES, 'Delegado']));
     // Descargar la agenda de un día o una semana en Excel, PDF o imagen (App\Support\AgendaTurnos).
     Route::get('/turnos/agenda/descargar', App\Http\Controllers\TurnosAgendaController::class)->name('turnos.agenda.descargar')
-        ->middleware('role:'.implode('|', App\Support\AgendaTurnos::ROLES));
+        ->middleware('role:'.implode('|', [...App\Support\AgendaTurnos::ROLES, 'Delegado']));
 
     // Los roles de recepción se suman desde App\Support\Recepcion: un nombre
     // con acento mal escrito aquí no truena, sólo deja fuera a la persona.
