@@ -161,6 +161,8 @@
     var filtro = 'todas';
     var texto = '';
     var mias = @json($soloMias && ! $marca);
+    // Lo mío: soy su conciliador o uno de sus auxiliares.
+    function esMia(r) { return r.conciliador_id === YO || (r.responsables || []).indexOf(YO) !== -1; }
 
     function esc(t) {
         return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) {
@@ -177,7 +179,7 @@
     // Lo que se ve antes de la pestaña y el filtro de llegada.
     function base() {
         return (datos.registros || []).filter(function (r) {
-            if (mias && r.conciliador_id !== YO) { return false; }
+            if (mias && !esMia(r)) { return false; }
             if (!texto) { return true; }
             var donde = sinAcentos(r.nue + ' ' + r.lugar + ' ' + r.conciliador + ' ' + r.partes.map(function (p) { return p.nombre; }).join(' '));
             return donde.indexOf(texto) !== -1;
@@ -242,9 +244,9 @@
         var cita = '';
         if (r.cita) {
             cita = '<div class="ll-cita"><i class="bi bi-qr-code"></i> Cita ' + esc(r.cita.folio) +
-                (r.cita.valido ? ' · validada en recepción a las ' + esc(r.cita.valido) : ' · aún no se valida en recepción') + '</div>';
+                (r.cita.valido ? ' · validada en recepción a las ' + esc(r.cita.valido) + (r.cita.tarde ? ' (llegó tarde; se atiende de todos modos)' : '') : ' · aún no se valida en recepción') + '</div>';
         }
-        return '<article class="ll-item ' + estado + (r.conciliador_id === YO ? ' is-mia' : '') + '">' +
+        return '<article class="ll-item ' + estado + (esMia(r) ? ' is-mia' : '') + '">' +
             '<div><div class="ll-hora">' + esc(r.hora) + '</div><span class="ll-lugar">' + esc(r.lugar) + '</span></div>' +
             '<div><div class="ll-cab"><div>' +
                 (tab === 'todas' ? '<span class="ll-tipo ll-tipo--' + r.tipo + '">' + CORTO[r.tipo] + '</span>' : '') +

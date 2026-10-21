@@ -257,8 +257,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware(VeCitasEnLinea::class);
     // Llegadas hoy: audiencias, ratificaciones y cumplimientos del día. La
     // recepción de audiencias (Morelia 02) marca quién llegó y el conciliador
-    // asignado recibe el aviso; el conciliador ve la pantalla sólo para
-    // consultar. Ver App\Support\LlegadasHoy.
+    // asignado (y el auxiliar que la lleva) recibe el aviso; ellos ven la
+    // pantalla sólo para consultar. Ver App\Support\LlegadasHoy.
     Route::middleware('role:'.implode('|', \App\Support\LlegadasHoy::roles()))->group(function () {
         Route::get('/recepcion/llegadas-hoy',            [App\Http\Controllers\LlegadasHoyController::class, 'index'])->name('llegadas.index');
         Route::get('/recepcion/llegadas-hoy/datos',      [App\Http\Controllers\LlegadasHoyController::class, 'datos'])->name('llegadas.datos');
@@ -267,7 +267,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
     Route::permanentRedirect('/recepcion/audiencias-hoy',   '/recepcion/llegadas-hoy');
     Route::get('/llegadas/avisos',                      [App\Http\Controllers\LlegadasHoyController::class, 'avisos'])->name('llegadas.avisos')
-        ->middleware('role:Super Usuario|Conciliador');
+        ->middleware('role:Super Usuario|'.implode('|', \App\Support\LlegadasHoy::CONSULTAN));
 
     // Escáner de QR de citas. La cámara sólo se permite en esta pantalla
     // (ver ContentSecurityPolicy). Super Usuario y las tres recepciones.

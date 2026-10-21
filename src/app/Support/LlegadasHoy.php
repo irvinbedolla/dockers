@@ -13,7 +13,8 @@ use Illuminate\Support\Str;
  * "Llegadas hoy": quién ya llegó a su audiencia, ratificación o cumplimiento
  * del día. Trae también lo que ya se cerró hoy (con su estatus, sin poder
  * marcar) y señala lo abierto cuya hora ya pasó y le falta alguien. La recepción (Morelia 02) lo marca y el conciliador asignado
- * recibe un aviso con sonido (llegadas/_avisos). El conciliador también ve
+ * recibe un aviso con sonido (llegadas/_avisos), igual que el auxiliar que
+ * lleva la ratificación o el cumplimiento (AUXILIARES). Ambos también ven
  * la pantalla, sólo para consultar.
  *
  *   delDia()      lo de hoy de unas sedes, con sus partes y quién llegó;
@@ -21,7 +22,8 @@ use Illuminate\Support\Str;
  *   desdeCita()   cuando recepción valida con QR una cita de Ratificación, la
  *                 liga por CURP con su ratificación (turnos.recepcion_id) y
  *                 cuenta como llegada;
- *   avisosPara()  llegadas recientes de lo que tiene asignado un conciliador.
+ *   avisosPara()  llegadas recientes de lo que lleva un conciliador o un
+ *                 auxiliar (responsables()).
  *
  * Un solo registro (tabla llegadas): tipo + registro_id + clave de la parte.
  *   audiencia     audiencias.id      partes: 'solicitante' y 'citado:<hash>'
@@ -50,8 +52,16 @@ class LlegadasHoy
     /** Quién marca: la recepción de audiencias y quien la supervisa. */
     public const MARCAN = ['Super Usuario', Recepcion::MORELIA_02];
 
+    /**
+     * Auxiliares que reciben el aviso de lo que llevan: la ratificación que
+     * capturaron o cuya cita cayó en su módulo, y el cumplimiento que
+     * agendaron (o el de una ratificación suya). Las audiencias son sólo del
+     * conciliador.
+     */
+    public const AUXILIARES = ['Auxiliar Ratificaciones', 'Auxiliar Cumplimientos'];
+
     /** Quién sólo consulta (las de sus sedes; por omisión, las suyas). */
-    public const CONSULTAN = ['Conciliador'];
+    public const CONSULTAN = ['Conciliador', ...self::AUXILIARES];
 
     /** Ratificaciones que ya no esperan a nadie. */
     private const RATIFICACION_CERRADA = ['Concluida', 'Concluida Pagos', 'Incumplimiento', 'Archivada', 'Prevencion', 'no atendido'];
@@ -105,6 +115,12 @@ class LlegadasHoy
     public static function puedeVer(?User $usuario): bool
     {
         return $usuario !== null && self::migrado() && $usuario->hasAnyRole(self::roles());
+    }
+
+    /** ¿Le llegan los avisos con sonido? (layouts/app incluye llegadas/_avisos) */
+    public static function recibeAvisos(?User $usuario): bool
+    {
+        return $usuario !== null && self::migrado() && $usuario->hasAnyRole(self::CONSULTAN);
     }
 
     /** Sedes que ve: Super Usuario todas; Morelia 02 las suyas; el conciliador, su región. */
@@ -193,23 +209,32 @@ class LlegadasHoy
     }
 
     /**
-     * Llegadas recientes a lo de hoy que este conciliador tiene asignado.
+     * Llegadas recientes a lo de hoy que lleva esta persona: como conciliador
+     * asignado o como auxiliar (ver AUXILIARES).
      *
      * @return Collection<int, array>
      */
-    public static function avisosPara(User $conciliador): Collection
+    public static function avisosPara(User $usuario): Collection
     {
-        if (! self::migrado()) {
+        $esConc = $usuario->hasRole('Conciliador');
+        $esAux  = $usuario->hasAnyRole(self::AUXILIARES);
+
+        if (! self::migrado() || (! $esConc && ! $esAux)) {
             return collect();
         }
 
+        $id    = $usuario->id;
         $ahora = now();
         $hoy   = $ahora->toDateString();
         $desde = $ahora->copy()->subMinutes(self::MINUTOS_AVISO);
 
         // Por si la cita se validó antes de capturar la ratificación.
         $sedesRat = DB::table('turnos')->where('tipo', 'Ratificación')->where('fecha', $hoy)
-            ->where('id_conciliador', $conciliador->id)->distinct()->pluck('delegacion')->filter()->all();
+            ->where(fn ($q) => $q->where('id_conciliador', $id)->orWhere('user_id', $id))
+            ->distinct()->pluck('delegacion')->filter()->all();
+        if ($esAux) {
+            $sedesRat = array_values(array_unique(array_merge($sedesRat, self::sedes($usuario))));
+        }
         if ($sedesRat) {
             self::ligarRatificaciones($sedesRat, $hoy);
         }
@@ -219,22 +244,47 @@ class LlegadasHoy
             ->where('l.llegada_at', '>=', $desde)
             ->select(['l.id', 'l.tipo', 'l.parte', 'l.nombre', 'l.origen', 'l.llegada_at', 'l.registro_id']);
 
-        $audiencias = $base('audiencia')
+        $audiencias = ! $esConc ? collect() : $base('audiencia')
             ->join('audiencias as a', 'a.id', '=', 'l.registro_id')
             ->join('seer_general as g', 'g.id', '=', 'a.id_solicitud')
-            ->where('a.id_conciliador', $conciliador->id)->where('a.fecha', $hoy)
+            ->where('a.id_conciliador', $id)->where('a.fecha', $hoy)
             ->addSelect(['a.hora', 'a.sala as lugar', 'g.NUE', 'a.id_solicitud'])
             ->get();
 
         $ratificaciones = $base('ratificacion')
             ->join('turnos as t', 't.id', '=', 'l.registro_id')
-            ->where('t.id_conciliador', $conciliador->id)->where('t.fecha', $hoy)
+            ->where('t.fecha', $hoy)
+            ->where(function ($q) use ($id, $esConc, $esAux) {
+                if ($esConc) {
+                    $q->orWhere('t.id_conciliador', $id);
+                }
+                if ($esAux) {
+                    // La capturó, o su cita cayó en su módulo.
+                    $q->orWhere('t.user_id', $id)
+                      ->orWhereExists(fn ($e) => $e->select(DB::raw(1))->from('recepcion as rc')
+                          ->leftJoin('modulos as mo', 'mo.id', '=', 'rc.modulo_id')
+                          ->whereColumn('rc.id', 't.recepcion_id')
+                          ->where(fn ($w) => $w->where('mo.user_id', $id)->orWhere('rc.auxiliar', $id)));
+                }
+            })
             ->addSelect(['t.hora', DB::raw("'' as lugar"), 't.NUE', DB::raw('NULL as id_solicitud')])
             ->get();
 
         $cumplimientos = $base('cumplimiento')
             ->join('pago_solicitud as p', 'p.id', '=', 'l.registro_id')
-            ->where('p.id_conciliador', $conciliador->id)->where('p.fecha', $hoy)
+            ->where('p.fecha', $hoy)
+            ->where(function ($q) use ($id, $esConc, $esAux) {
+                if ($esConc) {
+                    $q->orWhere('p.id_conciliador', $id);
+                }
+                if ($esAux) {
+                    // Lo agendó, o es el pago de una ratificación que capturó.
+                    $q->orWhere('p.user_id', $id)
+                      ->orWhereExists(fn ($e) => $e->select(DB::raw(1))->from('turnos as tr')
+                          ->whereColumn('tr.id', 'p.id_solicitud')->where('p.tipo_pago', 'Ratificacion')
+                          ->where('tr.user_id', $id));
+                }
+            })
             ->addSelect(['p.hora', DB::raw("'' as lugar"), DB::raw("COALESCE(NULLIF(p.NUE, ''), (SELECT g2.NUE FROM seer_general g2 WHERE g2.id = p.id_solicitud AND p.tipo_pago = 'Audiencia'), (SELECT t2.NUE FROM turnos t2 WHERE t2.id = p.id_solicitud AND p.tipo_pago = 'Ratificacion')) as NUE"), DB::raw('NULL as id_solicitud')])
             ->get();
 
@@ -308,8 +358,12 @@ class LlegadasHoy
             return collect();
         }
 
-        $citas = DB::table('recepcion')->whereIn('id', $turnos->pluck('recepcion_id')->filter()->unique())
-            ->get(array_merge(['id', 'codigo', 'consecutivo', 'estatus'], FlujoCita::conSeguimiento() ? ['confirmada_at'] : []))
+        $citas = DB::table('recepcion as r')
+            ->leftJoin('modulos as m', 'm.id', '=', 'r.modulo_id')
+            ->whereIn('r.id', $turnos->pluck('recepcion_id')->filter()->unique())
+            ->get(array_merge(['r.id', 'r.codigo', 'r.consecutivo', 'r.estatus', 'r.auxiliar', 'm.user_id as modulo_user'],
+                FlujoCita::conSeguimiento() ? ['r.confirmada_at'] : [],
+                FlujoCita::conTardias() ? ['r.llego_tarde'] : []))
             ->keyBy('id');
 
         return self::armar('ratificacion', $fecha, $turnos, function ($t) use ($citas) {
@@ -325,9 +379,11 @@ class LlegadasHoy
                 'conc'   => $t->conciliador,
                 'concId' => $t->id_conciliador,
                 'partes' => self::partesRatificacion($t),
+                'aux'    => [$t->user_id, $cita->modulo_user ?? null, $cita->auxiliar ?? null],
                 'cita'   => $cita ? [
                     'folio'  => FolioCita::mostrar($cita),
                     'valido' => ! empty($cita->confirmada_at ?? null) ? Carbon::parse($cita->confirmada_at)->format('H:i') : null,
+                    'tarde'  => ! empty($cita->llego_tarde ?? null),
                 ] : null,
             ];
         });
@@ -351,6 +407,7 @@ class LlegadasHoy
             'conc'   => $p->conciliador,
             'concId' => $p->id_conciliador,
             'partes' => self::partesCumplimiento($p),
+            'aux'    => [$p->user_id, $p->tipo_pago === 'Ratificacion' ? $p->ratificacion_user : null],
         ]);
     }
 
@@ -398,6 +455,8 @@ class LlegadasHoy
                 'nue'            => (string) $d['nue'],
                 'conciliador'    => PantallaEspera::nombreCorto($d['conc'], false) ?: '',
                 'conciliador_id' => (int) $d['concId'],
+                // Quiénes la llevan (conciliador y auxiliares): filtro "Sólo las mías".
+                'responsables'   => array_values(array_unique(array_filter(array_map('intval', array_merge([$d['concId']], $d['aux'] ?? []))))),
                 'cita'           => $d['cita'] ?? null,
                 'partes'         => $lista,
                 'llegaron'       => $llegaron,
@@ -438,7 +497,7 @@ class LlegadasHoy
             ->where('t.tipo', 'Ratificación')
             ->where(fn ($w) => $w->whereNull('t.incidencia')->orWhere('t.incidencia', 0))
             ->select([
-                't.id', 't.fecha', 't.hora', 't.delegacion', 't.NUE', 't.estatus', 't.id_conciliador', 't.recepcion_id',
+                't.id', 't.fecha', 't.hora', 't.delegacion', 't.NUE', 't.estatus', 't.id_conciliador', 't.recepcion_id', 't.user_id',
                 't.trabajador', 't.primero_trabajador', 't.segundo_trabajador', 't.trabajador_curp',
                 't.nombre_empresa', 't.empresa', 't.primero_empresa', 't.segundo_empresa', 't.curp_solicitante',
                 'u.name as conciliador',
@@ -455,6 +514,7 @@ class LlegadasHoy
             ->where(fn ($w) => $w->whereNull('p.incidencia')->orWhere('p.incidencia', 0))
             ->select([
                 'p.id', 'p.fecha', 'p.hora', 'p.delegacion', 'p.tipo_pago', 'p.estatus', 'p.id_conciliador', 'u.name as conciliador',
+                'p.user_id', 't.user_id as ratificacion_user',
                 DB::raw("COALESCE(NULLIF(p.NUE, ''), g.NUE, t.NUE) as NUE"),
                 DB::raw("COALESCE(NULLIF(p.nombre_trabajador, ''),
                     (SELECT s.nombre FROM seer_solicitante s WHERE s.id_solicitud = g.id ORDER BY s.id LIMIT 1),
