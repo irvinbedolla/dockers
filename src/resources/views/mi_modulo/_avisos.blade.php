@@ -159,8 +159,34 @@
         if (tarjeta.parentNode !== caja) { caja.appendChild(tarjeta); }
     }
 
+    // Alguien lleva mucho en sala sin que lo llamen: se avisa una vez por cita.
+    function avisarEspera(m, s) {
+        var div = document.createElement('div');
+        div.className = 'flujo-aviso';
+        div.style.borderLeftColor = '#D92D20';
+        div.setAttribute('role', 'alert');
+        div.innerHTML =
+            '<div class="flujo-aviso__cabeza"><span class="flujo-aviso__titulo" style="color:#B42318;"><i class="bi bi-hourglass-split me-1"></i>Lleva ' + s.minutos + ' min esperando</span>' +
+            '<button type="button" class="flujo-aviso__cerrar" aria-label="Cerrar">&times;</button></div>' +
+            '<div class="flujo-aviso__folio">' + esc(s.folio) + (s.tarde ? ' <span class="flujo-aviso__chip flujo-aviso__chip--llega">Llegó tarde</span>' : '') + '</div>' +
+            '<div class="flujo-aviso__nombre">' + esc(s.persona) + '</div>' +
+            '<div class="flujo-aviso__texto">Está en sala en ' + esc(m.modulo) + ' y nadie la ha llamado (cita de las ' + esc(s.hora) + ').</div>' +
+            '<div class="flujo-aviso__acciones"><a class="btn btn-sm btn-outline-secondary" href="' + esc(URL_MODULO) + '">Mi módulo</a></div>';
+        div.querySelector('.flujo-aviso__cerrar').addEventListener('click', function () { div.remove(); });
+        caja.insertBefore(div, tarjeta && tarjeta.parentNode === caja ? tarjeta : null);
+        setTimeout(function () { if (div.isConnected) { div.remove(); } }, 10 * 60 * 1000);
+        campana();
+        notificar('Lleva ' + s.minutos + ' min esperando: ' + s.folio, s.persona + ' está en sala en ' + m.modulo, 'cita-espera-' + s.id);
+    }
+
     function procesar(j) {
         ultimo = j;
+        (j.modulos || []).forEach(function (m) {
+            (m.esperando || []).forEach(function (s) {
+                var k = 'espera-' + s.id;
+                if (!visto(k)) { marcar(k); avisarEspera(m, s); }
+            });
+        });
         (j.modulos || []).forEach(function (m) {
             var s = m.siguiente;
             if (!s) { return; }

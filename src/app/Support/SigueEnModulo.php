@@ -23,6 +23,27 @@ use Illuminate\Support\Str;
  */
 class SigueEnModulo
 {
+    /** Minutos en sala sin que la llamen a partir de los cuales se avisa al módulo. */
+    public const ESPERA_ALERTA = 30;
+
+    /**
+     * Minutos que lleva en sala sin que la llamen: desde que llegó y confirmó,
+     * o desde su hora si llegó antes (esperar antes de su hora no es retraso
+     * del módulo). null si no está esperando.
+     */
+    public static function esperando(object $c, Carbon $ahora): ?int
+    {
+        if (($c->estatus ?? null) !== 'confirmada' || ! empty($c->llamado_at ?? null) || empty($c->confirmada_at ?? null)) {
+            return null;
+        }
+
+        $llego = Carbon::parse($c->confirmada_at);
+        $hora  = Carbon::parse($ahora->toDateString().' '.substr((string) $c->hora, 0, 8));
+        $desde = $llego->greaterThan($hora) ? $llego : $hora;
+
+        return max(0, (int) floor($desde->diffInSeconds($ahora, false) / 60));
+    }
+
     /** Columnas de más que necesita de PantallaEspera::citasVigentes. */
     public const COLUMNAS = ['r.delegacion', 'r.exepcion', 'r.solicitante'];
 
@@ -108,6 +129,13 @@ class SigueEnModulo
                 'iniciar' => ! $actual && $siguiente->tipo === 'Solicitud' ? route('mi_modulo.prellenar', $siguiente->id) : null,
             ] : null,
             'antes'     => $antes ? self::persona($antes) : null,
+            // Quien lleva mucho en sala sin que la llamen (aviso al módulo).
+            'esperando' => $suyas
+                ->map(fn ($c) => ['c' => $c, 'min' => self::esperando($c, $ahora)])
+                ->filter(fn ($x) => $x['min'] !== null && $x['min'] >= self::ESPERA_ALERTA)
+                ->map(fn ($x) => self::persona($x['c']) + ['minutos' => $x['min']])
+                ->values()
+                ->all(),
         ];
     }
 
@@ -120,6 +148,7 @@ class SigueEnModulo
             'tipo'    => (string) $c->tipo,
             'hora'    => substr((string) $c->hora, 0, 5),
             'enSala'  => $c->estatus === 'confirmada',
+            'tarde'   => (bool) ($c->llego_tarde ?? false),
             'prueba'  => (bool) ($c->es_prueba ?? false),
         ];
     }
