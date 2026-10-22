@@ -27,6 +27,8 @@
         .fx-badge--nuevo { background: #EEF2F2; color: var(--tn-suave); }
         .fx-badge--continua { background: #E5F3EA; color: #1E7B3C; }
         .fx-badge--canaliza { background: #F6E4EA; color: #8C1D40; }
+        .fx-badge--incompetente { background: #ECEAF4; color: #4B3F7A; }
+        .fx-opcion--incompetente { border-style: dashed; }
 
         .fx-rejilla { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; align-items: start; }
         @media (max-width: 1100px) { .fx-rejilla { grid-template-columns: 1fr; } .fx-lado { order: -1; } }
@@ -254,12 +256,16 @@
                             <div class="fx-decision @error('resultado') border border-danger rounded p-2 @enderror">
                                 <label class="fx-opcion"><input type="radio" name="resultado" value="continua" @checked($v('resultado') === 'continua')>
                                     <span><b>Sí, continúa</b><small>Sigue con la conciliación en el Centro.</small></span></label>
-                                <label class="fx-opcion"><input type="radio" name="resultado" value="canaliza" @checked($v('resultado') === 'canaliza')>
+                                <label class="fx-opcion"><input type="radio" name="resultado" value="canaliza" @checked(in_array($v('resultado'), ['canaliza', 'incompetente'], true))>
                                     <span><b>No, se canaliza</b><small>Se envía a la institución que corresponda.</small></span></label>
                             </div>
 
+                            @php
+                                // "6. No somos competentes": se guarda como resultado 'incompetente'.
+                                $noCompetente = old('no_competente') !== null ? old('no_competente') === '1' : ($datos['resultado'] ?? null) === 'incompetente';
+                            @endphp
                             <div id="fxCanaliza" class="mt-3" @if (! $v('resultado')) hidden @endif>
-                                <span class="fx-etq" id="fxCanalizaEtq" data-canaliza="Canalizar a (al menos una)" data-continua="¿Además se canaliza para atención integral? (opcional)">{{ $v('resultado') === 'continua' ? '¿Además se canaliza para atención integral? (opcional)' : 'Canalizar a (al menos una)' }}</span>
+                                <span class="fx-etq" id="fxCanalizaEtq" data-canaliza="Canalizar a (al menos una) o marcar que no somos competentes" data-continua="¿Además se canaliza para atención integral? (opcional)">{{ $v('resultado') === 'continua' ? '¿Además se canaliza para atención integral? (opcional)' : 'Canalizar a (al menos una) o marcar que no somos competentes' }}</span>
                                 <div class="fx-opciones @error('instituciones') border border-danger rounded p-2 @enderror">
                                     @foreach ($CX::INSTITUCIONES as $clave => $nombre)
                                         <label class="fx-opcion"><input type="checkbox" name="instituciones[]" value="{{ $clave }}" data-institucion="{{ $clave }}" @checked(in_array($clave, $arr('instituciones'), true))> {{ $loop->iteration }}. {{ $nombre }}</label>
@@ -271,20 +277,25 @@
                                             </div>
                                         @endif
                                     @endforeach
+                                    <div id="fxNoCompetente" @if ($v('resultado') === 'continua') hidden @endif>
+                                        <input type="hidden" name="no_competente" value="0">
+                                        <label class="fx-opcion fx-opcion--incompetente"><input type="checkbox" name="no_competente" value="1" id="fxNoCompetenteCaja" @checked($noCompetente)>
+                                            {{ count($CX::INSTITUCIONES) + 1 }}. No somos competentes</label>
+                                    </div>
                                 </div>
                             </div>
 
                             @if ($puedeCerrar)
-                                <div id="fxCerrar" class="mt-3" @if ($v('resultado') !== 'canaliza') hidden @endif>
+                                <div id="fxCerrar" class="mt-3" @if (! in_array($v('resultado'), ['canaliza', 'incompetente'], true)) hidden @endif>
                                     <input type="hidden" name="cerrar_solicitud" value="0">
                                     <label class="fx-opcion">
                                         <input type="checkbox" name="cerrar_solicitud" value="1" @checked(old('cerrar_solicitud', '1') === '1')>
-                                        <span><b>Cerrar la solicitud {{ $sol->NUE ?: 'sin expediente' }} como «Canalizada»</b>
-                                            <small>Termina el trámite de conciliación; sus audiencias pendientes quedan canalizadas y liberan el horario. Se aplica al terminar la atención.</small></span>
+                                        <span><b>Cerrar la solicitud {{ $sol->NUE ?: 'sin expediente' }} como «<span id="fxCerrarComo">{{ $noCompetente ? 'Incompetencia' : 'Canalizada' }}</span>»</b>
+                                            <small>Termina el trámite de conciliación; sus audiencias pendientes quedan así y liberan el horario. Se aplica al terminar la atención.</small></span>
                                     </label>
                                 </div>
-                            @elseif ($sol && $sol->estatus === 'Canalizada')
-                                <p class="fx-nota mt-3 mb-0"><i class="bi bi-check2-circle"></i> La solicitud {{ $sol->NUE }} ya está cerrada como «Canalizada».</p>
+                            @elseif ($sol && in_array($sol->estatus, ['Canalizada', 'Incompetencia'], true))
+                                <p class="fx-nota mt-3 mb-0"><i class="bi bi-check2-circle"></i> La solicitud {{ $sol->NUE }} ya está cerrada como «{{ $sol->estatus }}».</p>
                             @endif
                         </div>
 
@@ -409,14 +420,26 @@
             mostrar('motivo_otro', !!motivoDisc && motivoDisc.value === 'otro');
             mostrar('riesgo_trabajo', marcado('[data-tipo="riesgo_trabajo"]'));
             mostrar('situacion_otro', marcado('input[name="situacion_laboral"][value="otro"]'));
-            mostrar('procuraduria', marcado('[data-institucion="procuraduria"]'));
             var canaliza = marcado('input[name="resultado"][value="canaliza"]');
             var continua = marcado('input[name="resultado"][value="continua"]');
+            // "No somos competentes" sólo con "No, se canaliza", y excluye a las instituciones.
+            var noComp = document.getElementById('fxNoCompetenteCaja');
+            document.getElementById('fxNoCompetente').hidden = !canaliza;
+            if (noComp && !canaliza) { noComp.checked = false; }
+            var sinInstitucion = !!(noComp && noComp.checked);
+            form.querySelectorAll('input[name="instituciones[]"]').forEach(function (c) {
+                if (sinInstitucion) { c.checked = false; }
+                c.disabled = sinInstitucion;
+                c.closest('.fx-opcion').style.opacity = sinInstitucion ? '.5' : '';
+            });
+            mostrar('procuraduria', marcado('[data-institucion="procuraduria"]'));
             document.getElementById('fxCanaliza').hidden = !(canaliza || continua);
             var etq = document.getElementById('fxCanalizaEtq');
             etq.textContent = continua ? etq.dataset.continua : etq.dataset.canaliza;
             var cerrar = document.getElementById('fxCerrar');
             if (cerrar) { cerrar.hidden = !canaliza; }
+            var como = document.getElementById('fxCerrarComo');
+            if (como) { como.textContent = sinInstitucion ? 'Incompetencia' : 'Canalizada'; }
             document.getElementById('fxGeneroOtro').hidden = !marcado('input[name="genero"][value="Otro"]');
             document.getElementById('fxJefe').hidden = !marcado('input[name="conoce_jefe"][value="1"]');
         }

@@ -204,7 +204,10 @@ class CasosExcepcionController extends Controller
             'instituciones.*'        => [Rule::in(array_keys(CasosExcepcion::INSTITUCIONES))],
             'domicilio_procuraduria' => ['nullable', 'string', 'max:255'],
             'cerrar_solicitud'       => ['nullable', Rule::in(['0', '1'])],
+            // "6. No somos competentes": va con "No, se canaliza" y no pide institución.
+            'no_competente'          => ['nullable', Rule::in(['0', '1'])],
         ];
+        $noCompetente = $request->input('resultado') === 'canaliza' && $request->input('no_competente') === '1';
 
         // Para terminar, lo mínimo que pide el formato y la decisión de la persona.
         if ($terminar) {
@@ -212,16 +215,21 @@ class CasosExcepcionController extends Controller
             $reglas['tipos'][0]      = 'required';
             $reglas['frecuencia'][0] = 'required';
             $reglas['resultado'][0]  = 'required';
-            $reglas['instituciones'] = ['required_if:resultado,canaliza', 'array'];
+            $reglas['instituciones'] = [Rule::requiredIf(fn () => $request->input('resultado') === 'canaliza' && ! $noCompetente), 'array'];
         }
 
         $datos = $request->validate($reglas, [
             'tipos.required'                => 'Marca al menos un tipo de situación.',
             'frecuencia.required'           => 'Indica la frecuencia de los hechos.',
             'resultado.required'            => 'Indica si la persona continúa con la conciliación o se canaliza.',
-            'instituciones.required_if'     => 'Elige al menos una institución para canalizar.',
+            'instituciones.required'        => 'Elige al menos una institución para canalizar o marca «No somos competentes».',
             'nombre.required'               => 'Falta el nombre de la persona.',
         ]);
+
+        if ($noCompetente) {
+            $datos['resultado']     = 'incompetente';
+            $datos['instituciones'] = [];
+        }
 
         FormatoExcepcion::guardar($origen, $datos, $terminar, $request->user());
 

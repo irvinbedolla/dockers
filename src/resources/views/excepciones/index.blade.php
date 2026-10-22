@@ -30,6 +30,7 @@
             return match ($f->resultado ?? null) {
                 'continua' => ['cx-caso--hecho', 'bi-check2-circle', 'Continúa conciliación'],
                 'canaliza' => ['cx-caso--canal', 'bi-signpost-split', 'Canalizada'],
+                'incompetente' => ['cx-caso--incomp', 'bi-x-octagon', 'No competentes'],
                 default    => ['cx-caso--hecho', 'bi-check2-circle', 'Atendido'],
             };
         }
@@ -76,6 +77,7 @@
         .cx-caso--pend { background: #FBF4E1; color: #7A5D10; }
         .cx-caso--hecho { background: #E5F3EA; color: #1E7B3C; }
         .cx-caso--canal { background: #F6E4EA; color: #8C1D40; }
+        .cx-caso--incomp { background: #ECEAF4; color: #4B3F7A; }
         .cx-caso--borrador { background: #EEF2F2; color: #5E6E6F; }
         .cx-acciones { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
         .cx-vacio { padding: 30px 10px; text-align: center; color: var(--tn-tenue); }

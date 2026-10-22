@@ -164,6 +164,8 @@ class CasosExcepcion
     public const RESULTADOS = [
         'continua' => 'Continúa con la conciliación',
         'canaliza' => 'Canalizada',
+        // "6. No somos competentes" en la lista de canalizar: se cierra sin canalizar.
+        'incompetente' => 'No somos competentes',
     ];
 
     public const GRUPOS_VULNERABLES = [

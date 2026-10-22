@@ -210,6 +210,11 @@ class FormatoExcepcion
         // También se canaliza "para atención integral" cuando la persona sí
         // continúa con la conciliación (el oficio lo contempla).
         $instituciones = array_values(array_intersect(array_keys(CasosExcepcion::INSTITUCIONES), Arr::wrap($datos['instituciones'] ?? [])));
+        // "No somos competentes": se cierra sin canalizar a ninguna institución.
+        $incompetente = ($datos['resultado'] ?? null) === 'incompetente';
+        if ($incompetente) {
+            $instituciones = [];
+        }
 
         // "Señale el motivo": del catálogo (se guarda la clave y el texto) u "otro" con texto libre.
         $claveDisc = in_array('discriminacion', $tipos, true) ? ($datos['motivo_discriminacion'] ?? null) : null;
@@ -277,9 +282,10 @@ class FormatoExcepcion
             $id = (int) DB::table('seer_casos_excepcion')->insertGetId($fila + ['created_at' => now(), 'hora' => now()->format('H:i')]);
         }
 
-        // No continúa: si ya hay solicitud y así se pidió, se cierra como "Canalizada".
-        if ($terminar && ($datos['resultado'] ?? null) === 'canaliza' && $sol && ($datos['cerrar_solicitud'] ?? null) === '1') {
-            self::cerrarSolicitud($sol, $instituciones, $usuario);
+        // No continúa: si ya hay solicitud y así se pidió, se cierra como
+        // "Canalizada" (o "Incompetencia" si el Centro no es competente).
+        if ($terminar && in_array($datos['resultado'] ?? null, ['canaliza', 'incompetente'], true) && $sol && ($datos['cerrar_solicitud'] ?? null) === '1') {
+            self::cerrarSolicitud($sol, $instituciones, $usuario, $incompetente);
         }
 
         return $id;
@@ -297,29 +303,33 @@ class FormatoExcepcion
 
     /**
      * La persona no sigue con la conciliación (art. 685 Ter): la solicitud y
-     * sus audiencias pendientes quedan "Canalizada" (no es desistimiento) y
-     * se deja constancia en las observaciones. La audiencia libera su horario
+     * sus audiencias pendientes quedan "Canalizada" (no es desistimiento) o,
+     * si el Centro no es competente, "Incompetencia", y se deja constancia en
+     * las observaciones. La audiencia libera su horario
      * (AgendaAudiencias::LIBERAN).
      */
-    public static function cerrarSolicitud(object $solicitud, array $instituciones, User $usuario): void
+    public static function cerrarSolicitud(object $solicitud, array $instituciones, User $usuario, bool $incompetente = false): void
     {
         if (! self::puedeCerrar($solicitud)) {
             return;
         }
 
         $a = $instituciones ? implode(', ', array_map(fn ($k) => CasosExcepcion::INSTITUCIONES[$k], $instituciones)) : 'otra institución';
-        $nota = 'Canalizada por caso de excepción (art. 685 Ter LFT) a: '.$a.'. '.now()->format('d/m/Y H:i').', '.trim((string) $usuario->name).'.';
+        $nota = ($incompetente
+            ? 'Cerrada por caso de excepción (art. 685 Ter LFT): el Centro no es competente. '
+            : 'Canalizada por caso de excepción (art. 685 Ter LFT) a: '.$a.'. ').now()->format('d/m/Y H:i').', '.trim((string) $usuario->name).'.';
+        $estatus = $incompetente ? 'Incompetencia' : 'Canalizada';
 
-        DB::transaction(function () use ($solicitud, $nota) {
+        DB::transaction(function () use ($solicitud, $nota, $estatus) {
             DB::table('seer_general')->where('id', $solicitud->id)->update([
-                'estatus'           => 'Canalizada',
+                'estatus'           => $estatus,
                 'fecha_terminacion' => now()->toDateString(),
                 'observaciones'     => trim(trim((string) $solicitud->observaciones)."\n".$nota),
                 'updated_at'        => now(),
             ]);
 
             DB::table('audiencias')->where('id_solicitud', $solicitud->id)->where('estatus', 'Pendiente')
-                ->update(['estatus' => 'Canalizada', 'updated_at' => now()]);
+                ->update(['estatus' => $estatus, 'updated_at' => now()]);
         });
     }
 
