@@ -181,6 +181,7 @@
     }
     function vigente(c) { return c.estatus === 'pendiente' || c.estatus === 'confirmada'; }
     function esRatificacion(c) { return c.tipo === 'Ratificación' || c.tipo === 'Ratificacion'; }
+    function esAsesoria(c) { return c.tipo === 'Asesoría' || c.tipo === 'Asesoria'; }
     function faltan(c) {
         if (c.estatus === 'atendido' || c.estatus === 'expirada') { return '—'; }
         if (c.minutos > 0) { return c.minutos + ' min'; }
@@ -192,6 +193,12 @@
         // Ratificación en atención: volver al formulario con los datos de su turno.
         if (c.flujoNuevo && esRatificacion(c) && vigente(c) && c.enAtencion) {
             return '<a href="' + esc(URL_RATIFICACION.replace('__ID__', c.id)) + '" class="btn tn-boton-dorado"><i class="bi bi-pencil-square me-1"></i> Revisar datos de la ratificación</a>';
+        }
+        // Asesoría en atención: si al final la persona quiere levantar solicitud, se captura con sus datos.
+        if (c.flujoNuevo && esAsesoria(c) && vigente(c) && c.enAtencion) {
+            return '<form method="POST" action="' + esc(URL_PRELLENAR.replace('__ID__', c.id)) + '" data-continuar="' + esc(c.folio) + '">' +
+                '<input type="hidden" name="_token" value="' + esc(TOKEN) + '">' +
+                '<button type="submit" class="btn tn-boton-dorado"><i class="bi bi-file-earmark-plus me-1"></i> Continuar como Solicitud</button></form>';
         }
         if (!c.flujoNuevo || c.tipo !== 'Solicitud' || !vigente(c)) { return ''; }
         return '<form method="POST" action="' + esc(URL_PRELLENAR.replace('__ID__', c.id)) + '">' +
@@ -355,6 +362,19 @@
         } else {
             ejecutar(boton);
         }
+    });
+
+    // "Continuar como Solicitud" (asesoría): confirma antes de ir a la captura.
+    document.querySelector('.tn .section-body').addEventListener('submit', function (e) {
+        var form = e.target.closest('form[data-continuar]');
+        if (!form || form.dataset.confirmado) { return; }
+        e.preventDefault();
+        confirmar('¿Continuar como solicitud?', 'Se abrirá la captura de la solicitud con los datos de la asesoría ' + form.getAttribute('data-continuar') + '. Al guardarla, la cita quedará como atendida.', function () {
+            form.dataset.confirmado = '1';
+            // La lista se repinta cada 20 s: si ya no está en la página, se vuelve a poner para enviarlo.
+            if (!form.isConnected) { form.hidden = true; document.body.appendChild(form); }
+            form.submit();
+        });
     });
 
     pintar();
