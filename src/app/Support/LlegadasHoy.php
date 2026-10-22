@@ -12,7 +12,9 @@ use Illuminate\Support\Str;
 /**
  * "Llegadas hoy": quién ya llegó a su audiencia, ratificación o cumplimiento
  * del día. Trae también lo que ya se cerró hoy (con su estatus, sin poder
- * marcar) y señala lo abierto cuya hora ya pasó y le falta alguien. La recepción (Morelia 02) lo marca y el conciliador asignado
+ * marcar) y señala lo abierto cuya hora ya pasó y le falta alguien. La
+ * recepción que recibe a la gente (Morelia 02 y, en las sedes regionales, la
+ * Recepción General) lo marca y el conciliador asignado
  * recibe un aviso con sonido (llegadas/_avisos), igual que el auxiliar que
  * lleva la ratificación o el cumplimiento (AUXILIARES). Ambos también ven
  * la pantalla, sólo para consultar.
@@ -52,8 +54,13 @@ class LlegadasHoy
         'cumplimiento' => 'Cumplimiento',
     ];
 
-    /** Quién marca: la recepción de audiencias y quien la supervisa. */
-    public const MARCAN = ['Super Usuario', Recepcion::MORELIA_02];
+    /**
+     * Quién marca: la recepción que recibe audiencias, ratificaciones y
+     * cumplimientos (Morelia 02 en Morelia; la General, que atiende sola las
+     * sedes regionales) y quien la supervisa. Cada una, en sus sedes
+     * (Recepcion::sedes).
+     */
+    public const MARCAN = ['Super Usuario', Recepcion::MORELIA_02, Recepcion::REGIONAL];
 
     /**
      * Auxiliares que reciben el aviso de lo que llevan: la ratificación que
@@ -228,7 +235,11 @@ class LlegadasHoy
         return $usuario !== null && self::migrado() && $usuario->hasAnyRole(self::CONSULTAN);
     }
 
-    /** Sedes que ve: Super Usuario todas; Morelia 02 las suyas; el conciliador, su región. */
+    /**
+     * Sedes que ve: Super Usuario todas; la recepción, las de su rol (Morelia
+     * 02, Morelia; la General, la de su cuenta, o las cinco regionales si su
+     * cuenta no es de una); el conciliador y los auxiliares, su región.
+     */
     public static function sedes(User $usuario): array
     {
         if ($usuario->hasRole('Super Usuario')) {

@@ -269,7 +269,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/agenda/citas-en-linea',                AgendaCitasController::class)->name('agenda.citas_linea')
         ->middleware(VeCitasEnLinea::class);
     // Llegadas hoy: audiencias, ratificaciones y cumplimientos del día. La
-    // recepción de audiencias (Morelia 02) marca quién llegó y el conciliador
+    // recepción (Morelia 02 y la General) marca quién llegó y el conciliador
     // asignado (y el auxiliar que la lleva) recibe el aviso; ellos ven la
     // pantalla sólo para consultar. Ver App\Support\LlegadasHoy.
     Route::middleware('role:'.implode('|', \App\Support\LlegadasHoy::roles()))->group(function () {

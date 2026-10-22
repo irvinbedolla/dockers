@@ -35,7 +35,7 @@
             // Flujo nuevo cita → solicitud: sólo si el interruptor lo habilita para esta persona.
             ['route' => 'mi_modulo',                  'label' => 'Mi módulo',               'icon' => 'bi bi-person-workspace',    'roles' => '*',
                 'si' => fn () => \App\Http\Controllers\MiModuloController::puedeVer(auth()->user())],
-            // Llegadas hoy: la recepción (Morelia 02) marca quién llegó; el conciliador sólo consulta.
+            // Llegadas hoy: la recepción (Morelia 02 y la General) marca quién llegó; el conciliador sólo consulta.
             ['route' => 'llegadas.index',             'label' => 'Llegadas hoy',            'icon' => 'bi bi-person-check',        'roles' => \App\Support\LlegadasHoy::roles(),
                 'si' => fn () => \App\Support\LlegadasHoy::migrado()],
             ['route' => 'configuracion',              'label' => 'Administración',          'icon' => 'bi bi-lock-fill',           'roles' => ['Super Usuario', 'Delegado', 'Enlace']],
