@@ -277,6 +277,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/recepcion/llegadas-hoy/datos',      [App\Http\Controllers\LlegadasHoyController::class, 'datos'])->name('llegadas.datos');
         Route::post('/recepcion/llegadas/{tipo}/{id}',   [App\Http\Controllers\LlegadasHoyController::class, 'marcar'])->name('llegadas.marcar')
             ->whereIn('tipo', array_keys(\App\Support\LlegadasHoy::TIPOS))->whereNumber('id')->middleware('throttle:120,1');
+        Route::post('/recepcion/llegadas/{tipo}/{id}/observaciones', [App\Http\Controllers\LlegadasHoyController::class, 'observaciones'])->name('llegadas.observaciones')
+            ->whereIn('tipo', array_keys(\App\Support\LlegadasHoy::OBSERVAN))->whereNumber('id')->middleware('throttle:120,1');
     });
     Route::permanentRedirect('/recepcion/audiencias-hoy',   '/recepcion/llegadas-hoy');
     Route::get('/llegadas/avisos',                      [App\Http\Controllers\LlegadasHoyController::class, 'avisos'])->name('llegadas.avisos')

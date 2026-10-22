@@ -24,6 +24,9 @@ use Illuminate\Support\Str;
  *                 cuenta como llegada;
  *   avisosPara()  llegadas recientes de lo que lleva un conciliador o un
  *                 auxiliar (responsables()).
+ *   guardarObservaciones()  lo que la recepción anota de una audiencia
+ *                 (silla de ruedas, traductor, menor de edad y texto) o de
+ *                 una ratificación (sólo texto); lo ve el conciliador.
  *
  * Un solo registro (tabla llegadas): tipo + registro_id + clave de la parte.
  *   audiencia     audiencias.id      partes: 'solicitante' y 'citado:<hash>'
@@ -63,6 +66,22 @@ class LlegadasHoy
     /** Quién sólo consulta (las de sus sedes; por omisión, las suyas). */
     public const CONSULTAN = ['Conciliador', ...self::AUXILIARES];
 
+    /** Tabla de observaciones (una fila por registro). */
+    public const TABLA_OBS = 'llegadas_observaciones';
+
+    /** Casillas de observación. */
+    public const OBSERVACIONES = [
+        'silla_ruedas' => 'Viene en silla de ruedas',
+        'traductor'    => 'Ocupa traductor',
+        'menor_edad'   => 'Es menor de edad',
+    ];
+
+    /** Dónde se anotan observaciones y qué casillas lleva cada uno (el texto libre va en todos). */
+    public const OBSERVAN = [
+        'audiencia'    => ['silla_ruedas', 'traductor', 'menor_edad'],
+        'ratificacion' => [],
+    ];
+
     /** Ratificaciones que ya no esperan a nadie. */
     private const RATIFICACION_CERRADA = ['Concluida', 'Concluida Pagos', 'Incumplimiento', 'Archivada', 'Prevencion', 'no atendido'];
 
@@ -99,6 +118,92 @@ class LlegadasHoy
         static $listo = null;
 
         return $listo ??= Schema::hasTable(self::TABLA) && Schema::hasColumn(self::TABLA, 'tipo');
+    }
+
+    public static function conObservaciones(): bool
+    {
+        static $hay = null;
+
+        return $hay ??= Schema::hasTable(self::TABLA_OBS);
+    }
+
+    /**
+     * Guarda (o borra, si queda vacío) las observaciones de un registro de
+     * hoy. Devuelve el texto de error, o null si salió bien.
+     */
+    public static function guardarObservaciones(string $tipo, int $id, array $datos, User $usuario): ?string
+    {
+        if (! self::conObservaciones() || ! array_key_exists($tipo, self::OBSERVAN)) {
+            return 'Aquí no se anotan observaciones.';
+        }
+
+        $registro = self::registro($tipo, $id);
+        if (! $registro) {
+            return 'Ese registro ya no existe.';
+        }
+        if (! in_array($registro['sede'], self::variantes(self::sedes($usuario)), true)) {
+            return 'No es de tu sede.';
+        }
+        if ($registro['fecha'] !== now()->toDateString()) {
+            return 'Sólo se anotan observaciones de lo de hoy.';
+        }
+
+        $texto = trim(preg_replace('/[ \t]+/', ' ', (string) ($datos['texto'] ?? '')));
+        $fila = ['texto' => $texto !== '' ? $texto : null];
+        foreach (array_keys(self::OBSERVACIONES) as $casilla) {
+            $fila[$casilla] = in_array($casilla, self::OBSERVAN[$tipo], true) && ! empty($datos[$casilla]);
+        }
+
+        $donde = DB::table(self::TABLA_OBS)->where('tipo', $tipo)->where('registro_id', $id);
+        if ($fila['texto'] === null && ! in_array(true, array_intersect_key($fila, self::OBSERVACIONES), true)) {
+            $donde->delete();
+
+            return null;
+        }
+
+        $fila += ['registrado_por' => $usuario->id, 'updated_at' => now()];
+        if ((clone $donde)->exists()) {
+            $donde->update($fila);
+        } else {
+            DB::table(self::TABLA_OBS)->insert($fila + ['tipo' => $tipo, 'registro_id' => $id, 'created_at' => now()]);
+        }
+
+        return null;
+    }
+
+    /** Observaciones guardadas de unos registros de un tipo, por registro_id. */
+    private static function observacionesDe(string $tipo, $ids): Collection
+    {
+        if (! self::conObservaciones() || ! array_key_exists($tipo, self::OBSERVAN)) {
+            return collect();
+        }
+
+        return DB::table(self::TABLA_OBS . ' as o')
+            ->leftJoin('users as u', 'u.id', '=', 'o.registrado_por')
+            ->where('o.tipo', $tipo)
+            ->whereIn('o.registro_id', collect($ids)->all() ?: [0])
+            ->get(['o.registro_id', 'o.silla_ruedas', 'o.traductor', 'o.menor_edad', 'o.texto', 'o.updated_at', 'u.name as por'])
+            ->keyBy('registro_id');
+    }
+
+    /** Lo que se pinta: casillas, texto y una lista corta para el aviso. */
+    private static function observacion(?object $o): ?array
+    {
+        if (! $o) {
+            return null;
+        }
+
+        $marcadas = array_values(array_filter(array_keys(self::OBSERVACIONES), fn ($c) => (bool) $o->{$c}));
+
+        return [
+            'silla_ruedas' => (bool) $o->silla_ruedas,
+            'traductor'    => (bool) $o->traductor,
+            'menor_edad'   => (bool) $o->menor_edad,
+            'texto'        => $o->texto,
+            'etiquetas'    => array_map(fn ($c) => self::OBSERVACIONES[$c], $marcadas),
+            'por'          => $o->por ? PantallaEspera::nombreCorto($o->por, false) : null,
+            'hora'         => $o->updated_at ? Carbon::parse($o->updated_at)->format('H:i') : null,
+        ];
     }
 
     /** Roles con la pestaña en el menú. */
@@ -288,9 +393,14 @@ class LlegadasHoy
             ->addSelect(['p.hora', DB::raw("'' as lugar"), DB::raw("COALESCE(NULLIF(p.NUE, ''), (SELECT g2.NUE FROM seer_general g2 WHERE g2.id = p.id_solicitud AND p.tipo_pago = 'Audiencia'), (SELECT t2.NUE FROM turnos t2 WHERE t2.id = p.id_solicitud AND p.tipo_pago = 'Ratificacion')) as NUE"), DB::raw('NULL as id_solicitud')])
             ->get();
 
-        return $audiencias->concat($ratificaciones)->concat($cumplimientos)
-            ->sortBy('id')
-            ->take(40)
+        $todas = $audiencias->concat($ratificaciones)->concat($cumplimientos)->sortBy('id')->take(40);
+        // Observaciones de la recepción: van en el aviso (silla de ruedas, traductor...).
+        $obs = [];
+        foreach (array_keys(self::OBSERVAN) as $t) {
+            $obs[$t] = self::observacionesDe($t, $todas->where('tipo', $t)->pluck('registro_id'));
+        }
+
+        return $todas
             ->map(fn ($l) => [
                 'id'      => $l->id,
                 'tipo'    => self::SINGULAR[$l->tipo] ?? $l->tipo,
@@ -302,6 +412,9 @@ class LlegadasHoy
                 'lugar'   => (string) $l->lugar,
                 'hora'    => substr((string) $l->hora, 0, 5),
                 'url'     => self::url($l->tipo, (int) $l->registro_id, $l->id_solicitud),
+                'obs'     => ($o = self::observacion(($obs[$l->tipo] ?? collect())[$l->registro_id] ?? null))
+                    ? array_values(array_filter(array_merge($o['etiquetas'], [$o['texto']])))
+                    : [],
             ])
             ->values();
     }
@@ -415,6 +528,7 @@ class LlegadasHoy
     private static function armar(string $tipo, string $fecha, Collection $filas, callable $datos): Collection
     {
         $ahora = now();
+        $obs   = self::observacionesDe($tipo, $filas->pluck('id'));
 
         $llegadas = DB::table(self::TABLA.' as l')
             ->leftJoin('users as u', 'u.id', '=', 'l.registrado_por')
@@ -423,7 +537,7 @@ class LlegadasHoy
             ->get(['l.registro_id', 'l.clave', 'l.llegada_at', 'l.origen', 'u.name as por'])
             ->groupBy('registro_id');
 
-        return $filas->map(function ($fila) use ($tipo, $fecha, $ahora, $datos, $llegadas) {
+        return $filas->map(function ($fila) use ($tipo, $fecha, $ahora, $datos, $llegadas, $obs) {
             $d      = $datos($fila);
             $deEste = ($llegadas[$fila->id] ?? collect())->keyBy('clave');
             $lista  = array_map(function ($p) use ($deEste) {
@@ -464,6 +578,9 @@ class LlegadasHoy
                 'abierto'        => (bool) $d['abierto'],
                 'estatus'        => $d['abierto'] ? null : (self::CERRADO[$d['estatus']] ?? (string) $d['estatus']),
                 'atraso'         => $atraso,
+                // Observaciones de la recepción (audiencias y ratificaciones).
+                'conObs'         => self::conObservaciones() && array_key_exists($tipo, self::OBSERVAN),
+                'obs'            => self::observacion($obs[$fila->id] ?? null),
             ];
         });
     }

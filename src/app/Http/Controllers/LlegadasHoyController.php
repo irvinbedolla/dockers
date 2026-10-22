@@ -68,6 +68,29 @@ class LlegadasHoyController extends Controller
         return response()->json(['ok' => true]);
     }
 
+    /** Observaciones de la recepción para una audiencia o ratificación de hoy. */
+    public function observaciones(Request $request, string $tipo, int $id)
+    {
+        $usuario = $request->user();
+        abort_unless(LlegadasHoy::puedeMarcar($usuario), 403);
+
+        $datos = $request->validate([
+            'silla_ruedas' => ['nullable', 'boolean'],
+            'traductor'    => ['nullable', 'boolean'],
+            'menor_edad'   => ['nullable', 'boolean'],
+            'texto'        => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $error = LlegadasHoy::guardarObservaciones($tipo, $id, $datos, $usuario);
+        if ($error) {
+            return response()->json(['message' => $error], 422);
+        }
+
+        Log::info('llegada.observaciones', ['tipo' => $tipo, 'id' => $id, 'por' => $usuario->id]);
+
+        return response()->json(['ok' => true]);
+    }
+
     /** Para el conciliador: quién llegó a lo que tiene hoy. */
     public function avisos(Request $request)
     {
