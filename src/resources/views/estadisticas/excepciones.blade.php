@@ -20,7 +20,7 @@
     $corta = fn ($f) => \Illuminate\Support\Carbon::parse($f)->locale('es')->isoFormat('D MMM YYYY');
     $textoPeriodo = $desde === $hasta ? $corta($desde) : $corta($desde).' – '.$corta($hasta);
     $pct = fn ($v) => $v === null ? '—' : rtrim(rtrim(number_format($v, 1), '0'), '.').'%';
-    $hayGrafica = array_sum($tendencia['detectados']) + array_sum($tendencia['continua']) + array_sum($tendencia['canaliza']) + array_sum($tendencia['incompetente'] ?? []) > 0;
+    $hayGrafica = array_sum($tendencia['detectados']) + array_sum($tendencia['continua']) + array_sum($tendencia['canaliza']) + array_sum($tendencia['incompetente'] ?? []) + array_sum($tendencia['noExcepcion'] ?? []) > 0;
     $r = $resumen;
 @endphp
 
@@ -42,8 +42,8 @@
         .ex-titulo { margin: 0; font-size: 16px; font-weight: 800; color: var(--tn-tinta); }
         .ex-sub { font-size: 12.5px; color: var(--tn-tenue); }
 
-        .ex-cifras { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px; }
-        @media (max-width: 1300px) { .ex-cifras { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+        .ex-cifras { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 10px; }
+        @media (max-width: 1400px) { .ex-cifras { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
         @media (max-width: 1100px) { .ex-cifras { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
         @media (max-width: 560px)  { .ex-cifras { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
         .ex-cifra { border: 1px solid var(--tn-borde); border-radius: 10px; padding: 10px 12px; background: var(--tn-fondo); }
@@ -53,6 +53,7 @@
         .ex-cifra--exito { background: #E9F5EE; border-color: #CBE7D6; } .ex-cifra--exito b { color: #1E7B3C; }
         .ex-cifra--canal { background: #FBEDEA; border-color: #F2D2CA; } .ex-cifra--canal b { color: #9A3A22; }
         .ex-cifra--incomp { background: #F1EFF8; border-color: #DCD6EE; } .ex-cifra--incomp b { color: #4B3F7A; }
+        .ex-cifra--noexc { background: #F3F4F6; border-color: #DEE2E6; } .ex-cifra--noexc b { color: #5F6B7A; }
         .ex-cifra--pend b { color: #7A5D10; }
 
         .ex-grafica { position: relative; height: 280px; }
@@ -140,6 +141,7 @@
                     <div class="ex-cifra ex-cifra--exito"><b>{{ number_format($r['continua']) }}</b><span>Continúan</span><small>con la conciliación{{ $r['integral'] ? ' · '.$r['integral'].' además canalizados' : '' }}</small></div>
                     <div class="ex-cifra ex-cifra--canal"><b>{{ number_format($r['canaliza']) }}</b><span>Canalizados</span><small>{{ $pct($r['pctCanaliza']) }} de los atendidos</small></div>
                     <div class="ex-cifra ex-cifra--incomp" title="Se cerraron con «No somos competentes»: no siguen con la conciliación ni se canalizan."><b>{{ number_format($r['incompetente']) }}</b><span>No competentes</span><small>{{ $pct($r['pctIncompetente']) }} de los atendidos</small></div>
+                    <div class="ex-cifra ex-cifra--noexc" title="Se cerraron con «No es caso de excepción»: siguen como cita normal (fila de hoy u otra fecha) o sólo se terminó la atención."><b>{{ number_format($r['noExcepcion']) }}</b><span>No eran excepción</span><small>reclasificados al atender</small></div>
                     <div class="ex-cifra ex-cifra--pend"><b>{{ number_format($r['porAtender']) }}</b><span>Por atender hoy</span><small>últimos 30 días</small></div>
                     <div class="ex-cifra"><b>{{ number_format($r['borradores']) }}</b><span>Borradores</span><small>formato sin terminar</small></div>
                 </div>
@@ -234,11 +236,11 @@
                         <summary>Ver como tabla</summary>
                         <div class="table-responsive">
                             <table class="table table-sm ex-tabla mb-0">
-                                <thead><tr><th>{{ $tendencia['unidad'] === 'mes' ? 'Mes' : 'Día' }}</th><th class="ex-num">Detectados</th><th class="ex-num">Continúan</th><th class="ex-num">Canalizados</th><th class="ex-num">No competentes</th></tr></thead>
+                                <thead><tr><th>{{ $tendencia['unidad'] === 'mes' ? 'Mes' : 'Día' }}</th><th class="ex-num">Detectados</th><th class="ex-num">Continúan</th><th class="ex-num">Canalizados</th><th class="ex-num">No competentes</th><th class="ex-num">No eran excepción</th></tr></thead>
                                 <tbody>
                                     @foreach ($tendencia['etiquetas'] as $i => $e)
                                         @continue($tendencia['detectados'][$i] === null)
-                                        <tr><td>{{ $e }}</td><td class="ex-num">{{ $tendencia['detectados'][$i] }}</td><td class="ex-num">{{ $tendencia['continua'][$i] }}</td><td class="ex-num">{{ $tendencia['canaliza'][$i] }}</td><td class="ex-num">{{ $tendencia['incompetente'][$i] }}</td></tr>
+                                        <tr><td>{{ $e }}</td><td class="ex-num">{{ $tendencia['detectados'][$i] }}</td><td class="ex-num">{{ $tendencia['continua'][$i] }}</td><td class="ex-num">{{ $tendencia['canaliza'][$i] }}</td><td class="ex-num">{{ $tendencia['incompetente'][$i] }}</td><td class="ex-num">{{ $tendencia['noExcepcion'][$i] }}</td></tr>
                                     @endforeach
                                 </tbody>
                             </table>
@@ -277,7 +279,7 @@
                     <div class="ex-cabeza"><h4 class="ex-titulo">Por sede</h4><span class="ex-sub">{{ $textoPeriodo }}</span></div>
                     <div class="table-responsive">
                         <table class="table table-hover ex-tabla mb-0">
-                            <thead><tr><th>Sede</th><th class="ex-num">Detectados</th><th class="ex-num">Atendidos</th><th class="ex-num">Continúan</th><th class="ex-num">Canalizados</th><th class="ex-num">No competentes</th><th class="ex-num">Por atender hoy</th></tr></thead>
+                            <thead><tr><th>Sede</th><th class="ex-num">Detectados</th><th class="ex-num">Atendidos</th><th class="ex-num">Continúan</th><th class="ex-num">Canalizados</th><th class="ex-num">No competentes</th><th class="ex-num">No eran excepción</th><th class="ex-num">Por atender hoy</th></tr></thead>
                             <tbody>
                                 @foreach ($porSede as $f)
                                     <tr>
@@ -287,6 +289,7 @@
                                         <td class="ex-num" style="color:#1E7B3C;font-weight:700">{{ number_format($f['continua']) }}</td>
                                         <td class="ex-num" style="color:#9A3A22;font-weight:700">{{ number_format($f['canaliza']) }}</td>
                                         <td class="ex-num" style="color:#4B3F7A;font-weight:700">{{ number_format($f['incompetente']) }}</td>
+                                        <td class="ex-num" style="color:#5F6B7A;font-weight:700">{{ number_format($f['noExcepcion']) }}</td>
                                         <td class="ex-num">{{ number_format($f['porAtender']) }}</td>
                                     </tr>
                                 @endforeach
@@ -340,6 +343,8 @@
                         { type: 'bar', label: 'Canalizados', data: serie.canaliza, stack: 'a', backgroundColor: '#E07A5F', borderColor: '#fff',
                           borderWidth: { bottom: 2 }, maxBarThickness: 24, order: 2 },
                         { type: 'bar', label: 'No competentes', data: serie.incompetente, stack: 'a', backgroundColor: '#7B6BB0', borderColor: '#fff',
+                          borderWidth: { bottom: 2 }, maxBarThickness: 24, order: 2 },
+                        { type: 'bar', label: 'No eran excepción', data: serie.noExcepcion, stack: 'a', backgroundColor: '#A7B0BA', borderColor: '#fff',
                           borderWidth: { bottom: 2 }, borderRadius: { topLeft: 4, topRight: 4 }, borderSkipped: false, maxBarThickness: 24, order: 2 },
                         { type: 'line', label: 'Detectados', data: serie.detectados, borderColor: '#2563A8', backgroundColor: '#2563A8', borderWidth: 2,
                           pointRadius: serie.etiquetas.length > 40 ? 0 : 4, pointHoverRadius: 5, pointBorderColor: '#fff', pointBorderWidth: 2,

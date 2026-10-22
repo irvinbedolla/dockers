@@ -18,6 +18,9 @@ use Illuminate\Support\Facades\Schema;
  *   continúan / canalizados  según la decisión de la persona;
  *   no competentes  se cerraron con "No somos competentes" (resultado
  *                   'incompetente'): no siguen ni se canalizan;
+ *   no eran excepción  se cerraron con "No es caso de excepción"
+ *                   (resultado 'no_excepcion'); su cita ya no está marcada,
+ *                   así que no cuentan como detectados;
  *   por atender  lo que hoy está pendiente (CasosExcepcion::porAtender).
  *
  * Un caso puede tener varios tipos de situación y canalizarse a varias
@@ -70,6 +73,7 @@ class EstadisticasExcepcion
                  SUM(CASE WHEN x.resultado = 'continua' THEN 1 ELSE 0 END) AS continua,
                  SUM(CASE WHEN x.resultado = 'canaliza' THEN 1 ELSE 0 END) AS canaliza,
                  SUM(CASE WHEN x.resultado = 'incompetente' THEN 1 ELSE 0 END) AS incompetente,
+                 SUM(CASE WHEN x.resultado = 'no_excepcion' THEN 1 ELSE 0 END) AS no_excepcion,
                  SUM(CASE WHEN x.resultado = 'continua' AND COALESCE(x.instituciones, '[]') <> '[]' THEN 1 ELSE 0 END) AS integral")->first()
             : null;
 
@@ -95,6 +99,7 @@ class EstadisticasExcepcion
             'pctCanaliza' => $atendidos ? round($canaliza * 100 / $atendidos, 1) : null,
             'incompetente'    => $incompetente,
             'pctIncompetente' => $atendidos ? round($incompetente * 100 / $atendidos, 1) : null,
+            'noExcepcion'     => (int) ($fila->no_excepcion ?? 0),
             'porAtender'  => CasosExcepcion::porAtender()->when($sede, fn ($q) => $q->where('r.delegacion', $sede))->count(),
             'borradores'  => $borradores,
         ];
@@ -121,11 +126,12 @@ class EstadisticasExcepcion
             ? self::atendidos($rango, $sede)->selectRaw("DATE_FORMAT(x.fecha, '{$formato}') AS clave,
                 SUM(CASE WHEN x.resultado = 'continua' THEN 1 ELSE 0 END) AS continua,
                 SUM(CASE WHEN x.resultado = 'canaliza' THEN 1 ELSE 0 END) AS canaliza,
-                SUM(CASE WHEN x.resultado = 'incompetente' THEN 1 ELSE 0 END) AS incompetente")
+                SUM(CASE WHEN x.resultado = 'incompetente' THEN 1 ELSE 0 END) AS incompetente,
+                SUM(CASE WHEN x.resultado = 'no_excepcion' THEN 1 ELSE 0 END) AS no_excepcion")
                 ->groupBy('clave')->get()->keyBy('clave')
             : collect();
 
-        $serie = ['unidad' => $porMes ? 'mes' : 'dia', 'etiquetas' => [], 'detectados' => [], 'continua' => [], 'canaliza' => [], 'incompetente' => []];
+        $serie = ['unidad' => $porMes ? 'mes' : 'dia', 'etiquetas' => [], 'detectados' => [], 'continua' => [], 'canaliza' => [], 'incompetente' => [], 'noExcepcion' => []];
         $cursor = $porMes ? $inicio->copy()->startOfMonth() : $inicio->copy();
         while ($cursor <= $fin) {
             $clave = $cursor->format($porMes ? 'Y-m' : 'Y-m-d');
@@ -136,6 +142,7 @@ class EstadisticasExcepcion
             $serie['continua'][]   = $futuro ? null : (int) ($atendidos[$clave]->continua ?? 0);
             $serie['canaliza'][]   = $futuro ? null : (int) ($atendidos[$clave]->canaliza ?? 0);
             $serie['incompetente'][] = $futuro ? null : (int) ($atendidos[$clave]->incompetente ?? 0);
+            $serie['noExcepcion'][]  = $futuro ? null : (int) ($atendidos[$clave]->no_excepcion ?? 0);
             $porMes ? $cursor->addMonthNoOverflow() : $cursor->addDay();
         }
 
@@ -172,7 +179,8 @@ class EstadisticasExcepcion
             ? self::atendidos($rango, null)->selectRaw("x.delegacion AS sede, COUNT(*) AS atendidos,
                 SUM(CASE WHEN x.resultado = 'continua' THEN 1 ELSE 0 END) AS continua,
                 SUM(CASE WHEN x.resultado = 'canaliza' THEN 1 ELSE 0 END) AS canaliza,
-                SUM(CASE WHEN x.resultado = 'incompetente' THEN 1 ELSE 0 END) AS incompetente")->groupBy('x.delegacion')->get()->keyBy('sede')
+                SUM(CASE WHEN x.resultado = 'incompetente' THEN 1 ELSE 0 END) AS incompetente,
+                SUM(CASE WHEN x.resultado = 'no_excepcion' THEN 1 ELSE 0 END) AS no_excepcion")->groupBy('x.delegacion')->get()->keyBy('sede')
             : collect();
 
         return collect(CasosExcepcion::SEDES)->map(fn ($s) => [
@@ -182,6 +190,7 @@ class EstadisticasExcepcion
             'continua'   => (int) ($at[$s]->continua ?? 0),
             'canaliza'   => (int) ($at[$s]->canaliza ?? 0),
             'incompetente' => (int) ($at[$s]->incompetente ?? 0),
+            'noExcepcion'  => (int) ($at[$s]->no_excepcion ?? 0),
             'porAtender' => (int) ($pend[$s] ?? 0),
         ])->filter(fn ($f) => $f['detectados'] + $f['atendidos'] + $f['porAtender'] > 0)->values();
     }
