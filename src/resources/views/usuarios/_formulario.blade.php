@@ -133,6 +133,26 @@
                 </div>
             </div>
         </div>
+        {{-- Enlace de Género e Igualdad: distintivo para apoyar al departamento
+             desde otra delegación (CasosExcepcion::elegirEnlace). Quien ya tiene
+             el rol no lo necesita. --}}
+        @php
+            $enlaceMarcado = old('excepcion_enlace', ($enlaceExcepcion ?? false) ? '1' : '0') === '1';
+        @endphp
+        <div class="col-12" id="ufEnlaceExcepcion" @if (in_array(\App\Support\CasosExcepcion::ROL, $marcados, true)) hidden @endif>
+            <div class="uf-sinotifico uf-enlace">
+                <div class="form-check form-switch mb-0">
+                    <input type="hidden" name="excepcion_enlace" value="0">
+                    <input class="form-check-input" type="checkbox" role="switch" id="excepcion_enlace" name="excepcion_enlace" value="1"
+                           @checked($enlaceMarcado)>
+                    <label class="form-check-label" for="excepcion_enlace">{{ \App\Support\CasosExcepcion::DISTINTIVO }}</label>
+                </div>
+                <div class="form-text mt-1">
+                    Apoya desde su delegación al Departamento de Conciliación, Género e Igualdad: le aparece "Casos de excepción"
+                    y puede atender, canalizar y cerrar casos, igual que el departamento. No cambia lo demás de sus roles.
+                </div>
+            </div>
+        </div>
         <div class="col-md-6">
             <label for="delegacion">Sede <span class="req">*</span></label>
             <select name="delegacion" id="delegacion" class="form-select {{ $campo('delegacion') }}" required>
@@ -342,6 +362,12 @@
         var rolEnlace = cajaRoles.querySelector('input[name="roles[]"][value="Enlace"]');
         if (bloqueSinotifico && rolEnlace) {
             rolEnlace.addEventListener('change', function () { bloqueSinotifico.hidden = !rolEnlace.checked; });
+        }
+        // Enlace de Género e Igualdad: sobra si ya tiene el rol del departamento.
+        var bloqueEnlace = document.getElementById('ufEnlaceExcepcion');
+        var rolGenero = cajaRoles.querySelector('input[name="roles[]"][value="' + @json(\App\Support\CasosExcepcion::ROL) + '"]');
+        if (bloqueEnlace && rolGenero) {
+            rolGenero.addEventListener('change', function () { bloqueEnlace.hidden = rolGenero.checked; });
         }
         if (sede) { sede.addEventListener('change', revisarAgenda); }
         revisarAgenda();
