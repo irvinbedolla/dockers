@@ -82,7 +82,7 @@ class CasosExcepcionController extends Controller
         $f = $request->validate([
             'q'     => ['nullable', 'string', 'max:80'],
             'caso'  => ['nullable', Rule::in(array_keys(\App\Support\BuscadorExpedientes::CASOS))],
-            'sede'  => ['nullable', Rule::in(CasosExcepcion::SEDES)],
+            'sede'  => ['nullable', Rule::in($sedes = \App\Support\BuscadorExpedientes::sedes($request->user()))],
             'desde' => ['nullable', 'date_format:Y-m-d'],
             'hasta' => ['nullable', 'date_format:Y-m-d'],
             'page'  => ['nullable', 'integer', 'min:1'],
@@ -91,7 +91,7 @@ class CasosExcepcionController extends Controller
             [$f['desde'], $f['hasta']] = [$f['hasta'], $f['desde']];
         }
 
-        $p = \App\Support\BuscadorExpedientes::buscar($f, (int) ($f['page'] ?? 1));
+        $p = \App\Support\BuscadorExpedientes::buscar($f, $sedes, (int) ($f['page'] ?? 1));
 
         return response()->json([
             'filas'  => $p->items(),
@@ -106,12 +106,14 @@ class CasosExcepcionController extends Controller
     /**
      * Desde "Buscar expedientes": cualquier solicitud completa, sólo para
      * consulta (el HTML de solicitudes/_vista, como "Ver solicitud" en el
-     * Seguimiento). Se pinta dentro del modal.
+     * Seguimiento). Se pinta dentro del modal. Sólo de las sedes que ve
+     * (BuscadorExpedientes::sedes).
      */
-    public function expedienteVista(int $id)
+    public function expedienteVista(Request $request, int $id)
     {
         $datos = \App\Support\VistaSolicitud::datos($id);
-        abort_unless($datos, 404);
+        abort_unless($datos && \App\Support\BuscadorExpedientes::esDeSedes($datos['general']->delegacion ?? null,
+            \App\Support\BuscadorExpedientes::sedes($request->user())), 404);
 
         return view('solicitudes._vista', $datos);
     }

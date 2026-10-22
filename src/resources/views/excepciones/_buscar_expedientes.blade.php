@@ -36,9 +36,10 @@
                     </div>
                     <div>
                         <label for="cxExpSede">Sede</label>
+                        @php $sedesExp = \App\Support\BuscadorExpedientes::sedes(auth()->user()); @endphp
                         <select class="form-select" id="cxExpSede" name="sede">
-                            <option value="">Todas</option>
-                            @foreach (\App\Support\CasosExcepcion::SEDES as $s)
+                            <option value="">{{ count($sedesExp) === count(\App\Support\CasosExcepcion::SEDES) ? 'Todas' : 'Mis sedes ('.implode(' y ', $sedesExp).')' }}</option>
+                            @foreach ($sedesExp as $s)
                                 <option value="{{ $s }}">{{ $s }}</option>
                             @endforeach
                         </select>

@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\User;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -14,12 +15,16 @@ use Illuminate\Support\Str;
  * Filtros:
  *   q      expediente (NUE), nombre o CURP del solicitante, nombre del
  *          citado o folio de la cita;
- *   sede   una de CasosExcepcion::SEDES;
+ *   sede   una de las sedes que ve (sedes());
  *   caso   'excepcion' (marcada o nacida de una cita de excepción, igual que
  *          CasosExcepcion::solicitudEsCaso) u 'otros';
  *   desde / hasta  fecha de la solicitud (seer_general.fecha).
  *
  * "Ver" abre la solicitud completa, sólo consulta (excepciones.expediente).
+ *
+ * Super Usuario, Directivo y Conciliación, Género e Igualdad ven todas las
+ * sedes; quien más tenga la pestaña (Delegado, Excepcion), sólo su sede y su
+ * sede de apoyo (AgendaContexto::sedesDeRegion).
  */
 class BuscadorExpedientes
 {
@@ -31,10 +36,34 @@ class BuscadorExpedientes
         'otros'     => 'Sin caso de excepción',
     ];
 
+    /** Ven los expedientes de todas las sedes. */
+    public const VEN_TODAS = ['Super Usuario', 'Directivo', CasosExcepcion::ROL];
+
     /** Es caso de excepción: la solicitud marcada o su cita de origen. */
     private const ES_CASO = "(g.caso_excepcion = 'Si' OR r.exepcion = 'Si')";
 
-    public static function buscar(array $f, int $pagina = 1): LengthAwarePaginator
+    /** Sedes cuyos expedientes puede buscar y ver. */
+    public static function sedes(?User $usuario): array
+    {
+        if ($usuario === null) {
+            return [];
+        }
+        if ($usuario->hasAnyRole(self::VEN_TODAS)) {
+            return CasosExcepcion::SEDES;
+        }
+        $region = array_map(fn ($s) => Str::lower(Str::ascii($s)), AgendaContexto::sedesDeRegion($usuario->delegacion));
+
+        return array_values(array_filter(CasosExcepcion::SEDES, fn ($s) => in_array(Str::lower(Str::ascii($s)), $region, true)));
+    }
+
+    /** ¿Ese registro (seer_general.delegacion) es de esas sedes? Se guarda a veces sin acento. */
+    public static function esDeSedes(?string $delegacion, array $sedes): bool
+    {
+        return in_array(Str::lower(Str::ascii((string) $delegacion)), array_map(fn ($s) => Str::lower(Str::ascii($s)), $sedes), true);
+    }
+
+    /** $sedes: las que ve quien busca (sedes()); el filtro de sede se acota a ellas. */
+    public static function buscar(array $f, array $sedes, int $pagina = 1): LengthAwarePaginator
     {
         $texto = trim(preg_replace('/\s+/', ' ', (string) ($f['q'] ?? '')));
         $like  = '%'.str_replace(['%', '_'], ['\%', '\_'], $texto).'%';
@@ -44,9 +73,12 @@ class BuscadorExpedientes
         $sede  = (string) ($f['sede'] ?? '');
         $caso  = (string) ($f['caso'] ?? '');
 
+        $sedes = $sede !== '' ? array_values(array_filter($sedes, fn ($s) => $s === $sede)) : $sedes;
+        $sedes = $sedes ? array_values(array_unique(array_merge($sedes, array_map(fn ($s) => Str::ascii($s), $sedes)))) : ['__ninguna__'];
+
         $consulta = DB::table('seer_general as g')
             ->leftJoin('recepcion as r', 'r.id', '=', 'g.recepcion_id')
-            ->when($sede !== '', fn ($q) => $q->whereIn('g.delegacion', array_unique([$sede, Str::ascii($sede)])))
+            ->whereIn('g.delegacion', $sedes)
             ->when(! empty($f['desde']), fn ($q) => $q->where('g.fecha', '>=', $f['desde']))
             ->when(! empty($f['hasta']), fn ($q) => $q->where('g.fecha', '<=', $f['hasta']))
             ->when($caso === 'excepcion', fn ($q) => $q->whereRaw(self::ES_CASO))
