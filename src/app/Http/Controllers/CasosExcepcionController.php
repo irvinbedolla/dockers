@@ -173,11 +173,16 @@ class CasosExcepcionController extends Controller
 
         $datos = FormatoExcepcion::datos($origen);
         $sede  = FormatoExcepcion::sede($origen);
-        $oficios = [];
-        if ($origen['caso'] && OficioCanalizacion::migrado()) {
-            $guardados = OficioCanalizacion::delCaso((int) $origen['caso']->id);
-            foreach ((array) ($datos['instituciones'] ?? []) as $inst) {
-                $oficios[$inst] = OficioCanalizacion::tarjeta($guardados[$inst] ?? null, $inst, $sede, (array) ($datos['tipos'] ?? []), request()->user());
+        // Aceptación y oficio de cada institución: las marcadas (resumen de abajo) y todas para el
+        // modal, que se abre en cuanto se marca una institución.
+        $oficios = $tarjetas = [];
+        if (OficioCanalizacion::migrado()) {
+            $guardados = $origen['caso'] ? OficioCanalizacion::delCaso((int) $origen['caso']->id) : [];
+            foreach (array_keys(CasosExcepcion::INSTITUCIONES) as $inst) {
+                $tarjetas[$inst] = OficioCanalizacion::tarjeta($guardados[$inst] ?? null, $inst, $sede, (array) ($datos['tipos'] ?? []), request()->user());
+            }
+            if ($origen['caso']) {
+                $oficios = array_intersect_key($tarjetas, array_flip((array) ($datos['instituciones'] ?? [])));
             }
         }
 
@@ -189,6 +194,7 @@ class CasosExcepcionController extends Controller
             'terminado'   => ! empty($origen['caso']->terminado_at ?? null),
             'migrado'     => CasosExcepcion::conFormato(),
             'oficios'     => $oficios,
+            'tarjetas'    => $tarjetas,
             'puedeCerrar' => FormatoExcepcion::puedeCerrar($origen['solicitud']),
         ]);
     }
@@ -239,6 +245,18 @@ class CasosExcepcionController extends Controller
             'siguiente'              => ['nullable', Rule::in(array_keys(FormatoExcepcion::SIGUIENTE))],
             'fecha_nueva'            => ['nullable', 'date_format:Y-m-d'],
             'hora_nueva'             => ['nullable', 'regex:/^\d{2}:\d{2}(:\d{2})?$/'],
+            // Aceptación y oficio por institución (modal de canalización): oficios[institucion][campo].
+            'oficios'                      => ['nullable', 'array'],
+            'oficios.*'                    => ['array'],
+            'oficios.*.numero'             => ['nullable', 'string', 'max:40'],
+            'oficios.*.fecha'              => ['nullable', 'date_format:Y-m-d'],
+            'oficios.*.lugar'              => ['nullable', 'string', 'max:80'],
+            'oficios.*.destinatario'       => ['nullable', 'string', 'max:255'],
+            'oficios.*.cargo'              => ['nullable', 'string', 'max:255'],
+            'oficios.*.area_servicio'      => ['nullable', 'string', 'max:255'],
+            'oficios.*.motivo'             => ['nullable', 'string', 'max:500'],
+            'oficios.*.cargo_atiende'      => ['nullable', 'string', 'max:255'],
+            'oficios.*.aceptacion_firmada' => ['nullable', Rule::in(['0', '1'])],
         ];
         $noExcepcion  = $request->input('no_excepcion') === '1';
         $noCompetente = ! $noExcepcion && $request->input('resultado') === 'canaliza' && $request->input('no_competente') === '1';
@@ -292,6 +310,19 @@ class CasosExcepcionController extends Controller
         }
 
         FormatoExcepcion::guardar($origen, $datos, $terminar, $request->user());
+        $caso = $this->guardarOficiosDelFormato($tipo, $id, $datos, $request);
+
+        // "Guardar cambios" del modal de canalización: se queda en la página.
+        if ($request->expectsJson()) {
+            return response()->json([
+                'ok'      => true,
+                'mensaje' => 'Guardado. Ya puedes imprimir la aceptación y generar los oficios.',
+                'oficios' => $caso ? collect(OficioCanalizacion::delCaso((int) $caso->id))->map(fn ($o) => [
+                    'numero'             => $o->numero,
+                    'aceptacion_firmada' => (bool) ($o->aceptacion_firmada ?? false),
+                ])->all() : [],
+            ]);
+        }
 
         if ($accion === 'pdf') {
             return redirect()->route('excepciones.formato.pdf', ['tipo' => $tipo, 'id' => $id]);
@@ -300,6 +331,27 @@ class CasosExcepcionController extends Controller
         return $terminar
             ? redirect()->route('excepcion', ['vista' => 'citas'])->with('success', 'Caso atendido: '.(CasosExcepcion::RESULTADOS[$datos['resultado']] ?? '').'.')
             : redirect()->route('excepciones.formato', ['tipo' => $tipo, 'id' => $id])->with('success', 'Borrador guardado. Puedes seguir llenándolo cuando quieras.');
+    }
+
+    /**
+     * Aceptación y oficio de las instituciones marcadas, si vienen del modal
+     * (oficios[institucion][campo]). Sin apartar número: eso es al generar el
+     * oficio. Devuelve el caso ya guardado.
+     */
+    private function guardarOficiosDelFormato(string $tipo, int $id, array $datos, Request $request): ?object
+    {
+        $caso = FormatoExcepcion::origen($tipo, $id)['caso'];
+        if (! $caso || ! OficioCanalizacion::migrado() || empty($datos['oficios'])) {
+            return $caso;
+        }
+
+        foreach ((array) ($datos['instituciones'] ?? []) as $inst) {
+            if (isset($datos['oficios'][$inst]) && is_array($datos['oficios'][$inst])) {
+                OficioCanalizacion::guardar($caso, $inst, $datos['oficios'][$inst], $request->user(), false);
+            }
+        }
+
+        return $caso;
     }
 
     public function pdf(string $tipo, int $id)

@@ -320,6 +320,7 @@
                                             {{ count($CX::INSTITUCIONES) + 1 }}. No somos competentes</label>
                                     </div>
                                 </div>
+                                <button type="button" class="btn btn-outline-secondary btn-sm mt-2" id="fxAbrirCanal" data-abrir-canal @unless ($tarjetas) hidden @endunless><i class="bi bi-envelope-paper"></i> Aceptación y oficios de la canalización</button>
                             </div>
 
                             @if ($puedeCerrar)
@@ -369,77 +370,115 @@
                 </div>
             </form>
 
-            {{-- Canalización: por institución marcada, aceptación (la firma la persona) y oficio. --}}
-            @if ($caso && ! empty($datos['instituciones']))
+            {{-- Canalización: resumen de lo guardado. Se llena en el modal (fxCanalModal), que se abre al marcar una institución. --}}
+            @if ($caso && ! empty($datos['instituciones']) && \App\Support\OficioCanalizacion::migrado())
                 @php $conAceptacion = \App\Support\OficioCanalizacion::conAceptacion(); @endphp
                 <div class="tn-tarjeta fx-seccion mt-3" id="oficios">
-                    <h4><i class="bi bi-envelope-paper"></i> Canalización: aceptación y oficios</h4>
-                    @if (! \App\Support\OficioCanalizacion::migrado())
-                        <div class="alert alert-warning mb-0">Falta correr la migración de canalización (<code>php artisan migrate</code>).</div>
-                    @else
-                        <p class="fx-nota">Por cada institución: primero la persona firma la <b>aceptación de canalización</b>; después se genera el <b>oficio</b>, con el formato 685 Ter como anexo. Si cambias las instituciones de arriba, guarda el formato para que se actualice esta lista.</p>
-                        @unless ($conAceptacion)
-                            <div class="alert alert-warning">Falta correr la migración de la aceptación (<code>php artisan migrate</code>); por ahora sólo está el oficio.</div>
-                        @endunless
-                        <div class="fx-oficios">
-                            @foreach ($oficios as $inst => $o)
-                                <form class="fx-oficio" method="POST" action="{{ route('excepciones.oficio.guardar', ['tipo' => $origen['tipo'], 'id' => $origen['id'], 'institucion' => $inst]) }}">
-                                    @csrf
-                                    <div class="fx-oficio__cabeza">
-                                        <b>{{ $CX::INSTITUCIONES[$inst] ?? $inst }}</b>
-                                        <span class="d-flex flex-wrap gap-1">
-                                            @if ($conAceptacion)
-                                                @if ($o['aceptacion_firmada'])
-                                                    <span class="fx-badge fx-badge--continua"><i class="bi bi-pen"></i> Aceptación firmada</span>
-                                                @else
-                                                    <span class="fx-badge fx-badge--borrador"><i class="bi bi-exclamation-circle"></i> Falta firma de aceptación</span>
-                                                @endif
-                                            @endif
-                                            @if ($o['conOficio'])
-                                                <span class="fx-badge fx-badge--continua"><i class="bi bi-check2"></i> {{ $o['numero'] }}</span>
-                                            @else
-                                                <span class="fx-badge fx-badge--nuevo">Oficio sin generar</span>
-                                            @endif
-                                        </span>
-                                    </div>
-
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                        <h4 class="mb-0"><i class="bi bi-envelope-paper"></i> Canalización: aceptación y oficios</h4>
+                        <button type="button" class="btn btn-primary btn-sm" data-abrir-canal><i class="bi bi-pencil-square"></i> Llenar y generar documentos</button>
+                    </div>
+                    <div class="fx-oficios">
+                        @foreach ($oficios as $inst => $o)
+                            <div class="fx-oficio d-flex flex-wrap justify-content-between align-items-center gap-2">
+                                <b>{{ $CX::INSTITUCIONES[$inst] ?? $inst }}</b>
+                                <span class="d-flex flex-wrap gap-1 align-items-center">
                                     @if ($conAceptacion)
-                                        <div class="fx-paso"><span class="fx-num">1</span> Aceptación de canalización <small>la firma la persona usuaria</small></div>
-                                        <div class="fx-campos">
-                                            <div class="fx-c6"><label>Área o servicio al que se canaliza</label><input type="text" name="area_servicio" class="form-control" value="{{ $o['area_servicio'] }}" placeholder="Ej. asesoría jurídica, atención psicológica"></div>
-                                            <div class="fx-c6"><label>Cargo de quien brinda la atención</label><input type="text" name="cargo_atiende" class="form-control" value="{{ $o['cargo_atiende'] }}"></div>
-                                            <div class="fx-c12"><label>Motivo general de la canalización</label><input type="text" name="motivo" class="form-control" value="{{ $o['motivo'] }}" maxlength="500"></div>
-                                            <div class="fx-c12 d-flex flex-wrap align-items-center justify-content-between gap-2">
-                                                <input type="hidden" name="aceptacion_firmada" value="0">
-                                                <label class="fx-opcion mb-0" style="flex: 1 1 320px"><input type="checkbox" name="aceptacion_firmada" value="1" data-firmada @checked($o['aceptacion_firmada'])> <span><b>Aceptación firmada</b> <small class="d-block" style="color:var(--tn-tenue)">La persona ya firmó el formato de aceptación.</small></span></label>
-                                                <button type="submit" name="accion" value="aceptacion" formtarget="_blank" class="btn btn-outline-secondary btn-sm"><i class="bi bi-printer"></i> Imprimir aceptación</button>
+                                        @if ($o['aceptacion_firmada'])
+                                            <span class="fx-badge fx-badge--continua"><i class="bi bi-pen"></i> Aceptación firmada</span>
+                                        @else
+                                            <span class="fx-badge fx-badge--borrador"><i class="bi bi-exclamation-circle"></i> Falta firma de aceptación</span>
+                                        @endif
+                                    @endif
+                                    @if ($o['conOficio'])
+                                        <span class="fx-badge fx-badge--continua"><i class="bi bi-check2"></i> {{ $o['numero'] }}</span>
+                                        <a class="btn btn-outline-secondary btn-sm" href="{{ route('excepciones.oficio.pdf', ['tipo' => $origen['tipo'], 'id' => $origen['id'], 'institucion' => $inst]) }}" target="_blank" rel="noopener"><i class="bi bi-file-earmark-pdf"></i> Ver oficio</a>
+                                    @else
+                                        <span class="fx-badge fx-badge--nuevo">Oficio sin generar</span>
+                                    @endif
+                                    @if ($conAceptacion && $o['guardado'])
+                                        <a class="btn btn-outline-secondary btn-sm" href="{{ route('excepciones.aceptacion.pdf', ['tipo' => $origen['tipo'], 'id' => $origen['id'], 'institucion' => $inst]) }}" target="_blank" rel="noopener"><i class="bi bi-file-earmark-text"></i> Aceptación</a>
+                                    @endif
+                                </span>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+
+            {{-- Modal de canalización: aceptación y oficio por institución marcada.
+                 Los campos van con el formulario del formato (form="fxForm"): "Guardar
+                 cambios" guarda todo sin salir de la página y luego se imprimen los
+                 documentos aquí mismo. --}}
+            @if ($tarjetas)
+                @php $conAceptacion = \App\Support\OficioCanalizacion::conAceptacion(); @endphp
+                @push('modals')
+                <div class="modal fade tn" id="fxCanalModal" tabindex="-1" aria-labelledby="fxCanalTitulo" aria-hidden="true">
+                    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+                        <div class="modal-content" style="background:#F5F7F7;">
+                            <div class="modal-header" style="background:#fff;">
+                                <h5 class="modal-title" id="fxCanalTitulo"><i class="bi bi-envelope-paper me-1"></i> Canalización: aceptación y oficios</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p class="fx-nota">Por cada institución: primero la persona firma la <b>aceptación de canalización</b>; después se genera el <b>oficio</b>, con el formato 685 Ter como anexo. Al imprimir se guarda todo, también el formato como borrador.</p>
+                                @unless ($conAceptacion)
+                                    <div class="alert alert-warning">Falta correr la migración de la aceptación (<code>php artisan migrate</code>); por ahora sólo está el oficio.</div>
+                                @endunless
+                                <div class="alert alert-success py-2" id="fxCanalAviso" hidden></div>
+                                <div class="alert alert-danger py-2" id="fxCanalError" hidden></div>
+                                <p class="fx-nota mb-0" id="fxCanalVacio" hidden>Marca al menos una institución en el formato.</p>
+                                <div class="fx-oficios">
+                                    @foreach ($tarjetas as $inst => $o)
+                                        @php $n = fn ($c) => "oficios[{$inst}][{$c}]"; @endphp
+                                        <div class="fx-oficio" data-canal="{{ $inst }}" hidden>
+                                            <div class="fx-oficio__cabeza">
+                                                <b>{{ $CX::INSTITUCIONES[$inst] }}</b>
+                                                <span class="d-flex flex-wrap gap-1">
+                                                    @if ($conAceptacion)
+                                                        <span class="fx-badge {{ $o['aceptacion_firmada'] ? 'fx-badge--continua' : 'fx-badge--borrador' }}" data-badge-firma>{{ $o['aceptacion_firmada'] ? 'Aceptación firmada' : 'Falta firma de aceptación' }}</span>
+                                                    @endif
+                                                    <span class="fx-badge {{ $o['conOficio'] ? 'fx-badge--continua' : 'fx-badge--nuevo' }}" data-badge-oficio>{{ $o['conOficio'] ? $o['numero'] : 'Oficio sin generar' }}</span>
+                                                </span>
+                                            </div>
+                                            @if ($conAceptacion)
+                                                <div class="fx-paso"><span class="fx-num">1</span> Aceptación de canalización <small>la firma la persona usuaria</small></div>
+                                                <div class="fx-campos">
+                                                    <div class="fx-c6"><label>Área o servicio al que se canaliza</label><input type="text" form="fxForm" name="{{ $n('area_servicio') }}" class="form-control" value="{{ $o['area_servicio'] }}" placeholder="Ej. asesoría jurídica, atención psicológica" maxlength="255"></div>
+                                                    <div class="fx-c6"><label>Cargo de quien brinda la atención</label><input type="text" form="fxForm" name="{{ $n('cargo_atiende') }}" class="form-control" value="{{ $o['cargo_atiende'] }}" maxlength="255"></div>
+                                                    <div class="fx-c12"><label>Motivo general de la canalización</label><input type="text" form="fxForm" name="{{ $n('motivo') }}" class="form-control" value="{{ $o['motivo'] }}" maxlength="500"></div>
+                                                    <div class="fx-c12 d-flex flex-wrap align-items-center justify-content-between gap-2">
+                                                        <input type="hidden" form="fxForm" name="{{ $n('aceptacion_firmada') }}" value="0">
+                                                        <label class="fx-opcion mb-0" style="flex: 1 1 320px"><input type="checkbox" form="fxForm" name="{{ $n('aceptacion_firmada') }}" value="1" data-firmada @checked($o['aceptacion_firmada'])> <span><b>Aceptación firmada</b> <small class="d-block" style="color:var(--tn-tenue)">La persona ya firmó el formato de aceptación.</small></span></label>
+                                                        <button type="button" class="btn btn-outline-secondary btn-sm" data-imprimir="aceptacion"><i class="bi bi-printer"></i> Imprimir aceptación</button>
+                                                    </div>
+                                                </div>
+                                                <div class="fx-paso mt-3"><span class="fx-num">2</span> Oficio a la institución <small>con el formato 685 Ter como anexo</small></div>
+                                            @endif
+                                            <div class="fx-campos">
+                                                <div class="fx-c4"><label>Número de oficio</label><input type="text" form="fxForm" name="{{ $n('numero') }}" class="form-control" value="{{ $o['numero'] }}" placeholder="{{ $o['numeroPropuesto'] }}" maxlength="40">
+                                                    @unless ($o['conOficio'])<div class="fx-ayuda">Se aparta al generar el oficio.</div>@endunless</div>
+                                                <div class="fx-c4"><label>Fecha</label><input type="date" form="fxForm" name="{{ $n('fecha') }}" class="form-control" value="{{ \Illuminate\Support\Carbon::parse($o['fecha'])->toDateString() }}"></div>
+                                                <div class="fx-c4"><label>Lugar</label><input type="text" form="fxForm" name="{{ $n('lugar') }}" class="form-control" value="{{ $o['lugar'] }}" maxlength="80"></div>
+                                                <div class="fx-c6"><label>Titular de la institución</label><input type="text" form="fxForm" name="{{ $n('destinatario') }}" class="form-control" value="{{ $o['destinatario'] }}" placeholder="Nombre de la persona titular" maxlength="255"></div>
+                                                <div class="fx-c6"><label>Cargo</label><input type="text" form="fxForm" name="{{ $n('cargo') }}" class="form-control" value="{{ $o['cargo'] }}" placeholder="Cargo" maxlength="255"></div>
+                                            </div>
+                                            <div class="d-flex flex-wrap gap-2 justify-content-end mt-2">
+                                                <button type="button" class="btn btn-primary btn-sm" data-imprimir="oficio"><i class="bi bi-printer"></i> {{ $o['conOficio'] ? 'Guardar y ver oficio' : 'Generar oficio' }}</button>
                                             </div>
                                         </div>
-                                        <div class="fx-paso mt-3"><span class="fx-num">2</span> Oficio a la institución <small>con el formato 685 Ter como anexo</small></div>
-                                    @endif
-
-                                    <div class="fx-campos">
-                                        <div class="fx-c4"><label>Número de oficio</label><input type="text" name="numero" class="form-control" value="{{ $o['numero'] }}" placeholder="{{ $o['numeroPropuesto'] }}" maxlength="40">
-                                            @unless ($o['conOficio'])<div class="fx-ayuda">Se aparta al generar el oficio.</div>@endunless</div>
-                                        <div class="fx-c4"><label>Fecha</label><input type="date" name="fecha" class="form-control" value="{{ \Illuminate\Support\Carbon::parse($o['fecha'])->toDateString() }}" required></div>
-                                        <div class="fx-c4"><label>Lugar</label><input type="text" name="lugar" class="form-control" value="{{ $o['lugar'] }}" maxlength="80"></div>
-                                        <div class="fx-c6"><label>Titular de la institución</label><input type="text" name="destinatario" class="form-control" value="{{ $o['destinatario'] }}" placeholder="Nombre de la persona titular"></div>
-                                        <div class="fx-c6"><label>Cargo</label><input type="text" name="cargo" class="form-control" value="{{ $o['cargo'] }}" placeholder="Cargo"></div>
-                                    </div>
-                                    <div class="d-flex flex-wrap gap-2 justify-content-end mt-2">
-                                        <button type="submit" name="accion" value="guardar" class="btn btn-outline-secondary btn-sm"><i class="bi bi-save"></i> Guardar</button>
-                                        @if ($o['conOficio'])
-                                            <a class="btn btn-outline-secondary btn-sm" href="{{ route('excepciones.oficio.pdf', ['tipo' => $origen['tipo'], 'id' => $origen['id'], 'institucion' => $inst]) }}" target="_blank" rel="noopener"><i class="bi bi-file-earmark-pdf"></i> Ver oficio</a>
-                                        @endif
-                                        <button type="submit" name="accion" value="oficio" formtarget="_blank" class="btn btn-primary btn-sm" @if ($conAceptacion) data-oficio @endif>
-                                            <i class="bi bi-printer"></i> {{ $o['conOficio'] ? 'Guardar y ver oficio' : 'Generar oficio' }}
-                                        </button>
-                                    </div>
-                                </form>
-                            @endforeach
+                                    @endforeach
+                                </div>
+                            </div>
+                            <div class="modal-footer" style="background:#fff;">
+                                <span class="me-auto small" style="color:var(--tn-tenue);">Se guarda junto con el formato (como borrador si aún no terminas la atención).</span>
+                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+                                <button type="button" class="btn btn-primary" id="fxCanalGuardar" @disabled(! $migrado)><i class="bi bi-save"></i> Guardar cambios</button>
+                            </div>
                         </div>
-                    @endif
+                    </div>
                 </div>
+                @endpush
             @endif
         </div>
     </section>
@@ -533,6 +572,95 @@
             fecha.addEventListener('change', horarios);
             if (fecha.value) { horarios(); }
         }
+
+        // ---------- Canalización en modal (fxCanalModal) ----------
+        var modalCanal = document.getElementById('fxCanalModal');
+        if (modalCanal) {
+            var RUTA_OFICIO = {!! json_encode(route('excepciones.oficio.guardar', ['tipo' => $origen['tipo'], 'id' => $origen['id'], 'institucion' => '__INST__'])) !!};
+            var TOKEN = @json(csrf_token());
+            var aviso = document.getElementById('fxCanalAviso');
+            var error = document.getElementById('fxCanalError');
+            function marcadas() {
+                return Array.prototype.map.call(form.querySelectorAll('input[name="instituciones[]"]:checked:not(:disabled)'), function (c) { return c.value; });
+            }
+            function verTarjetas() {
+                var sel = marcadas();
+                modalCanal.querySelectorAll('[data-canal]').forEach(function (t) { t.hidden = sel.indexOf(t.dataset.canal) === -1; });
+                document.getElementById('fxCanalVacio').hidden = sel.length > 0;
+            }
+            function abrir() {
+                verTarjetas(); aviso.hidden = true; error.hidden = true;
+                bootstrap.Modal.getOrCreateInstance(modalCanal).show();
+            }
+            // Al marcar una institución se abre el modal para llenar su aceptación y oficio.
+            form.querySelectorAll('input[name="instituciones[]"]').forEach(function (c) {
+                c.addEventListener('change', function () { if (c.checked) { abrir(); } else { verTarjetas(); } });
+            });
+            document.querySelectorAll('[data-abrir-canal]').forEach(function (b) { b.addEventListener('click', abrir); });
+
+            // Guarda formato (borrador) y oficios sin salir de la página.
+            function guardar() {
+                var datos = new FormData(form);
+                datos.set('accion', 'borrador');
+                var boton = document.getElementById('fxCanalGuardar');
+                boton.disabled = true;
+                return fetch(form.action, { method: 'POST', body: datos, credentials: 'same-origin', headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+                    .then(function (r) {
+                        if (r.status === 422) { return r.json().then(function (j) { throw new Error(Object.values(j.errors || {}).map(function (e) { return e[0]; }).join(' ') || 'Revisa los datos.'); }); }
+                        if (!r.ok) { throw new Error(r.status === 419 ? 'La sesión expiró; recarga la página.' : 'No se pudo guardar (' + r.status + ').'); }
+                        return r.json();
+                    })
+                    .then(function (j) {
+                        error.hidden = true; aviso.textContent = j.mensaje; aviso.hidden = false;
+                        Object.keys(j.oficios || {}).forEach(function (inst) {
+                            var t = modalCanal.querySelector('[data-canal="' + inst + '"]'); if (!t) { return; }
+                            var o = j.oficios[inst];
+                            var bo = t.querySelector('[data-badge-oficio]');
+                            if (bo && o.numero) { bo.textContent = o.numero; bo.className = 'fx-badge fx-badge--continua'; }
+                            var bf = t.querySelector('[data-badge-firma]');
+                            if (bf) { bf.textContent = o.aceptacion_firmada ? 'Aceptación firmada' : 'Falta firma de aceptación'; bf.className = 'fx-badge ' + (o.aceptacion_firmada ? 'fx-badge--continua' : 'fx-badge--borrador'); }
+                        });
+                        return true;
+                    })
+                    .catch(function (e) { aviso.hidden = true; error.textContent = e.message; error.hidden = false; return false; })
+                    .finally(function () { boton.disabled = false; });
+            }
+            document.getElementById('fxCanalGuardar').addEventListener('click', guardar);
+
+            // Imprimir: primero guarda todo y luego abre el PDF en otra pestaña.
+            modalCanal.querySelectorAll('[data-imprimir]').forEach(function (b) {
+                b.addEventListener('click', function () {
+                    var tarjeta = b.closest('[data-canal]');
+                    var inst = tarjeta.dataset.canal;
+                    var accion = b.dataset.imprimir;
+                    var firmada = tarjeta.querySelector('[data-firmada]');
+                    if (accion === 'oficio' && firmada && !firmada.checked && !window.confirm('La persona todavía no firma la aceptación de canalización. ¿Generar el oficio de todos modos?')) { return; }
+                    var nombre = 'fxdoc_' + inst + '_' + accion;
+                    var ventana = window.open('about:blank', nombre);
+                    guardar().then(function (ok) {
+                        if (!ok) { if (ventana) { ventana.close(); } return; }
+                        var f = document.createElement('form');
+                        f.method = 'POST'; f.action = RUTA_OFICIO.replace('__INST__', inst); f.target = nombre; f.hidden = true;
+                        var campos = { _token: TOKEN, accion: accion };
+                        tarjeta.querySelectorAll('input[name^="oficios["]').forEach(function (i) {
+                            var c = i.name.replace(/^oficios\[[^\]]+\]\[([^\]]+)\]$/, '$1');
+                            if (i.type === 'checkbox') { if (i.checked) { campos[c] = i.value; } }
+                            else if (!(c in campos) || i.type !== 'hidden') { campos[c] = i.value; }
+                        });
+                        if (!campos.fecha) { campos.fecha = new Date().toISOString().slice(0, 10); }
+                        Object.keys(campos).forEach(function (k) { var i = document.createElement('input'); i.type = 'hidden'; i.name = k; i.value = campos[k]; f.appendChild(i); });
+                        document.body.appendChild(f); f.submit(); f.remove();
+                        if (accion === 'oficio') { var bo = tarjeta.querySelector('[data-badge-oficio]'); if (bo && bo.textContent === 'Oficio sin generar') { bo.textContent = 'Oficio generado'; bo.className = 'fx-badge fx-badge--continua'; } }
+                    });
+                });
+            });
+        }
+        (function () {
+            var b = document.getElementById('fxAbrirCanal');
+            if (!b) { return; }
+            function ver() { b.hidden = form.querySelectorAll('input[name="instituciones[]"]:checked:not(:disabled)').length === 0; }
+            form.addEventListener('change', ver); ver();
+        })();
 
         // Generar el oficio sin la aceptación firmada: se avisa, no se impide.
         document.querySelectorAll('.fx-oficio [data-oficio]').forEach(function (boton) {
