@@ -1066,13 +1066,16 @@ class TurnosController extends Controller
             })
             ->get();
         $maxEmpalme = $sede === 'Morelia' ?  2 : 1;
-        $ocupadosQuery = Recepcion::whereBetween('fecha', [$fecha_inicio, $fecha_fin])->where('tipo', 'Ratificación')->where('delegacion', $sede)->get(['fecha', 'hora']);
+        if($origen === 'externo')
+            $ocupadosQuery = Recepcion::whereBetween('fecha', [$fecha_inicio, $fecha_fin])->where('tipo', 'Ratificación')->where('delegacion', $sede)->get(['fecha', 'hora']);
+        else
+            $ocupadosQuery = Turnos::whereBetween('fecha', [$fecha_inicio, $fecha_fin])->where('tipo', 'Ratificación')->where('delegacion', $sede)->get(['fecha', 'hora']);
         $ocupadosCount = [];
         foreach ($ocupadosQuery as $turno) {
             $fechaTurno = \Carbon\Carbon::parse($turno->fecha)->format('Y-m-d');
             $horaTurno = \Carbon\Carbon::parse($turno->hora)->format('H:i');
 
-            $key = $turno->fecha->format('Y-m-d') . 'T' . $turno->hora->format('H:i');
+            $key = $fechaTurno . 'T' . $horaTurno;
             $ocupadosCount[$key] = ($ocupadosCount[$key] ?? 0) + 1;
         }
 
@@ -1083,17 +1086,14 @@ class TurnosController extends Controller
         while ($fecha <= $fin) {
             if ($fecha->format('N') < 6) { 
                 
-                if($fecha->format('Y-m-d') >= '2026-10-19'){
+                if($fecha->format('Y-m-d') >= '2026-10-22'){
                     $slotEndDt = new \DateTime($fecha->format('Y-m-d') . ' 15:00:00');
                     $slotDt = new \DateTime($fecha->format('Y-m-d') . ' 08:30:00');
-                    $slotComida = $sede === 'Morelia' ? new \DateTime($fecha->format('Y-m-d') . ' 13:30:00') : new \DateTime($fecha->format('Y-m-d') . ' 17:40:00');
+                    $slotComida =  new \DateTime($fecha->format('Y-m-d') . ' 13:30:00');
+                    if($sede === 'Zamora' && $fecha->format('Y-m-d') <= '2026-10-23'){
+                        $slotComida = new \DateTime($fecha->format('Y-m-d') . ' 17:40:00');
+                    }
                 }
-                else{
-                    $slotEndDt = new \DateTime($fecha->format('Y-m-d') . ' 15:30:00');
-                    $slotDt = new \DateTime($fecha->format('Y-m-d') . ' 09:00:00');
-                    $slotComida = new \DateTime($fecha->format('Y-m-d') . ' 13:00:00');
-                }
-                
 
                 while ($slotDt <= $slotEndDt) {
                         $hora_str = $slotDt->format('H:i:s');
