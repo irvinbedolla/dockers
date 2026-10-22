@@ -149,7 +149,7 @@
                 </div>
                 <div class="form-text mt-1">
                     Apoya desde su delegación al Departamento de Conciliación, Género e Igualdad: le aparece "Casos de excepción"
-                    y puede atender, canalizar y cerrar casos, igual que el departamento. No cambia lo demás de sus roles.
+                    y puede atender, canalizar y cerrar casos, igual que el departamento (sin sus estadísticas). No cambia lo demás de sus roles.
                 </div>
             </div>
         </div>

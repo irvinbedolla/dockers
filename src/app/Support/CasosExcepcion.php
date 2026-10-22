@@ -24,8 +24,9 @@ use Illuminate\Support\Facades\Schema;
  * desde Usuarios (permiso directo PERMISO_ENLACE, como "Supervisa
  * notificadores" de SíNotifico), para que alguien de otra delegación apoye
  * al departamento. Le da la pestaña y lo mismo que al rol en ella: atender,
- * canalizar, cerrar casos y sus estadísticas. No cambia el resto de lo que
- * ve por sus roles (agenda, seguimiento, Inicio).
+ * canalizar y cerrar casos. No ve las estadísticas de excepción (sólo el
+ * rol, Super Usuario y Directivo) ni cambia el resto de lo que ve por sus
+ * roles (agenda, seguimiento, Inicio).
  *
  * Ojo: el nombre del rol lleva coma, así que no puede ir en un middleware
  * 'role:...' (Laravel parte los parámetros por coma). Para eso está el
@@ -190,10 +191,10 @@ class CasosExcepcion
         return $usuario !== null && ($usuario->hasAnyRole(array_merge(self::ATIENDEN, self::CONSULTAN)) || self::enlace($usuario));
     }
 
-    /** Ve las estadísticas de excepción. */
+    /** Ve las estadísticas de excepción. El Enlace de Género e Igualdad no. */
     public static function estadisticas(?User $usuario): bool
     {
-        return $usuario !== null && ($usuario->hasAnyRole(['Super Usuario', 'Estadistica', 'Directivo', self::ROL]) || self::enlace($usuario));
+        return $usuario !== null && $usuario->hasAnyRole(['Super Usuario', 'Estadistica', 'Directivo', self::ROL]);
     }
 
     /** ¿Tiene el distintivo "Enlace de Género e Igualdad"? */
