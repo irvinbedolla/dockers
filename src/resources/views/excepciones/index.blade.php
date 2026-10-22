@@ -52,6 +52,7 @@
         .cx-pestana.is-activa { border-color: var(--tn-verde); box-shadow: inset 0 0 0 1px var(--tn-verde); color: var(--tn-tinta); }
         .cx-pestana b { min-width: 24px; padding: 1px 8px; border-radius: 999px; background: var(--tn-fondo); font-size: 12px; text-align: center; }
         .cx-pestana--alerta b { background: #F6E4EA; color: #8C1D40; }
+        .cx-enlace { display: inline-flex; align-items: center; gap: 5px; margin-left: 8px; padding: 2px 10px; border-radius: 999px; background: #F3E8F7; color: #6B2F86; font-size: 11.5px; font-weight: 700; white-space: nowrap; }
 
         .cx-filtros { display: flex; flex-wrap: wrap; align-items: end; gap: 12px 14px; }
         .cx-filtros label, .cx-etq { display: block; font-size: 11.5px; font-weight: 700; letter-spacing: .03em; color: var(--tn-suave); margin-bottom: 5px; }
@@ -104,6 +105,9 @@
             <div>
                 <h3 class="page__heading mb-0">Casos de excepción</h3>
                 <span class="small" style="color: var(--tn-tenue);">Art. 685 Ter LFT · Departamento de Conciliación, Género e Igualdad · todas las sedes</span>
+                @if (\App\Support\CasosExcepcion::enlace(auth()->user()))
+                    <span class="cx-enlace" title="Apoyas al departamento desde {{ auth()->user()->delegacion }}"><i class="bi bi-person-badge"></i> {{ \App\Support\CasosExcepcion::DISTINTIVO }} · {{ auth()->user()->delegacion }}</span>
+                @endif
             </div>
             <div class="d-flex flex-wrap gap-2">
             @if ($atiende)
@@ -111,7 +115,7 @@
                     <a class="btn btn-primary btn-sm" href="{{ route('nueva_cita', ['tipo' => $t]) }}"><i class="bi bi-calendar-plus"></i> Turno de {{ mb_strtolower($t) }}</a>
                 @endforeach
             @endif
-            @if (\Illuminate\Support\Facades\Route::has('estadisticas.excepciones') && auth()->user()->hasAnyRole(['Super Usuario', 'Estadistica', 'Directivo', \App\Support\CasosExcepcion::ROL]))
+            @if (\Illuminate\Support\Facades\Route::has('estadisticas.excepciones') && \App\Support\CasosExcepcion::estadisticas(auth()->user()))
                 <a class="btn btn-outline-secondary btn-sm" href="{{ route('estadisticas.excepciones') }}"><i class="bi bi-bar-chart-line"></i> Estadísticas</a>
             @endif
             </div>

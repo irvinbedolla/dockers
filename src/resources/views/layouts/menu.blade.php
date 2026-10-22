@@ -42,8 +42,11 @@
             ['route' => 'agenda',                     'label' => 'Agenda',                  'icon' => 'bi bi-calendar-week',       'roles' => ['Super Usuario', 'Administrador', 'Auxiliar', 'Orientador', 'Conciliador', 'Notificador', 'Delegado', 'Excepcion', \App\Support\CasosExcepcion::ROL,  'Cumplimientos', 'Directivo','Turnos', ...$recepcion]],
             ['route' => 'capacitaciones',             'label' => 'Capacitaciones',          'icon' => 'bi bi-backpack4-fill',      'roles' => ['Capacitacion Admin']],
             ['route' => 'subir_doc_masivo',           'label' => 'Carga Masiva',            'icon' => 'bi bi-bank',                'roles' => []],
-            ['route' => 'excepcion',                  'label' => 'Casos de Excepción',      'icon' => 'bi-person-vcard',           'roles' => ['Super Usuario', \App\Support\CasosExcepcion::ROL, 'Excepcion', 'Directivo', 'Delegado'], 'activo' => ['excepcion', 'excepciones.*', 'atender_excepcion']],
-            ['route' => 'estadisticas.excepciones',   'label' => 'Estadísticas de excepción', 'icon' => 'bi bi-bar-chart-line',     'roles' => [\App\Support\CasosExcepcion::ROL]],
+            // Casos de excepción: sus roles y quien tenga el distintivo "Enlace de Género e Igualdad".
+            ['route' => 'excepcion',                  'label' => 'Casos de Excepción',      'icon' => 'bi-person-vcard',           'roles' => '*', 'activo' => ['excepcion', 'excepciones.*', 'atender_excepcion'],
+                'si' => fn () => \App\Support\CasosExcepcion::consulta(auth()->user())],
+            ['route' => 'estadisticas.excepciones',   'label' => 'Estadísticas de excepción', 'icon' => 'bi bi-bar-chart-line',     'roles' => '*',
+                'si' => fn () => auth()->user()->hasRole(\App\Support\CasosExcepcion::ROL) || \App\Support\CasosExcepcion::enlace(auth()->user())],
             ['route' => 'nueva_cita',                 'label' => 'Crear turno',             'icon' => 'bi bi-calendar-plus',       'roles' => [\App\Support\CasosExcepcion::ROL]],
             ['route' => 'indexDireccionGeneral',      'label' => 'Dirección General',       'icon' => 'bi bi-bank',                'roles' => []],
             ['route' => 'expedientes',                'label' => 'Expediente',              'icon' => 'bi bi-graph-down',          'roles' => ['Capacitacion Admin']],
