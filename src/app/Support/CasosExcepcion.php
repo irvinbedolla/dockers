@@ -166,6 +166,8 @@ class CasosExcepcion
         'canaliza' => 'Canalizada',
         // "6. No somos competentes" en la lista de canalizar: se cierra sin canalizar.
         'incompetente' => 'No somos competentes',
+        // "No es caso de excepción" en el tipo de situación: se cierra y la cita sigue como normal.
+        'no_excepcion' => 'No es caso de excepción',
     ];
 
     public const GRUPOS_VULNERABLES = [

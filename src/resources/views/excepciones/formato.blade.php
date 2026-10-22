@@ -29,6 +29,10 @@
         .fx-badge--canaliza { background: #F6E4EA; color: #8C1D40; }
         .fx-badge--incompetente { background: #ECEAF4; color: #4B3F7A; }
         .fx-opcion--incompetente { border-style: dashed; }
+        .fx-badge--no_excepcion { background: #EEF0F3; color: #5F6B7A; }
+        .fx-opcion--noexc { border-style: dashed; }
+        .fx-noexc { border: 1px solid #D5DDDD; }
+        .fx-hora-ayuda { font-size: 12px; color: var(--tn-tenue); margin-top: 4px; }
 
         .fx-rejilla { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; align-items: start; }
         @media (max-width: 1100px) { .fx-rejilla { grid-template-columns: 1fr; } .fx-lado { order: -1; } }
@@ -179,6 +183,11 @@
                             </div>
                         </div>
 
+                        @php
+                            // "No es caso de excepción": no sigue el formulario (FormatoExcepcion::reclasificar).
+                            $noExc = old('no_excepcion') !== null ? old('no_excepcion') === '1' : ($datos['resultado'] ?? null) === 'no_excepcion';
+                            $sigue = old('siguiente', $siguientes === ['terminar'] ? 'terminar' : null);
+                        @endphp
                         {{-- 1. Tipo de situación --}}
                         <div class="tn-tarjeta fx-seccion">
                             <h4><span class="fx-num">1</span> Tipo de situación que enfrenta</h4>
@@ -205,11 +214,39 @@
                                         </div>
                                     @endif
                                 @endforeach
+                                <input type="hidden" name="no_excepcion" value="0">
+                                <label class="fx-opcion fx-opcion--noexc"><input type="checkbox" name="no_excepcion" value="1" id="fxNoExc" @checked($noExc)> No es caso de excepción</label>
+                            </div>
+                        </div>
+
+                        {{-- No es caso de excepción: qué sigue --}}
+                        <div class="tn-tarjeta fx-seccion fx-noexc" id="fxNoExcPanel" @unless ($noExc) hidden @endunless>
+                            <h4><i class="bi bi-arrow-return-right"></i> No es caso de excepción: ¿qué sigue?</h4>
+                            <p class="fx-nota">Ya no se llena el resto del formato. Al terminar se cierra el caso y la cita deja de estar marcada como excepción.</p>
+                            <div class="fx-opciones @error('siguiente') border border-danger rounded p-2 @enderror">
+                                @if (in_array('hoy', $siguientes, true))
+                                    <label class="fx-opcion"><input type="radio" name="siguiente" value="hoy" @checked($sigue === 'hoy')>
+                                        <span><b>Pasar a la fila de hoy</b><small>Se le asigna un módulo de {{ $cita->tipo ?? 'su trámite' }} en {{ $cita->delegacion ?? $sede }} y entra a la fila de hoy, ya en sala.</small></span></label>
+                                    <label class="fx-opcion"><input type="radio" name="siguiente" value="otra_fecha" @checked($sigue === 'otra_fecha')>
+                                        <span><b>Agendar en otra fecha</b><small>Cita de {{ $cita->tipo ?? 'su trámite' }} con el horario normal de la sede; conserva su folio.</small></span></label>
+                                    <div class="fx-extra fx-campos" data-de="otra_fecha" id="fxOtraFecha"
+                                         data-url="{{ url('api/obtenerTurnosDisponibles') }}" data-sede="{{ $cita->delegacion ?? '' }}" data-tipo="{{ $cita->tipo ?? '' }}">
+                                        <div class="fx-c6"><label for="fxFechaNueva">Fecha</label>
+                                            <input type="date" id="fxFechaNueva" name="fecha_nueva" class="form-control @error('fecha_nueva') is-invalid @enderror" min="{{ now()->toDateString() }}" value="{{ old('fecha_nueva') }}"></div>
+                                        <div class="fx-c6"><label for="fxHoraNueva">Horario</label>
+                                            <select id="fxHoraNueva" name="hora_nueva" class="form-select @error('hora_nueva') is-invalid @enderror" data-anterior="{{ old('hora_nueva') }}">
+                                                <option value="">Elige primero la fecha</option>
+                                            </select>
+                                            <div class="fx-hora-ayuda" id="fxHoraAyuda"></div></div>
+                                    </div>
+                                @endif
+                                <label class="fx-opcion"><input type="radio" name="siguiente" value="terminar" @checked($sigue === 'terminar')>
+                                    <span><b>Sólo terminar la atención</b><small>{{ $sol ? 'Ya tiene solicitud: sigue su trámite normal y deja de estar marcada como excepción.' : 'No se agenda nada; si la cita seguía en espera, queda como atendida.' }}</small></span></label>
                             </div>
                         </div>
 
                         {{-- 2 y 3 --}}
-                        <div class="tn-tarjeta fx-seccion">
+                        <div class="tn-tarjeta fx-seccion fx-solo-exc">
                             <div class="fx-campos">
                                 <div class="fx-c6">
                                     <h4 style="font-size:15px;font-weight:800;margin:0 0 12px"><span class="fx-num" style="display:inline-grid;place-items:center;width:24px;height:24px;border-radius:8px;background:#E7EFEF;color:#496163;font-size:12.5px">2</span> Frecuencia de los hechos</h4>
@@ -232,7 +269,7 @@
                         </div>
 
                         {{-- 4, 5 y 6 --}}
-                        <div class="tn-tarjeta fx-seccion">
+                        <div class="tn-tarjeta fx-seccion fx-solo-exc">
                             <div class="fx-campos">
                                 <div class="fx-c12">
                                     <label for="fxComunico"><span class="fx-num">4.</span> ¿La persona afectada comunicó los hechos a alguien más de su área de trabajo? Describa a quién o a quiénes</label>
@@ -250,7 +287,7 @@
                         </div>
 
                         {{-- Decisión --}}
-                        <div class="tn-tarjeta fx-seccion">
+                        <div class="tn-tarjeta fx-seccion fx-solo-exc">
                             <h4><i class="bi bi-signpost-split"></i> ¿La persona desea continuar con el procedimiento de conciliación?</h4>
                             <p class="fx-nota">Por estar en un supuesto del art. 685 Ter LFT, la persona no está obligada a agotar la instancia conciliatoria. Si decide no continuar, se le brinda asesoría y se canaliza.</p>
                             <div class="fx-decision @error('resultado') border border-danger rounded p-2 @enderror">
@@ -303,7 +340,7 @@
                             <span class="fx-barra__nota"><i class="bi bi-info-circle"></i> Puedes guardar a medias y terminar después.</span>
                             <button type="submit" name="accion" value="borrador" class="btn btn-outline-secondary" @disabled(! $migrado)><i class="bi bi-save"></i> Guardar borrador</button>
                             <button type="submit" name="accion" value="pdf" formtarget="_blank" class="btn btn-outline-secondary" @disabled(! $migrado)><i class="bi bi-printer"></i> Guardar y descargar PDF</button>
-                            <button type="submit" name="accion" value="terminar" class="btn btn-primary" @disabled(! $migrado)><i class="bi bi-check2-circle"></i> {{ $terminado ? 'Guardar cambios' : 'Terminar atención' }}</button>
+                            <button type="submit" name="accion" value="terminar" class="btn btn-primary" @disabled(! $migrado || ($terminado && ($caso->resultado ?? null) === 'no_excepcion'))><i class="bi bi-check2-circle"></i> {{ $terminado ? 'Guardar cambios' : 'Terminar atención' }}</button>
                         </div>
                     </div>
 
@@ -420,6 +457,18 @@
             mostrar('motivo_otro', !!motivoDisc && motivoDisc.value === 'otro');
             mostrar('riesgo_trabajo', marcado('[data-tipo="riesgo_trabajo"]'));
             mostrar('situacion_otro', marcado('input[name="situacion_laboral"][value="otro"]'));
+            // "No es caso de excepción": se apaga el resto del formato y se pregunta qué sigue.
+            var noExc = marcado('#fxNoExc');
+            form.querySelectorAll('input[name="tipos[]"]').forEach(function (c) {
+                if (noExc) { c.checked = false; }
+                c.disabled = noExc;
+                c.closest('.fx-opcion').style.opacity = noExc ? '.5' : '';
+            });
+            if (noExc) { mostrar('discriminacion', false); mostrar('riesgo_trabajo', false); }
+            form.querySelectorAll('.fx-solo-exc').forEach(function (s) { s.hidden = noExc; });
+            document.getElementById('fxNoExcPanel').hidden = !noExc;
+            mostrar('otra_fecha', marcado('input[name="siguiente"][value="otra_fecha"]'));
+
             var canaliza = marcado('input[name="resultado"][value="canaliza"]');
             var continua = marcado('input[name="resultado"][value="continua"]');
             // "No somos competentes" sólo con "No, se canaliza", y excluye a las instituciones.
@@ -445,6 +494,45 @@
         }
         form.addEventListener('change', refrescar);
         refrescar();
+
+        // Otra fecha: horarios libres de ese día (mismo calendario que la ventanilla).
+        var caja = document.getElementById('fxOtraFecha');
+        if (caja) {
+            var fecha = document.getElementById('fxFechaNueva');
+            var hora = document.getElementById('fxHoraNueva');
+            var ayuda = document.getElementById('fxHoraAyuda');
+            var pedido = 0;
+            function horarios() {
+                var este = ++pedido;
+                hora.innerHTML = '<option value="">' + (fecha.value ? 'Buscando horarios…' : 'Elige primero la fecha') + '</option>';
+                ayuda.textContent = '';
+                if (!fecha.value) { return; }
+                var q = new URLSearchParams({ sede: caja.dataset.sede, tipo: caja.dataset.tipo, excepcion: 'No', start: fecha.value, end: fecha.value });
+                fetch(caja.dataset.url + '?' + q.toString(), { headers: { 'Accept': 'application/json' } })
+                    .then(function (r) { if (!r.ok) { throw new Error(r.status); } return r.json(); })
+                    .then(function (eventos) {
+                        if (este !== pedido) { return; }
+                        var libres = (eventos || []).filter(function (e) {
+                            var est = e.extendedProps && e.extendedProps.estado;
+                            return (est === 'disponible' || est === 'turnos') && e.start.slice(0, 10) === fecha.value;
+                        });
+                        if (!libres.length) {
+                            hora.innerHTML = '<option value="">Sin horarios libres ese día</option>';
+                            ayuda.textContent = 'Prueba con otra fecha (los fines de semana y días inhábiles no tienen horario).';
+                            return;
+                        }
+                        var antes = hora.dataset.anterior || '';
+                        hora.innerHTML = '<option value="">Elige un horario</option>' + libres.map(function (e) {
+                            var h = e.start.slice(11, 16);
+                            return '<option value="' + h + '"' + (antes.slice(0, 5) === h ? ' selected' : '') + '>' + h + (e.extendedProps.estado === 'turnos' ? ' · con cupo' : '') + '</option>';
+                        }).join('');
+                        ayuda.textContent = libres.length + (libres.length === 1 ? ' horario libre' : ' horarios libres');
+                    })
+                    .catch(function () { if (este === pedido) { hora.innerHTML = '<option value="">No se pudieron cargar los horarios</option>'; } });
+            }
+            fecha.addEventListener('change', horarios);
+            if (fecha.value) { horarios(); }
+        }
 
         // Generar el oficio sin la aceptación firmada: se avisa, no se impide.
         document.querySelectorAll('.fx-oficio [data-oficio]').forEach(function (boton) {

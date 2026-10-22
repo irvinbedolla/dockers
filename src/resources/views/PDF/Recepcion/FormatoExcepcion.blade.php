@@ -166,6 +166,7 @@
                 </tr>
             @endforeach
             <tr><td colspan="2" style="padding: 0;">{!! $caja($resultado === 'incompetente') !!} No somos competentes</td></tr>
+            <tr><td colspan="2" style="padding: 0;">{!! $caja($resultado === 'no_excepcion') !!} No es caso de excepción</td></tr>
         </table>
     </div>
 

@@ -287,7 +287,9 @@ class SeguimientoCaso
             return null;
         }
 
-        $esExcepcion = (($cita->exepcion ?? null) === 'Si') || ($solicitud && CasosExcepcion::solicitudEsCaso($solicitud));
+        $esExcepcion = (($cita->exepcion ?? null) === 'Si') || ($solicitud && CasosExcepcion::solicitudEsCaso($solicitud))
+            // Se atendió como excepción y se cerró como "No es caso de excepción": su formato sigue en la historia.
+            || FormatoExcepcion::tieneFormato($cita->id ?? null, $solicitud->id ?? null);
         if ($soloExcepcion && ! $esExcepcion) {
             return null;
         }

@@ -155,6 +155,7 @@ class CasosExcepcionController extends Controller
         }
 
         return view('excepciones.formato', [
+            'siguientes'  => FormatoExcepcion::siguientesPosibles($origen),
             'origen'      => $origen,
             'datos'       => $datos,
             'sede'        => $sede,
@@ -206,11 +207,23 @@ class CasosExcepcionController extends Controller
             'cerrar_solicitud'       => ['nullable', Rule::in(['0', '1'])],
             // "6. No somos competentes": va con "No, se canaliza" y no pide institución.
             'no_competente'          => ['nullable', Rule::in(['0', '1'])],
+            // "No es caso de excepción": qué sigue (FormatoExcepcion::reclasificar).
+            'no_excepcion'           => ['nullable', Rule::in(['0', '1'])],
+            'siguiente'              => ['nullable', Rule::in(array_keys(FormatoExcepcion::SIGUIENTE))],
+            'fecha_nueva'            => ['nullable', 'date_format:Y-m-d'],
+            'hora_nueva'             => ['nullable', 'regex:/^\d{2}:\d{2}(:\d{2})?$/'],
         ];
-        $noCompetente = $request->input('resultado') === 'canaliza' && $request->input('no_competente') === '1';
+        $noExcepcion  = $request->input('no_excepcion') === '1';
+        $noCompetente = ! $noExcepcion && $request->input('resultado') === 'canaliza' && $request->input('no_competente') === '1';
 
-        // Para terminar, lo mínimo que pide el formato y la decisión de la persona.
-        if ($terminar) {
+        if ($terminar && $noExcepcion) {
+            // No sigue el formulario: sólo el nombre y qué sigue.
+            $reglas['nombre'][0]   = 'required';
+            $reglas['siguiente']   = ['required', Rule::in(FormatoExcepcion::siguientesPosibles($origen))];
+            $reglas['fecha_nueva'] = ['required_if:siguiente,otra_fecha', 'nullable', 'date_format:Y-m-d'];
+            $reglas['hora_nueva']  = ['required_if:siguiente,otra_fecha', 'nullable', 'regex:/^\d{2}:\d{2}(:\d{2})?$/'];
+        } elseif ($terminar) {
+            // Para terminar, lo mínimo que pide el formato y la decisión de la persona.
             $reglas['nombre'][0]     = 'required';
             $reglas['tipos'][0]      = 'required';
             $reglas['frecuencia'][0] = 'required';
@@ -224,9 +237,29 @@ class CasosExcepcionController extends Controller
             'resultado.required'            => 'Indica si la persona continúa con la conciliación o se canaliza.',
             'instituciones.required'        => 'Elige al menos una institución para canalizar o marca «No somos competentes».',
             'nombre.required'               => 'Falta el nombre de la persona.',
+            'siguiente.required'            => 'Elige qué sigue: la fila de hoy, otra fecha o sólo terminar la atención.',
+            'siguiente.in'                  => 'Esa opción no aplica a este caso.',
+            'fecha_nueva.required_if'       => 'Elige la fecha de la nueva cita.',
+            'hora_nueva.required_if'        => 'Elige el horario de la nueva cita.',
         ]);
 
-        if ($noCompetente) {
+        if ($noExcepcion) {
+            $datos['resultado']     = 'no_excepcion';
+            $datos['tipos']         = [];
+            $datos['instituciones'] = [];
+
+            if ($terminar) {
+                // Primero la cita (puede no haber módulo u horario); luego se cierra el formato.
+                try {
+                    $aviso = FormatoExcepcion::reclasificar($origen, $datos['siguiente'], $datos['fecha_nueva'] ?? null, $datos['hora_nueva'] ?? null);
+                } catch (\RuntimeException $e) {
+                    return back()->withInput()->withErrors(['siguiente' => $e->getMessage()]);
+                }
+                FormatoExcepcion::guardar($origen, $datos, true, $request->user());
+
+                return redirect()->route('excepcion', ['vista' => 'citas'])->with('success', $aviso);
+            }
+        } elseif ($noCompetente) {
             $datos['resultado']     = 'incompetente';
             $datos['instituciones'] = [];
         }

@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\User;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -25,6 +26,13 @@ use Illuminate\Support\Facades\Schema;
 class FormatoExcepcion
 {
     public const TIPOS_ORIGEN = ['cita', 'solicitud'];
+
+    /** "No es caso de excepción": qué sigue para la persona (reclasificar()). */
+    public const SIGUIENTE = [
+        'hoy'        => 'Pasar a la fila de hoy',
+        'otra_fecha' => 'Agendar en otra fecha',
+        'terminar'   => 'Sólo terminar la atención',
+    ];
 
     /** Campos del formato (los que viajan del formulario a la tabla). */
     public const CAMPOS = [
@@ -49,11 +57,12 @@ class FormatoExcepcion
 
         if ($tipo === 'cita') {
             $cita = DB::table('recepcion')->where('id', $id)->first();
-            abort_unless($cita && $cita->exepcion === 'Si', 404);
+            // Una que se cerró como "No es caso de excepción" ya no está marcada, pero su formato se sigue viendo.
+            abort_unless($cita && ($cita->exepcion === 'Si' || self::tieneFormato($cita->id, null)), 404);
             $solicitud = DB::table('seer_general')->where('recepcion_id', $cita->id)->orderBy('id')->first();
         } else {
             $solicitud = DB::table('seer_general')->where('id', $id)->first();
-            abort_unless($solicitud && CasosExcepcion::solicitudEsCaso($solicitud), 404);
+            abort_unless($solicitud && (CasosExcepcion::solicitudEsCaso($solicitud) || self::tieneFormato($solicitud->recepcion_id, $solicitud->id)), 404);
             $cita = $solicitud->recepcion_id ? DB::table('recepcion')->where('id', $solicitud->recepcion_id)->first() : null;
         }
 
@@ -72,6 +81,128 @@ class FormatoExcepcion
             ->first();
 
         return compact('tipo', 'id', 'cita', 'solicitud', 'caso');
+    }
+
+    /** ¿Ya hay formato de esta cita o solicitud? */
+    public static function tieneFormato(?int $cita, ?int $solicitud): bool
+    {
+        if (! $cita && ! $solicitud) {
+            return false;
+        }
+
+        return DB::table('seer_casos_excepcion')
+            ->where(function ($q) use ($cita, $solicitud) {
+                $q->whereRaw('1 = 0');
+                if ($cita) {
+                    $q->orWhere('id_turno', $cita);
+                }
+                if ($solicitud && CasosExcepcion::conFormato()) {
+                    $q->orWhere('id_solicitud', $solicitud);
+                }
+            })
+            ->exists();
+    }
+
+    /** Qué se puede hacer si no es caso de excepción: fila u otra fecha sólo con cita y sin solicitud. */
+    public static function siguientesPosibles(array $origen): array
+    {
+        return $origen['cita'] && ! $origen['solicitud'] ? array_keys(self::SIGUIENTE) : ['terminar'];
+    }
+
+    /**
+     * "No es caso de excepción". La cita deja de estar marcada y, según
+     * $siguiente:
+     *   hoy         entra a la fila de hoy (ya en sala) con un módulo libre de
+     *               su trámite (AsignadorModulos);
+     *   otra_fecha  se agenda en ese día y horario (con cupo) con un módulo;
+     *   terminar    sólo se cierra (si seguía en espera, queda atendida).
+     * La solicitud, si hay, deja de estar marcada. Devuelve el aviso.
+     *
+     * @throws \RuntimeException si no hay módulo o el horario ya no está libre
+     */
+    public static function reclasificar(array $origen, string $siguiente, ?string $fecha = null, ?string $hora = null): string
+    {
+        $cita = $origen['cita'];
+        $sol  = $origen['solicitud'];
+
+        if (! in_array($siguiente, self::siguientesPosibles($origen), true)) {
+            throw new \RuntimeException('Esa opción no aplica a este caso.');
+        }
+
+        $cambios = [];
+        $aviso   = 'Se cerró la atención: no es caso de excepción.';
+        $sede    = (string) ($cita->delegacion ?? '');
+
+        if ($cita) {
+            $tipo    = (string) $cita->tipo;
+            $cambios = ['exepcion' => 'No'];
+
+            if ($siguiente === 'terminar') {
+                if (in_array($cita->estatus, ['pendiente', 'confirmada'], true)) {
+                    $cambios['estatus'] = 'atendido';
+                }
+            } else {
+                if ($siguiente === 'hoy') {
+                    $dia = now()->toDateString();
+                    $h   = now()->format('H:i:00');
+                } else {
+                    $dia = (string) $fecha;
+                    $h   = HorarioCitas::normalizarHora((string) $hora);
+                    if ($dia === '' || Carbon::parse($dia.' '.$h)->lt(now())) {
+                        throw new \RuntimeException('Elige una fecha y un horario que todavía no hayan pasado.');
+                    }
+                    if (! (new \App\Http\Controllers\RecepcionController())->turnoSlotDisponible($sede, $tipo, $dia, $h, 'No')) {
+                        throw new \RuntimeException('Ese horario ya no está disponible. Elige otro.');
+                    }
+                }
+
+                $modulo = AsignadorModulos::elegir($sede, $tipo, $dia, $h);
+                if (! $modulo) {
+                    throw new \RuntimeException("No hay un módulo libre de {$tipo} en {$sede} para ese horario. Elige otro horario o sólo termina la atención.");
+                }
+
+                $cambios += [
+                    'fecha'          => $dia,
+                    'hora'           => $h,
+                    'hora_fin'       => HorarioCitas::horaFin($sede, $tipo, false, $h),
+                    'modulo_id'      => $modulo->id,
+                    'lugar_auxiliar' => $modulo->nombre,
+                    'auxiliar'       => $modulo->user_id,
+                    // Hoy ya está aquí: entra a la fila como en sala.
+                    'estatus'        => $siguiente === 'hoy' ? 'confirmada' : 'pendiente',
+                ];
+                if (FlujoCita::migrado()) {
+                    $cambios += ['llamado_at' => null, 'atencion_inicio_at' => null];
+                }
+                if (FlujoCita::conSeguimiento()) {
+                    $cambios['confirmada_at'] = $siguiente === 'hoy' ? now() : null;
+                }
+                if (FlujoCita::conTardias()) {
+                    $cambios['llego_tarde'] = false;
+                }
+
+                $folio = FolioCita::mostrar($cita);
+                $donde = preg_replace('/^m[oó]dulo\b/i', 'Módulo', (string) $modulo->nombre);
+                $aviso = $siguiente === 'hoy'
+                    ? "No es caso de excepción: {$folio} pasó a la fila de hoy en {$donde}."
+                    : "No es caso de excepción: {$folio} quedó agendada el ".Carbon::parse($dia)->locale('es')->isoFormat('dddd D [de] MMMM').' a las '.substr($h, 0, 5)." en {$donde}.";
+            }
+        }
+
+        DB::transaction(function () use ($cita, $sol, $cambios) {
+            if ($cita) {
+                DB::table('recepcion')->where('id', $cita->id)->update($cambios + ['updated_at' => now()]);
+            }
+            if ($sol) {
+                DB::table('seer_general')->where('id', $sol->id)->update(['caso_excepcion' => 'No']);
+            }
+        });
+
+        if ($sede !== '') {
+            PantallaEspera::olvidar($sede);
+        }
+
+        return $aviso;
     }
 
     /** Valores del formato: lo guardado encima de lo prellenado. */

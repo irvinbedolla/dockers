@@ -31,6 +31,7 @@
                 'continua' => ['cx-caso--hecho', 'bi-check2-circle', 'Continúa conciliación'],
                 'canaliza' => ['cx-caso--canal', 'bi-signpost-split', 'Canalizada'],
                 'incompetente' => ['cx-caso--incomp', 'bi-x-octagon', 'No competentes'],
+                'no_excepcion' => ['cx-caso--borrador', 'bi-slash-circle', 'No era excepción'],
                 default    => ['cx-caso--hecho', 'bi-check2-circle', 'Atendido'],
             };
         }
