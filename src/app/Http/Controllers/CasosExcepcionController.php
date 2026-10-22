@@ -17,6 +17,9 @@ use Illuminate\Validation\Rule;
  *   vista=citas        citas y turnos de excepción del periodo (hoy por omisión);
  *   vista=pendientes   los de los últimos 30 días que no tienen formato;
  *   vista=solicitudes  solicitudes marcadas como excepción (sólo vista).
+ *
+ * Además, "Buscar expedientes" (expedientes()): un modal para buscar entre
+ * todas las solicitudes (App\Support\BuscadorExpedientes).
  */
 class CasosExcepcionController extends Controller
 {
@@ -68,6 +71,49 @@ class CasosExcepcionController extends Controller
             'atiende' => CasosExcepcion::atiende($request->user()),
             'conFormato' => CasosExcepcion::conFormato(),
         ]);
+    }
+
+    /**
+     * "Buscar expedientes" (modal de la bandeja): todas las solicitudes ya
+     * registradas, con filtro de caso de excepción, sede y fechas. JSON.
+     */
+    public function expedientes(Request $request)
+    {
+        $f = $request->validate([
+            'q'     => ['nullable', 'string', 'max:80'],
+            'caso'  => ['nullable', Rule::in(array_keys(\App\Support\BuscadorExpedientes::CASOS))],
+            'sede'  => ['nullable', Rule::in(CasosExcepcion::SEDES)],
+            'desde' => ['nullable', 'date_format:Y-m-d'],
+            'hasta' => ['nullable', 'date_format:Y-m-d'],
+            'page'  => ['nullable', 'integer', 'min:1'],
+        ], [], ['desde' => 'desde', 'hasta' => 'hasta']);
+        if (! empty($f['desde']) && ! empty($f['hasta']) && $f['desde'] > $f['hasta']) {
+            [$f['desde'], $f['hasta']] = [$f['hasta'], $f['desde']];
+        }
+
+        $p = \App\Support\BuscadorExpedientes::buscar($f, (int) ($f['page'] ?? 1));
+
+        return response()->json([
+            'filas'  => $p->items(),
+            'total'  => $p->total(),
+            'pagina' => $p->currentPage(),
+            'ultima' => $p->lastPage(),
+            'desde'  => $p->firstItem() ?? 0,
+            'hasta'  => $p->lastItem() ?? 0,
+        ])->header('Cache-Control', 'no-store');
+    }
+
+    /**
+     * Desde "Buscar expedientes": cualquier solicitud completa, sólo para
+     * consulta (el HTML de solicitudes/_vista, como "Ver solicitud" en el
+     * Seguimiento). Se pinta dentro del modal.
+     */
+    public function expedienteVista(int $id)
+    {
+        $datos = \App\Support\VistaSolicitud::datos($id);
+        abort_unless($datos, 404);
+
+        return view('solicitudes._vista', $datos);
     }
 
     /**

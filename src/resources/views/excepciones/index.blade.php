@@ -138,7 +138,11 @@
                    @if ($conteos['solicitudes']) title="Hay {{ $conteos['solicitudes'] }} {{ $conteos['solicitudes'] === 1 ? 'solicitud' : 'solicitudes' }} con caso de excepción" @endif>
                     <i class="bi bi-folder2-open" aria-hidden="true"></i> Solicitudes <b>{{ number_format($conteos['solicitudes']) }}</b>
                 </a>
+                <button type="button" class="cx-pestana" data-bs-toggle="modal" data-bs-target="#cxExpModal" title="Buscar entre todos los expedientes de solicitudes">
+                    <i class="bi bi-search" aria-hidden="true"></i> Buscar expedientes
+                </button>
             </nav>
+            @include('excepciones._buscar_expedientes')
 
             <form method="GET" action="{{ route('excepcion') }}" class="tn-tarjeta mb-3" id="cxFiltros">
                 <input type="hidden" name="vista" value="{{ $vista }}">

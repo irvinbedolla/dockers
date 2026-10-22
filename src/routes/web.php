@@ -212,6 +212,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware(CasosExcepcionAcceso::class)->group(function () {
         Route::get('/excepciones/index',                [App\Http\Controllers\CasosExcepcionController::class, 'index'])->name('excepcion');
         Route::get('/excepciones/solicitudes/{id}',     [App\Http\Controllers\CasosExcepcionController::class, 'verSolicitud'])->name('excepciones.solicitud')->whereNumber('id');
+        // "Buscar expedientes": todas las solicitudes, con filtros (JSON para el modal).
+        Route::get('/excepciones/expedientes',          [App\Http\Controllers\CasosExcepcionController::class, 'expedientes'])->name('excepciones.expedientes')
+            ->middleware('throttle:120,1');
+        Route::get('/excepciones/expedientes/{id}',     [App\Http\Controllers\CasosExcepcionController::class, 'expedienteVista'])->name('excepciones.expediente')
+            ->whereNumber('id');
         // Formato 685 Ter en PDF (prellenado; lo que falte sale en blanco).
         Route::get('/excepciones/{tipo}/{id}/formato/pdf', [App\Http\Controllers\CasosExcepcionController::class, 'pdf'])->name('excepciones.formato.pdf')
             ->whereIn('tipo', App\Support\FormatoExcepcion::TIPOS_ORIGEN)->whereNumber('id');
