@@ -212,6 +212,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware(CasosExcepcionAcceso::class)->group(function () {
         Route::get('/excepciones/index',                [App\Http\Controllers\CasosExcepcionController::class, 'index'])->name('excepcion');
         Route::get('/excepciones/solicitudes/{id}',     [App\Http\Controllers\CasosExcepcionController::class, 'verSolicitud'])->name('excepciones.solicitud')->whereNumber('id');
+        // "Buscar expedientes": todas las solicitudes, con filtros (JSON para el modal).
+        Route::get('/excepciones/expedientes',          [App\Http\Controllers\CasosExcepcionController::class, 'expedientes'])->name('excepciones.expedientes')
+            ->middleware('throttle:120,1');
+        Route::get('/excepciones/expedientes/{id}',     [App\Http\Controllers\CasosExcepcionController::class, 'expedienteVista'])->name('excepciones.expediente')
+            ->whereNumber('id');
+        // "No llegó": cierre rápido de una cita (el controlador revisa CasosExcepcion::cierraRapido).
+        Route::post('/excepciones/citas/{id}/no-llego',  [App\Http\Controllers\CasosExcepcionController::class, 'noLlego'])->name('excepciones.no_llego')
+            ->whereNumber('id')->middleware('throttle:60,1');
         // Formato 685 Ter en PDF (prellenado; lo que falte sale en blanco).
         Route::get('/excepciones/{tipo}/{id}/formato/pdf', [App\Http\Controllers\CasosExcepcionController::class, 'pdf'])->name('excepciones.formato.pdf')
             ->whereIn('tipo', App\Support\FormatoExcepcion::TIPOS_ORIGEN)->whereNumber('id');
@@ -269,6 +277,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/recepcion/llegadas-hoy/datos',      [App\Http\Controllers\LlegadasHoyController::class, 'datos'])->name('llegadas.datos');
         Route::post('/recepcion/llegadas/{tipo}/{id}',   [App\Http\Controllers\LlegadasHoyController::class, 'marcar'])->name('llegadas.marcar')
             ->whereIn('tipo', array_keys(\App\Support\LlegadasHoy::TIPOS))->whereNumber('id')->middleware('throttle:120,1');
+        Route::post('/recepcion/llegadas/{tipo}/{id}/observaciones', [App\Http\Controllers\LlegadasHoyController::class, 'observaciones'])->name('llegadas.observaciones')
+            ->whereIn('tipo', array_keys(\App\Support\LlegadasHoy::OBSERVAN))->whereNumber('id')->middleware('throttle:120,1');
     });
     Route::permanentRedirect('/recepcion/audiencias-hoy',   '/recepcion/llegadas-hoy');
     Route::get('/llegadas/avisos',                      [App\Http\Controllers\LlegadasHoyController::class, 'avisos'])->name('llegadas.avisos')

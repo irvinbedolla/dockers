@@ -8,6 +8,7 @@ use App\Support\OficioCanalizacion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 
 /**
@@ -17,6 +18,9 @@ use Illuminate\Validation\Rule;
  *   vista=citas        citas y turnos de excepción del periodo (hoy por omisión);
  *   vista=pendientes   los de los últimos 30 días que no tienen formato;
  *   vista=solicitudes  solicitudes marcadas como excepción (sólo vista).
+ *
+ * Además, "Buscar expedientes" (expedientes()): un modal para buscar entre
+ * todas las solicitudes (App\Support\BuscadorExpedientes).
  */
 class CasosExcepcionController extends Controller
 {
@@ -67,7 +71,78 @@ class CasosExcepcionController extends Controller
             'filas'   => $filas,
             'atiende' => CasosExcepcion::atiende($request->user()),
             'conFormato' => CasosExcepcion::conFormato(),
+            'cierraRapido' => CasosExcepcion::cierraRapido($request->user()),
         ]);
+    }
+
+    /**
+     * "No llegó" desde la bandeja: la cita de excepción queda expirada y sale
+     * de "Por atender" (CasosExcepcion::porAtender ya no cuenta las que no
+     * llegaron). Sólo si sigue por llegar, ya es su día y no tiene formato.
+     */
+    public function noLlego(Request $request, int $id)
+    {
+        abort_unless(CasosExcepcion::cierraRapido($request->user()), 403);
+
+        $cita = DB::table('recepcion')->where('id', $id)->where('exepcion', 'Si')->first();
+        abort_unless($cita, 404);
+
+        $folio = \App\Support\FolioCita::mostrar($cita);
+        if ($cita->estatus !== 'pendiente' || substr((string) $cita->fecha, 0, 10) > now()->toDateString()
+            || DB::table('seer_casos_excepcion')->where('id_turno', $cita->id)->exists()) {
+            return back()->with('error', "El folio {$folio} ya no se puede marcar como «No llegó» (ya llegó, ya tiene formato o todavía no es su día).");
+        }
+
+        DB::table('recepcion')->where('id', $cita->id)->where('estatus', 'pendiente')->update(['estatus' => 'expirada', 'updated_at' => now()]);
+        \App\Support\PantallaEspera::olvidar((string) $cita->delegacion);
+        Log::info('excepcion.no_llego', ['cita' => $cita->id, 'folio' => $folio, 'por' => $request->user()->id]);
+
+        return back()->with('success', "Folio {$folio}: se marcó «No llegó» y se cerró el caso.");
+    }
+
+    /**
+     * "Buscar expedientes" (modal de la bandeja): todas las solicitudes ya
+     * registradas, con filtro de caso de excepción, sede y fechas. JSON.
+     */
+    public function expedientes(Request $request)
+    {
+        $f = $request->validate([
+            'q'     => ['nullable', 'string', 'max:80'],
+            'caso'  => ['nullable', Rule::in(array_keys(\App\Support\BuscadorExpedientes::CASOS))],
+            'sede'  => ['nullable', Rule::in($sedes = \App\Support\BuscadorExpedientes::sedes($request->user()))],
+            'desde' => ['nullable', 'date_format:Y-m-d'],
+            'hasta' => ['nullable', 'date_format:Y-m-d'],
+            'page'  => ['nullable', 'integer', 'min:1'],
+        ], [], ['desde' => 'desde', 'hasta' => 'hasta']);
+        if (! empty($f['desde']) && ! empty($f['hasta']) && $f['desde'] > $f['hasta']) {
+            [$f['desde'], $f['hasta']] = [$f['hasta'], $f['desde']];
+        }
+
+        $p = \App\Support\BuscadorExpedientes::buscar($f, $sedes, (int) ($f['page'] ?? 1));
+
+        return response()->json([
+            'filas'  => $p->items(),
+            'total'  => $p->total(),
+            'pagina' => $p->currentPage(),
+            'ultima' => $p->lastPage(),
+            'desde'  => $p->firstItem() ?? 0,
+            'hasta'  => $p->lastItem() ?? 0,
+        ])->header('Cache-Control', 'no-store');
+    }
+
+    /**
+     * Desde "Buscar expedientes": cualquier solicitud completa, sólo para
+     * consulta (el HTML de solicitudes/_vista, como "Ver solicitud" en el
+     * Seguimiento). Se pinta dentro del modal. Sólo de las sedes que ve
+     * (BuscadorExpedientes::sedes).
+     */
+    public function expedienteVista(Request $request, int $id)
+    {
+        $datos = \App\Support\VistaSolicitud::datos($id);
+        abort_unless($datos && \App\Support\BuscadorExpedientes::esDeSedes($datos['general']->delegacion ?? null,
+            \App\Support\BuscadorExpedientes::sedes($request->user())), 404);
+
+        return view('solicitudes._vista', $datos);
     }
 
     /**
@@ -98,21 +173,28 @@ class CasosExcepcionController extends Controller
 
         $datos = FormatoExcepcion::datos($origen);
         $sede  = FormatoExcepcion::sede($origen);
-        $oficios = [];
-        if ($origen['caso'] && OficioCanalizacion::migrado()) {
-            $guardados = OficioCanalizacion::delCaso((int) $origen['caso']->id);
-            foreach ((array) ($datos['instituciones'] ?? []) as $inst) {
-                $oficios[$inst] = OficioCanalizacion::tarjeta($guardados[$inst] ?? null, $inst, $sede, (array) ($datos['tipos'] ?? []), request()->user());
+        // Aceptación y oficio de cada institución: las marcadas (resumen de abajo) y todas para el
+        // modal, que se abre en cuanto se marca una institución.
+        $oficios = $tarjetas = [];
+        if (OficioCanalizacion::migrado()) {
+            $guardados = $origen['caso'] ? OficioCanalizacion::delCaso((int) $origen['caso']->id) : [];
+            foreach (array_keys(CasosExcepcion::INSTITUCIONES) as $inst) {
+                $tarjetas[$inst] = OficioCanalizacion::tarjeta($guardados[$inst] ?? null, $inst, $sede, (array) ($datos['tipos'] ?? []), request()->user());
+            }
+            if ($origen['caso']) {
+                $oficios = array_intersect_key($tarjetas, array_flip((array) ($datos['instituciones'] ?? [])));
             }
         }
 
         return view('excepciones.formato', [
+            'siguientes'  => FormatoExcepcion::siguientesPosibles($origen),
             'origen'      => $origen,
             'datos'       => $datos,
             'sede'        => $sede,
             'terminado'   => ! empty($origen['caso']->terminado_at ?? null),
             'migrado'     => CasosExcepcion::conFormato(),
             'oficios'     => $oficios,
+            'tarjetas'    => $tarjetas,
             'puedeCerrar' => FormatoExcepcion::puedeCerrar($origen['solicitud']),
         ]);
     }
@@ -156,26 +238,91 @@ class CasosExcepcionController extends Controller
             'instituciones.*'        => [Rule::in(array_keys(CasosExcepcion::INSTITUCIONES))],
             'domicilio_procuraduria' => ['nullable', 'string', 'max:255'],
             'cerrar_solicitud'       => ['nullable', Rule::in(['0', '1'])],
+            // "6. No somos competentes": va con "No, se canaliza" y no pide institución.
+            'no_competente'          => ['nullable', Rule::in(['0', '1'])],
+            // "No es caso de excepción": qué sigue (FormatoExcepcion::reclasificar).
+            'no_excepcion'           => ['nullable', Rule::in(['0', '1'])],
+            'siguiente'              => ['nullable', Rule::in(array_keys(FormatoExcepcion::SIGUIENTE))],
+            'fecha_nueva'            => ['nullable', 'date_format:Y-m-d'],
+            'hora_nueva'             => ['nullable', 'regex:/^\d{2}:\d{2}(:\d{2})?$/'],
+            // Aceptación y oficio por institución (modal de canalización): oficios[institucion][campo].
+            'oficios'                      => ['nullable', 'array'],
+            'oficios.*'                    => ['array'],
+            'oficios.*.numero'             => ['nullable', 'string', 'max:40'],
+            'oficios.*.fecha'              => ['nullable', 'date_format:Y-m-d'],
+            'oficios.*.lugar'              => ['nullable', 'string', 'max:80'],
+            'oficios.*.destinatario'       => ['nullable', 'string', 'max:255'],
+            'oficios.*.cargo'              => ['nullable', 'string', 'max:255'],
+            'oficios.*.area_servicio'      => ['nullable', 'string', 'max:255'],
+            'oficios.*.motivo'             => ['nullable', 'string', 'max:500'],
+            'oficios.*.cargo_atiende'      => ['nullable', 'string', 'max:255'],
+            'oficios.*.aceptacion_firmada' => ['nullable', Rule::in(['0', '1'])],
         ];
+        $noExcepcion  = $request->input('no_excepcion') === '1';
+        $noCompetente = ! $noExcepcion && $request->input('resultado') === 'canaliza' && $request->input('no_competente') === '1';
 
-        // Para terminar, lo mínimo que pide el formato y la decisión de la persona.
-        if ($terminar) {
+        if ($terminar && $noExcepcion) {
+            // No sigue el formulario: sólo el nombre y qué sigue.
+            $reglas['nombre'][0]   = 'required';
+            $reglas['siguiente']   = ['required', Rule::in(FormatoExcepcion::siguientesPosibles($origen))];
+            $reglas['fecha_nueva'] = ['required_if:siguiente,otra_fecha', 'nullable', 'date_format:Y-m-d'];
+            $reglas['hora_nueva']  = ['required_if:siguiente,otra_fecha', 'nullable', 'regex:/^\d{2}:\d{2}(:\d{2})?$/'];
+        } elseif ($terminar) {
+            // Para terminar, lo mínimo que pide el formato y la decisión de la persona.
             $reglas['nombre'][0]     = 'required';
             $reglas['tipos'][0]      = 'required';
             $reglas['frecuencia'][0] = 'required';
             $reglas['resultado'][0]  = 'required';
-            $reglas['instituciones'] = ['required_if:resultado,canaliza', 'array'];
+            $reglas['instituciones'] = [Rule::requiredIf(fn () => $request->input('resultado') === 'canaliza' && ! $noCompetente), 'array'];
         }
 
         $datos = $request->validate($reglas, [
             'tipos.required'                => 'Marca al menos un tipo de situación.',
             'frecuencia.required'           => 'Indica la frecuencia de los hechos.',
             'resultado.required'            => 'Indica si la persona continúa con la conciliación o se canaliza.',
-            'instituciones.required_if'     => 'Elige al menos una institución para canalizar.',
+            'instituciones.required'        => 'Elige al menos una institución para canalizar o marca «No somos competentes».',
             'nombre.required'               => 'Falta el nombre de la persona.',
+            'siguiente.required'            => 'Elige qué sigue: la fila de hoy, otra fecha o sólo terminar la atención.',
+            'siguiente.in'                  => 'Esa opción no aplica a este caso.',
+            'fecha_nueva.required_if'       => 'Elige la fecha de la nueva cita.',
+            'hora_nueva.required_if'        => 'Elige el horario de la nueva cita.',
         ]);
 
+        if ($noExcepcion) {
+            $datos['resultado']     = 'no_excepcion';
+            $datos['tipos']         = [];
+            $datos['instituciones'] = [];
+
+            if ($terminar) {
+                // Primero la cita (puede no haber módulo u horario); luego se cierra el formato.
+                try {
+                    $aviso = FormatoExcepcion::reclasificar($origen, $datos['siguiente'], $datos['fecha_nueva'] ?? null, $datos['hora_nueva'] ?? null);
+                } catch (\RuntimeException $e) {
+                    return back()->withInput()->withErrors(['siguiente' => $e->getMessage()]);
+                }
+                FormatoExcepcion::guardar($origen, $datos, true, $request->user());
+
+                return redirect()->route('excepcion', ['vista' => 'citas'])->with('success', $aviso);
+            }
+        } elseif ($noCompetente) {
+            $datos['resultado']     = 'incompetente';
+            $datos['instituciones'] = [];
+        }
+
         FormatoExcepcion::guardar($origen, $datos, $terminar, $request->user());
+        $caso = $this->guardarOficiosDelFormato($tipo, $id, $datos, $request);
+
+        // "Guardar cambios" del modal de canalización: se queda en la página.
+        if ($request->expectsJson()) {
+            return response()->json([
+                'ok'      => true,
+                'mensaje' => 'Guardado. Ya puedes imprimir la aceptación y generar los oficios.',
+                'oficios' => $caso ? collect(OficioCanalizacion::delCaso((int) $caso->id))->map(fn ($o) => [
+                    'numero'             => $o->numero,
+                    'aceptacion_firmada' => (bool) ($o->aceptacion_firmada ?? false),
+                ])->all() : [],
+            ]);
+        }
 
         if ($accion === 'pdf') {
             return redirect()->route('excepciones.formato.pdf', ['tipo' => $tipo, 'id' => $id]);
@@ -184,6 +331,27 @@ class CasosExcepcionController extends Controller
         return $terminar
             ? redirect()->route('excepcion', ['vista' => 'citas'])->with('success', 'Caso atendido: '.(CasosExcepcion::RESULTADOS[$datos['resultado']] ?? '').'.')
             : redirect()->route('excepciones.formato', ['tipo' => $tipo, 'id' => $id])->with('success', 'Borrador guardado. Puedes seguir llenándolo cuando quieras.');
+    }
+
+    /**
+     * Aceptación y oficio de las instituciones marcadas, si vienen del modal
+     * (oficios[institucion][campo]). Sin apartar número: eso es al generar el
+     * oficio. Devuelve el caso ya guardado.
+     */
+    private function guardarOficiosDelFormato(string $tipo, int $id, array $datos, Request $request): ?object
+    {
+        $caso = FormatoExcepcion::origen($tipo, $id)['caso'];
+        if (! $caso || ! OficioCanalizacion::migrado() || empty($datos['oficios'])) {
+            return $caso;
+        }
+
+        foreach ((array) ($datos['instituciones'] ?? []) as $inst) {
+            if (isset($datos['oficios'][$inst]) && is_array($datos['oficios'][$inst])) {
+                OficioCanalizacion::guardar($caso, $inst, $datos['oficios'][$inst], $request->user(), false);
+            }
+        }
+
+        return $caso;
     }
 
     public function pdf(string $tipo, int $id)

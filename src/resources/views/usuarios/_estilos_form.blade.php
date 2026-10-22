@@ -48,5 +48,6 @@
         .uf-seccion__num .bi { font-size: 13px; }
         .uf-sinotifico { padding: 10px 14px; border: 1px solid #EBDDB0; border-radius: 10px; background: #FBF6E7; }
         .uf-sinotifico .form-check-label { font-weight: 600; }
+        .uf-enlace { border-color: #E2CDEB; background: #F8F1FB; }
         @media (max-width: 768px) { .uf-opciones { grid-template-columns: 1fr; } }
     </style>

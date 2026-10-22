@@ -22,6 +22,7 @@
     .llegada-aviso__cerrar { border: 0; background: none; font-size: 18px; color: #8A9899; line-height: 1; cursor: pointer; }
     .llegada-aviso__nombre { font-size: 16px; font-weight: 800; margin: 4px 0 2px; overflow-wrap: anywhere; }
     .llegada-aviso__texto { color: #5E6E6F; }
+    .llegada-aviso__obs { color: #8A1717; font-weight: 700; font-size: 12.5px; margin: 2px 0 4px; }
     .llegada-aviso__acciones { margin-top: 10px; display: flex; gap: 6px; flex-wrap: wrap; }
     .llegada-aviso__acciones .btn { font-size: 12.5px; font-weight: 700; background: #496163; color: #fff; }
     .llegada-aviso__acciones .btn.is-claro { background: #fff; color: #496163; border: 1px solid #C9D3D3; }
@@ -59,6 +60,7 @@
             '<div class="llegada-aviso__cabeza"><span class="llegada-aviso__titulo"><i class="bi ' + (a.cita ? 'bi-qr-code' : 'bi-person-check-fill') + ' me-1"></i>Llegó ' + esc(a.quien) + '</span>' +
             '<button type="button" class="llegada-aviso__cerrar" aria-label="Cerrar">&times;</button></div>' +
             '<div class="llegada-aviso__nombre">' + esc(a.nombre) + '</div>' +
+            (a.obs && a.obs.length ? '<div class="llegada-aviso__obs"><i class="bi bi-exclamation-diamond me-1"></i>' + esc(a.obs.join(' · ')) + '</div>' : '') +
             '<div class="llegada-aviso__texto">' + esc(donde) + ' · ' + esc(a.nue) + (a.lugar ? ' · ' + esc(a.lugar) : '') + ' · a las ' + esc(a.hora) +
             '<br>' + (a.cita ? 'Validó su cita en recepción' : 'Registrado') + ' a las ' + esc(a.llegada) + '</div>' +
             '<div class="llegada-aviso__acciones">' + (a.url ? '<a class="btn btn-sm" href="' + esc(a.url) + '">Abrir</a>' : '') +

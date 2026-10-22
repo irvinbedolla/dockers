@@ -13,6 +13,11 @@
 
     No sustituye la comparecencia, que el conciliador registra con
     identificación dentro de la audiencia o la ratificación.
+
+    Observaciones: la recepción anota en cada audiencia si la persona viene en
+    silla de ruedas, ocupa traductor o es menor de edad, más un texto libre;
+    en las ratificaciones, sólo el texto. El conciliador las ve aquí y en su
+    aviso (LlegadasHoy::guardarObservaciones).
 --}}
 
 @section('page_css')
@@ -64,6 +69,18 @@
         .ll-estado { font-size: 12px; font-weight: 700; color: var(--tn-tenue); }
         .ll-item.is-completa .ll-estado { color: #1E7B3C; }
         .ll-item.is-parcial .ll-estado { color: #7A5D10; }
+        .ll-obs { margin: 6px 0 8px; padding: 8px 10px; border-radius: 10px; background: #FFF8E6; border: 1px solid #F0DFB0; font-size: 12.5px; }
+        .ll-obs--vacia { background: none; border: 0; padding: 0; margin: 2px 0 6px; }
+        .ll-obs--editar { background: #fff; border-color: var(--tn-borde); display: grid; gap: 6px; }
+        .ll-obs__chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
+        .ll-obs__chip { background: #FBE3E3; color: #8A1717; border-radius: 999px; padding: 2px 9px; font-weight: 700; font-size: 12px; }
+        .ll-obs__texto { color: var(--tn-tinta); white-space: pre-line; }
+        .ll-obs__pie { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 2px; }
+        .ll-obs__meta { color: var(--tn-tenue); font-size: 11.5px; }
+        .ll-obs__editar { border: 0; background: none; color: var(--tn-verde); font-weight: 700; font-size: 12.5px; padding: 0; margin-left: auto; cursor: pointer; }
+        .ll-obs__casillas { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+        .ll-obs__casilla { display: inline-flex; gap: 6px; align-items: center; font-weight: 600; margin: 0; }
+        .ll-obs__botones { display: flex; gap: 6px; justify-content: flex-end; }
         .ll-cita { font-size: 12px; color: var(--tn-suave); margin-bottom: 4px; }
         .ll-cita .bi { color: var(--tn-verde); }
 
@@ -152,6 +169,11 @@
     var URL_DATOS = @json($urlDatos);
     var URL_MARCAR = @json($marca ? route('llegadas.marcar', ['tipo' => '__T__', 'id' => '__ID__']) : null);
     var TOKEN = @json(csrf_token());
+    var URL_OBS = {!! json_encode($marca ? route('llegadas.observaciones', ['tipo' => '__T__', 'id' => '__ID__']) : null) !!};
+    var OBS = @json(\App\Support\LlegadasHoy::OBSERVACIONES);
+    var OBSERVAN = @json(\App\Support\LlegadasHoy::OBSERVAN);
+    // Observaciones que se están editando (sobreviven a la actualización cada 30 s).
+    var editando = null, borrador = null;
     var MARCA = @json($marca);
     var YO = @json($yo);
     var TIPOS = @json(\App\Support\LlegadasHoy::TIPOS);
@@ -236,6 +258,28 @@
             '<span class="ll-accion">' + accion + '</span></div>';
     }
 
+    // Observaciones de la recepción: casillas (audiencias) y texto libre.
+    function obsHtml(r) {
+        if (!r.conObs) { return ''; }
+        var clave = r.tipo + ':' + r.id, o = r.obs;
+        if (MARCA && editando === clave && borrador) {
+            var casillas = (OBSERVAN[r.tipo] || []).map(function (c) {
+                return '<label class="ll-obs__casilla"><input type="checkbox" class="form-check-input m-0" data-obs-campo="' + c + '"' + (borrador[c] ? ' checked' : '') + '> ' + esc(OBS[c]) + '</label>';
+            }).join('');
+            return '<div class="ll-obs ll-obs--editar" data-obs="' + clave + '">' +
+                (casillas ? '<div class="ll-obs__casillas">' + casillas + '</div>' : '') +
+                '<textarea class="form-control form-control-sm" rows="2" maxlength="1000" data-obs-campo="texto" placeholder="Observaciones">' + esc(borrador.texto || '') + '</textarea>' +
+                '<div class="ll-obs__botones"><button type="button" class="btn btn-sm btn-outline-secondary" data-obs-cancelar>Cancelar</button>' +
+                '<button type="button" class="btn btn-sm btn-primary" data-obs-guardar data-tipo="' + r.tipo + '" data-id="' + r.id + '"><i class="bi bi-save"></i> Guardar</button></div></div>';
+        }
+        var boton = MARCA ? '<button type="button" class="ll-obs__editar" data-obs-abrir="' + clave + '"><i class="bi bi-pencil"></i> ' + (o ? 'Editar observaciones' : 'Agregar observaciones') + '</button>' : '';
+        if (!o) { return MARCA ? '<div class="ll-obs ll-obs--vacia"><div class="ll-obs__pie">' + boton + '</div></div>' : ''; }
+        var chips = (o.etiquetas || []).map(function (e) { return '<span class="ll-obs__chip"><i class="bi bi-exclamation-diamond"></i> ' + esc(e) + '</span>'; }).join('');
+        return '<div class="ll-obs">' + (chips ? '<div class="ll-obs__chips">' + chips + '</div>' : '') +
+            (o.texto ? '<div class="ll-obs__texto"><i class="bi bi-chat-left-text"></i> ' + esc(o.texto) + '</div>' : '') +
+            '<div class="ll-obs__pie">' + (o.por ? '<span class="ll-obs__meta">Anotó ' + esc(o.por) + ' · ' + esc(o.hora) + '</span>' : '<span></span>') + boton + '</div></div>';
+    }
+
     function itemHtml(r) {
         var estado = !r.abierto ? 'is-cerrada' : (r.completa ? 'is-completa' : (r.atraso !== null ? 'is-tarde' : (r.llegaron > 0 ? 'is-parcial' : '')));
         var etiqueta = !r.abierto
@@ -252,7 +296,7 @@
                 (tab === 'todas' ? '<span class="ll-tipo ll-tipo--' + r.tipo + '">' + CORTO[r.tipo] + '</span>' : '') +
                 '<span class="ll-nue">' + esc(r.nue) + '</span> <span class="ll-conc">· ' + esc(r.conciliador || 'Sin conciliador') + '</span></div>' +
                 '<span class="d-inline-flex gap-2 align-items-center flex-wrap">' + etiqueta + '<span class="ll-estado">' + (r.completa ? 'Todos llegaron' : 'Llegaron ' + r.llegaron + ' de ' + r.partes.length) + '</span></span></div>' +
-            cita +
+            cita + obsHtml(r) +
             (r.partes.length ? r.partes.map(function (p) { return parteHtml(r, p); }).join('') : '<span class="ll-conc">Sin partes registradas.</span>') +
             '</div></article>';
     }
@@ -283,7 +327,8 @@
         return fetch(URL_DATOS, { headers: { 'Accept': 'application/json' }, cache: 'no-store', credentials: 'same-origin' })
             .finally(function () { clearTimeout(lento); })
             .then(function (r) { if (!r.ok) { throw new Error(r.status); } return r.json(); })
-            .then(function (j) { datos = j; pintar(); })
+            // Mientras se escriben observaciones no se repinta (se perdería el cursor); al guardar sí.
+            .then(function (j) { datos = j; if (!editando) { pintar(); } })
             .catch(function () { document.getElementById('llActualizado').textContent = 'Sin conexión, reintentando…'; });
     }
 
@@ -316,6 +361,51 @@
                     return actualizar();
                 })
                 .catch(function () { aviso('Sin conexión; intenta de nuevo.'); pintar(); });
+        });
+    }
+
+    if (MARCA && URL_OBS) {
+        var lista = document.getElementById('llLista');
+        var buscar = function (clave) { return (datos.registros || []).filter(function (r) { return r.tipo + ':' + r.id === clave; })[0]; };
+        var campo = function (e) {
+            var c = e.target.getAttribute && e.target.getAttribute('data-obs-campo');
+            if (c && borrador) { borrador[c] = e.target.type === 'checkbox' ? e.target.checked : e.target.value; }
+        };
+        lista.addEventListener('input', campo);
+        lista.addEventListener('change', campo);
+        lista.addEventListener('click', function (e) {
+            var abrir = e.target.closest('[data-obs-abrir]');
+            if (abrir) {
+                var r = buscar(abrir.getAttribute('data-obs-abrir'));
+                editando = abrir.getAttribute('data-obs-abrir');
+                borrador = { silla_ruedas: false, traductor: false, menor_edad: false, texto: '' };
+                if (r && r.obs) { Object.keys(borrador).forEach(function (k) { borrador[k] = r.obs[k] || borrador[k]; }); }
+                pintar();
+                var t = lista.querySelector('[data-obs="' + editando + '"] textarea');
+                if (t) { t.focus(); }
+                return;
+            }
+            if (e.target.closest('[data-obs-cancelar]')) { editando = null; borrador = null; pintar(); return; }
+            var g = e.target.closest('[data-obs-guardar]');
+            if (!g || g.disabled) { return; }
+            g.disabled = true;
+            g.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Guardando…';
+            fetch(URL_OBS.replace('__T__', g.getAttribute('data-tipo')).replace('__ID__', g.getAttribute('data-id')), {
+                method: 'POST', credentials: 'same-origin',
+                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': TOKEN, 'X-Requested-With': 'XMLHttpRequest' },
+                body: JSON.stringify(borrador)
+            })
+                .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { ok: r.ok, j: j, status: r.status }; }); })
+                .then(function (res) {
+                    if (!res.ok) {
+                        aviso(res.status === 419 ? 'La sesión expiró; recarga la página.' : (res.j.message || 'No se pudieron guardar las observaciones.'));
+                        g.disabled = false; g.innerHTML = '<i class="bi bi-save"></i> Guardar';
+                        return;
+                    }
+                    editando = null; borrador = null;
+                    return actualizar();
+                })
+                .catch(function () { aviso('Sin conexión; intenta de nuevo.'); g.disabled = false; g.innerHTML = '<i class="bi bi-save"></i> Guardar'; });
         });
     }
 

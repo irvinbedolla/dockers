@@ -308,6 +308,9 @@
                         <div><b>{{ number_format($xm['detectados']) }}</b><span>Detectados este mes</span></div>
                         <div><b>{{ number_format($xm['atendidos']) }}</b><span>Atendidos</span></div>
                         <div><b style="color:#9A3A22;">{{ number_format($xm['canaliza']) }}</b><span>Canalizados</span></div>
+                        @if ($xm['incompetente'] ?? 0)
+                            <div><b style="color:#4B3F7A;">{{ number_format($xm['incompetente']) }}</b><span>No competentes</span></div>
+                        @endif
                     </div>
                 </a>
             </div>

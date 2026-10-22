@@ -20,6 +20,14 @@ use Illuminate\Support\Facades\Schema;
  * Sólo ese rol (y Super Usuario) atiende: llena el formato de atención y, si
  * la persona no sigue con la conciliación, la canaliza.
  *
+ * Enlace de Género e Igualdad: distintivo que se da persona por persona
+ * desde Usuarios (permiso directo PERMISO_ENLACE, como "Supervisa
+ * notificadores" de SíNotifico), para que alguien de otra delegación apoye
+ * al departamento. Le da la pestaña y lo mismo que al rol en ella: atender,
+ * canalizar y cerrar casos. No ve las estadísticas de excepción (sólo el
+ * rol, Super Usuario y Directivo) ni cambia el resto de lo que ve por sus
+ * roles (agenda, seguimiento, Inicio).
+ *
  * Ojo: el nombre del rol lleva coma, así que no puede ir en un middleware
  * 'role:...' (Laravel parte los parámetros por coma). Para eso está el
  * middleware App\Http\Middleware\CasosExcepcionAcceso.
@@ -35,6 +43,11 @@ class CasosExcepcion
     public const CONSULTAN = ['Directivo', 'Delegado', 'Excepcion'];
 
     public const SEDES = ['Morelia', 'Zitácuaro', 'Uruapan', 'Lázaro Cárdenas', 'Zamora', 'Sahuayo'];
+
+    /** Permiso directo del distintivo "Enlace de Género e Igualdad". */
+    public const PERMISO_ENLACE = 'excepcion_enlace';
+
+    public const DISTINTIVO = 'Enlace de Género e Igualdad';
 
     /**
      * Motivos de "¿Tu caso es por alguno de estos motivos?" (formulario de
@@ -151,6 +164,10 @@ class CasosExcepcion
     public const RESULTADOS = [
         'continua' => 'Continúa con la conciliación',
         'canaliza' => 'Canalizada',
+        // "6. No somos competentes" en la lista de canalizar: se cierra sin canalizar.
+        'incompetente' => 'No somos competentes',
+        // "No es caso de excepción" en el tipo de situación: se cierra y la cita sigue como normal.
+        'no_excepcion' => 'No es caso de excepción',
     ];
 
     public const GRUPOS_VULNERABLES = [
@@ -170,12 +187,62 @@ class CasosExcepcion
 
     public static function atiende(?User $usuario): bool
     {
-        return $usuario !== null && $usuario->hasAnyRole(self::ATIENDEN);
+        return $usuario !== null && ($usuario->hasAnyRole(self::ATIENDEN) || self::enlace($usuario));
     }
 
     public static function consulta(?User $usuario): bool
     {
-        return $usuario !== null && $usuario->hasAnyRole(array_merge(self::ATIENDEN, self::CONSULTAN));
+        return $usuario !== null && ($usuario->hasAnyRole(array_merge(self::ATIENDEN, self::CONSULTAN)) || self::enlace($usuario));
+    }
+
+    /**
+     * Cierra rápido una cita de la bandeja con "No llegó": el departamento,
+     * Super Usuario y Directivo. El Enlace de Género e Igualdad no.
+     */
+    public static function cierraRapido(?User $usuario): bool
+    {
+        return $usuario !== null && $usuario->hasAnyRole(['Super Usuario', 'Directivo', self::ROL]);
+    }
+
+    /** Ve las estadísticas de excepción. El Enlace de Género e Igualdad no. */
+    public static function estadisticas(?User $usuario): bool
+    {
+        return $usuario !== null && $usuario->hasAnyRole(['Super Usuario', 'Estadistica', 'Directivo', self::ROL]);
+    }
+
+    /** ¿Tiene el distintivo "Enlace de Género e Igualdad"? */
+    public static function enlace(?User $usuario): bool
+    {
+        return $usuario !== null && $usuario->exists && self::hayPermisoEnlace()
+            && $usuario->hasDirectPermission(self::PERMISO_ENLACE);
+    }
+
+    /**
+     * Pone o quita el distintivo (desde Usuarios). Quien ya tiene el rol no lo
+     * necesita: se le quita para que no quede un acceso que nadie ve.
+     */
+    public static function elegirEnlace(User $usuario, bool $enlace): void
+    {
+        if (! self::hayPermisoEnlace()) {
+            return;
+        }
+
+        $debe  = $enlace && ! $usuario->hasRole(self::ROL);
+        $tiene = $usuario->hasDirectPermission(self::PERMISO_ENLACE);
+
+        if ($debe && ! $tiene) {
+            $usuario->givePermissionTo(self::PERMISO_ENLACE);
+        } elseif (! $debe && $tiene) {
+            $usuario->revokePermissionTo(self::PERMISO_ENLACE);
+        }
+    }
+
+    /** Antes de correr la migración el permiso no existe: no se truena. */
+    private static function hayPermisoEnlace(): bool
+    {
+        static $hay = null;
+
+        return $hay ??= \Spatie\Permission\Models\Permission::where('name', self::PERMISO_ENLACE)->where('guard_name', 'web')->exists();
     }
 
     /**

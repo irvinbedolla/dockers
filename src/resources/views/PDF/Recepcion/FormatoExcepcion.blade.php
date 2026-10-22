@@ -155,7 +155,7 @@
     <div class="decision nota">
         <b class="t">Decisión de la persona usuaria:</b>
         &nbsp; {!! $caja($resultado === 'continua') !!} Continúa con el procedimiento de conciliación.
-        &nbsp; {!! $caja($resultado === 'canaliza') !!} No continúa con el procedimiento.
+        &nbsp; {!! $caja(in_array($resultado, ['canaliza', 'incompetente'], true)) !!} No continúa con el procedimiento.
         <div style="margin-top: 3pt"><b class="t">Se canaliza para atención integral a:</b></div>
         <table style="width:100%; margin-top: 3pt; border-collapse: collapse;">
             @foreach (array_chunk($CX::INSTITUCIONES, 2, true) as $par)
@@ -165,6 +165,8 @@
                     @endforeach
                 </tr>
             @endforeach
+            <tr><td colspan="2" style="padding: 0;">{!! $caja($resultado === 'incompetente') !!} No somos competentes</td></tr>
+            <tr><td colspan="2" style="padding: 0;">{!! $caja($resultado === 'no_excepcion') !!} No es caso de excepción</td></tr>
         </table>
     </div>
 
