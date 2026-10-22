@@ -195,6 +195,15 @@ class CasosExcepcion
         return $usuario !== null && ($usuario->hasAnyRole(array_merge(self::ATIENDEN, self::CONSULTAN)) || self::enlace($usuario));
     }
 
+    /**
+     * Cierra rápido una cita de la bandeja con "No llegó": el departamento,
+     * Super Usuario y Directivo. El Enlace de Género e Igualdad no.
+     */
+    public static function cierraRapido(?User $usuario): bool
+    {
+        return $usuario !== null && $usuario->hasAnyRole(['Super Usuario', 'Directivo', self::ROL]);
+    }
+
     /** Ve las estadísticas de excepción. El Enlace de Género e Igualdad no. */
     public static function estadisticas(?User $usuario): bool
     {

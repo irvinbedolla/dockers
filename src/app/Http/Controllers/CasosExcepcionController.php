@@ -8,6 +8,7 @@ use App\Support\OficioCanalizacion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 
 /**
@@ -70,7 +71,33 @@ class CasosExcepcionController extends Controller
             'filas'   => $filas,
             'atiende' => CasosExcepcion::atiende($request->user()),
             'conFormato' => CasosExcepcion::conFormato(),
+            'cierraRapido' => CasosExcepcion::cierraRapido($request->user()),
         ]);
+    }
+
+    /**
+     * "No llegó" desde la bandeja: la cita de excepción queda expirada y sale
+     * de "Por atender" (CasosExcepcion::porAtender ya no cuenta las que no
+     * llegaron). Sólo si sigue por llegar, ya es su día y no tiene formato.
+     */
+    public function noLlego(Request $request, int $id)
+    {
+        abort_unless(CasosExcepcion::cierraRapido($request->user()), 403);
+
+        $cita = DB::table('recepcion')->where('id', $id)->where('exepcion', 'Si')->first();
+        abort_unless($cita, 404);
+
+        $folio = \App\Support\FolioCita::mostrar($cita);
+        if ($cita->estatus !== 'pendiente' || substr((string) $cita->fecha, 0, 10) > now()->toDateString()
+            || DB::table('seer_casos_excepcion')->where('id_turno', $cita->id)->exists()) {
+            return back()->with('error', "El folio {$folio} ya no se puede marcar como «No llegó» (ya llegó, ya tiene formato o todavía no es su día).");
+        }
+
+        DB::table('recepcion')->where('id', $cita->id)->where('estatus', 'pendiente')->update(['estatus' => 'expirada', 'updated_at' => now()]);
+        \App\Support\PantallaEspera::olvidar((string) $cita->delegacion);
+        Log::info('excepcion.no_llego', ['cita' => $cita->id, 'folio' => $folio, 'por' => $request->user()->id]);
+
+        return back()->with('success', "Folio {$folio}: se marcó «No llegó» y se cerró el caso.");
     }
 
     /**

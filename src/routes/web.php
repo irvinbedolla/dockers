@@ -217,6 +217,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->middleware('throttle:120,1');
         Route::get('/excepciones/expedientes/{id}',     [App\Http\Controllers\CasosExcepcionController::class, 'expedienteVista'])->name('excepciones.expediente')
             ->whereNumber('id');
+        // "No llegó": cierre rápido de una cita (el controlador revisa CasosExcepcion::cierraRapido).
+        Route::post('/excepciones/citas/{id}/no-llego',  [App\Http\Controllers\CasosExcepcionController::class, 'noLlego'])->name('excepciones.no_llego')
+            ->whereNumber('id')->middleware('throttle:60,1');
         // Formato 685 Ter en PDF (prellenado; lo que falte sale en blanco).
         Route::get('/excepciones/{tipo}/{id}/formato/pdf', [App\Http\Controllers\CasosExcepcionController::class, 'pdf'])->name('excepciones.formato.pdf')
             ->whereIn('tipo', App\Support\FormatoExcepcion::TIPOS_ORIGEN)->whereNumber('id');

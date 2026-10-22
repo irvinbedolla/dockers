@@ -296,6 +296,13 @@
                                                 @if ($f->formato_id)
                                                     <a class="btn btn-sm btn-outline-secondary" href="{{ route('excepciones.formato.pdf', ['tipo' => 'cita', 'id' => $f->id]) }}" target="_blank" rel="noopener" title="Formato en PDF"><i class="bi bi-file-earmark-pdf"></i></a>
                                                 @endif
+                                                @if ($cierraRapido && $estatus === 'pendiente' && ! $f->formato_id && substr((string) $f->fecha, 0, 10) <= $hoy)
+                                                    <form method="POST" action="{{ route('excepciones.no_llego', $f->id) }}" class="d-inline"
+                                                          onsubmit="return confirm('¿Marcar el folio {{ \App\Support\FolioCita::mostrar($f) }} como «No llegó» y cerrar el caso?');">
+                                                        @csrf
+                                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="La persona no llegó: se cierra el caso y sale de Por atender"><i class="bi bi-person-x"></i> No llegó</button>
+                                                    </form>
+                                                @endif
                                                 @if ($f->solicitud_id)
                                                     <a class="btn btn-sm btn-outline-success cx-pulso" href="{{ route('excepciones.solicitud', $f->solicitud_id) }}" title="Ya tiene solicitud: {{ $f->nue ?: 'sin expediente' }}"><i class="bi bi-folder2-open"></i> Solicitud</a>
                                                 @endif
