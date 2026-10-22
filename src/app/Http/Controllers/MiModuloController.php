@@ -83,7 +83,12 @@ class MiModuloController extends Controller
 
         abort_unless($this->esDeSusModulos($request->user(), $cita), 403);
         abort_unless(FlujoCita::aplicaA($cita), 403, 'El flujo nuevo no aplica a esta cita.');
-        abort_unless($cita->tipo === 'Solicitud', 422, 'Sólo las citas de solicitud se prellenan.');
+        // Una asesoría en atención puede seguir como solicitud ("Continuar como
+        // Solicitud") si al final la persona decide levantarla.
+        $continuaAsesoria = self::esAsesoria($cita);
+        abort_unless($cita->tipo === 'Solicitud' || $continuaAsesoria, 422, 'Sólo las citas de solicitud o asesoría se prellenan.');
+        abort_if($continuaAsesoria && ! (in_array($cita->estatus, self::VIGENTES, true) && $cita->atencion_inicio_at), 422,
+            'Primero inicia la atención de la asesoría en Mi módulo.');
 
         if (FlujoCita::aplicaA($cita) && ! $cita->llamado_at && ($abierta = $this->abiertaEnModulo($cita))) {
             return back()->with('error', 'Primero termina o marca como "no se presentó" el folio '.FolioCita::mostrar($abierta).'.');
@@ -377,6 +382,11 @@ class MiModuloController extends Controller
     private static function esRatificacion(object $cita): bool
     {
         return in_array($cita->tipo, ['Ratificación', 'Ratificacion'], true);
+    }
+
+    private static function esAsesoria(object $cita): bool
+    {
+        return in_array($cita->tipo, ['Asesoría', 'Asesoria'], true);
     }
 
     /** El turno (ratificación) que se agendó con esta cita. */
