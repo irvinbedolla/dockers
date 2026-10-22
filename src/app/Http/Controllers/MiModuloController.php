@@ -35,6 +35,9 @@ class MiModuloController extends Controller
 
     private const VIGENTES = ['pendiente', 'confirmada'];
 
+    /** Estatus de turnos que "Terminar" no debe regresar a Confirmado. */
+    private const RATIFICACION_RESUELTA = ['Concluida', 'Concluida Pagos', 'Archivada', 'Incumplimiento'];
+
     public static function puedeVer(?User $usuario): bool
     {
         if ($usuario === null || ! FlujoCita::migrado() || ! FlujoCita::habilitadoPara($usuario)) {
@@ -174,7 +177,11 @@ class MiModuloController extends Controller
         $turno = self::esRatificacion($cita) && in_array($accion, ['atender', 'terminar'], true)
             ? $this->turnoDeCita($cita)
             : null;
-        if ($turno && $accion === 'terminar') {
+        // Si la ratificación ya se concluyó (o archivó) antes de "Terminar", no se
+        // regresa a Confirmado: eso reabría el botón Concluir y duplicaba conceptos.
+        $confirmarTurno = $turno && $accion === 'terminar'
+            && ! in_array($turno->estatus, self::RATIFICACION_RESUELTA, true);
+        if ($confirmarTurno) {
             \App\Services\HistorialRatificacionRecorder::actualizar($turno, ['estatus' => 'Confirmado'],
                 'Atención terminada en Mi módulo (folio '.FolioCita::mostrar($cita).')');
         }
@@ -200,8 +207,8 @@ class MiModuloController extends Controller
                 ? ['ok' => true, 'mensaje' => $mensajes[$accion], 'ir' => route('mi_modulo.ratificacion', ['id' => $cita->id])]
                 : ['ok' => true, 'mensaje' => $mensajes[$accion], 'aviso' => $this->avisoSinRatificacion($cita)]);
         }
-        if ($turno && $accion === 'terminar') {
-            $mensajes['terminar'] .= ' La ratificación quedó confirmada: revísala en Ratificaciones → Confirmadas.';
+        if ($confirmarTurno) {
+            $mensajes['terminar'] .=' La ratificación quedó confirmada: revísala en Ratificaciones → Confirmadas.';
         }
 
         return response()->json(['ok' => true, 'mensaje' => $mensajes[$accion]]);
