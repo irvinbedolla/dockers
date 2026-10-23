@@ -722,6 +722,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('/poderes/destroy/{id}',                          [PoderController::class, 'destroy'])->name('poderes.destroy');
         Route::post('/poderes/agregar_representante',                   [PoderController::class, 'agregarRepresentante'])->name('poderes.agregar_representante');
         Route::get('/poderes/data-ajax',                                [PoderController::class, 'buscar_poderes_ajax'])->name('poderes.index.ajax');
+        Route::get('/poderes/listado/{vigencia}',                       [PoderController::class, 'listado'])->whereIn('vigencia', ['vigentes', 'sin-vigencia'])->name('poderes.listado');
     //PDF Solicitudes    
         Route::get('/Verpdfincompetencias/{id}',                        [SeerController::class, 'VerPDFIncompetencia'])->name('PDFincompetencia');
         Route::get('/Verpdfcs/{id}',                                    [SeerController::class, 'VerPDFConvenioSol'])->name('PDFconveniosolicitud');
