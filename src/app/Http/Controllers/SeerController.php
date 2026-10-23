@@ -10003,23 +10003,64 @@ class SeerController extends Controller
             ELSE pago_solicitud.NUE 
         END";
 
-        $buscar = request('buscar');
+        $buscar = trim((string) request('buscar'));
+        $fecha = request('fecha');
+        $fecha = $fecha && preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha) ? $fecha : null;
+        // Apartado Pendiente / Pagado y ratificaciones y solicitudes
+        $estatus = in_array(request('estatus'), ['Pendiente', 'Pagado'], true) ? request('estatus') : 'Pendiente';
+        $tipo = request('tipo') === 'SOL' ? 'SOL' : 'RAT';
 
-        $cumplimientos = Pagos::whereIn('pago_solicitud.tipo_pago', ["Ratificacion", "Audiencia", "Conciliador"])
+        $pendientesSql = "SUM(CASE WHEN pago_solicitud.estatus = 'Pendiente' THEN 1 ELSE 0 END)";
+        $tipoSql = "CASE WHEN pago_solicitud.tipo_pago = 'Ratificacion' THEN 'RAT' ELSE 'SOL' END";
+
+        // Consulta agrupada por expediente con la búsqueda y la fecha ya aplicadas;
+        // el apartado y la pestaña se filtran después para poder contar cada uno.
+        $base = Pagos::whereIn('pago_solicitud.tipo_pago', ["Ratificacion", "Audiencia", "Conciliador"])
             ->whereIn('pago_solicitud.delegacion', $delegaciones)
             ->leftJoin('turnos', 'turnos.id', '=', 'pago_solicitud.id_solicitud')
             ->leftJoin('seer_general', 'seer_general.id', '=', 'pago_solicitud.id_solicitud')
             ->leftJoin('users', 'users.id', '=', 'pago_solicitud.id_conciliador')
-            
-            // MODIFICACIÓN CRÍTICA:
-            // Si hay una búsqueda activa, quita el filtro de 'Pendiente' para buscar en todo.
-            // Si NO hay búsqueda, aplica el filtro 'Pendiente' por defecto para mantener el rendimiento.
-            ->when($buscar, function ($query) use ($buscar, $caseNueFinal) {
+            ->when($buscar !== '', function ($query) use ($buscar, $caseNueFinal) {
                 return $query->where(DB::raw($caseNueFinal), 'LIKE', "%{$buscar}%");
-            }, function ($query) {
-                return $query->where('pago_solicitud.estatus', 'Pendiente');
             })
-            
+            ->groupBy(
+                DB::raw($caseNueFinal),
+                'pago_solicitud.id_solicitud',
+                'pago_solicitud.tipo_pago',
+                'pago_solicitud.NUE',
+                'turnos.NUE',
+                'seer_general.NUE',
+                'users.name'
+            )
+            ->when($fecha, function ($query) use ($fecha) {
+                return $query->havingRaw('DATE(MAX(pago_solicitud.fecha)) = ?', [$fecha]);
+            });
+
+        $porGrupo = DB::query()
+            ->fromSub((clone $base)->toBase()->select(
+                DB::raw("CASE WHEN {$pendientesSql} > 0 THEN 'Pendiente' ELSE 'Pagado' END as estatus"),
+                DB::raw("{$tipoSql} as tipo")
+            ), 'c')
+            ->select('estatus', 'tipo')->selectRaw('COUNT(*) as total')
+            ->groupBy('estatus', 'tipo')
+            ->get();
+        $contar = fn ($campo, $valor) => (int) $porGrupo->where($campo, $valor)->sum('total');
+        $conteo = [
+            'Pendiente' => $contar('estatus', 'Pendiente'),
+            'Pagado'    => $contar('estatus', 'Pagado'),
+        ];
+        $conteoTipo = [
+            'RAT' => (int) $porGrupo->where('estatus', $estatus)->where('tipo', 'RAT')->sum('total'),
+            'SOL' => (int) $porGrupo->where('estatus', $estatus)->where('tipo', 'SOL')->sum('total'),
+        ];
+
+        $cumplimientos = $base
+            ->havingRaw("{$pendientesSql} " . ($estatus === 'Pendiente' ? '> 0' : '= 0'))
+            ->when($tipo === 'RAT', function ($query) {
+                return $query->where('pago_solicitud.tipo_pago', 'Ratificacion');
+            }, function ($query) {
+                return $query->whereIn('pago_solicitud.tipo_pago', ['Audiencia', 'Conciliador']);
+            })
             ->select(
                 DB::raw("{$caseNueFinal} as NUE_FINAL"),
                 DB::raw('MAX(pago_solicitud.id) as id'),
@@ -10036,19 +10077,11 @@ class SeerController extends Controller
                 DB::raw("SUM(CASE WHEN pago_solicitud.estatus = 'Pendiente' THEN 1 ELSE 0 END) as pagos_pendientes"),
                 DB::raw("CASE WHEN SUM(CASE WHEN pago_solicitud.estatus = 'Pendiente' THEN 1 ELSE 0 END) > 0 THEN 'Pendiente' ELSE 'Pagado' END as estatus")
             )
-            ->groupBy(
-                DB::raw($caseNueFinal),
-                'pago_solicitud.id_solicitud',
-                'pago_solicitud.tipo_pago',
-                'pago_solicitud.NUE',
-                'turnos.NUE',
-                'seer_general.NUE',
-                'users.name'
-            )
-            ->orderBy(DB::raw("MAX(pago_solicitud.fecha)"), 'desc') // Cambiado a DESC para que si buscas veas lo más reciente primero
-            ->paginate(500);
+            ->orderBy(DB::raw("MAX(pago_solicitud.fecha)"), 'desc') // Lo más reciente primero
+            ->paginate(25)
+            ->appends(request()->only(['buscar', 'fecha', 'estatus', 'tipo']));
 
-        return view('/cumplimientos/index', compact('cumplimientos'));
+        return view('/cumplimientos/index', compact('cumplimientos', 'conteo', 'conteoTipo', 'estatus', 'tipo', 'fecha'));
     }
 
     public function solicitud_audiencia_revisar($id, Request $request) {
