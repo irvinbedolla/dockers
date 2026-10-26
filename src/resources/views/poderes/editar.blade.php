@@ -958,4 +958,5 @@
 
 @section('scripts')
     <script src="{{ asset('assets/js/poderes/general.js') }}"></script>
+    <script src="{{ asset('assets/js/poderes/limite_archivos.js') }}"></script>
 @endsection
