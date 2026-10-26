@@ -251,6 +251,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('role:Super Usuario|Estadistica|Directivo');
     Route::get('/estadisticas/incidencias.csv',         [EstadisticasController::class, 'incidenciasCsv'])->name('estadisticas.incidencias.csv')
         ->middleware('role:Super Usuario|Estadistica|Directivo');
+    // Turnos y citas de recepción: atendidas, no acudieron, sin cerrar y tiempos (App\Support\EstadisticasTurnos).
+    Route::get('/estadisticas/turnos',                  [EstadisticasController::class, 'turnos'])->name('estadisticas.turnos')
+        ->middleware('role:Super Usuario|Estadistica|Directivo');
+    Route::get('/estadisticas/turnos/descargar',        [EstadisticasController::class, 'turnosDescargar'])->name('estadisticas.turnos.descargar')
+        ->middleware('role:Super Usuario|Estadistica|Directivo');
     // Casos de excepción (art. 685 Ter): también los ve Conciliación, Género e Igualdad.
     Route::get('/estadisticas/excepciones',             [EstadisticasController::class, 'excepciones'])->name('estadisticas.excepciones')
         ->middleware(CasosExcepcionAcceso::class.':estadisticas');
