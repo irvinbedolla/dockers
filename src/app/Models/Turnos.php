@@ -21,4 +21,18 @@ class Turnos extends Model {
     {
         return $this->hasMany(Pagos::class, 'id_solicitud', 'id');
     }
+
+    /**
+     * Una ratificación concluida solo se edita el día en que se concluyó y el
+     * día siguiente; en cualquier otro estatus (p. ej. Confirmado) se edita libremente.
+     */
+    public function puedeEditarse(): bool
+    {
+        if (!in_array($this->estatus, ['Concluida', 'Concluida Pagos'], true)) {
+            return true;
+        }
+
+        return $this->fecha_conclucion
+            && now()->startOfDay()->lte(\Illuminate\Support\Carbon::parse($this->fecha_conclucion)->addDay());
+    }
 }
