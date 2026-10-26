@@ -15693,7 +15693,8 @@ class SeerController extends Controller
         // "Super Usuario" y "Administrador" pasan sin filtros adicionales (ven todo)
 
         // Día de la cita (Y-m-d). Va antes del conteo para que los apartados lo respeten.
-        $fecha = $request->input('fecha');
+        // Sin parámetro se abre en Hoy; "Todos los días" manda fecha=todos.
+        $fecha = $request->has('fecha') ? $request->input('fecha') : now()->toDateString();
         if (is_string($fecha) && preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $fecha, $p) && checkdate((int) $p[2], (int) $p[3], (int) $p[1])) {
             $query->where('fecha', $fecha);
         } else {

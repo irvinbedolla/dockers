@@ -3133,6 +3133,10 @@ class TurnosController extends Controller
         $id_usuario     = auth()->user()->id;
         $user           = User::find($id_usuario);           
         $solicitud      = Turnos::find($id);
+        if (!$solicitud->puedeEditarse()) {
+            return redirect()->route('todas_ratificaciones')
+                ->withErrors('Esta ratificación ya fue concluida y solo podía editarse hasta un día después de su conclusión.');
+        }
         $sede           = $user->delegacion;
         $representantes = Poder::find($solicitud["idAbogado"]);
         $abogados       = Poder::all();
@@ -3177,6 +3181,11 @@ class TurnosController extends Controller
         $userRole = $user->roles->pluck('name')->all();
 
         $solicitud = Turnos::find($data['id']);
+
+        if (!$solicitud->puedeEditarse()) {
+            return redirect()->route('todas_ratificaciones')
+                ->withErrors('Esta ratificación ya fue concluida y solo podía editarse hasta un día después de su conclusión.');
+        }
 
         if (in_array($solicitud->estatus, ['Concluida', 'Concluida Pagos', 'Incumplimiento'])) {
             $request->validate(

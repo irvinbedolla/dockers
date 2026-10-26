@@ -200,14 +200,14 @@
 
                         <div class="d-flex gap-2">
                             <button type="submit" class="btn tn-boton-dorado"><i class="bi bi-funnel me-1"></i> Filtrar</button>
-                            @if (request('buscar') || $estatus || $fecha || $orden !== 'recientes')
+                            @if (request('buscar') || $estatus || $fecha !== $hoy || $orden !== 'recientes')
                                 <a href="{{ url()->current() }}" class="btn btn-outline-secondary" title="Quitar filtros">Limpiar</a>
                             @endif
                         </div>
                     </div>
 
                     <div class="rt-atajos">
-                        <a class="rt-atajo {{ $fecha === null ? 'is-activo' : '' }}" href="{{ $urlCon(['fecha' => null]) }}">Todos los días</a>
+                        <a class="rt-atajo {{ $fecha === null ? 'is-activo' : '' }}" href="{{ $urlCon(['fecha' => 'todos']) }}">Todos los días</a>
                         <a class="rt-atajo {{ $fecha === $hoy ? 'is-activo' : '' }}" href="{{ $urlCon(['fecha' => $hoy]) }}">Hoy</a>
                         <a class="rt-atajo {{ $fecha === $manana ? 'is-activo' : '' }}" href="{{ $urlCon(['fecha' => $manana]) }}">Mañana</a>
                         <a class="rt-atajo {{ $fecha === $ayer ? 'is-activo' : '' }}" href="{{ $urlCon(['fecha' => $ayer]) }}">Ayer</a>
@@ -275,7 +275,7 @@
                                                 <i class="bi bi-search me-1"></i><span class="visually-hidden">Consultar campos</span>
                                             </a>
                                             @if($puedeEditarRat)
-                                                @if($solicitud->estatus !== "Concluida" && $solicitud->estatus !== "Concluida Pagos")
+                                                @if($solicitud->puedeEditarse())
                                                     <a class="btn btn-outline-success btn-sm" href="{{ route('vista_previa_citas', $solicitud->id) }}">
                                                         <i class="bi bi-pencil me-1"></i><span class="visually-hidden">Editar</span>
                                                     </a>
