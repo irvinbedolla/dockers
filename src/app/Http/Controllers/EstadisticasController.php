@@ -10,7 +10,11 @@ use App\Support\CasosExcepcion;
 use App\Support\DesempenoNotificadores;
 use App\Support\EmbudoCasos;
 use App\Support\BitacoraIncidencias;
+use App\Exports\EstadisticasTurnosExport;
 use App\Support\EstadisticasExcepcion;
+use App\Support\EstadisticasTurnos;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Maatwebsite\Excel\Facades\Excel;
 use App\Support\ResumenSedes;
 use App\Support\TasaConciliacion;
 use Illuminate\Http\Request;
@@ -57,6 +61,8 @@ class EstadisticasController extends Controller
             'excepcionesMes' => EstadisticasExcepcion::resumen(
                 EstadisticasExcepcion::rango(now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()), null
             ),
+            // Tarjeta de turnos y citas: cifras del mes.
+            'turnosMes' => EstadisticasTurnos::resumen(now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()),
             // Tarjeta de incidencias: hoy, este mes y este año.
             'incidenciasMes' => BitacoraIncidencias::cifras(),
             // Tarjeta de la sección de notificaciones: cifras del mes.
@@ -196,6 +202,32 @@ class EstadisticasController extends Controller
             'esPanel'       => $request->user()->hasAnyRole(['Super Usuario', 'Estadistica', 'Directivo']),
             'motivos'       => EstadisticasExcepcion::porMotivo($rango, $sede),
         ]);
+    }
+
+    /**
+     * /estadisticas/turnos: citas y turnos de recepción por sede y por día,
+     * semana o mes: atendidas, no acudieron, sin cerrar, atenciones largas y
+     * lo mismo de los casos de excepción (App\Support\EstadisticasTurnos).
+     */
+    public function turnos(Request $request)
+    {
+        return view('estadisticas.turnos.index', EstadisticasTurnos::armar(EstadisticasTurnos::filtros($request), $request->user()->name));
+    }
+
+    /** Lo mismo de /estadisticas/turnos en PDF, Excel o imagen (PNG). */
+    public function turnosDescargar(Request $request)
+    {
+        $formato = $request->validate(['formato' => ['required', Rule::in(EstadisticasTurnos::FORMATOS)]])['formato'];
+        $datos   = EstadisticasTurnos::armar(EstadisticasTurnos::filtros($request), $request->user()->name);
+
+        return match ($formato) {
+            'xlsx' => Excel::download(new EstadisticasTurnosExport($datos), $datos['archivo'].'.xlsx'),
+            'pdf'  => Pdf::loadView('estadisticas.turnos.pdf', $datos)
+                ->setPaper('letter', 'landscape')
+                ->setOption('isPhpEnabled', true)
+                ->download($datos['archivo'].'.pdf'),
+            'png'  => view('estadisticas.turnos.imagen', $datos),
+        };
     }
 
     /** Casos por motivo y por mes, para abrir en Excel (CSV con BOM). */
