@@ -1732,7 +1732,7 @@
                                                                 <button type="submit" class="btn btn-primary" name="toquen" value="1">Guardar Edición</button>
                                                             @else
                                                                 @auth
-                                                                    @hasanyrole('Enlace|Super Usuario |Orientador')
+                                                                    @hasanyrole('Enlace|Super Usuario|Orientador')
                                                                         <button type="submit" class="btn btn-primary" name="toquen" value="1">Guardar Edición</button>
                                                                         {{--@if(in_array($general->estatus, ["No conciliacion", "Conciliacion", "Reinstalacion"])
                                                                             && $isAudiencia != 'Si')
