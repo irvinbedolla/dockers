@@ -21,75 +21,77 @@ use Illuminate\Support\Facades\Storage;
 class PoderController extends Controller
 {
 
-    public function index(Request $request)
+    // Inicio de Poderes: a dónde ir (nuevo, vigentes, sin vigencia).
+    public function index()
     {
-        $id = auth()->id();
-        $user = User::find($id);
-        $userRole = $user->roles->pluck('name')->all();
         $hoy = Carbon::now()->toDateString();
 
-        // Capturamos la variable del input nativo
-        $buscar = $request->input('buscar');
+        $cifras = [
+            'vigentes'     => $this->filtrarVigencia(Poder::query(), 'vigentes', $hoy)->count(),
+            'sin-vigencia' => $this->filtrarVigencia(Poder::query(), 'sin-vigencia', $hoy)->count(),
+        ];
 
-        // 1. Iniciamos la consulta base sobre el modelo Poder
-        $query = Poder::query();
+        return view('poderes.index', compact('cifras'));
+    }
 
-        if (!empty($buscar)) {
-            $query->where(function($q) use ($buscar) {
-            $q->where('idAbogado', 'LIKE', "%{$buscar}%")
-            
-            // 1. Columnas individuales de la Parte Patronal
-            ->orWhere('nombres_patronal', 'LIKE', "%{$buscar}%")
-            ->orWhere('primer_apellido_patronal', 'LIKE', "%{$buscar}%")
-            ->orWhere('segundo_apellido_patronal', 'LIKE', "%{$buscar}%")
-            ->orWhere('rfc_patronal', 'LIKE', "%{$buscar}%")
-            
-            // 2. CORREGIDO: El operador LIKE y el parámetro van fuera del DB::raw
-            ->orWhere(\DB::raw("CONVERT(CONCAT_WS(' ', nombres_patronal, primer_apellido_patronal, segundo_apellido_patronal) USING utf8mb4)"), 'LIKE', "%{$buscar}%")
-            
-            // 3. Columnas individuales del Representante Legal
-            ->orWhere('nombre_representante', 'LIKE', "%{$buscar}%")
-            ->orWhere('primer_apellido_representante', 'LIKE', "%{$buscar}%")
-            ->orWhere('segundo_apellido_representante', 'LIKE', "%{$buscar}%")
-            
-            // 4. CORREGIDO: El operador LIKE y el parámetro van fuera del DB::raw
-            ->orWhere(\DB::raw("CONVERT(CONCAT_WS(' ', nombre_representante, primer_apellido_representante, segundo_apellido_representante) USING utf8mb4)"), 'LIKE', "%{$buscar}%");
-        });
-            
-            $poderesIniciales = $query->get(); // Trae todas las coincidencias sin límite
-        } else {
-            // Carga inicial estándar para evitar saturación de memoria
-            $poderesIniciales = $query->limit(10)->get();
+    // Poderes vigentes o sin vigencia, con apartados por estatus (Pendiente / Validado) y búsqueda.
+    public function listado(Request $request, string $vigencia)
+    {
+        $hoy = Carbon::now()->toDateString();
+        $query = $this->filtrarVigencia(Poder::query(), $vigencia, $hoy);
+
+        $buscar = trim((string) $request->input('buscar'));
+        if ($buscar !== '') {
+            $query->where(function ($q) use ($buscar) {
+                $q->where('idAbogado', $buscar)
+                    ->orWhere(DB::raw("CONVERT(CONCAT_WS(' ', nombres_patronal, primer_apellido_patronal, segundo_apellido_patronal) USING utf8mb4)"), 'LIKE', "%{$buscar}%")
+                    ->orWhere(DB::raw("CONVERT(CONCAT_WS(' ', nombre_representante, primer_apellido_representante, segundo_apellido_representante) USING utf8mb4)"), 'LIKE', "%{$buscar}%");
+            });
         }
 
-        // 2. Procesamos las columnas, badges y atributos del modal para cada registro encontrado
-        foreach ($poderesIniciales as $poder) {
+        // Conteo por estatus con la vigencia y la búsqueda ya aplicadas, sin el filtro de estatus.
+        $porEstatus = (clone $query)->toBase()
+            ->select('estatus')->selectRaw('COUNT(*) as total')
+            ->groupBy('estatus')
+            ->pluck('total', 'estatus');
+        $conteo = [
+            'Pendiente' => (int) ($porEstatus['Pendiente'] ?? 0),
+            'Validado'  => (int) ($porEstatus['Validado'] ?? 0),
+        ];
+
+        $estatus = array_key_exists($request->input('estatus'), $conteo) ? $request->input('estatus') : null;
+        if ($estatus) {
+            $query->where('estatus', $estatus);
+        }
+
+        $poderes = $query->orderBy('idAbogado', 'desc')
+            ->paginate(25)
+            ->appends($request->only(['buscar', 'estatus']));
+
+        $poderes->through(function ($poder) {
             $poder->nombre_patronal_combinado = trim(($poder->nombres_patronal ?? '') . ' ' . ($poder->primer_apellido_patronal ?? '') . ' ' . ($poder->segundo_apellido_patronal ?? '')) ?: 'Sin nombre';
             $poder->nombre_representante_combinado = trim(($poder->nombre_representante ?? '') . ' ' . ($poder->primer_apellido_representante ?? '') . ' ' . ($poder->segundo_apellido_representante ?? '')) ?: 'Sin representante';
+            $poder->url_ine = $this->urlDocumentoPoder($poder, $poder->ineDocumento);
+            $poder->url_anexo = $this->urlDocumentoPoder($poder, $poder->anexo_documeto);
+            $poder->url_representacion = $this->urlDocumentoPoder($poder, $poder->representacionDocumento);
+            $poder->url_cartapoder = $this->urlDocumentoPoder($poder, $poder->cedulaDocumento);
+            $poder->url_registro = $poder->estatus === 'Validado' ? route('PDFregistroAbogado', $poder->idAbogado) : '';
+            return $poder;
+        });
 
-            // Badge de Estatus y Vigencia
-            $isVencido = (!is_null($poder->fechaVigencia) && $poder->fechaVigencia < $hoy);
-            if ($isVencido) {
-                $poder->estatus_badge = '<div>' . $poder->estatus . '</div><span class="badge bg-danger">Sin vigencia</span>';
-            } else {
-                $poder->estatus_badge = '<div>' . $poder->estatus . '</div><span class="badge bg-success">Vigente</span>';
-            }
+        return view('poderes.listado', compact('poderes', 'vigencia', 'conteo', 'estatus'));
+    }
 
-            // Estructura de botón único para el Modal del Expediente Digital
-            $poder->documentos_modal_btn = '<button type="button" class="btn btn-sm btn-info btn-ver-expediente"
-                data-bs-toggle="modal"
-                data-bs-target="#modalExpedienteDigital"
-                data-abogado="' . $poder->nombre_representante_combinado . '"
-                data-ine="' . $this->urlDocumentoPoder($poder, $poder->ineDocumento) . '"
-                data-anexo="' . $this->urlDocumentoPoder($poder, $poder->anexo_documeto) . '"
-                data-representacion="' . $this->urlDocumentoPoder($poder, $poder->representacionDocumento) . '"
-                data-cartapoder="' . $this->urlDocumentoPoder($poder, $poder->cedulaDocumento) . '"
-                data-registro="' . ($poder->estatus === "Validado" ? route('PDFregistroAbogado', $poder->idAbogado) : '') . '">
-                <i class="bi bi-folder2-open"></i> Ver Expediente
-            </button>';
+    // Sin fecha de vigencia cuenta como vigente; el día de hoy todavía también.
+    private function filtrarVigencia($query, string $vigencia, string $hoy)
+    {
+        if ($vigencia === 'sin-vigencia') {
+            return $query->where('fechaVigencia', '<', $hoy);
         }
 
-        return view('poderes.index', compact('userRole', 'poderesIniciales'));
+        return $query->where(function ($q) use ($hoy) {
+            $q->whereNull('fechaVigencia')->orWhere('fechaVigencia', '>=', $hoy);
+        });
     }
 
     public function buscar_poderes_ajax(Request $request)
@@ -906,7 +908,8 @@ class PoderController extends Controller
         }
         */
         $poder = Poder::find($id)->delete();
-        return redirect()->route('poderes');
+        // De vuelta al listado del que se borró, con sus filtros.
+        return redirect()->back();
     }
 
     public function publico(Request $request)
