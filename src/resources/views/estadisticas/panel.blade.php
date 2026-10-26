@@ -277,6 +277,23 @@
                     </div>
                 </a>
 
+                @php($tm = $turnosMes)
+                <a class="tn-tarjeta es-acceso" href="{{ route('estadisticas.turnos') }}">
+                    <div class="es-acceso__cabeza">
+                        <span class="es-acceso__icono" style="background:#E3EEF9;color:#1F4E79;"><i class="bi bi-ticket-perforated"></i></span>
+                        <div>
+                            <h2 class="es-acceso__titulo">Turnos y citas</h2>
+                            <span class="es-acceso__sub">Atendidas, no acudieron y tiempos por sede</span>
+                        </div>
+                        <i class="bi bi-chevron-right es-acceso__ir" aria-hidden="true"></i>
+                    </div>
+                    <div class="es-acceso__cifras" title="Este mes">
+                        <div><b>{{ number_format($tm['citas']) }}</b><span>Citas este mes</span></div>
+                        <div><b style="color:#1E7B3C;">{{ number_format($tm['atendidas']) }}</b><span>Atendidas</span></div>
+                        <div><b style="color:#9A3A22;">{{ number_format($tm['noAcudieron']) }}</b><span>No acudieron</span></div>
+                    </div>
+                </a>
+
                 @php($im = $incidenciasMes)
                 <a class="tn-tarjeta es-acceso" href="{{ route('estadisticas.incidencias') }}">
                     <div class="es-acceso__cabeza">
