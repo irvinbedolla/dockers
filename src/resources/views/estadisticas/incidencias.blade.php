@@ -161,7 +161,7 @@
                         <a href="{{ route('estadisticas.incidencias') }}" class="btn btn-outline-secondary">Limpiar</a>
                     @endif
                 </div>
-                <p class="ic-nota">Retrocesos, cambios de fecha, cumplimientos borrados, ediciones de ratificación y expedientes marcados como incidencia. Cada uno con quién lo hizo, cuándo y por qué.</p>
+                <p class="ic-nota">Retrocesos, cambios de fecha, cumplimientos borrados, ediciones de ratificación, cambios a poderes y expedientes marcados como incidencia. Cada uno con quién lo hizo, cuándo y por qué.</p>
             </form>
 
             <div class="ic-cifras">
@@ -300,6 +300,55 @@
                 </div>
             </div>
 
+            {{-- Poderes: cada cambio a un registro patronal, con quién, cuándo (con segundos) y qué cambió (App\Support\HistorialPoderes). --}}
+            @if ($poderes !== null)
+                <div class="tn-tarjeta mt-3" id="poderes">
+                    <div class="ic-cabeza">
+                        <p class="tn-titulo-seccion"><span class="ic-chip" style="background: {{ BI::COLORES['poder'] }};">Poderes</span> Cambios a poderes</p>
+                        <span class="ic-nota mt-0">{{ number_format($poderes->total()) }} {{ $poderes->total() === 1 ? 'cambio' : 'cambios' }} · {{ $texto }}</span>
+                    </div>
+                    @if ($poderes->isEmpty())
+                        <p class="text-center mb-0 py-4" style="color: var(--tn-tenue);">Nadie modificó poderes en este periodo con esos filtros.</p>
+                    @else
+                        <div class="table-responsive">
+                            <table class="ic-tabla ic-tabla--registro">
+                                <thead>
+                                    <tr><th>Fecha y hora</th><th>Poder</th><th>Qué pasó</th><th>Qué cambió</th><th>Lo hizo</th></tr>
+                                </thead>
+                                <tbody>
+                                    @foreach ($poderes as $r)
+                                        @php($cuando = \Illuminate\Support\Carbon::parse($r->created_at))
+                                        <tr>
+                                            <td style="white-space: nowrap;">{{ $cuando->format('d/m/Y') }}<small>{{ $cuando->format('H:i:s') }}</small></td>
+                                            <td style="min-width: 180px;">
+                                                <b>{{ $r->NUE }}</b>
+                                                <small>{{ \Illuminate\Support\Str::limit(\App\Support\HistorialPoderes::nombre((int) $r->entidad_id), 60) }}</small>
+                                            </td>
+                                            <td>
+                                                <b>{{ BI::ACCIONES[$r->accion] ?? $r->accion }}</b>
+                                                @if ($r->estatus_previo || $r->estatus_nuevo)
+                                                    <small>{{ $r->estatus_previo ?: '—' }} → {{ $r->estatus_nuevo ?: '—' }}</small>
+                                                @endif
+                                            </td>
+                                            <td class="ic-motivo">
+                                                @php($cambios = BI::cambios($r))
+                                                @if ($cambios)
+                                                    <ul class="ic-cambios mt-0">@foreach ($cambios as $c)<li>{{ $c }}</li>@endforeach</ul>
+                                                @else
+                                                    <span style="color: var(--tn-tenue);">—</span>
+                                                @endif
+                                            </td>
+                                            <td>{{ $r->user_nombre ?: ($r->user_id ? 'Usuario '.$r->user_id : 'Registro en línea') }}<small>{{ $r->delegacion }}</small></td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="mt-3">@include('turnos._paginacion', ['pagina' => $poderes->fragment('poderes')])</div>
+                    @endif
+                </div>
+            @endif
+
             {{-- Bitácora --}}
             <div class="tn-tarjeta mt-3">
                 <div class="ic-cabeza">
@@ -319,7 +368,7 @@
                                     @php($cuando = \Illuminate\Support\Carbon::parse($r->created_at))
                                     @php($caso = BI::urlCaso($r))
                                     <tr>
-                                        <td style="white-space: nowrap;">{{ \Illuminate\Support\Str::ucfirst($cuando->locale('es')->isoFormat('D MMM YYYY')) }}<small>{{ $cuando->format('H:i') }}</small></td>
+                                        <td style="white-space: nowrap;">{{ \Illuminate\Support\Str::ucfirst($cuando->locale('es')->isoFormat('D MMM YYYY')) }}<small>{{ $cuando->format('H:i:s') }}</small></td>
                                         <td><span class="ic-chip" style="background: {{ BI::COLORES[$r->area] ?? '#6B7A7B' }};">{{ BI::AREAS[$r->area] ?? $r->area }}</span></td>
                                         <td>
                                             <b>{{ BI::ACCIONES[$r->accion] ?? $r->accion }}</b>
@@ -335,6 +384,7 @@
                                         </td>
                                         <td style="white-space: nowrap;">
                                             @if ($caso)<a href="{{ $caso }}">{{ $r->NUE ?: 'Ver caso' }}</a>@else{{ $r->NUE ?: '—' }}@endif
+                                            @if ($r->area === 'poder')<small>{{ \Illuminate\Support\Str::limit(\App\Support\HistorialPoderes::nombre((int) $r->entidad_id), 40) }}</small>@endif
                                             <small>{{ $r->delegacion }}</small>
                                         </td>
                                         <td class="ic-motivo">{{ $r->motivo ?: '—' }}</td>
