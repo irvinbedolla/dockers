@@ -361,7 +361,7 @@
                                                             <a target="_blank" class="btn btn-primary" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $poder->idAbogado, 'archivo' => $poder->ineDocumento]) }}">Existente</a>
                                                         @endif
                                                         <div class="invalid-feedback">
-                                                            La Identificación es obligatoria.
+                                                            El acta constitutiva es obligatoria.
                                                         </div>
                                                     </div>
                                                 </div>

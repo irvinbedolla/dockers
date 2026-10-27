@@ -748,8 +748,13 @@ class PoderController extends Controller
                 $data_insertar['tipo_identificacion'] = $data["tipo_identificacion_pF"];
                 $data_insertar['num_identificacion']  = $data["num_identificacion_pF"];
 
-                if ($request->hasFile('documentoIne_pF')) {
-                    $archivos_a_guardar[] = ['input' => 'documentoIne_pF', 'name' => $base_name."_IDENTIFICACION.pdf", 'field' => 'ineDocumento'];
+                // Sin representante, el formulario de edición manda la identificación
+                // y el anexo como documentoIne_pFSR / documentoAnexo_pFSR (antes se ignoraban).
+                $inputIne   = $request->hasFile('documentoIne_pFSR') ? 'documentoIne_pFSR' : 'documentoIne_pF';
+                $inputAnexo = $request->hasFile('documentoAnexo_pFSR') ? 'documentoAnexo_pFSR' : 'documentoAnexo_pF';
+
+                if ($request->hasFile($inputIne)) {
+                    $archivos_a_guardar[] = ['input' => $inputIne, 'name' => $base_name."_IDENTIFICACION.pdf", 'field' => 'ineDocumento'];
                 }
                 if ($request->hasFile('documentoRepresentacion_pF')) {
                     $archivos_a_guardar[] = ['input' => 'documentoRepresentacion_pF', 'name' => $base_name."_REPRESENTACION.pdf", 'field' => 'representacionDocumento'];
@@ -757,8 +762,8 @@ class PoderController extends Controller
                 if ($request->hasFile('documentoPoder_pF')) {
                     $archivos_a_guardar[] = ['input' => 'documentoPoder_pF', 'name' => $base_name."_PODER.pdf", 'field' => 'cedulaDocumento'];
                 }
-                if ($request->hasFile('documentoAnexo_pF')) {
-                    $archivos_a_guardar[] = ['input' => 'documentoAnexo_pF', 'name' => $base_name."_ANEXO.pdf", 'field' => 'anexo_documeto'];
+                if ($request->hasFile($inputAnexo)) {
+                    $archivos_a_guardar[] = ['input' => $inputAnexo, 'name' => $base_name."_ANEXO.pdf", 'field' => 'anexo_documeto'];
                 }
             } else {
                 $data_insertar += [
@@ -827,7 +832,7 @@ class PoderController extends Controller
             ];
 
             if ($request->hasFile('documentoIne_Moral')) {
-                $archivos_a_guardar[] = ['input' => 'documentoIne_Moral', 'name' => $base_name."_IDENTIFICACION.pdf", 'field' => 'ineDocumento'];
+                $archivos_a_guardar[] = ['input' => 'documentoIne_Moral', 'name' => $base_name."_ACTACONSTITUTIVA.pdf", 'field' => 'ineDocumento'];
             }
             if ($request->hasFile('documentoRepresentacion_Moral')) {
                 $archivos_a_guardar[] = ['input' => 'documentoRepresentacion_Moral', 'name' => $base_name."_REPRESENTACION.pdf", 'field' => 'representacionDocumento'];
@@ -848,17 +853,11 @@ class PoderController extends Controller
                 continue;
             }
 
-            // Si ya existe un archivo previo registrado, intentamos eliminarlo (en la NUEVA ruta).
-            $archivoAnterior = $poder->{$archivo['field']} ?? null;
-            if (!empty($archivoAnterior) && $archivoAnterior !== 'Sin anexo' && $archivoAnterior !== 'Sin carta poder') {
-                $previousPath = $carpetaAbogado . '/' . $archivoAnterior;
-                if (Storage::disk('s3')->exists($previousPath)) {
-                    Storage::disk('s3')->delete($previousPath);
-                }
-            }
-
-            // Guardar el archivo nuevo con prefijo idAbogado_
+            // El archivo anterior NO se borra: el historial (historial_abogados)
+            // sigue apuntando a él. Cada versión lleva la fecha y la hora en el
+            // nombre para no encimarse con la anterior (antes se sobrescribía).
             $nombreFinal = $this->nombreArchivo($poder->idAbogado, $archivo['name']);
+            $nombreFinal = substr($nombreFinal, 0, -4).'_'.now()->format('Ymd-His').'.pdf';
             Storage::disk('s3')->putFileAs($carpetaAbogado, $request->file($archivo['input']), $nombreFinal);
             $data_insertar[$archivo['field']] = $nombreFinal;
         }
@@ -910,7 +909,11 @@ class PoderController extends Controller
             unlink(storage_path('app/documentos_abogados/'.$poder->cedula));
         }
         */
-        $poder = Poder::find($id)->delete();
+        // Antes de borrarlo queda la foto en el historial (accion 'baja'), con quién y cuándo.
+        if ($poder) {
+            $this->guardarHistorial($poder, 'baja');
+            $poder->delete();
+        }
         // De vuelta al listado del que se borró, con sus filtros.
         return redirect()->back();
     }
@@ -1081,13 +1084,15 @@ class PoderController extends Controller
                 $nuevoAbogado->representacionDocumento = $nombre_reprecentacion;
                 $nuevoAbogado->cedulaDocumento = $nombre_poder;
                 $nuevoAbogado->anexo_documeto = $nombre_anexo;
+                // Núm. interior y vigencia van al registro (antes se ponían en el
+                // arreglo ya guardado y se perdían).
+                if(!empty($data["num_int_pF"])){
+                    $nuevoAbogado->mun_int_patronal = $data["num_int_pF"];
+                }
+                if(!empty($data["fecha_vigencia_pF"])){
+                    $nuevoAbogado->fechaVigencia = $data["fecha_vigencia_pF"];
+                }
                 $nuevoAbogado->save();
-                if(isset($data["num_int_pF"])){
-                   $data_insertar["mun_int_patronal"] = $data["num_int_pF"];
-                }
-                if(isset($data["fecha_vigencia_pF"])){
-                    $data_insertar["fechaVigencia"] = $data["fecha_vigencia_pF"];
-                }
                 
                 $historialPayload = $nuevoAbogado->toArray();
                 unset($historialPayload['idAbogado'], $historialPayload['created_at'], $historialPayload['updated_at']);
@@ -1144,7 +1149,7 @@ class PoderController extends Controller
             $idAbogado = $nuevoAbogado->idAbogado;
             $carpetaAbogado = 'documentos_abogados/' . $idAbogado;
 
-            $nombre_ine_original = $data["razon"]."-MORAL"."_IDENTIFICACION.pdf";
+            $nombre_ine_original = $data["razon"]."-MORAL"."_ACTACONSTITUTIVA.pdf";
             $nombre_ine = $this->nombreArchivo($idAbogado, $nombre_ine_original);
             Storage::disk('s3')->putFileAs(
                 $carpetaAbogado, $request->file('documentoIne_Moral'), $nombre_ine
@@ -1177,13 +1182,15 @@ class PoderController extends Controller
             $nuevoAbogado->representacionDocumento = $nombre_reprecentacion;
             $nuevoAbogado->cedulaDocumento = $nombre_poder;
             $nuevoAbogado->anexo_documeto = $nombre_anexo;
+            // Núm. interior y vigencia van al registro (antes se ponían en el
+            // arreglo ya guardado y se perdían).
+            if(!empty($data["num_int"])){
+                $nuevoAbogado->mun_int_patronal = $data["num_int"];
+            }
+            if(!empty($data["fecha_vigencia_Moral"])){
+                $nuevoAbogado->fechaVigencia = $data["fecha_vigencia_Moral"];
+            }
             $nuevoAbogado->save();
-            if(isset($data["num_int"])){
-                $data_insertar["mun_int_patronal"] = $data["num_int"];
-            }
-            if(isset($data["fecha_vigencia_Moral"])){
-                $data_insertar["fechaVigencia"] = $data["fecha_vigencia_Moral"];
-            }
 
             $historialPayload = $nuevoAbogado->toArray();
             unset($historialPayload['idAbogado'], $historialPayload['created_at'], $historialPayload['updated_at']);
@@ -1317,21 +1324,88 @@ class PoderController extends Controller
              $nuevoAbogado->anexo_documeto = "Sin anexo";
          }
  
+         // Lo que no se volvió a subir se copia a la carpeta del folio nuevo:
+         // antes sólo se copiaba el nombre y el archivo seguía en la carpeta
+         // del folio anterior, así que el enlace no abría.
+         foreach (['ineDocumento', 'representacionDocumento', 'cedulaDocumento'] as $campo) {
+             if ($nuevoAbogado->{$campo} === $poder->{$campo}) {
+                 $nuevoAbogado->{$campo} = $this->copiarDocumento($poder, (string) $poder->{$campo}, $nuevoIdAbogado);
+             }
+         }
+
          if(isset($data["fecha_vigencia_pF"])){
              $nuevoAbogado->fechaVigencia = $data["fecha_vigencia_pF"];
          }
 
          $nuevoAbogado->save();
          
-         $historialPayload = $nuevoAbogado->toArray();
-         unset($historialPayload['idAbogado'], $historialPayload['created_at'], $historialPayload['updated_at']);
-         $historialPayload['id_abogado'] = $nuevoAbogado->idAbogado;
-         $historialPayload['id_user'] = $id_user_historial;
-         HistorialAbogado::create($historialPayload);
+         $this->guardarHistorial($nuevoAbogado, 'representante', $poder->idAbogado);
  
          $mensaje = "El representante ha sido agregado exitosamente y se generó el nuevo registro patronal con el folio: " . $nuevoAbogado->idAbogado;
          return redirect()->back()->with('success', $mensaje);
      }
+
+    /**
+     * Historial de cambios resumido para el modal del listado: quién, cuándo
+     * (con segundos) y qué cambió en cada movimiento (App\Support\HistorialPoderes).
+     */
+    public function historialResumen($id)
+    {
+        abort_unless(auth()->user()?->can('poderes_ver_historial'), 403);
+
+        return response()->json(
+            \App\Support\HistorialPoderes::resumen((int) $id) + ['detalle' => route('poderes.history', $id)]
+        )->header('Cache-Control', 'no-store');
+    }
+
+    /**
+     * Foto del poder en historial_abogados con quién y cuándo. $accion:
+     * 'representante' (folio nuevo; $origen es el folio del que salió) o
+     * 'baja'; null para altas y ediciones (se deducen al leer).
+     */
+    private function guardarHistorial(Poder $poder, ?string $accion = null, $origen = null): void
+    {
+        $payload = $poder->toArray();
+        unset($payload['idAbogado'], $payload['created_at'], $payload['updated_at']);
+        $payload['id_abogado'] = $poder->idAbogado;
+        $payload['id_user']    = Auth::id() ?? 0;
+        if (\App\Support\HistorialPoderes::conAccion()) {
+            $payload['accion']         = $accion;
+            $payload['origen_abogado'] = $origen;
+        }
+
+        HistorialAbogado::create($payload);
+    }
+
+    /**
+     * Copia un documento del folio $origen a la carpeta de $nuevoId y regresa
+     * el nombre nuevo. Si no lo encuentra (o es un marcador como "Sin anexo"),
+     * deja el nombre como estaba.
+     */
+    private function copiarDocumento(Poder $origen, string $archivo, $nuevoId): string
+    {
+        if (in_array($archivo, ['', 'Sin anexo', 'Sin documento', 'Sin carta poder', 'PENDIENTE'], true)) {
+            return $archivo;
+        }
+
+        $disco  = Storage::disk('s3');
+        $fuente = collect(['documentos_abogados/'.$origen->idAbogado.'/'.$archivo, 'documentos_abogados/'.$archivo])
+            ->first(fn ($ruta) => $disco->exists($ruta));
+        if (! $fuente) {
+            return $archivo;
+        }
+
+        $nombre = $this->nombreArchivo($nuevoId, preg_replace('/^\d+_/', '', $archivo));
+        try {
+            $disco->copy($fuente, 'documentos_abogados/'.$nuevoId.'/'.$nombre);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return $archivo;
+        }
+
+        return $nombre;
+    }
 
     /** Tamaño máximo de cada PDF, en KB: lo mismo que avisan los formularios (10 MB). */
     private const PDF_MAX_KB = 10240;

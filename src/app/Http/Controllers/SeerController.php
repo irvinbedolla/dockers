@@ -533,6 +533,10 @@ class SeerController extends Controller
             $rutaSinId = $carpeta . '/' . $archivo;
             if (Storage::disk('s3')->exists($rutaSinId)) {
                 $rutaS3 = $rutaSinId;
+            } elseif (preg_match('/^(\d+)_/', $archivo, $m) && $m[1] !== (string) $id && Storage::disk('s3')->exists($carpeta . '/' . $m[1] . '/' . $archivo)) {
+                // Folios de "Agregar representante" que copiaron el nombre del
+                // documento del folio anterior: el archivo sigue en esa carpeta.
+                $rutaS3 = $carpeta . '/' . $m[1] . '/' . $archivo;
             } else {
                 abort(404, 'El documento solicitado no existe.');
             }

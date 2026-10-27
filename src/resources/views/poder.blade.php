@@ -985,7 +985,7 @@
                                                         <label><span style="color:red;">*</span>Acta Constitutiva</label><br>
                                                         <input type="file" name="documentoIne_Moral" id="documentoIne_Moral" class="form-control" accept=".pdf" >
                                                         <div class="invalid-feedback">
-                                                            La Identificación es obligatoria.
+                                                            El acta constitutiva es obligatoria.
                                                         </div>
                                                     </div>
                                                 </div>
