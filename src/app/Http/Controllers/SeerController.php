@@ -5182,8 +5182,11 @@ class SeerController extends Controller
                 $solicitanteUpdate['rfc'] = $data["rfc_solicitante"];
             }
 
-            // Ejecutar actualización masiva y limpia del Solicitante
-            SeerSolicitante::where('id_solicitud', $id_solicitud)->update($solicitanteUpdate);
+            // Sólo el solicitante que se editó (Revisar audiencia manda solicitante_id);
+            // antes sus datos se copiaban a todos los solicitantes de la solicitud.
+            SeerSolicitante::where('id_solicitud', $id_solicitud)
+                ->when(! empty($data['solicitante_id']), fn ($q) => $q->where('id', (int) $data['solicitante_id']))
+                ->update($solicitanteUpdate);
 
             // 5. PROCESAMIENTO DE CITADOS
             $audienciaId = $data['audiencia_id'] ?? null;
@@ -5264,7 +5267,9 @@ class SeerController extends Controller
             if ($request->hasFile('indetificacion') && !empty($data['curp_solicitante'])) {
                 $documentoidentificacion = $data['curp_solicitante'] . '_Identificacion.pdf';
                 Storage::disk('s3')->putFileAs('documentosSolicitud/' . $id_solicitud, $request->file('indetificacion'), $documentoidentificacion);
-                SeerSolicitante::where('id_solicitud', $id_solicitud)->update(['documentoIdentificacion' => $documentoidentificacion]);
+                SeerSolicitante::where('id_solicitud', $id_solicitud)
+                    ->when(! empty($data['solicitante_id']), fn ($q) => $q->where('id', (int) $data['solicitante_id']))
+                    ->update(['documentoIdentificacion' => $documentoidentificacion]);
             }
 
             DB::commit();
@@ -10180,12 +10185,15 @@ class SeerController extends Controller
         // Encabezado del caso, "¿Está lista la audiencia?" y si se puede editar (App\Support\RevisionAudiencia).
         $revision = \App\Support\RevisionAudiencia::armar($general, $solicitantes, $citados, $audienciaCurrent);
         $edicionAbierta = \App\Support\RevisionAudiencia::edicionAbierta($general, $audienciaCurrent, $user);
+        // Fase 2: tarjeta por citado y si se puede abrir cada sección con "Editar".
+        $tarjetas = \App\Support\RevisionAudiencia::partes($general, $citados, $notificaciones);
+        $puedeEditar = $edicionAbierta && $user->can('audiencias_guardar_edicion');
 
         return view('audiencias.revisar_audiencia', compact(
             'id','general','solicitantes','citados','ramas','estados','municipios',
             'mostrarMotivos','motivos','conciliadores', 'isAudiencia','notificaciones',
             'historial_audiencias','datosIncompletos','citadosConMulta', 'ultimaEstatus', 'fecha_actual', 'audienciaCurrent',
-            'revision', 'edicionAbierta'
+            'revision', 'edicionAbierta', 'tarjetas', 'puedeEditar'
         )); 
     }
 
