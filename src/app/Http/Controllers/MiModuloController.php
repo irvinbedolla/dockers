@@ -265,7 +265,7 @@ class MiModuloController extends Controller
         ]);
 
         $mayus = fn (?string $v) => $v === null ? null : mb_strtoupper($v);
-        $prestacion = fn (string $campo) => $request->has($campo) && $request->input('motivo') === 'Pago de prestaciones' ? 1 : 0;
+        $prestacion = fn (string $campo) => $request->has($campo) && $request->input('motivo') === 'Pago de prestaciones' ? 1 : null;
 
         $cambios = [
             'primero_trabajador'  => $mayus($request->input('primero_trabajador')),
