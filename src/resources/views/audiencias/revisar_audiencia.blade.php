@@ -60,9 +60,14 @@
 
         /* Pestañas: ahora se marca la que está abierta. */
         .tab { display: flex; flex-wrap: wrap; gap: 6px; border: 0; background: transparent; overflow: visible; }
-        .tab a.ra-tab { border-radius: 10px 10px 0 0; border: 1px solid #D5DDDD; border-bottom: 0; background: #F1F4F4; color: #496163; font-weight: 700; padding: 8px 16px; }
-        .tab a.ra-tab:hover { background: #E3EAEA; color: #2E3C3D; }
-        .tab a.ra-tab.active { background: #354647; border-color: #354647; color: #fff; }
+        /* style.css le da a todo .btn fondo blanco al pasar el mouse (y con
+           !important borde transparente): la pestaña activa, con texto blanco,
+           se "borraba". Por eso estos selectores llevan html body y !important. */
+        html body .tab a.btn.ra-tab { border-radius: 10px 10px 0 0; border: 1px solid #D5DDDD !important; border-bottom: 0 !important; background: #F1F4F4 !important; color: #496163 !important; font-weight: 700; padding: 8px 16px; box-shadow: none; transition: background-color .15s, color .15s; }
+        html body .tab a.btn.ra-tab:not(.active):hover { background: #E3EAEA !important; border-color: #D5DDDD !important; color: #2E3C3D !important; }
+        html body .tab a.btn.ra-tab.active,
+        html body .tab a.btn.ra-tab.active:hover,
+        html body .tab a.btn.ra-tab.active:focus { background: #496163 !important; border-color: #496163 !important; color: #fff !important; cursor: default; }
         .tabcontent { display: none; padding: 12px 14px; border: 1px solid #D5DDDD; border-radius: 0 12px 12px 12px; scroll-margin-top: 170px; }
 
         .was-validated .form-control:invalid ~ .invalid-feedback,
@@ -82,9 +87,7 @@
         .ra-seccion__herr { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
         .ra-seccion__cambios { font-size: 12px; font-weight: 700; color: #B4532A; }
         .ra-seccion__falta { font-size: 12px; font-weight: 700; color: #9A3A22; background: #FBEDE8; border-radius: 999px; padding: 2px 10px; }
-        .btn.ra-editar { border: 1px solid #CEA845; color: #7A5D10; background: #FFF9EA; font-weight: 700; border-radius: 8px; }
-        .btn.ra-editar:hover { background: #CEA845; color: #fff; }
-        .ra-seccion.is-editando .btn.ra-editar { background: #354647; border-color: #354647; color: #fff; }
+        .btn.ra-editar { font-weight: 700; border-radius: 8px; }
         .ra-parte.is-editando { border-color: #CEA845; box-shadow: 0 0 0 3px rgba(206, 168, 69, .15); }
 
         .ra-lectura input:not([type=hidden]):not([type=file]):not([type=checkbox]):not([type=radio]),
@@ -126,6 +129,27 @@
         .ra-rep__ancho { grid-column: 1 / -1; }
         .ra-rep__docs { display: flex; flex-wrap: wrap; gap: 6px; }
         .ra-rep-resumen { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; background: #F7F9F9; border: 1px solid #E3E8E8; border-radius: 10px; padding: 10px 14px; margin: 8px 0 12px; font-size: 13.5px; }
+        /* Botones con los colores institucionales: verde obscuro #496163 (hover
+           #3E5254, el de style.css) y verde claro #829A9C. Rojo apagado sólo
+           para borrar. Con html body y !important para ganarle a style.css. */
+        html body .btn.btn-primary,
+        html body .btn.btn-success { background-color: #496163 !important; border-color: #496163 !important; color: #fff !important; box-shadow: 0 2px 6px rgba(73, 97, 99, .28); }
+        html body .btn.btn-primary:not(.btn-social):hover, html body .btn.btn-primary:not(.btn-social):focus, html body .btn.btn-primary:not(.btn-social):active,
+        html body .btn.btn-success:not(.btn-social):hover, html body .btn.btn-success:not(.btn-social):focus, html body .btn.btn-success:not(.btn-social):active { background-color: #3E5254 !important; border-color: #3E5254 !important; color: #fff !important; }
+        html body .btn.btn-info { background-color: #829A9C !important; border-color: #829A9C !important; color: #fff !important; box-shadow: 0 2px 6px rgba(130, 154, 156, .3); }
+        html body .btn.btn-info:not(.btn-social):hover, html body .btn.btn-info:not(.btn-social):focus, html body .btn.btn-info:not(.btn-social):active { background-color: #496163 !important; border-color: #496163 !important; color: #fff !important; }
+        html body .btn.btn-secondary { background-color: #E3EAEA !important; border-color: #E3EAEA !important; color: #496163 !important; box-shadow: none; }
+        html body .btn.btn-secondary:not(.btn-social):not(:disabled):hover { background-color: #D2DCDC !important; border-color: #D2DCDC !important; color: #354647 !important; }
+        html body .btn.btn-outline-secondary,
+        html body .btn.ra-editar { background-color: #fff !important; border: 1px solid #829A9C !important; color: #496163 !important; box-shadow: none; }
+        html body .btn.btn-outline-secondary:not(.btn-social):hover, html body .btn.btn-outline-secondary:not(.btn-social):focus,
+        html body .btn.ra-editar:not(.btn-social):hover, html body .btn.ra-editar:not(.btn-social):focus,
+        html body .ra-seccion.is-editando .btn.ra-editar { background-color: #496163 !important; border-color: #496163 !important; color: #fff !important; }
+        html body .btn.btn-danger,
+        html body .btn.btn-outline-danger { background-color: #fff !important; border: 1px solid #C9A49A !important; color: #9A3A22 !important; box-shadow: none; }
+        html body .btn.btn-danger:not(.btn-social):hover, html body .btn.btn-danger:not(.btn-social):focus,
+        html body .btn.btn-outline-danger:not(.btn-social):hover, html body .btn.btn-outline-danger:not(.btn-social):focus { background-color: #9A3A22 !important; border-color: #9A3A22 !important; color: #fff !important; }
+        html body .btn.btn-light.disabled { background-color: #F4F6F6 !important; border-color: #F4F6F6 !important; color: #8A9899 !important; box-shadow: none; }
         .ra-varios { background: #FBF4E1; color: #7A5D10; border-radius: 10px; padding: 8px 12px; font-size: 13px; margin-bottom: 10px; }
     </style>
 @endsection
@@ -328,9 +352,9 @@
                                             @if($edicionAbierta && $general->tipo_solicitud == 1)
                                                 @can('audiencias_borrar_citados')
                                                     <div class="col-xs-12 col-sm-12 col-md-12"><br>
-                                                        <a type="button" class="btn btn-warning open-modal mb-3" data-bs-toggle="modal" 
+                                                        <a type="button" class="btn btn-primary open-modal mb-3" data-bs-toggle="modal" 
                                                         data-bs-target="#exampleModal1" data-id="{{ $id }}">Agregar Citado</a>
-                                                        <a type="button" class="btn btn-warning open-modal mb-3" data-bs-toggle="modal" 
+                                                        <a type="button" class="btn btn-outline-danger open-modal mb-3" data-bs-toggle="modal" 
                                                         data-bs-target="#exampleModal2" data-id="{{ $id }}">Borrar Citado</a>
                                                     </div>
                                                 @endcan

@@ -40,7 +40,7 @@
             @endif
         @endif
         @if ($editarFinal)
-            <a class="btn btn-danger" href="{{ route('edicion_audienciaConcluida', ['id' => $general->id, 'audiencia_id' => $audienciaCurrent->id]) }}" target="_blank">
+            <a class="btn btn-outline-secondary" href="{{ route('edicion_audienciaConcluida', ['id' => $general->id, 'audiencia_id' => $audienciaCurrent->id]) }}" target="_blank">
                 <i class="bi bi-pencil-square"></i> Editar finalización
             </a>
         @endif
