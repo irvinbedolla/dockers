@@ -18,7 +18,6 @@
         .ra-barra__datos { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 4px; font-size: 13px; color: #5E6E6F; }
         .ra-barra__datos i { color: #829A9C; margin-right: 3px; }
         .ra-chip { display: inline-block; padding: 2px 10px; border-radius: 999px; background: #EEF2F2; color: #496163; font-size: 12px; font-weight: 700; white-space: nowrap; }
-        .ra-chip--caso { background: #F4F1E6; color: #7A5D10; }
         .ra-chip--audiencia { background: #E3EEF9; color: #1F4E79; }
         .ra-chip--cerrado { background: #F1F1F1; color: #6B6B6B; }
         .ra-acciones { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }

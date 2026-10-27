@@ -428,7 +428,6 @@ class RevisionAudiencia
         return [
             'nue'         => $general->NUE ?: 'Sin expediente',
             'tipo'        => (int) ($general->tipo_solicitud ?? 0) === 2 ? 'Solicita el patrón' : 'Solicita el trabajador',
-            'estatusCaso' => $general->estatus ?: 'Pendiente',
             'sede'        => $general->delegacion ?? null,
             'audiencia'   => $audiencia ? [
                 'folio'       => $audiencia->folio_audiencia ?: ('#'.$audiencia->id),

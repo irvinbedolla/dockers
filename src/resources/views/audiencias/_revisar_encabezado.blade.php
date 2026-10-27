@@ -14,7 +14,6 @@
         <div class="ra-barra__titulo">
             <b>{{ $r['nue'] }}</b>
             <span class="ra-chip">{{ $r['tipo'] }}</span>
-            <span class="ra-chip ra-chip--caso" title="Estatus de la solicitud">Caso: {{ $r['estatusCaso'] }}</span>
             @unless ($edicionAbierta)
                 <span class="ra-chip ra-chip--cerrado" title="El caso ya concluyó: los datos se ven, pero no se guardan desde aquí."><i class="bi bi-lock-fill"></i> Sólo lectura</span>
             @endunless
