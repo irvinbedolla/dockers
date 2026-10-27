@@ -150,6 +150,13 @@
         html body .btn.btn-danger:not(.btn-social):hover, html body .btn.btn-danger:not(.btn-social):focus,
         html body .btn.btn-outline-danger:not(.btn-social):hover, html body .btn.btn-outline-danger:not(.btn-social):focus { background-color: #9A3A22 !important; border-color: #9A3A22 !important; color: #fff !important; }
         html body .btn.btn-light.disabled { background-color: #F4F6F6 !important; border-color: #F4F6F6 !important; color: #8A9899 !important; box-shadow: none; }
+        /* Confirmación de borrar citado */
+        .ra-confirmar__datos { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; background: #F7F9F9; border: 1px solid #E3E8E8; border-radius: 10px; padding: 10px 14px; margin: 0 0 12px; }
+        .ra-confirmar__datos dt { font-size: 12px; color: #8A9899; font-weight: 700; margin: 0; }
+        .ra-confirmar__datos dd { margin: 0; color: #2E3C3D; font-weight: 600; word-break: break-word; }
+        .ra-confirmar__nota { font-size: 13px; color: #5E6E6F; }
+        .ra-confirmar__aviso { font-size: 13px; color: #9A3A22; background: #FBEDEA; border-radius: 8px; padding: 8px 10px; }
+        @media (max-width: 480px) { .ra-confirmar__datos { grid-template-columns: 1fr; } }
         .ra-varios { background: #FBF4E1; color: #7A5D10; border-radius: 10px; padding: 8px 12px; font-size: 13px; margin-bottom: 10px; }
     </style>
 @endsection
@@ -1388,7 +1395,10 @@
                                             <input type="hidden" name="_method" value="DELETE">
                                             <input type="hidden" name="id" value="{{$id}}">
                                             <input type="hidden" name="borrar" value="{{$citado->id}}">
-                                            <button class="btn btn-danger" onclick=editar_rol(); type="submit">Eliminar</button>
+                                            <button type="button" class="btn btn-danger ra-borrar-citado"
+                                                data-nombre="{{ trim(preg_replace('/\s+/', ' ', $citado->nombre.' '.$citado->primer_apellido.' '.$citado->segundo_apellido)) }}"
+                                                data-notificacion="{{ $citado->tipo_notificacion == 'Multa' ? 'Multa' : ['Centro' => 'La hace el Centro', 'Trabajador' => 'La entrega el solicitante', 'Exhorto' => 'Por exhorto'][$citado->notificacion] ?? ($citado->notificacion ?: '—') }}"
+                                                data-direccion="{{ trim($citado->calle.' '.$citado->n_ext.', '.$citado->colonia, ' ,') }}"><i class="bi bi-trash"></i> Eliminar</button>
                                         </form>
                                     </td>   
                                 </tr>
@@ -1407,6 +1417,31 @@
 <div id="menu_carga" style ="display: none;">
     <div>.</div>
     <div class="loader"></div>
+</div>
+
+{{-- Confirmación antes de borrar un citado (botón Eliminar de "Borrar citado"). --}}
+<div class="modal fade" id="raConfirmarBorrar" tabindex="-1" aria-labelledby="raConfirmarBorrarTitulo" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="raConfirmarBorrarTitulo"><i class="bi bi-exclamation-triangle" style="color:#9A3A22"></i> ¿Borrar este citado?</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2">Vas a quitar de la solicitud a <b data-ra-nombre></b>.</p>
+                <dl class="ra-confirmar__datos">
+                    <div><dt>Notificación</dt><dd data-ra-notificacion></dd></div>
+                    <div><dt>Dirección</dt><dd data-ra-direccion></dd></div>
+                </dl>
+                <p class="ra-confirmar__nota mb-0"><i class="bi bi-info-circle"></i> Se borra definitivamente al dar <b>Guardar edición</b>; si no guardas, el citado se queda.</p>
+                <p class="ra-confirmar__aviso mb-0 mt-2" data-ra-cambios hidden><i class="bi bi-exclamation-circle"></i> Tienes cambios sin guardar en el formulario: la página se recarga al borrar y esos cambios se perderán. Si los necesitas, cancela y guarda primero.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" data-ra-confirmar><i class="bi bi-trash"></i> Sí, borrar</button>
+            </div>
+        </div>
+    </div>
 </div>
 @endpush
 
@@ -1871,6 +1906,55 @@
         });
     </script>
     <script>
+        // Borrar citado: el botón Eliminar pide confirmación en su propio modal.
+        // Se cierra la lista, se confirma y, si se cancela, la lista vuelve a abrirse.
+        document.addEventListener('DOMContentLoaded', function () {
+            var lista = document.getElementById('exampleModal2');
+            var confirmar = document.getElementById('raConfirmarBorrar');
+            if (!lista || !confirmar || typeof bootstrap === 'undefined') { return; }
+            var modalConfirmar = bootstrap.Modal.getOrCreateInstance(confirmar);
+            var boton = confirmar.querySelector('[data-ra-confirmar]');
+            var formulario = null, regresarALista = false;
+
+            document.querySelectorAll('.ra-borrar-citado').forEach(function (b) {
+                b.addEventListener('click', function () {
+                    formulario = b.closest('form');
+                    confirmar.querySelector('[data-ra-nombre]').textContent = b.getAttribute('data-nombre') || 'este citado';
+                    confirmar.querySelector('[data-ra-notificacion]').textContent = b.getAttribute('data-notificacion') || '—';
+                    confirmar.querySelector('[data-ra-direccion]').textContent = b.getAttribute('data-direccion') || '—';
+                    confirmar.querySelector('[data-ra-cambios]').hidden = !document.querySelector('.ra-seccion__cambios:not([hidden])');
+                    regresarALista = true;
+                    var abierta = bootstrap.Modal.getInstance(lista);
+                    if (abierta && lista.classList.contains('show')) {
+                        lista.addEventListener('hidden.bs.modal', function abrir() {
+                            lista.removeEventListener('hidden.bs.modal', abrir);
+                            modalConfirmar.show();
+                        });
+                        abierta.hide();
+                    } else {
+                        modalConfirmar.show();
+                    }
+                });
+            });
+
+            boton.addEventListener('click', function () {
+                if (!formulario) { return; }
+                regresarALista = false;
+                boton.disabled = true;
+                boton.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Borrando…';
+                window.raSaltarAvisoSalida = true;
+                var carga = document.getElementById('menu_carga');
+                if (carga) { carga.style.display = ''; }
+                formulario.submit();
+            });
+
+            confirmar.addEventListener('hidden.bs.modal', function () {
+                if (regresarALista) { bootstrap.Modal.getOrCreateInstance(lista).show(); }
+                regresarALista = false;
+            });
+        });
+    </script>
+    <script>
         // Revisar audiencia (Fase 2): cada sección se ve en modo lectura y se
         // abre con "Editar". Los campos siguen en el formulario (readonly), así
         // que se guardan igual que antes; al enviar se abren todas un momento
@@ -1975,7 +2059,7 @@
             }, true);
 
             window.addEventListener('beforeunload', function (e) {
-                if (cambios && !enviando) { e.preventDefault(); e.returnValue = ''; }
+                if (cambios && !enviando && !window.raSaltarAvisoSalida) { e.preventDefault(); e.returnValue = ''; }
             });
         });
     </script>
