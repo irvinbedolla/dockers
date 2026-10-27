@@ -143,7 +143,7 @@ class PrellenadoCita
         return Recepcion::whereBetween('fecha', [now()->subDays(self::VENTANA_EN_LINEA)->toDateString(), now()->addDays(self::VENTANA_EN_LINEA)->toDateString()])
             ->where('curp', $curp)
             ->where('tipo', 'Solicitud')
-            ->where('estatus', '!=', 'expirada')
+            ->whereNotIn('estatus', ['expirada', 'cancelada'])
             ->whereNotExists(fn ($q) => $q->selectRaw(1)->from('seer_general as g')->whereColumn('g.recepcion_id', 'recepcion.id'))
             ->orderByRaw('ABS(DATEDIFF(fecha, ?))', [$hoy])
             ->first();

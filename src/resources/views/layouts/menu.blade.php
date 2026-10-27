@@ -38,7 +38,7 @@
             // Llegadas hoy: la recepción (Morelia 02 y la General) marca quién llegó; el conciliador sólo consulta.
             ['route' => 'llegadas.index',             'label' => 'Llegadas hoy',            'icon' => 'bi bi-person-check',        'roles' => \App\Support\LlegadasHoy::roles(),
                 'si' => fn () => \App\Support\LlegadasHoy::migrado()],
-            ['route' => 'configuracion',              'label' => 'Administración',          'icon' => 'bi bi-lock-fill',           'roles' => ['Super Usuario', 'Delegado', 'Enlace']],
+            ['route' => 'configuracion',              'label' => 'Administración',          'icon' => 'bi bi-lock-fill',           'roles' => ['Super Usuario', 'Delegado', 'Enlace', 'Directivo']],
             ['route' => 'agenda',                     'label' => 'Agenda',                  'icon' => 'bi bi-calendar-week',       'roles' => ['Super Usuario', 'Administrador', 'Auxiliar', 'Orientador', 'Conciliador', 'Notificador', 'Delegado', 'Excepcion', \App\Support\CasosExcepcion::ROL,  'Cumplimientos', 'Directivo','Turnos', ...$recepcion]],
             ['route' => 'capacitaciones',             'label' => 'Capacitaciones',          'icon' => 'bi bi-backpack4-fill',      'roles' => ['Capacitacion Admin']],
             ['route' => 'subir_doc_masivo',           'label' => 'Carga Masiva',            'icon' => 'bi bi-bank',                'roles' => []],

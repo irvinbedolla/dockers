@@ -123,6 +123,11 @@
                                     </form>
                                 </div>
                             @endif
+                        @elseif($bandera === '5')
+                            <div class="alert alert-danger text-center mb-4 border-0 shadow-sm" role="alert">
+                                <h5 ><i class="bi bi-calendar2-x-fill"></i> ¡La cita fue cancelada! </h5>
+                                <h5 class="text-guinda "> Favor de generar una nueva cita</h5>
+                            </div>
                         @elseif($bandera === '4')
                             <div class="alert alert-danger text-center mb-4 border-0 shadow-sm" role="alert">
                                 <h5 ><i class="bi bi-exclamation-triangle-fill"></i> ¡Folio No encontrado! </h5>
