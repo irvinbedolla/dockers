@@ -13,6 +13,8 @@ RUN apt-get update && apt-get install -y \
     libonig-dev \
     libxml2-dev \
     libzip-dev \
+    libmagickwand-dev \
+    dcraw \
     zip \
     unzip
 
@@ -25,6 +27,8 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
  && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip
 
+RUN pecl install imagick && docker-php-ext-enable imagick
+
 # La imagen base no copia ningun php.ini, asi que upload_max_filesize se queda
 # en los 2M de fabrica y una foto de celular llega vacia sin marcar error.
 # 10M por archivo es lo que avisan los formularios; 45M por envio alcanza para
@@ -33,6 +37,7 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
 RUN { \
       echo 'upload_max_filesize=10M'; \
       echo 'post_max_size=45M'; \
+      echo 'max_execution_time=120'; \
     } > /usr/local/etc/php/conf.d/subidas.ini
 
 # Obtener Composer desde la imagen oficial
