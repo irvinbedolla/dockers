@@ -5,6 +5,7 @@
     <style>
         /* Revisar audiencia (Fase 1): encabezado fijo, lista de revisión y pestañas. */
         .ra-hueco { height: 0; }
+        .ra-reserva { height: 0; }
         .ra-barra {
             display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px 16px;
             background: #fff; border: 1px solid #E3E8E8; border-left: 4px solid #CEA845; border-radius: 12px;
@@ -2497,35 +2498,62 @@
             });
 
             // El layout tiene overflow-x: hidden, así que position: sticky no
-            // funciona: al pasar el encabezado se fija con JS en su lugar.
+            // funciona: al pasar el encabezado se fija con JS.
+            // .ra-hueco es una marca de 0 px justo arriba del encabezado que nunca
+            // cambia de alto (antes se le daba el alto del encabezado y se
+            // observaba a sí misma: al fijarse dejaba de estar "fuera", se
+            // soltaba, volvía a quedar fuera... y la página brincaba y se trababa).
+            // .ra-reserva, justo debajo, ocupa el lugar del encabezado fijo con
+            // su alto y su margen, así el contenido no se mueve.
             var barra = document.getElementById('raBarra');
-            var hueco = document.querySelector('.ra-hueco');
-            if (!barra || !hueco || !('IntersectionObserver' in window)) { return; }
+            var marca = document.querySelector('.ra-hueco');
+            if (!barra || !marca) { return; }
+            var reserva = document.createElement('div');
+            reserva.className = 'ra-reserva';
+            barra.parentNode.insertBefore(reserva, barra.nextSibling);
             var nav = document.querySelector('.main-navbar');
             var arriba = function () { return nav ? Math.max(0, nav.getBoundingClientRect().bottom) : 0; };
+            var fija = false, pendiente = false;
 
             function acomodar() {
-                if (!barra.classList.contains('is-fija')) { return; }
-                var r = hueco.getBoundingClientRect();
+                var r = reserva.getBoundingClientRect();
                 barra.style.top = arriba() + 'px';
                 barra.style.left = r.left + 'px';
                 barra.style.width = r.width + 'px';
             }
 
-            var observador = new IntersectionObserver(function (entradas) {
-                var fuera = !entradas[0].isIntersecting && entradas[0].boundingClientRect.top < arriba();
-                if (fuera && !barra.classList.contains('is-fija')) {
-                    hueco.style.height = barra.offsetHeight + 'px';
+            function soltar() {
+                fija = false;
+                barra.classList.remove('is-fija');
+                barra.style.top = barra.style.left = barra.style.width = '';
+                reserva.style.height = '0px';
+            }
+
+            function revisar() {
+                pendiente = false;
+                var debe = marca.getBoundingClientRect().top < arriba();
+                if (debe && !fija) {
+                    var margen = parseFloat(getComputedStyle(barra).marginBottom) || 0;
+                    reserva.style.height = (barra.offsetHeight + margen) + 'px';
+                    fija = true;
                     barra.classList.add('is-fija');
                     acomodar();
-                } else if (!fuera && barra.classList.contains('is-fija')) {
-                    barra.classList.remove('is-fija');
-                    barra.style.top = barra.style.left = barra.style.width = '';
-                    hueco.style.height = '0px';
+                } else if (!debe && fija) {
+                    soltar();
+                } else if (fija) {
+                    acomodar();
                 }
-            }, { rootMargin: '-' + Math.round(arriba()) + 'px 0px 0px 0px', threshold: 0 });
-            observador.observe(hueco);
-            window.addEventListener('resize', acomodar);
+            }
+
+            function pedir() {
+                if (!pendiente) { pendiente = true; window.requestAnimationFrame(revisar); }
+            }
+
+            // capture: también llega si el que se desplaza es un contenedor del layout.
+            document.addEventListener('scroll', pedir, { passive: true, capture: true });
+            // Al cambiar el ancho, el encabezado puede ocupar otro alto: se suelta y se vuelve a medir.
+            window.addEventListener('resize', function () { if (fija) { soltar(); } pedir(); });
+            revisar();
         });
     </script>
     <script>
