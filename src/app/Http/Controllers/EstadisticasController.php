@@ -211,14 +211,20 @@ class EstadisticasController extends Controller
      */
     public function turnos(Request $request)
     {
-        return view('estadisticas.turnos.index', EstadisticasTurnos::armar(EstadisticasTurnos::filtros($request), $request->user()->name));
+        $f = EstadisticasTurnos::filtros($request);
+
+        return view('estadisticas.turnos.index', EstadisticasTurnos::armar($f, $request->user()->name)
+            + ['ag' => \App\Support\AgendadoresCitas::armar($f)]);
     }
 
     /** Lo mismo de /estadisticas/turnos en PDF, Excel o imagen (PNG). */
     public function turnosDescargar(Request $request)
     {
         $formato = $request->validate(['formato' => ['required', Rule::in(EstadisticasTurnos::FORMATOS)]])['formato'];
-        $datos   = EstadisticasTurnos::armar(EstadisticasTurnos::filtros($request), $request->user()->name);
+        $f       = EstadisticasTurnos::filtros($request);
+        // En el Excel van completas las tablas de quién agenda y todas las citas en línea.
+        $datos   = EstadisticasTurnos::armar($f, $request->user()->name)
+            + ['ag' => \App\Support\AgendadoresCitas::armar($f, $formato === 'xlsx')];
 
         return match ($formato) {
             'xlsx' => Excel::download(new EstadisticasTurnosExport($datos), $datos['archivo'].'.xlsx'),

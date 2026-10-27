@@ -159,6 +159,8 @@
         @endif
     @endif
 
+    @include('estadisticas.turnos._agendadores_pdf', ['ag' => $ag ?? []])
+
     <div class="et-sec">Qué cuenta cada cifra</div>
     <table class="et-glo">
         @foreach ($glosario as $termino => $texto)

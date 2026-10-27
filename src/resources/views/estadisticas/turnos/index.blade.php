@@ -19,7 +19,7 @@
         'Mes pasado'  => [$hoyC->copy()->subMonthNoOverflow()->startOfMonth()->toDateString(), $hoyC->copy()->subMonthNoOverflow()->endOfMonth()->toDateString(), 'dia'],
         'Este año'    => [$hoyC->copy()->startOfYear()->toDateString(), $hoyC->copy()->endOfYear()->toDateString(), 'mes'],
     ];
-    $base = array_filter(['desde' => $f['desde'], 'hasta' => $f['hasta'], 'agrupar' => $f['agrupar'], 'sede' => $f['sede'], 'tipo' => $f['tipo'], 'origen' => $f['origen'], 'minutos' => $f['minutos'] !== ET::UMBRAL ? $f['minutos'] : null]);
+    $base = array_filter(['desde' => $f['desde'], 'hasta' => $f['hasta'], 'agrupar' => $f['agrupar'], 'sede' => $f['sede'], 'tipo' => $f['tipo'], 'origen' => $f['origen'], 'minutos' => $f['minutos'] !== ET::UMBRAL ? $f['minutos'] : null, 'frecuente' => ($f['frecuente'] ?? 3) !== \App\Support\AgendadoresCitas::FRECUENTE_DEF ? $f['frecuente'] : null]);
     $url = fn (array $c) => route('estadisticas.turnos', array_filter(array_merge($base, $c), fn ($v) => $v !== null && $v !== ''));
     $descargar = fn (string $formato) => route('estadisticas.turnos.descargar', $base + ['formato' => $formato]);
     $pct = fn ($v) => $v === null ? '—' : rtrim(rtrim(number_format($v, 1), '0'), '.').'%';
@@ -78,6 +78,14 @@
         .et-chip-exc { display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 10.5px; font-weight: 700; background: #F6E4EA; color: #8C1D40; }
         .et-glosario dt { font-size: 13px; color: var(--tn-tinta); }
         .et-glosario dd { font-size: 12.5px; color: var(--tn-suave); margin-bottom: 8px; }
+        /* ¿Quién agenda las citas en línea? */
+        .ag-tabla tr.ag-frecuente > td:first-child { box-shadow: inset 3px 0 0 #D9A93A; }
+        .ag-tabla tr.ag-frecuente > td { background: #FFFBF0; }
+        .ag-detalle > td { background: var(--tn-fondo) !important; padding: 8px 10px 12px !important; }
+        .ag-sub th, .ag-sub td { font-size: 12px; white-space: nowrap; }
+        .ag-sub th { color: var(--tn-suave); }
+        .md-chip-ag { padding: 2px 10px; border-radius: 999px; background: #FBEDEA; color: #9A3A22; font-size: 12.5px; }
+        .ag-tabla code, .ag-sub code { color: var(--tn-tinta); font-size: 12px; }
     </style>
 @endsection
 
@@ -283,6 +291,9 @@
                 @endif
             </div>
 
+            {{-- ¿Quién agenda las citas en línea? --}}
+            @include('estadisticas.turnos._agendadores')
+
             {{-- Qué cuenta cada cifra --}}
             <details class="tn-tarjeta et-bloque et-glosario">
                 <summary class="et-titulo" style="cursor:pointer">Qué cuenta cada cifra</summary>
@@ -336,6 +347,58 @@
                     }
                 }
             });
+        })();
+        </script>
+    @endif
+    {{-- ¿Quién agenda las citas en línea?: ver citas de cada fila y gráficas de hora y día de registro. --}}
+    @if (! empty($ag['migrado']) && $ag['citas'] > 0)
+        @unless ($hayDatos)
+            <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+        @endunless
+        <script>
+        (function () {
+            document.querySelectorAll('.ag-ver').forEach(function (b) {
+                b.addEventListener('click', function () {
+                    var fila = document.getElementById('ag-' + b.getAttribute('data-ag'));
+                    if (!fila) { return; }
+                    fila.hidden = !fila.hidden;
+                    b.setAttribute('aria-expanded', fila.hidden ? 'false' : 'true');
+                    b.textContent = fila.hidden ? 'Ver citas' : 'Ocultar';
+                });
+            });
+            if (typeof Chart === 'undefined') { return; }
+            var horas = {!! json_encode(array_values($ag['porHora'])) !!};
+            var dias = {!! json_encode($ag['porDiaSemana']) !!};
+            var comun = {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { display: false }, ticks: { color: '#5E6E6F', maxRotation: 0, autoSkip: true } },
+                    y: { beginAtZero: true, suggestedMax: 3, grid: { color: '#EDF1F1' }, border: { display: false }, ticks: { color: '#5E6E6F', precision: 0 } }
+                }
+            };
+            var lienzoH = document.getElementById('agHoras');
+            if (lienzoH) {
+                new Chart(lienzoH.getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: horas.map(function (_, h) { return (h < 10 ? '0' : '') + h + ':00'; }),
+                        datasets: [{ label: 'Citas registradas', data: horas, backgroundColor: horas.map(function (_, h) { return h < 7 || h >= 22 ? '#D9A93A' : '#496163'; }), borderRadius: 3, maxBarThickness: 22 }]
+                    },
+                    options: comun
+                });
+            }
+            var lienzoD = document.getElementById('agDias');
+            if (lienzoD) {
+                new Chart(lienzoD.getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'],
+                        datasets: [{ label: 'Citas registradas', data: dias, backgroundColor: '#829A9C', borderRadius: 3, maxBarThickness: 28 }]
+                    },
+                    options: comun
+                });
+            }
         })();
         </script>
     @endif

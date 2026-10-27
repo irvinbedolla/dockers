@@ -25,6 +25,12 @@ class EstadisticasTurnosExport implements WithMultipleSheets
         'excepcion' => 'Casos de excepción',
         'tramites'  => 'Por trámite',
         'largas'    => 'Atención larga',
+        // ¿Quién agenda las citas en línea? (excel.estadisticas_turnos_agendadores)
+        'ag_ip'       => 'Agendan por IP',
+        'ag_correo'   => 'Agendan por correo',
+        'ag_telefono' => 'Agendan por teléfono',
+        'ag_citas'    => 'Citas en línea (origen)',
+        'ag_bloqueos' => 'Intentos detenidos',
     ];
 
     public function __construct(private array $datos)
@@ -42,7 +48,9 @@ class EstadisticasTurnosExport implements WithMultipleSheets
 
                 public function view(): View
                 {
-                    return view('excel.estadisticas_turnos', $this->datos + ['hoja' => $this->hoja]);
+                    $vista = str_starts_with($this->hoja, 'ag_') ? 'excel.estadisticas_turnos_agendadores' : 'excel.estadisticas_turnos';
+
+                    return view($vista, $this->datos + ['hoja' => $this->hoja]);
                 }
 
                 public function title(): string
