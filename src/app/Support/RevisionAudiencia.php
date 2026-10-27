@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 
 /**
@@ -150,6 +151,99 @@ class RevisionAudiencia
     }
 
     // ------------------------------------------------------------------
+
+    /**
+     * Tarjeta de cada citado (pestaña Citado(s)): etiquetas, cómo va su
+     * notificación con el documento que la ampara, su citatorio, su multa y
+     * su representante. Indexado por posición, en el mismo orden en que la
+     * vista recorre $citados ($loop->index).
+     */
+    public static function partes(object $general, Collection $citados, Collection $notificaciones): array
+    {
+        $citados = $citados->values();
+        $poderes = Poder::whereIn('idAbogado', $citados->pluck('id_abogado')->filter()->unique()->all() ?: [0])->get()->keyBy('idAbogado');
+        $tipo1 = (int) ($general->tipo_solicitud ?? 0) === 1;
+        $tarjetas = [];
+
+        foreach ($citados as $i => $c) {
+            $nuevo   = empty($c->id) || ! is_numeric($c->id);
+            $multa   = ($c->tipo_notificacion ?? null) === 'Multa';
+            $resulte = ($c->resulte_responsable ?? 'No') === 'Si';
+            $medio   = (string) ($c->notificacion ?? '');
+
+            $etiquetas = [];
+            if ($multa) {
+                $etiquetas[] = ['Multa', 'multa'];
+            } elseif ($medio === 'Trabajador') {
+                $etiquetas[] = ['Citado por el solicitante', 'solicitante'];
+            } elseif ($medio === 'Exhorto') {
+                $etiquetas[] = ['Por exhorto', 'centro'];
+            } else {
+                $etiquetas[] = ['Citado por el Centro', 'centro'];
+            }
+            if ($resulte) {
+                $etiquetas[] = ['Quien resulte responsable', 'resulte'];
+            }
+            if ($nuevo) {
+                $etiquetas[] = ['Nuevo: falta guardar', 'nuevo'];
+            }
+
+            $poder = $tipo1 && ! $multa && $c->id_abogado ? $poderes->get($c->id_abogado) : null;
+            $representante = null;
+            if ($poder) {
+                $vencido = $poder->fechaVigencia && Carbon::parse($poder->fechaVigencia)->lt(today());
+                $rep = trim(preg_replace('/\s+/', ' ', ($poder->nombre_representante ?? '').' '.($poder->primer_apellido_representante ?? '').' '.($poder->segundo_apellido_representante ?? '')));
+                $representante = [
+                    'nombre' => $rep !== '' ? Str::title(mb_strtolower($rep)) : 'Sin nombre',
+                    'folio'  => $poder->idAbogado,
+                    'texto'  => $vencido ? 'Poder vencido' : ($poder->estatus === 'Validado' ? 'Poder validado' : 'Poder sin validar'),
+                    'nivel'  => $vencido ? 'falta' : ($poder->estatus === 'Validado' ? 'ok' : 'aviso'),
+                ];
+            }
+
+            $tarjetas[$i] = [
+                'nombre'        => self::nombre(trim(($c->nombre ?? '').' '.($c->primer_apellido ?? '').' '.($c->segundo_apellido ?? ''))),
+                'etiquetas'     => $etiquetas,
+                'notificacion'  => $nuevo ? ['texto' => 'Sin citatorio todavía', 'nivel' => 'aviso', 'url' => null] : self::estadoNotificacion($c, $notificaciones->get($c->id)),
+                'citatorio'     => $nuevo ? null : self::ruta('pdfCitatorioAudiencia', ['id' => $c->id]),
+                'multa'         => $multa && ! $resulte && ! $nuevo ? self::ruta('PDFmulta', ['id' => $c->id, 'id_solicitud' => $general->id]) : null,
+                'comparece'     => $tipo1 ? ! empty($c->id_abogado) : ($c->comparecencia ?? null) === 'Si',
+                'representante' => $representante,
+            ];
+        }
+
+        return $tarjetas;
+    }
+
+    /** Cómo va la notificación de un citado y el PDF que la ampara (lo mismo que la pestaña Documentos). */
+    private static function estadoNotificacion(object $c, ?object $n): array
+    {
+        if (! $n) {
+            return ['texto' => 'Sin notificar', 'nivel' => 'aviso', 'url' => null];
+        }
+        $p = ['id' => $c->id, 'id_solicitud' => $c->id_solicitud];
+        if (($n->notificacion ?? null) === 'Trabajador') {
+            return ['texto' => 'Lo entrega el solicitante', 'nivel' => 'info', 'url' => null];
+        }
+
+        return match ((string) ($n->estatus ?? '')) {
+            'Finalizado exitosamente'     => ['texto' => 'Notificado exitosamente', 'nivel' => 'ok', 'url' => self::ruta('PDFRazonNoticacion', $p)],
+            'Recibe pero no firma'        => ['texto' => 'Recibe pero no firma', 'nivel' => 'ok', 'url' => self::ruta('PDFRazonNoticacion', $p)],
+            'Exitosa por Instructivo'     => ['texto' => 'Exitosa por instructivo', 'nivel' => 'ok', 'url' => self::ruta('PDFInstructivo', $p)],
+            'Notificada en Audiencia'     => ['texto' => 'Notificada en audiencia', 'nivel' => 'ok', 'url' => null],
+            'Notificada'                  => ['texto' => 'Notificada', 'nivel' => 'ok', 'url' => null],
+            'No notificada'               => ['texto' => 'No notificado', 'nivel' => 'falta', 'url' => self::ruta('PDFInstructivo', $p)],
+            'No exitosa se constituye'    => ['texto' => 'No exitosa: se constituye', 'nivel' => 'falta', 'url' => self::ruta('VerPDFNoExitConstituye', $p)],
+            'No exitosa no se constituye' => ['texto' => 'No exitosa: no se constituye', 'nivel' => 'falta', 'url' => self::ruta('PDFnotificadoNoexitosaNS', $p)],
+            'Exhorto'                     => ['texto' => 'Por exhorto', 'nivel' => 'aviso', 'url' => null],
+            default                       => ['texto' => 'Sin notificar', 'nivel' => 'aviso', 'url' => null],
+        };
+    }
+
+    private static function ruta(string $nombre, array $parametros): ?string
+    {
+        return Route::has($nombre) ? route($nombre, $parametros) : null;
+    }
 
     private static function resumen(object $general, ?object $audiencia): array
     {

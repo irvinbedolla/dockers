@@ -74,6 +74,46 @@
             .ra-barra.is-fija .ra-barra__titulo .ra-chip { display: none; }
             .ra-acciones .btn { padding: 6px 10px; font-size: 13px; }
         }
+        /* Fase 2: secciones en modo lectura (Editar para cambiar) y una tarjeta por citado. */
+        .ra-seccion__cab { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 4px 0 10px; margin-bottom: 10px; border-bottom: 1px solid #EEF2F2; }
+        .ra-seccion__titulo { margin: 0; font-size: 16px; font-weight: 800; color: #2E3C3D; }
+        .ra-seccion__nota { display: block; font-size: 12px; color: #8A9899; }
+        .ra-seccion__herr { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+        .ra-seccion__cambios { font-size: 12px; font-weight: 700; color: #B4532A; }
+        .ra-seccion__falta { font-size: 12px; font-weight: 700; color: #9A3A22; background: #FBEDE8; border-radius: 999px; padding: 2px 10px; }
+        .btn.ra-editar { border: 1px solid #CEA845; color: #7A5D10; background: #FFF9EA; font-weight: 700; border-radius: 8px; }
+        .btn.ra-editar:hover { background: #CEA845; color: #fff; }
+        .ra-seccion.is-editando .btn.ra-editar { background: #354647; border-color: #354647; color: #fff; }
+        .ra-parte.is-editando { border-color: #CEA845; box-shadow: 0 0 0 3px rgba(206, 168, 69, .15); }
+
+        .ra-lectura input:not([type=hidden]):not([type=file]):not([type=checkbox]):not([type=radio]),
+        .ra-lectura select,
+        .ra-lectura textarea {
+            border-color: transparent !important; background: transparent !important; box-shadow: none !important;
+            padding-left: 0 !important; color: #2E3C3D !important; font-weight: 600; pointer-events: none;
+            -webkit-appearance: none; -moz-appearance: none; appearance: none; resize: none; text-overflow: ellipsis;
+        }
+        .ra-lectura input[type=file], .ra-lectura .ra-solo-edicion, .ra-lectura .eliminar, .ra-lectura .invalid-feedback { display: none !important; }
+        .ra-lectura label { font-size: 12px; color: #8A9899; font-weight: 700; margin-bottom: 0; }
+        .ra-lectura label span[style*="red"] { display: none; }
+        .ra-lectura .form-group { margin-bottom: 6px; }
+
+        .ra-parte { border: 1px solid #E3E8E8; border-radius: 12px; padding: 12px 16px; margin: 6px 0 16px; background: #fff; }
+        .ra-parte__cab { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px; padding-bottom: 10px; margin-bottom: 6px; border-bottom: 1px solid #EEF2F2; }
+        .ra-parte__quien { display: flex; gap: 10px; align-items: flex-start; min-width: 0; }
+        .ra-parte__num { width: 28px; height: 28px; border-radius: 50%; background: #354647; color: #fff; font-weight: 800; display: grid; place-items: center; flex: 0 0 auto; }
+        .ra-parte__nombre { font-size: 16px; font-weight: 800; color: #2E3C3D; }
+        .ra-parte__chips { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 4px; }
+        .ra-et { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 700; background: #EEF2F2; color: #496163; }
+        .ra-et--multa, .ra-et--falta { background: #FBEDEA; color: #9A3A22; }
+        .ra-et--aviso, .ra-et--nuevo { background: #FBF4E1; color: #7A5D10; }
+        .ra-et--ok { background: #E9F5EE; color: #1E7B3C; }
+        .ra-et--info, .ra-et--solicitante { background: #E3EEF9; color: #1F4E79; }
+        .ra-et--resulte { background: #F1EFF8; color: #4B3F7A; }
+        .ra-seccion h4.text-center { text-align: left !important; font-size: 12.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: #829A9C; margin: 12px 0 4px; }
+        .ra-subtitulo { font-size: 12.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: #829A9C; margin: 8px 0 6px; }
+        .ra-tabla-docs td, .ra-tabla-docs th { vertical-align: middle; }
+        .ra-varios { background: #FBF4E1; color: #7A5D10; border-radius: 10px; padding: 8px 12px; font-size: 13px; margin-bottom: 10px; }
     </style>
 @endsection
 
@@ -137,7 +177,8 @@
                                         <a class="btn ra-tab tablinks" onclick="openCity(event, 'citados')">Documentos</a>
                                     </div>
 
-                                    <div id="detalles" class="tabcontent">
+                                    <div id="detalles" class="tabcontent ra-seccion">
+                                        @include('audiencias._revisar_seccion_cab', ['titulo' => 'Datos de la solicitud'])
                                         <div id="tabla_detalles" class="row">
                                             <div class="col-xs-12 col-sm-6 col-md-2">
                                                 <div class="form-group">
@@ -207,7 +248,7 @@
                                                 </table>
                                             </div>
                                        
-                                            <div class="col-xs-6 col-sm-6 col-md-6">
+                                            <div class="col-xs-6 col-sm-6 col-md-6 ra-solo-edicion">
                                                 <div class="form-group">
                                                     <label for="name">Agregar Otro Motivo a la Solicitud</label>
                                                     @can('audiencias_agregar_motivo')
@@ -224,7 +265,7 @@
                                                 </div>
                                             </div>
 
-                                            <div id="div1"  class="col-xs-12 col-sm-12 col-md-12"><br>
+                                            <div id="div1"  class="col-xs-12 col-sm-12 col-md-12 ra-solo-edicion"><br>
                                                 <table id="tabla" name="motivo_solicitud[]" class="table table-striped mt-1" style="margin: 0 center; text-align:center;">
                                                     <thead style="background-color: #D2D3D5;">
                                                         <th style="color: black;">Objeto de la Solicitud</th>
@@ -260,14 +301,14 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <div id="solicitante" class="tabcontent">
+                                    <div id="solicitante" class="tabcontent ra-seccion">
+                                        @include('audiencias._revisar_seccion_cab', ['titulo' => 'Solicitante'])
+                                        @if ($solicitantes->count() > 1)
+                                            <div class="ra-varios"><i class="bi bi-info-circle"></i> Esta solicitud tiene {{ $solicitantes->count() }} solicitantes; aquí se ve y se guarda el primero. Antes, al guardar, sus datos se copiaban a todos.</div>
+                                        @endif
                                         <div id="tabla_solicitante" class="row">
-                                            <div class="col-xs-12 col-sm-12 col-md-12">
-                                                <div class="form-group">
-                                                    <h4 class="text-center">Solicitante</h4>
-                                                </div>
-                                            </div>
-                                            @foreach($solicitantes as $solicitante)
+                                            @foreach($solicitantes->take(1) as $solicitante)
+                                                <input type="hidden" name="solicitante_id" value="{{ $solicitante->id }}">
                                                 <div class="col-xs-12 col-sm-6 col-md-12">
                                                     <div class="form-group">
                                                         <label for="password">Nombre<span style="color:red;"> (*)</span></label>
@@ -892,20 +933,13 @@
                                                 @php
                                                     $esResulte = isset($citado['resulte_responsable']) ? $citado['resulte_responsable'] : (isset($citado->resulte_responsable) ? $citado->resulte_responsable : 'No');
                                                 @endphp
-                                                <div class="col-xs-12 col-sm-12 col-md-12" style="background-color:#D2D3D5; width:100%; height:30px;">
-                                                    <div class="form-group">
-                                                        @if($citado->tipo_notificacion == 'Multa')
-                                                            <h4 class="text-center">Multa <i class="bi bi-exclamation-triangle-fill text-danger"></i></h4>
-                                                        @elseif ($citado->tipo_notificacion == 'Citatorio' && $citado->notificacion == 'Centro')
-                                                            <h4 class="text-center">Citado por el Centro  <i class="bi bi-bank"></i></h4>
-                                                        @elseif ($citado->tipo_notificacion == 'Citatorio' && $citado->notificacion == 'Trabajador')
-                                                            <h4 class="text-center">Citado por el Solicitante  <i class="bi bi-person-fill"></i></h4>
-                                                        @endif
-                                                    </div>
-                                                </div>
-                                                
+                                                {{-- Tarjeta del citado: datos, notificación, representante y documentos juntos. --}}
+                                                <div class="col-12">
+                                                <div class="ra-parte ra-seccion">
+                                                @include('audiencias._revisar_citado_cab', ['tj' => $tarjetas[$loop->index] ?? null, 'n' => $loop->iteration])
+                                                <div class="row">
                                                 <div class="col-xs-12 col-sm-12 col-md-12">
-                                                    <div class="form-group mt-3">
+                                                    <div class="form-group mt-1">
                                                         <h4 class="text-center">Datos del citado</h4>
                                                     </div>
                                                 </div>
@@ -1199,7 +1233,7 @@
                                                 <div class="col-xs-12 col-sm-12 col-md-12"><br></div>
                                                 
                                                 @if ($general->tipo_solicitud == 2)
-                                                    @foreach($solicitantes as $solicitante)
+                                                    @foreach($solicitantes->take(1) as $solicitante)
                                                         <div class="col-xs-12 col-sm-12 col-md-12">
                                                             <div class="form-group">
                                                                 <h4 class="text-center">Datos laborales del citado</h4>
@@ -1304,11 +1338,15 @@
                                                     @endforeach
                                                 @endif
 
+                                                </div>{{-- .row --}}
+                                                </div>{{-- .ra-parte --}}
+                                                </div>{{-- .col-12 --}}
                                             @endforeach
                                             
                                         </div>
                                     </div>
-                                    <div id="citados" class="tabcontent">
+                                    <div id="citados" class="tabcontent ra-seccion">
+                                        @include('audiencias._revisar_seccion_cab', ['titulo' => 'Documentos', 'nota' => 'Para reemplazar la identificación del solicitante, da clic en Editar.'])
                                         <div id="tabla_citatorio" class="row">
                                             <div class="col-xs-12 col-sm-12 col-md-12">
                                                 <div class="form-group">
@@ -1325,124 +1363,7 @@
                                                 <input type="file" name="indetificacion" accept=".pdf" class="form-control">
                                             </div>
                                             @endif
-                                            <div class="col-xs-12 col-sm-12 col-md-12">
-                                                <div class="row">
-
-                                                    <div class="col-xs-12 col-sm-12 col-md-6">
-                                                        <h4 class="text-center">Citatorios</h4>
-                                                        <hr>
-                                                        <div class="form-group">
-                                                                @foreach($citados as $citado) 
-                                                                    <div class="row" style="margin-bottom: 5px; border-bottom: 1px dotted #ccc; padding: 5px 0;">
-                                                                        <div class="col-sm-4">
-                                                                            <label>Nombre Citado</label><br>
-                                                                            <strong>{{ $citado->nombre }} {{ $citado->primer_apellido ?? ''}} {{ $citado->segundo_apellido ?? ''}}</strong>
-                                                                        </div>
-                                                
-                                                                        <div class="col-sm-4">
-                                                                            <label>Notificacion: {{ $citado->notificacion }}</label><br>
-                                                                            @if(!empty($citado->id))
-                                                                                <a class="btn btn-success btn-xs"
-                                                                                href="{{ route('pdfCitatorioAudiencia', [
-                                                                                    'id' => $citado->id,
-                                                                                ]) }}"
-                                                                                target="_blank">
-                                                                                    Visualizar
-                                                                                </a>
-                                                                            @else
-                                                                                <button type="button" class="btn btn-secondary btn-xs" disabled
-                                                                                    title="Guarda la audiencia/solicitud para generar el citatorio">
-                                                                                    Visualizar
-                                                                                </button>
-                                                                            @endif
-                                                                        </div>
-
-                                                                        <div class="col-sm-4">
-                                                                            <label>Comparece en Audiencia</label><br>
-                                                                            @if($general->tipo_solicitud == 1)
-                                                                                @if($citado->id_abogado)
-                                                                                <b>Si</b>
-                                                                                @else
-                                                                                <b>No</b>
-                                                                                @endif
-                                                                            @else
-                                                                                @if($citado->comparecencia == 'Si')
-                                                                                <b>Si</b>
-                                                                                @else
-                                                                                <b>No</b>
-                                                                                @endif
-                                                                            @endif
-                                                                        </div>
-                                                                    </div>
-                                                                @endforeach
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-xs-12 col-sm-12 col-md-6">
-                                                        <h4 class="text-center">Notificaciones</h4>
-                                                        <hr>
-                                                        <div class="form-group">
-                                                            @foreach($citados as $citado)
-                                                                @php
-                                                                    $notificado = $notificaciones->get($citado->id);
-                                                                @endphp
-                                                                
-                                                                <div class="row" style="margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px;">
-                                                                    <div class="col-sm-6">
-                                                                        <label>Nombre Citado</label><br>
-                                                                        <span>{{ $citado->nombre }} {{ $citado->primer_apellido }} {{ $citado->segundo_apellido }}</span>
-                                                                    </div>
-                                                                    
-                                                                    <div class="col-sm-3">
-                                                                        <label>Estado de la Notificación</label><br>
-                                                                        @if($notificado)
-                                                                            @if($notificado->notificacion === "Trabajador")
-                                                                                <span style="color:blue">Notificación Entregada por el Solicitante</span>
-                                                                            @elseif($notificado->estatus === "No exitosa se constituye")
-                                                                                <span style="color:blue">Se Constituye</span>
-                                                                            @elseif($notificado->estatus === "Finalizado exitosamente")
-                                                                                <span style="color:blue">Notificado Exitosamente</span>
-                                                                            @elseif($notificado->estatus === "Exitosa por Instructivo")
-                                                                                <span style="color:blue">Exitosa por Instructivo</span>
-                                                                            @elseif($notificado->estatus === "No notificada")
-                                                                                <span style="color:blue">No Notificado</span>
-                                                                            @elseif($notificado->estatus === "No exitosa no se constituye")
-                                                                                <span style="color:blue">No se Constituye</span>
-                                                                            @elseif($notificado->estatus === "Notificada en Audiencia")
-                                                                            <span style="color:blue">Notificada en Audiencia</span>
-                                                                            @else
-                                                                                <span style="color:blue">Sin Notificar</span>
-                                                                            @endif
-                                                                        @else
-                                                                            <span style="color:blue">Sin Notificar</span>
-                                                                        @endif
-                                                                    </div>
-
-                                                                    <div class="col-sm-3">
-                                                                        <label>Notificación</label><br>
-                                                                        @if($notificado)
-                                                                            @if($notificado->notificacion === "Trabajador")
-                                                                                <span class="btn btn-secondary btn-xs disabled" aria-disabled="true">Visualizar</span>
-                                                                            @elseif($notificado->estatus === "No exitosa se constituye")
-                                                                                <a class="btn btn-success btn-xs" href="{{ route('VerPDFNoExitConstituye', ['id' => $citado->id, 'id_solicitud' => $citado->id_solicitud]) }}" target="_blank">Visualizar</a>
-                                                                            @elseif($notificado->estatus === "Finalizado exitosamente" || $notificado->estatus === "Recibe pero no firma")
-                                                                                <a class="btn btn-success btn-xs" href="{{ route('PDFRazonNoticacion', ['id' => $citado->id, 'id_solicitud' => $citado->id_solicitud]) }}" target="_blank">Visualizar</a>
-                                                                            @elseif($notificado->estatus === "No notificada" || $notificado->estatus === "Exitosa por Instructivo")
-                                                                                <a class="btn btn-success btn-xs" href="{{ route('PDFInstructivo', ['id' => $citado->id, 'id_solicitud' => $citado->id_solicitud]) }}" target="_blank">Visualizar</a>
-                                                                            @elseif($notificado->estatus === "No exitosa no se constituye")
-                                                                                <a class="btn btn-success btn-xs" href="{{ route('PDFnotificadoNoexitosaNS', ['id' => $citado->id, 'id_solicitud' => $citado->id_solicitud]) }}" target="_blank">Visualizar</a>
-                                                                            @else
-                                                                                <span class="btn btn-secondary btn-xs disabled" aria-disabled="true">Visualizar</span>
-                                                                            @endif
-                                                                        @else
-                                                                            <span class="btn btn-secondary btn-xs disabled" aria-disabled="true">Visualizar</span>
-                                                                        @endif
-                                                                    </div>
-                                                                </div>
-                                                            @endforeach
-                                                        </div>
-                                                    </div>
-                                                    </div>
-                                                </div>
+                                            @include('audiencias._revisar_docs_citados')
                                             {{--<div class="col-xs-12 col-sm-12 col-md-6">
                                                 <label for="password">Identificación Oficial</label><br>
                                                 <a target='_blank' href="../storage/app/documentosSolicitud/{{$solicitante->documentoCurp}}">PDF</a><br>
@@ -2605,6 +2526,115 @@
             }, { rootMargin: '-' + Math.round(arriba()) + 'px 0px 0px 0px', threshold: 0 });
             observador.observe(hueco);
             window.addEventListener('resize', acomodar);
+        });
+    </script>
+    <script>
+        // Revisar audiencia (Fase 2): cada sección se ve en modo lectura y se
+        // abre con "Editar". Los campos siguen en el formulario (readonly), así
+        // que se guardan igual que antes; al enviar se abren todas un momento
+        // para que la validación revise los campos obligatorios.
+        document.addEventListener('DOMContentLoaded', function () {
+            var form = document.querySelector('form.needs-validation');
+            var secciones = Array.prototype.slice.call(document.querySelectorAll('.ra-seccion'));
+            if (!form || !secciones.length) { return; }
+            var puedeEditar = {{ $puedeEditar ? 'true' : 'false' }};
+            var conErrores = {{ $errors->any() ? 'true' : 'false' }};
+            var CAMPOS = 'input:not([type=hidden]):not([type=file]):not([type=checkbox]):not([type=radio]):not([type=button]):not([type=submit]), select, textarea';
+            var cambios = false, enviando = false;
+
+            function lectura(sec, si) {
+                sec.classList.toggle('ra-lectura', si);
+                sec.classList.toggle('is-editando', !si);
+                sec.querySelectorAll(CAMPOS).forEach(function (el) {
+                    if (si) {
+                        if (!el.hasAttribute('data-ra-orig')) {
+                            el.setAttribute('data-ra-orig', JSON.stringify({ ro: el.readOnly, ti: el.getAttribute('tabindex'), ph: el.getAttribute('placeholder') }));
+                        }
+                        if (el.tagName !== 'SELECT') { el.readOnly = true; }
+                        el.setAttribute('tabindex', '-1');
+                        if (el.tagName !== 'SELECT' && !el.value) { el.setAttribute('placeholder', '—'); }
+                    } else if (el.hasAttribute('data-ra-orig')) {
+                        var o = JSON.parse(el.getAttribute('data-ra-orig'));
+                        if (el.tagName !== 'SELECT') { el.readOnly = o.ro; }
+                        if (o.ti === null) { el.removeAttribute('tabindex'); } else { el.setAttribute('tabindex', o.ti); }
+                        if (o.ph === null) { el.removeAttribute('placeholder'); } else { el.setAttribute('placeholder', o.ph); }
+                    }
+                });
+                var txt = sec.querySelector('.ra-editar span');
+                if (txt) { txt.textContent = si ? 'Editar' : 'Listo'; }
+            }
+
+            // Oculto dentro de la sección (no cuenta que la pestaña esté cerrada).
+            function oculto(el, sec) {
+                for (var n = el; n && n !== sec; n = n.parentElement) {
+                    if (n.hidden || getComputedStyle(n).display === 'none') { return true; }
+                }
+                return false;
+            }
+
+            function faltaAlgo(sec) {
+                return Array.prototype.some.call(sec.querySelectorAll(CAMPOS), function (el) {
+                    return el.required && !el.disabled && !el.value && !oculto(el, sec);
+                });
+            }
+
+            secciones.forEach(function (sec) {
+                // Se abre sola si viene de un error o le falta un dato obligatorio.
+                var falta = puedeEditar && faltaAlgo(sec);
+                lectura(sec, !(puedeEditar && (conErrores || falta)));
+                if (falta) {
+                    var herr = sec.querySelector('.ra-seccion__herr');
+                    if (herr) {
+                        var aviso = document.createElement('span');
+                        aviso.className = 'ra-seccion__falta';
+                        aviso.textContent = 'Falta un dato obligatorio';
+                        herr.insertBefore(aviso, herr.firstChild);
+                    }
+                }
+                var boton = sec.querySelector('.ra-editar');
+                if (boton) {
+                    boton.addEventListener('click', function () {
+                        var abrir = sec.classList.contains('ra-lectura');
+                        lectura(sec, !abrir);
+                        if (abrir) {
+                            var primero = sec.querySelector(CAMPOS);
+                            if (primero) { try { primero.focus({ preventScroll: true }); } catch (e) {} }
+                        }
+                    });
+                }
+                var marcar = function (e) {
+                    if (!e.target.matches || !e.target.matches(CAMPOS + ', input[type=file]')) { return; }
+                    cambios = true;
+                    sec.querySelectorAll('.ra-seccion__cambios').forEach(function (m) { m.hidden = false; });
+                };
+                sec.addEventListener('input', marcar);
+                sec.addEventListener('change', marcar);
+            });
+
+            // Al enviar: se abren todas para que la validación vea los obligatorios;
+            // si algo falta, se queda abierta sólo la sección con el problema.
+            form.addEventListener('submit', function () {
+                var antes = secciones.map(function (sec) { return sec.classList.contains('ra-lectura'); });
+                secciones.forEach(function (sec) { lectura(sec, false); });
+                enviando = true;
+                setTimeout(function () {
+                    if (form.checkValidity()) { return; }
+                    enviando = false;
+                    secciones.forEach(function (sec, i) {
+                        if (antes[i] && !sec.querySelector(':invalid')) { lectura(sec, true); }
+                    });
+                }, 0);
+            }, true);
+
+            // Si un campo inválido está en una sección en lectura, se abre.
+            form.addEventListener('invalid', function (e) {
+                var sec = e.target.closest && e.target.closest('.ra-seccion');
+                if (sec && sec.classList.contains('ra-lectura')) { lectura(sec, false); }
+            }, true);
+
+            window.addEventListener('beforeunload', function (e) {
+                if (cambios && !enviando) { e.preventDefault(); e.returnValue = ''; }
+            });
         });
     </script>
 @endsection
