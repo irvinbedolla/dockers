@@ -74,6 +74,9 @@
 </div>
 
 @if ($migradoLimite)
+    {{-- El diálogo va al final del <body> (stack modals del layout): dentro de la
+         tarjeta quedaba debajo del fondo oscuro y no se podía usar. --}}
+    @push('modals')
     <div class="modal fade" id="mdModalLimite" tabindex="-1" aria-labelledby="mdModalLimiteTitulo" aria-hidden="true">
         <div class="modal-dialog modal-dialog-scrollable">
             <form class="modal-content" method="POST" action="{{ route('modulos.limite') }}">
@@ -144,4 +147,5 @@
             });
         </script>
     @endif
+    @endpush
 @endif
