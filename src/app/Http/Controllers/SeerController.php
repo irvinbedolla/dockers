@@ -10104,6 +10104,11 @@ class SeerController extends Controller
         $audiencia_id = $request->query('audiencia_id', null);
 
         $audienciaCurrent = Audiencias::where('id', $audiencia_id)->first();
+        // Algunas listas no mandan audiencia_id: se toma la más reciente de la
+        // solicitud (antes la pantalla tronaba al leer su estatus o su poder).
+        if (! $audienciaCurrent && $isAudiencia === 'Si') {
+            $audienciaCurrent = Audiencias::where('id_solicitud', $id)->orderByDesc('id')->first();
+        }
         
         // Usamos with() si existen relaciones definidas en el modelo para evitar el problema N+1
         $general = SeerPerGeneral::findOrFail($id);
@@ -10172,10 +10177,15 @@ class SeerController extends Controller
         // PASAMOS LA FECHA ACTUAL DESDE EL CONTROLADOR
         $fecha_actual = now(); 
 
+        // Encabezado del caso, "¿Está lista la audiencia?" y si se puede editar (App\Support\RevisionAudiencia).
+        $revision = \App\Support\RevisionAudiencia::armar($general, $solicitantes, $citados, $audienciaCurrent);
+        $edicionAbierta = \App\Support\RevisionAudiencia::edicionAbierta($general, $audienciaCurrent, $user);
+
         return view('audiencias.revisar_audiencia', compact(
             'id','general','solicitantes','citados','ramas','estados','municipios',
             'mostrarMotivos','motivos','conciliadores', 'isAudiencia','notificaciones',
-            'historial_audiencias','datosIncompletos','citadosConMulta', 'ultimaEstatus', 'fecha_actual', 'audienciaCurrent'
+            'historial_audiencias','datosIncompletos','citadosConMulta', 'ultimaEstatus', 'fecha_actual', 'audienciaCurrent',
+            'revision', 'edicionAbierta'
         )); 
     }
 
