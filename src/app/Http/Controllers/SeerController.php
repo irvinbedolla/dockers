@@ -5135,58 +5135,16 @@ class SeerController extends Controller
                 }
             }
 
-            // 4. PREPARACIÓN Y SANITIZACIÓN DE DATOS DEL SOLICITANTE
-            $solicitanteUpdate = [
-                'curp'                  => $data["curp_solicitante"] ?? null,
-                'nombre'                => $data["nombre_solicitante"] ?? null,
-                'sexo'                  => $data["sexo_solicitante"] ?? null,
-                'nacionalidad'          => $data["nacionalidad_solicitante"] ?? null,
-                'email'                 => $data["email_solicitante"] ?? null,
-                'fecha_nacimiento'      => $data["fecha_nacimiento_solicitante"] ?? null,
-                'edad'                  => $data["edad_solicitante"] ?? null,
-                'telefono1'             => $data["telefono1_solicitante"] ?? null,
-                'traductor'             => $data["traductor_solicitante"] ?? 'No',
-                'lenguaje'              => !empty($data["lenguaje_solicitante"]) ? $data["lenguaje_solicitante"] : null,
-                'discapacidad'          => $data["discapacidad_solicitante"] ?? 'No',
-                'tipo_discapacidad'     => !empty($data["disc_solicitante"]) ? $data["disc_solicitante"] : null,
-                'tipo_vialidad'         => $data["tipo_vialidad"] ?? null,
-                'calle'                 => $data["calle_solicitante"] ?? null,
-                'num_ext'               => $data["num_ext_solicitante"] ?? null,
-                'num_int'               => !empty($data["num_int_solicitante"]) ? $data["num_int_solicitante"] : null,
-                'codigo_postal'         => $data["codigo_postal_solicitante"] ?? null,
-                'referencia'            => !empty($data["referencia_solicitante"]) ? $data["referencia_solicitante"] : null,
-                'colonia'               => $data["colonia_solicitante"] ?? null,
-                'calle2'                => !empty($data["calle2_solicitante"]) ? $data["calle2_solicitante"] : null,
-                'calle3'                => !empty($data["calle3_solicitante"]) ? $data["calle3_solicitante"] : null,
-                'municipio_domicilio'   => $data["municipio_solicitante"] ?? null,
-                'estado_domicilio'      => $data["estado_solicitante"] ?? null,
-                'puesto'                => $data["puesto"] ?? null,
-                'pago'                  => $data["pago"] ?? null,
-                'periodo_pago'          => $data["periodo_pago"] ?? null,
-                'fecha_ingreso'         => $data["fecha_ingreso"] ?? null,
-                'fecha_salida'          => !empty($data["fecha_salida"]) ? $data["fecha_salida"] : null,
-                'jornada'               => $data["jornada"] ?? null,
-                'horas_semana'          => $data["horas_semana"] ?? null,
-                'descripcionSolicitud'  => $data["descripcionSolicitud"] ?? null,
-                'labora'                => $data["labora"] ?? 'Si',
-            ];
-
-            // Opcionales específicos
-            if (!empty($data["telefono2_solicitante"])) {
-                $solicitanteUpdate['telefono2'] = $data["telefono2_solicitante"];
+            // 4. SOLICITANTE(S): Revisar audiencia manda cada uno en sol[i][...] con su
+            // id y se guarda cada uno con lo suyo. Antes los campos no eran arreglo:
+            // con varios solicitantes sólo llegaba el último (y se copiaba a todos).
+            $solicitantesForm = array_values(array_filter((array) ($data['sol'] ?? []), fn ($d) => is_array($d) && ! empty($d['id'])));
+            foreach ($solicitantesForm as $datosSol) {
+                $cambios = \App\Support\RevisionAudiencia::datosSolicitante($datosSol);
+                if ($cambios) {
+                    SeerSolicitante::where('id_solicitud', $id_solicitud)->where('id', (int) $datosSol['id'])->update($cambios);
+                }
             }
-            if (!empty($data["nss"])) {
-                $solicitanteUpdate['nss'] = $data["nss"];
-            }
-            if (!empty($data["rfc_solicitante"])) {
-                $solicitanteUpdate['rfc'] = $data["rfc_solicitante"];
-            }
-
-            // Sólo el solicitante que se editó (Revisar audiencia manda solicitante_id);
-            // antes sus datos se copiaban a todos los solicitantes de la solicitud.
-            SeerSolicitante::where('id_solicitud', $id_solicitud)
-                ->when(! empty($data['solicitante_id']), fn ($q) => $q->where('id', (int) $data['solicitante_id']))
-                ->update($solicitanteUpdate);
 
             // 5. PROCESAMIENTO DE CITADOS
             $audienciaId = $data['audiencia_id'] ?? null;
@@ -5264,11 +5222,13 @@ class SeerController extends Controller
             }
 
             // 6. Archivos adjuntos
-            if ($request->hasFile('indetificacion') && !empty($data['curp_solicitante'])) {
-                $documentoidentificacion = $data['curp_solicitante'] . '_Identificacion.pdf';
+            // La identificación que se reemplaza en Documentos es la del primer solicitante.
+            $principal = $solicitantesForm[0] ?? [];
+            if ($request->hasFile('indetificacion') && !empty($principal['curp_solicitante']) && !empty($principal['id'])) {
+                $documentoidentificacion = $principal['curp_solicitante'] . '_Identificacion.pdf';
                 Storage::disk('s3')->putFileAs('documentosSolicitud/' . $id_solicitud, $request->file('indetificacion'), $documentoidentificacion);
                 SeerSolicitante::where('id_solicitud', $id_solicitud)
-                    ->when(! empty($data['solicitante_id']), fn ($q) => $q->where('id', (int) $data['solicitante_id']))
+                    ->where('id', (int) $principal['id'])
                     ->update(['documentoIdentificacion' => $documentoidentificacion]);
             }
 
@@ -10188,12 +10148,14 @@ class SeerController extends Controller
         // Fase 2: tarjeta por citado y si se puede abrir cada sección con "Editar".
         $tarjetas = \App\Support\RevisionAudiencia::partes($general, $citados, $notificaciones);
         $puedeEditar = $edicionAbierta && $user->can('audiencias_guardar_edicion');
+        // Fase 3: representantes con sus datos y documentos (pestaña Documentos).
+        $representantes = \App\Support\RevisionAudiencia::representantes($general, $solicitantes, $citados, $audienciaCurrent);
 
         return view('audiencias.revisar_audiencia', compact(
             'id','general','solicitantes','citados','ramas','estados','municipios',
             'mostrarMotivos','motivos','conciliadores', 'isAudiencia','notificaciones',
             'historial_audiencias','datosIncompletos','citadosConMulta', 'ultimaEstatus', 'fecha_actual', 'audienciaCurrent',
-            'revision', 'edicionAbierta', 'tarjetas', 'puedeEditar'
+            'revision', 'edicionAbierta', 'tarjetas', 'puedeEditar', 'representantes'
         )); 
     }
 

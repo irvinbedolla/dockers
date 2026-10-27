@@ -87,13 +87,15 @@ class RevisionAudiencia
             }
         }
 
-        // Representante del solicitante (cuando solicita el patrón).
+        // Representante del solicitante (cuando solicita el patrón): el poder de
+        // la audiencia o, si no tiene, el del solicitante.
         if ((int) ($general->tipo_solicitud ?? 0) === 2) {
-            $poder = $audiencia?->poder_id ? Poder::find($audiencia->poder_id) : null;
+            $pid = self::poderSolicitante($general, $solicitantes->first(), $audiencia);
+            $poder = $pid ? Poder::find($pid) : null;
             if ($poder) {
-                $puntos = array_merge($puntos, self::poder($poder, 'Representante del solicitante', $fechaAudiencia, 'solicitante'));
+                $puntos = array_merge($puntos, self::poder($poder, 'Representante del solicitante', $fechaAudiencia, 'citados'));
             } else {
-                $puntos[] = self::punto('aviso', 'Representante del solicitante', 'La audiencia no tiene un poder registrado para el solicitante.', 'solicitante');
+                $puntos[] = self::punto('aviso', 'Representante del solicitante', 'La audiencia no tiene un poder registrado para el solicitante.', 'citados');
             }
         }
 
@@ -213,6 +215,180 @@ class RevisionAudiencia
         }
 
         return $tarjetas;
+    }
+
+    // ------------------------------------------------------------------
+
+    /**
+     * Poder que lleva al solicitante: el de la audiencia que se revisa (cada
+     * audiencia puede venir con otro representante) o, si no tiene, el que
+     * quedó en el solicitante.
+     */
+    public static function poderSolicitante(object $general, ?object $solicitante, ?object $audiencia): ?int
+    {
+        if ((int) ($general->tipo_solicitud ?? 0) === 2 && ! empty($audiencia?->poder_id)) {
+            return (int) $audiencia->poder_id;
+        }
+
+        return ! empty($solicitante?->poder_id) ? (int) $solicitante->poder_id : null;
+    }
+
+    /**
+     * Representantes del caso para la pestaña Documentos: uno por poder (si el
+     * mismo poder lleva a varias partes, se juntan), con sus datos y los PDF
+     * que tiene cargados. Solicitante: su poder (ver poderSolicitante);
+     * citados: el representante registrado (sólo cuando solicita el
+     * trabajador, igual que la lista de revisión).
+     */
+    public static function representantes(object $general, Collection $solicitantes, Collection $citados, ?object $audiencia): array
+    {
+        $partes = [];
+        foreach ($solicitantes as $s) {
+            if ($pid = self::poderSolicitante($general, $s, $audiencia)) {
+                $partes[$pid][] = 'Solicitante: '.self::nombre((string) ($s->nombre ?? ''));
+            }
+        }
+        if ((int) ($general->tipo_solicitud ?? 0) === 1) {
+            foreach ($citados as $c) {
+                if (($c->tipo_notificacion ?? null) !== 'Multa' && ! empty($c->id_abogado) && is_numeric($c->id_abogado)) {
+                    $partes[(int) $c->id_abogado][] = 'Citado: '.self::nombre(trim(($c->nombre ?? '').' '.($c->primer_apellido ?? '').' '.($c->segundo_apellido ?? '')));
+                }
+            }
+        }
+        if (! $partes) {
+            return [];
+        }
+
+        $poderes = Poder::whereIn('idAbogado', array_keys($partes))->get()->keyBy('idAbogado');
+        $hoy = today();
+        $lista = [];
+        foreach ($partes as $pid => $quienes) {
+            $p = $poderes->get($pid);
+            if (! $p) {
+                $lista[] = ['folio' => $pid, 'partes' => array_values(array_unique($quienes)), 'falta' => true];
+                continue;
+            }
+
+            $moral = ($p->tipo ?? '') === 'Moral';
+            $conRep = ($p->reprecentante ?? 'Si') !== 'No';
+            $otorga = $moral
+                ? trim((string) $p->nombres_patronal)
+                : trim(preg_replace('/\s+/', ' ', ($p->nombres_patronal ?? '').' '.($p->primer_apellido_patronal ?? '').' '.($p->segundo_apellido_patronal ?? '')));
+            $rep = trim(preg_replace('/\s+/', ' ', ($p->nombre_representante ?? '').' '.($p->primer_apellido_representante ?? '').' '.($p->segundo_apellido_representante ?? '')));
+            $vencido = $p->fechaVigencia && Carbon::parse($p->fechaVigencia)->lt($hoy);
+
+            $docs = [
+                [$moral ? 'Acta constitutiva' : 'Identificación del empleador', $p->ineDocumento],
+            ];
+            if ($conRep) {
+                $docs[] = ['Identificación del representante', $p->representacionDocumento];
+                $docs[] = ['Documento que acredita la personería', $p->cedulaDocumento];
+            }
+            $docs[] = ['Anexo', $p->anexo_documeto === 'Sin anexo' ? null : $p->anexo_documeto];
+
+            $lista[] = [
+                'folio'          => $p->idAbogado,
+                'partes'         => array_values(array_unique($quienes)),
+                'falta'          => false,
+                'tipo'           => $moral ? 'Persona moral' : 'Persona física',
+                'otorga'         => $otorga !== '' ? $otorga : 'Sin nombre',
+                'conRep'         => $conRep,
+                'representante'  => $conRep ? ($rep !== '' ? Str::title(mb_strtolower($rep)) : 'Sin nombre') : null,
+                'curp'           => $conRep ? ($p->curp_representante ?: null) : ($p->curp_patronal ?: null),
+                'correo'         => $conRep ? ($p->correo_representante ?: null) : ($p->email_patronal ?: null),
+                'telefono'       => $conRep ? ($p->numero_representante ?: null) : ($p->telefono_patronal ?: null),
+                'identificacion' => trim(($p->tipo_identificacion ?? '').' '.($p->num_identificacion ?? '')) ?: null,
+                'documento'      => $conRep ? ($p->tipo_documento_representante ?: null) : null,
+                'expedicion'     => $p->fechaRegistro ? Carbon::parse($p->fechaRegistro)->format('d/m/Y') : null,
+                'vigencia'       => $p->fechaVigencia ? Carbon::parse($p->fechaVigencia)->format('d/m/Y') : 'Sin fecha',
+                'descripcion'    => trim((string) $p->descipcion_poder) ?: null,
+                'estado'         => $vencido
+                    ? ['texto' => 'Poder vencido', 'nivel' => 'falta']
+                    : (($p->estatus ?? '') === 'Validado' ? ['texto' => 'Poder validado', 'nivel' => 'ok'] : ['texto' => 'Poder sin validar', 'nivel' => 'aviso']),
+                'sinIdentificacion' => trim((string) $p->tipo_identificacion) === '',
+                'docs'           => array_map(fn ($d) => [
+                    'nombre' => $d[0],
+                    'url'    => self::documentoPoder($p->idAbogado, $d[1]),
+                ], $docs),
+            ];
+        }
+
+        return $lista;
+    }
+
+    /** Liga firmada a un PDF del poder (la misma que usa Poderes); null si no hay archivo. */
+    private static function documentoPoder($idAbogado, $archivo): ?string
+    {
+        $archivo = trim((string) $archivo);
+        if ($archivo === '' || ! function_exists('signedDocRoute') || ! Route::has('documentos.ver')) {
+            return null;
+        }
+
+        return signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $idAbogado, 'archivo' => $archivo]);
+    }
+
+    /** Campo del formulario (sol[i][campo]) => columna de seer_solicitante. */
+    private const CAMPOS_SOLICITANTE = [
+        'curp_solicitante'             => 'curp',
+        'nombre_solicitante'           => 'nombre',
+        'sexo_solicitante'             => 'sexo',
+        'nacionalidad_solicitante'     => 'nacionalidad',
+        'email_solicitante'            => 'email',
+        'fecha_nacimiento_solicitante' => 'fecha_nacimiento',
+        'edad_solicitante'             => 'edad',
+        'telefono1_solicitante'        => 'telefono1',
+        'telefono2_solicitante'        => 'telefono2',
+        'rfc_solicitante'              => 'rfc',
+        'traductor_solicitante'        => 'traductor',
+        'lenguaje_solicitante'         => 'lenguaje',
+        'discapacidad_solicitante'     => 'discapacidad',
+        'disc_solicitante'             => 'tipo_discapacidad',
+        'tipo_vialidad'                => 'tipo_vialidad',
+        'calle_solicitante'            => 'calle',
+        'num_ext_solicitante'          => 'num_ext',
+        'num_int_solicitante'          => 'num_int',
+        'codigo_postal_solicitante'    => 'codigo_postal',
+        'referencia_solicitante'       => 'referencia',
+        'colonia_solicitante'          => 'colonia',
+        'calle2_solicitante'           => 'calle2',
+        'calle3_solicitante'           => 'calle3',
+        'municipio_solicitante'        => 'municipio_domicilio',
+        'estado_solicitante'           => 'estado_domicilio',
+        'nss'                          => 'nss',
+        'puesto'                       => 'puesto',
+        'pago'                         => 'pago',
+        'periodo_pago'                 => 'periodo_pago',
+        'fecha_ingreso'                => 'fecha_ingreso',
+        'fecha_salida'                 => 'fecha_salida',
+        'jornada'                      => 'jornada',
+        'horas_semana'                 => 'horas_semana',
+        'descripcionSolicitud'         => 'descripcionSolicitud',
+        'labora'                       => 'labora',
+    ];
+
+    /** Como antes: sólo se guardan si traen valor (no se borran desde aquí). */
+    private const SOLO_CON_VALOR = ['telefono2_solicitante', 'nss', 'rfc_solicitante'];
+
+    /**
+     * Lo que se actualiza de un solicitante con lo que mandó Revisar audiencia
+     * (sol[i][...]). Sólo los campos que vinieron en el formulario: si una
+     * sección no los trae, no se tocan (antes se ponían en null).
+     */
+    public static function datosSolicitante(array $d): array
+    {
+        $datos = [];
+        foreach (self::CAMPOS_SOLICITANTE as $campo => $columna) {
+            if (! array_key_exists($campo, $d) || is_array($d[$campo])) {
+                continue;
+            }
+            $valor = $d[$campo] === '' ? null : $d[$campo];
+            if ($valor === null && in_array($campo, self::SOLO_CON_VALOR, true)) {
+                continue;
+            }
+            $datos[$columna] = $valor;
+        }
+
+        return $datos;
     }
 
     /** Cómo va la notificación de un citado y el PDF que la ampara (lo mismo que la pestaña Documentos). */
