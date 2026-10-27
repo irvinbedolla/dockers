@@ -287,6 +287,8 @@ class EstadisticasTurnos
 
         return DB::table('recepcion as r')
             ->whereBetween('r.fecha', [$f['desde'], $f['hasta']])
+            // Una cancelada no cuenta: ni se atendió ni faltó, y su horario lo pudo tomar alguien más.
+            ->where('r.estatus', '!=', 'cancelada')
             ->when($sedes, fn ($q) => $q->whereIn('r.delegacion', array_values(array_unique($sedes))))
             ->when($f['tipo'] !== '', fn ($q) => $q->where('r.tipo', $f['tipo']))
             ->when($f['origen'] === 'linea', fn ($q) => $q->where('r.origen', 'linea'))

@@ -51,6 +51,7 @@ class AgendaTurnos
         'confirmada' => 'Llegó',
         'atendido'   => 'Atendido',
         'expirada'   => 'No llegó',
+        'cancelada'  => 'Cancelada',
     ];
 
     /** Color de fondo y de letra de cada estatus (Excel, PDF e imagen). */
@@ -59,6 +60,7 @@ class AgendaTurnos
         'confirmada' => ['#E3EEF9', '#1F4E79'],
         'atendido'   => ['#E5F3EA', '#1E7B3C'],
         'expirada'   => ['#F1F1F1', '#6B6B6B'],
+        'cancelada'  => ['#FBE4E6', '#A3162E'],
     ];
 
     public const COLOR_EXCEPCION = '#F6E4EA';

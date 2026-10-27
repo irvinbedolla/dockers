@@ -412,6 +412,9 @@ class SeguimientoCaso
         if ($c->estatus === 'expirada') {
             $eventos->push(self::evento('cita', $fecha.' '.$c->hora, 'No se presentó a su cita', 'La cita quedó expirada.', 'person-x', 'alerta', 7));
         }
+        if ($c->estatus === 'cancelada') {
+            $eventos->push(self::evento('cita', $fecha.' '.$c->hora, 'Su cita fue cancelada', 'Se canceló desde Administración.', 'calendar2-x', 'alerta', 7));
+        }
     }
 
     /**
