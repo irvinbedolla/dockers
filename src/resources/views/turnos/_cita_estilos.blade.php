@@ -162,6 +162,10 @@
             font-size: 13.5px;
         }
 
+        .gc-privacidad { max-width: 620px; margin: 4px auto 14px; padding: 12px 14px; border: 1px solid #E3E8E8; border-radius: 12px; background: #F7F9F9; font-size: 14px; }
+        .gc-privacidad .form-check { margin: 0; }
+        .gc-privacidad .form-check-input { width: 1.2em; height: 1.2em; margin-top: .15em; }
+        .gc-privacidad a { font-weight: 700; }
         .gc-enviar { text-align: center; padding-top: 6px; }
         .gc-enviar__boton { min-width: 260px; padding: 14px 28px; font-size: 18px; font-weight: 700; border-radius: 12px; }
         .gc-enviar__nota { margin: 10px auto 0; max-width: 520px; color: #6C7A7B; font-size: 13.5px; }
