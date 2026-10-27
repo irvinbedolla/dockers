@@ -1,89 +1,81 @@
 @extends('layouts.app')
 @section('title', 'Revisar Audiencia')
 
-<style>
-    /* Style the tab */
-    .tab {
-        overflow: hidden;
-        border: 1px solid #ccc;
-        background-color: #f1f1f1;
-    }
-    
-    /* Style the buttons that are used to open the tab content */
-    .tab button {
-        background-color: inherit;documentos.ver
-        float: left;
-        border: none;
-        outline: none;
-        cursor: pointer;
-        padding: 14px 16px;
-        transition: 0.3s;
-    }
-    
-    /* Change background color of buttons on hover */
-    .tab button:hover {
-        background-color: #ddd;
-    }
-    
-    /* Create an active/current tablink class */
-    .tab button.active {
-        background-color: #ccc;
-    }
-    
-    /* Style the tab content */
-    .tabcontent {
-        display: none;
-        padding: 6px 12px;
-        border: 1px solid #ccc;
-        border-top: none;
-    }
+@section('page_css')
+    <style>
+        /* Revisar audiencia (Fase 1): encabezado fijo, lista de revisión y pestañas. */
+        .ra-hueco { height: 0; }
+        .ra-barra {
+            display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px 16px;
+            background: #fff; border: 1px solid #E3E8E8; border-left: 4px solid #CEA845; border-radius: 12px;
+            padding: 12px 16px; margin-bottom: 14px; z-index: 900;
+        }
+        .ra-barra.is-fija { position: fixed; box-shadow: 0 6px 18px rgba(46, 60, 61, .14); border-radius: 0 0 12px 12px; }
+        .ra-barra__caso { min-width: 0; }
+        .ra-barra__titulo { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; }
+        .ra-barra__titulo b { font-size: 18px; color: #2E3C3D; }
+        .ra-barra__datos { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 4px; font-size: 13px; color: #5E6E6F; }
+        .ra-barra__datos i { color: #829A9C; margin-right: 3px; }
+        .ra-chip { display: inline-block; padding: 2px 10px; border-radius: 999px; background: #EEF2F2; color: #496163; font-size: 12px; font-weight: 700; white-space: nowrap; }
+        .ra-chip--caso { background: #F4F1E6; color: #7A5D10; }
+        .ra-chip--audiencia { background: #E3EEF9; color: #1F4E79; }
+        .ra-chip--cerrado { background: #F1F1F1; color: #6B6B6B; }
+        .ra-acciones { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        .ra-acciones .btn { border-radius: 10px; font-weight: 700; }
+        .ra-nota-acciones { width: 100%; text-align: right; font-size: 12px; color: #8A9899; margin-top: -8px; }
+        .ra-barra.is-fija .ra-barra__datos { display: none; }
 
-    body {font-family: Arial;}
+        .ra-lista { background: #fff; border: 1px solid #E3E8E8; border-radius: 12px; margin-bottom: 16px; }
+        .ra-lista > summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; padding: 12px 16px; }
+        .ra-lista > summary::-webkit-details-marker { display: none; }
+        .ra-lista__titulo { font-size: 15px; font-weight: 800; color: #2E3C3D; }
+        .ra-lista.is-lista .ra-lista__titulo { color: #1E7B3C; }
+        .ra-lista__cuentas { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+        .ra-lista__ver { font-size: 12px; color: #496163; font-weight: 700; margin-left: 4px; }
+        .ra-lista[open] .ra-lista__ver::after { content: ' ▲'; }
+        .ra-lista:not([open]) .ra-lista__ver::after { content: ' ▼'; }
+        .ra-cuenta { padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+        .ra-cuenta--falta { background: #FBEDEA; color: #9A3A22; }
+        .ra-cuenta--aviso { background: #FBF4E1; color: #7A5D10; }
+        .ra-cuenta--ok { background: #E9F5EE; color: #1E7B3C; }
+        .ra-puntos { list-style: none; margin: 0; padding: 0 16px 8px; border-top: 1px solid #EEF2F2; }
+        .ra-punto { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid #F3F5F5; font-size: 13.5px; color: #3E4C4D; }
+        .ra-punto:last-child { border-bottom: 0; }
+        .ra-punto > i { font-size: 16px; margin-top: 1px; }
+        .ra-punto--falta > i { color: #C0392B; }
+        .ra-punto--aviso > i { color: #D9A93A; }
+        .ra-punto--ok > i { color: #1E7B3C; }
+        .ra-punto--info > i { color: #5B7DB1; }
+        .ra-punto__texto { flex: 1 1 auto; min-width: 0; }
+        .ra-punto__texto b { color: #2E3C3D; margin-right: 4px; }
+        .ra-ir { font-size: 12px; font-weight: 700; color: #496163; white-space: nowrap; text-decoration: none; }
+        .ra-ir:hover { color: #2E3C3D; text-decoration: underline; }
+        .ra-llegadas { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; padding: 10px 16px 14px; border-top: 1px solid #EEF2F2; font-size: 13px; }
+        .ra-llegadas__titulo { width: 100%; font-weight: 800; color: #2E3C3D; }
+        .ra-llegadas__vacio { color: #8A9899; }
+        .ra-llego { padding: 3px 10px; border-radius: 999px; background: #E9F5EE; color: #1E7B3C; font-weight: 700; }
+        .ra-llego small { color: #4F7F5F; font-weight: 400; }
+        .ra-obs { padding: 3px 10px; border-radius: 999px; background: #FBEDEA; color: #8C1D40; font-weight: 700; }
 
-    /* Style the tab */
-    .tab {
-        overflow: hidden;
-        border: 1px solid #ccc;
-        background-color: #f1f1f1;
-    }
+        /* Pestañas: ahora se marca la que está abierta. */
+        .tab { display: flex; flex-wrap: wrap; gap: 6px; border: 0; background: transparent; overflow: visible; }
+        .tab a.ra-tab { border-radius: 10px 10px 0 0; border: 1px solid #D5DDDD; border-bottom: 0; background: #F1F4F4; color: #496163; font-weight: 700; padding: 8px 16px; }
+        .tab a.ra-tab:hover { background: #E3EAEA; color: #2E3C3D; }
+        .tab a.ra-tab.active { background: #354647; border-color: #354647; color: #fff; }
+        .tabcontent { display: none; padding: 12px 14px; border: 1px solid #D5DDDD; border-radius: 0 12px 12px 12px; scroll-margin-top: 170px; }
 
-    /* Style the buttons inside the tab */
-    .tab button {
-        background-color: inherit;
-        float: left;
-        border: none;
-        outline: none;
-        cursor: pointer;
-        padding: 14px 16px;
-        transition: 0.3s;
-        font-size: 17px;
-    }
+        .was-validated .form-control:invalid ~ .invalid-feedback,
+        .was-validated select.form-control:invalid ~ .invalid-feedback,
+        .was-validated .form-select:invalid ~ .invalid-feedback {
+            display: block;
+        }
 
-    /* Change background color of buttons on hover */
-    .tab button:hover {
-    background-color: #ddd;
-    }
-
-    /* Create an active/current tablink class */
-    .tab button.active {
-        background-color: #ccc;
-    }
-
-    /* Style the tab content */
-    .tabcontent {
-        display: none;
-        padding: 6px 12px;
-        border: 1px solid #ccc;
-        border-top: none;
-    }
-
-    .was-validated .form-control:invalid ~ .invalid-feedback,
-    .was-validated select.form-control:invalid ~ .invalid-feedback,
-    .was-validated .form-select:invalid ~ .invalid-feedback {
-        display: block;
-    }
-
-</style>
+        @media (max-width: 768px) {
+            .ra-barra.is-fija .ra-barra__titulo .ra-chip { display: none; }
+            .ra-acciones .btn { padding: 6px 10px; font-size: 13px; }
+        }
+    </style>
+@endsection
 
 @section('content')
     <section class="section">
@@ -133,12 +125,16 @@
                                     <input type="hidden" name="isAudiencia" value="1">
                                     <input type="hidden" name="esAudiencia" value="{{ $isAudiencia }}">
                                     <input type="hidden" name="audiencia_id" value="{{ request()->query('audiencia_id') }}">
+
+                                    @include('audiencias._revisar_encabezado')
+                                    @include('audiencias._revisar_lista')
+
+                                    {{-- Las acciones ya no son pestaña: están en el encabezado. Los id de "Citado(s)" y "Documentos" están cruzados desde antes; se dejan así. --}}
                                     <div class="tab">
-                                        <a class="btn btn-info" onclick="openCity(event, 'detalles')">Detalles</a>
-                                        <a class="btn btn-info" onclick="openCity(event, 'solicitante')">Solicitante</a>
-                                        <a class="btn btn-info" onclick="openCity(event, 'documentos')">Citado(s)</a>
-                                        <a class="btn btn-info" onclick="openCity(event, 'citados')">Documentos</a>
-                                        <a class="btn btn-success" onclick="openCity(event, 'confirmacion')">Acciones</a>
+                                        <a class="btn ra-tab tablinks" onclick="openCity(event, 'detalles')">Detalles</a>
+                                        <a class="btn ra-tab tablinks" onclick="openCity(event, 'solicitante')">Solicitante</a>
+                                        <a class="btn ra-tab tablinks" onclick="openCity(event, 'documentos')">Citado(s)</a>
+                                        <a class="btn ra-tab tablinks" onclick="openCity(event, 'citados')">Documentos</a>
                                     </div>
 
                                     <div id="detalles" class="tabcontent">
@@ -881,7 +877,7 @@
                                     <div id="documentos" class="tabcontent">
                                         <div id="tabla_documentos" class="row">
                                             
-                                            @if((($general->estatus !== "Conciliacion") || ($general->estatus !== "No conciliacion") || ($general->estatus !== "Archivada")) && $general->tipo_solicitud == 1)
+                                            @if($edicionAbierta && $general->tipo_solicitud == 1)
                                                 @can('audiencias_borrar_citados')
                                                     <div class="col-xs-12 col-sm-12 col-md-12"><br>
                                                         <a type="button" class="btn btn-warning open-modal mb-3" data-bs-toggle="modal" 
@@ -910,7 +906,7 @@
                                                 
                                                 <div class="col-xs-12 col-sm-12 col-md-12">
                                                     <div class="form-group mt-3">
-                                                        <h4 class="text-center">Dirección del citado</h4>
+                                                        <h4 class="text-center">Datos del citado</h4>
                                                     </div>
                                                 </div>
                                                 
@@ -1425,7 +1421,7 @@
                                                                         <label>Notificación</label><br>
                                                                         @if($notificado)
                                                                             @if($notificado->notificacion === "Trabajador")
-                                                                                <a class="btn btn-secondary btn-xs" disabled>Visualizar</a>
+                                                                                <span class="btn btn-secondary btn-xs disabled" aria-disabled="true">Visualizar</span>
                                                                             @elseif($notificado->estatus === "No exitosa se constituye")
                                                                                 <a class="btn btn-success btn-xs" href="{{ route('VerPDFNoExitConstituye', ['id' => $citado->id, 'id_solicitud' => $citado->id_solicitud]) }}" target="_blank">Visualizar</a>
                                                                             @elseif($notificado->estatus === "Finalizado exitosamente" || $notificado->estatus === "Recibe pero no firma")
@@ -1435,10 +1431,10 @@
                                                                             @elseif($notificado->estatus === "No exitosa no se constituye")
                                                                                 <a class="btn btn-success btn-xs" href="{{ route('PDFnotificadoNoexitosaNS', ['id' => $citado->id, 'id_solicitud' => $citado->id_solicitud]) }}" target="_blank">Visualizar</a>
                                                                             @else
-                                                                                <a class="btn btn-secondary btn-xs" disabled>Visualizar</a>
+                                                                                <span class="btn btn-secondary btn-xs disabled" aria-disabled="true">Visualizar</span>
                                                                             @endif
                                                                         @else
-                                                                            <a class="btn btn-secondary btn-xs" disabled>Visualizar</a>
+                                                                            <span class="btn btn-secondary btn-xs disabled" aria-disabled="true">Visualizar</span>
                                                                         @endif
                                                                     </div>
                                                                 </div>
@@ -1520,7 +1516,7 @@
                                                     <div class="col-sm-1">
                                                         <label>Notificación</label><br>
                                                         @if($notificado->notificacion === "Trabajador")
-                                                            <a class="btn btn-secondary" disabled>Visualizar</a>
+                                                            <span class="btn btn-secondary disabled" aria-disabled="true">Visualizar</span>
 
                                                         {{-- No exitosa se constituye --}}
                                                         {{--@elseif($notificado->estatus === "No exitosa se constituye")
@@ -1539,7 +1535,7 @@
                                                             <a class="btn btn-success" href="{{ route('PDFNoExitosaInt', ['id' => $citado->id, 'id_solicitud' => $citado->id_solicitud]) }}"target="_blank">Visualizar</a>
                                                         
                                                         @else
-                                                            <a class="btn btn-secondary" disabled>Visualizar</a>
+                                                            <span class="btn btn-secondary disabled" aria-disabled="true">Visualizar</span>
                                                         @endif
                                                     </div>
                                                   
@@ -1702,83 +1698,11 @@
                                             @endforeach--}}
                                             
                                             <!--div class="col-xs-12 col-sm-12 col-md-12">
-                                                @if(($general->estatus !== "Conciliacion") || ($general->estatus !== "No conciliacion") || ($general->estatus !== "Archivada"))
+                                                @if($edicionAbierta)
                                                     <button type="submit" class="btn btn-primary" style="background-color:#CEA845; border-color:#CEA845;">Guardar</button>
                                                 @endif
                                                 <a href="{{ route('todas_audiencias') }}" class="btn btn-primary" style="background-color:#CEA845; border-color:#CEA845;">Regresar</a>
                                             </!--div-->
-                                        </div>
-                                    </div>
-                                    <div id="confirmacion" class="tabcontent">
-                                        <div id="tabla_confirmar" class="row">
-                                            <div class="col-xs-12 col-sm-12 col-md-12"><br>
-                                                @php
-                                                    $citadosCount = isset($citados)
-                                                        ? (is_countable($citados) ? count($citados) : (method_exists($citados, 'count') ? $citados->count() : 0))
-                                                        : 0;
-                                                @endphp
-                                                @can('audiencias_guardar_edicion')
-                                                    @if(($general->estatus !== "Conciliacion") || ($general->estatus !== "No conciliacion") || ($general->estatus !== "Archivada"))
-                                                        @if($citadosCount > 0)
-
-                                                            @if($isAudiencia == 'No' && $general->estatus == 'Pendiente')
-                                                                <button type="submit" class="btn btn-primary" name="toquen" value="1">Guardar Edición</button>
-                                                            @elseif($fecha_actual->isSameDay($general->fecha_confirmacion) && auth()->user()->hasAnyRole(['Auxiliar', 'Orientador']))
-                                                            
-                                                                @hasanyrole('Auxiliar|Orientador')
-                                                                    <button type="submit" class="btn btn-primary" name="toquen" value="1">Guardar Edición</button>
-                                                                @endhasanyrole
-                                                            @elseif($isAudiencia == 'Si' && auth()->user()->hasRole('Conciliador'))
-                                                                <button type="submit" class="btn btn-primary" name="toquen" value="1">Guardar Edición</button>
-                                                            @else
-                                                                @auth
-                                                                    @hasanyrole('Enlace|Super Usuario|Orientador')
-                                                                        <button type="submit" class="btn btn-primary" name="toquen" value="1">Guardar Edición</button>
-                                                                        {{--@if(in_array($general->estatus, ["No conciliacion", "Conciliacion", "Reinstalacion"])
-                                                                            && $isAudiencia != 'Si')
-                                                                            @hasanyrole('Enlace|Conciliador|Super Usuario')
-                                                                                @if(auth()->user()->hasAnyRole(['Super Usuario']) || Carbon\Carbon::today()->equalTo(\Carbon\Carbon::parse($general->fecha_confirmacion)))
-                                                                                    <a class="btn btn-danger"
-                                                                                        href="{{ route('edicion_solConcluida', ['id' => $general->id, 'audiencia_id' => $audiencia->id]) }}" target="_blank">
-                                                                                        Editar finalización de audiencia
-                                                                                    </a>
-                                                                                @endif
-                                                                            @endhasanyrole
-                                                                        @endif--}}
-                                                                    @endhasanyrole
-                                                                @endauth
-                                                            @endif
-
-                                                            @if( $isAudiencia == 'Si' && $ultimaEstatus == 'Pendiente' && auth()->user()->hasRole('Conciliador'))
-                                                                <button type="submit" class="btn btn-success" name="toquen" value="iniciar_audiencia"> Guardar e Iniciar Audiencia </button>
-                                                                {{--<a class="btn btn-success" href="{{ route('inicioAudiencia', $audiencia->id_solicitud, 'Confirmado') }}" value="1">Guardar e Iniciar Audiencia</button>--}}
-                                                            @endif
-                                                        @else
-                                                            <button type="button" class="btn btn-secondary" disabled title="Agregue al menos un citado para poder guardar."  name="toquen" value="1">Guardar Edición</button>
-                                                            <div class="text-muted mt-2">Debe agregar al menos un citado para poder guardar.</div>
-                                                        @endif
-                                                    @endif
-                                                    @if( $isAudiencia == 'Si')
-                                                    <a type="button" class="btn btn-primary" style="background-color:#CEA845; border-color:#CEA845;" href="{{ route('cancelar_edicion', ['redirect_to' => 'todas_audiencias']) }}"> Regresar </a>
-                                                        @auth
-                                                            @hasanyrole('Enlace|Super Usuario|Conciliador')                                                               
-                                                                @if(in_array($audienciaCurrent->estatus, ["No conciliacion", "Conciliacion", "Reinstalacion"]) && $isAudiencia == 'Si')                                                                    
-                                                                        @if(auth()->user()->hasAnyRole(['Super Usuario']) || Carbon\Carbon::today()->equalTo(\Carbon\Carbon::parse($general->fecha_terminacion)))
-                                                                            <a class="btn btn-danger"
-                                                                                href="{{ route('edicion_audienciaConcluida', ['id' => $general->id, 'audiencia_id' => $audiencia->id]) }}" target="_blank">
-                                                                                Editar finalización de audiencia
-                                                                            </a>
-                                                                        @endif
-                                                                @endif
-                                                            @endhasanyrole
-                                                        @endauth
-                                                    @else
-                                                
-                                                    <a type="button" class="btn btn-primary" style="background-color:#CEA845; border-color:#CEA845;" href="{{ route('cancelar_edicion', ['redirect_to' => 'todas_solicitudes']) }}"> Regresar </a>
-                                                    @endif
-                                                @endcan
-
-                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -1854,6 +1778,7 @@
 @endsection
 
 
+@push('modals')
 <!-- Modal -->
 <div class="modal fade" id="exampleModal1" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
     <form class='needs-validation novalidate' method='POST' action="{{route('agregar_citado_edicion')}}" enctype="multipart/form-data">
@@ -2196,7 +2121,7 @@
                                     @else
                                     <td>{{$citado->notificacion}}</td>
                                     @endif
-                                    <td>{{$citado->colonia}}." ".{{$citado->calle}}</td>
+                                    <td>{{ $citado->colonia }} {{ $citado->calle }}</td>
                                     <td>
                                         <form method="POST" action="{{ route('borrar_citado_edicion') }} ">
                                             @csrf
@@ -2223,7 +2148,7 @@
     <div>.</div>
     <div class="loader"></div>
 </div>
-
+@endpush
 
 @section('scripts')
 
@@ -2628,6 +2553,59 @@
             })()
         });
         // FIN Función para convertir todo el texto a mayúsculas
+    </script>
+    <script>
+        // Revisar audiencia (Fase 1): pestaña abierta al entrar, enlaces de la
+        // lista a su pestaña y encabezado fijo al bajar.
+        document.addEventListener('DOMContentLoaded', function () {
+            function abrir(id) {
+                var boton = document.querySelector('.tab a[onclick*="\'' + id + '\'"]');
+                if (boton) { boton.click(); }
+            }
+            // Antes no se abría ninguna pestaña: la página se veía vacía.
+            abrir('detalles');
+
+            document.querySelectorAll('.ra-ir').forEach(function (enlace) {
+                enlace.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    var id = enlace.getAttribute('data-pestana');
+                    abrir(id);
+                    var destino = document.getElementById(id);
+                    if (destino) { destino.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+                });
+            });
+
+            // El layout tiene overflow-x: hidden, así que position: sticky no
+            // funciona: al pasar el encabezado se fija con JS en su lugar.
+            var barra = document.getElementById('raBarra');
+            var hueco = document.querySelector('.ra-hueco');
+            if (!barra || !hueco || !('IntersectionObserver' in window)) { return; }
+            var nav = document.querySelector('.main-navbar');
+            var arriba = function () { return nav ? Math.max(0, nav.getBoundingClientRect().bottom) : 0; };
+
+            function acomodar() {
+                if (!barra.classList.contains('is-fija')) { return; }
+                var r = hueco.getBoundingClientRect();
+                barra.style.top = arriba() + 'px';
+                barra.style.left = r.left + 'px';
+                barra.style.width = r.width + 'px';
+            }
+
+            var observador = new IntersectionObserver(function (entradas) {
+                var fuera = !entradas[0].isIntersecting && entradas[0].boundingClientRect.top < arriba();
+                if (fuera && !barra.classList.contains('is-fija')) {
+                    hueco.style.height = barra.offsetHeight + 'px';
+                    barra.classList.add('is-fija');
+                    acomodar();
+                } else if (!fuera && barra.classList.contains('is-fija')) {
+                    barra.classList.remove('is-fija');
+                    barra.style.top = barra.style.left = barra.style.width = '';
+                    hueco.style.height = '0px';
+                }
+            }, { rootMargin: '-' + Math.round(arriba()) + 'px 0px 0px 0px', threshold: 0 });
+            observador.observe(hueco);
+            window.addEventListener('resize', acomodar);
+        });
     </script>
 @endsection
 
