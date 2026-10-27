@@ -299,6 +299,10 @@ class EstadisticasController extends Controller
             'porUsuario' => BitacoraIncidencias::porUsuario($desde, $hasta, $f),
             'porSede'    => $f['sede'] ? [] : BitacoraIncidencias::porSede($desde, $hasta, $f),
             'registro'   => BitacoraIncidencias::registro($desde, $hasta, $f),
+            // Sección Poderes: sólo los cambios a poderes, con su propia paginación.
+            'poderes'    => in_array($f['area'], ['', 'poder'], true) && \App\Support\HistorialPoderes::conAccion()
+                ? BitacoraIncidencias::registro($desde, $hasta, array_merge($f, ['area' => 'poder']), 15, 'pp')
+                : null,
             'marcadas'   => BitacoraIncidencias::marcadas(),
         ]);
     }
@@ -317,7 +321,7 @@ class EstadisticasController extends Controller
             fputcsv($out, ['Fecha', 'Área', 'Movimiento', 'Expediente', 'Sede', 'Estatus antes', 'Estatus después', 'Cambios', 'Motivo', 'Lo hizo']);
             foreach ($filas as $r) {
                 fputcsv($out, [
-                    Carbon::parse($r->created_at)->format('Y-m-d H:i'),
+                    Carbon::parse($r->created_at)->format('Y-m-d H:i:s'),
                     BitacoraIncidencias::AREAS[$r->area] ?? $r->area,
                     BitacoraIncidencias::ACCIONES[$r->accion] ?? $r->accion,
                     $r->NUE,

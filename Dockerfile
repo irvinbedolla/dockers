@@ -27,9 +27,12 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
 
 # La imagen base no copia ningun php.ini, asi que upload_max_filesize se queda
 # en los 2M de fabrica y una foto de celular llega vacia sin marcar error.
+# 10M por archivo es lo que avisan los formularios; 45M por envio alcanza para
+# un poder de persona moral (acta, identificacion, poder y anexo, ~40M) sin que
+# PHP tire todo el envio. nginx ya acepta 100M (client_max_body_size).
 RUN { \
-      echo 'upload_max_filesize=8M'; \
-      echo 'post_max_size=12M'; \
+      echo 'upload_max_filesize=10M'; \
+      echo 'post_max_size=45M'; \
     } > /usr/local/etc/php/conf.d/subidas.ini
 
 # Obtener Composer desde la imagen oficial

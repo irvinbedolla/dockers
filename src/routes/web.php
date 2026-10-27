@@ -722,6 +722,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/poderes/edit/{id}',                                [PoderController::class, 'edit'])->name('poderes.edit');
         Route::get('/poderes/history/{id}',                             [PoderController::class, 'history'])->name('poderes.history');
         Route::get('/poderes/history/detail/{id}',                      [PoderController::class, 'historyDetail'])->name('poderes.historyDetail');
+        Route::get('/poderes/history/resumen/{id}',                     [PoderController::class, 'historialResumen'])->whereNumber('id')->name('poderes.historial.resumen');
         Route::post('/poderes/store',                                   [PoderController::class, 'store'])->name('poderes.store');
         Route::patch('/poderes/update/{post}',                          [PoderController::class, 'update'])->name('poderes.update');
         Route::delete('/poderes/destroy/{id}',                          [PoderController::class, 'destroy'])->name('poderes.destroy');
@@ -843,5 +844,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::get('/VerDcocumentos/{id}',                          [SeerController::class, 'VerDocumentosAudiencia'])->name('VerDocumentosAudiencia')->middleware('signed');
             Route::get('/documentos/solicitud/{id_solicitud}/{filename}', [SeerController::class, 'verImagenDocumento'])->name('documentos.ver_imagen')->middleware('signed');
             Route::get('/documento/identificacion-solicitante/{id}',    [SeerController::class, 'documento_identificacion_solicitante_ver'])->name('documento_identificacion_solicitante_ver')->middleware('signed');
-            Route::get('/documentos_ver/{tipo}/{id}/{archivo}',             [SeerController::class, 'verPDF'])->name('documentos.ver')->middleware('signed');
+            Route::get('/documentos_ver/{tipo}/{id}/{archivo}',             [SeerController::class, 'verPDF'])->name('documentos.ver')->middleware('signed')
+                ->where('archivo', '.+'); // hay nombres viejos con "/" (razón social con "Y/O")
 });
