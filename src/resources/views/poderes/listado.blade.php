@@ -21,6 +21,18 @@
 @section('page_css')
     @include('turnos._estilos')
     <style>
+        /* Modal "Historial de cambios" */
+        .hp-total { font-size: 12.5px; color: var(--tn-tenue); margin: 0 0 4px; }
+        .hp-evento { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--tn-borde); }
+        .hp-evento:last-child { border-bottom: 0; }
+        .hp-punto { width: 11px; height: 11px; border-radius: 50%; margin-top: 5px; flex: 0 0 auto; }
+        .hp-cuerpo { flex: 1 1 auto; min-width: 0; }
+        .hp-cab { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 2px 12px; }
+        .hp-accion { font-weight: 800; color: var(--tn-tinta); font-size: 14px; }
+        .hp-fecha { font-size: 12.5px; color: var(--tn-suave); font-variant-numeric: tabular-nums; white-space: nowrap; }
+        .hp-quien { font-size: 12.5px; color: var(--tn-tenue); }
+        .hp-cambios { margin: 6px 0 0; padding-left: 18px; font-size: 13px; color: var(--tn-suave); }
+        .hp-cambios li { margin-bottom: 2px; overflow-wrap: anywhere; }
         .rt-cifras { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; max-width: 640px; }
         .rt-cifra {
             display: flex; align-items: center; gap: 12px; padding: 14px 16px; text-decoration: none;
@@ -204,6 +216,7 @@
                                                 data-bs-toggle="modal"
                                                 data-bs-target="#modalExpedienteDigital"
                                                 data-abogado="{{ $poder->nombre_representante_combinado }}"
+                                                data-tipo="{{ $poder->tipo }}"
                                                 data-ine="{{ $poder->url_ine }}"
                                                 data-anexo="{{ $poder->url_anexo }}"
                                                 data-representacion="{{ $poder->url_representacion }}"
@@ -222,9 +235,13 @@
                                             @endcan
                                             @can('poderes_ver_historial')
                                                 @if ($esSuperUsuario)
-                                                    <a class="btn btn-outline-secondary btn-sm" href="{{ route('poderes.history', $poder->idAbogado) }}">
+                                                    <button type="button" class="btn btn-outline-secondary btn-sm"
+                                                        data-bs-toggle="modal" data-bs-target="#modalHistorialPoder"
+                                                        data-id="{{ $poder->idAbogado }}"
+                                                        data-nombre="{{ $poder->nombre_patronal_combinado }}"
+                                                        data-detalle="{{ route('poderes.history', $poder->idAbogado) }}">
                                                         <i class="bi bi-clock-history me-1"></i> Historial
-                                                    </a>
+                                                    </button>
                                                 @endif
                                             @endcan
                                             @can('poderes_agregar_representante')
@@ -481,12 +498,32 @@
                             <div id="wrapper_representacion"></div>
                         </li>
                         <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <span><i class="bi bi-card-heading text-primary"></i> Identificación Oficial</span>
+                            <span><i class="bi bi-card-heading text-primary"></i> <span id="etq_ine">Identificación Oficial</span></span>
                             <div id="wrapper_ine"></div>
                         </li>
                     </ul>
                 </div>
                 <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Historial de cambios del poder: resumen de cada movimiento (PoderController::historialResumen). --}}
+    <div class="modal fade" id="modalHistorialPoder" tabindex="-1" aria-labelledby="hpTitulo" aria-hidden="true" style="z-index: 1060;">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+            <div class="modal-content">
+                <div class="modal-header" style="background-color: #354647; color: white;">
+                    <div>
+                        <h5 class="modal-title" id="hpTitulo"><i class="bi bi-clock-history me-1"></i> Historial de cambios</h5>
+                        <small id="hpSub" style="color: #D6E0E0;"></small>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body" id="hpCuerpo"></div>
+                <div class="modal-footer">
+                    <a href="#" id="hpDetalle" class="btn btn-outline-secondary btn-sm me-auto" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right me-1"></i> Ver cada versión completa</a>
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
                 </div>
             </div>
@@ -504,6 +541,64 @@
 @section('scripts')
     <script src="{{ asset('assets/js/poderes/general.js') }}"></script>
     <script src="{{ asset('assets/js/poderes/limite_archivos.js') }}"></script>
+    <script>
+        // Historial: al abrir el modal se pide el resumen de cambios del folio.
+        (function () {
+            var modal = document.getElementById('modalHistorialPoder');
+            if (!modal) { return; }
+            document.body.appendChild(modal); // igual que el expediente: evita que la página se quede gris
+            var BASE = {!! json_encode(url('poderes/history/resumen')) !!};
+            var cuerpo = document.getElementById('hpCuerpo');
+            var sub = document.getElementById('hpSub');
+            var detalle = document.getElementById('hpDetalle');
+            var COLOR = { alta: '#496163', en_linea: '#829A9C', edicion: '#CEA845', validacion: '#1E7B3C', representante: '#5B7DB1', baja: '#B4532A' };
+            var pedido = 0;
+
+            function esc(t) {
+                return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) {
+                    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+                });
+            }
+
+            function pintar(d) {
+                if (!d.eventos || !d.eventos.length) {
+                    cuerpo.innerHTML = '<p class="text-center py-4 mb-0" style="color: var(--tn-tenue);">Este poder todavía no tiene movimientos registrados.</p>';
+                    return;
+                }
+                cuerpo.innerHTML =
+                    (d.borrado ? '<div class="alert alert-warning py-2">Este poder ya fue borrado; aquí queda lo que se le hizo.</div>' : '') +
+                    '<p class="hp-total">' + d.eventos.length + (d.eventos.length === 1 ? ' movimiento' : ' movimientos') + ', del más reciente al más antiguo</p>' +
+                    d.eventos.map(function (e) {
+                        return '<div class="hp-evento">' +
+                            '<span class="hp-punto" style="background:' + (COLOR[e.clave] || '#8A9899') + '"></span>' +
+                            '<div class="hp-cuerpo">' +
+                                '<div class="hp-cab"><span class="hp-accion">' + esc(e.accion) + '</span><span class="hp-fecha">' + esc(e.fecha) + '</span></div>' +
+                                '<div class="hp-quien"><i class="bi bi-person"></i> ' + esc(e.usuario) + '</div>' +
+                                '<ul class="hp-cambios">' + e.cambios.map(function (c) { return '<li>' + esc(c) + '</li>'; }).join('') + '</ul>' +
+                            '</div>' +
+                        '</div>';
+                    }).join('');
+            }
+
+            modal.addEventListener('show.bs.modal', function (evento) {
+                var boton = evento.relatedTarget;
+                if (!boton) { return; }
+                var id = boton.getAttribute('data-id');
+                var este = ++pedido;
+                sub.textContent = 'Folio ' + id + ' · ' + (boton.getAttribute('data-nombre') || '');
+                detalle.href = boton.getAttribute('data-detalle') || '#';
+                cuerpo.innerHTML = '<div class="text-center py-5" style="color: var(--tn-tenue);"><span class="spinner-border spinner-border-sm me-2"></span> Cargando el historial…</div>';
+                fetch(BASE + '/' + encodeURIComponent(id), { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
+                    .then(function (r) { if (!r.ok) { throw new Error(r.status); } return r.json(); })
+                    .then(function (d) { if (este === pedido) { pintar(d); } })
+                    .catch(function () {
+                        if (este === pedido) {
+                            cuerpo.innerHTML = '<div class="alert alert-warning mb-0">No se pudo cargar el historial. Intenta de nuevo.</div>';
+                        }
+                    });
+            });
+        })();
+    </script>
     <script>
         var exampleModal1 = document.getElementById('exampleModal1');
         if (exampleModal1) {
@@ -572,6 +667,8 @@
                 var registro = $(this).data('registro');
                 $('#expediente_nombre_abogado').text($(this).data('abogado'));
                 $('#wrapper_ine').html(buildLink($(this).data('ine')));
+                // En personas morales ese documento es el acta constitutiva.
+                $('#etq_ine').text($(this).data('tipo') === 'Moral' ? 'Acta Constitutiva' : 'Identificación Oficial del Empleador');
                 $('#wrapper_anexo').html(buildLink($(this).data('anexo')));
                 $('#wrapper_representacion').html(buildLink($(this).data('representacion')));
                 $('#wrapper_cartapoder').html(buildLink($(this).data('cartapoder')));
