@@ -252,13 +252,77 @@
         @endforeach
         @endif
 
+        {{-- Cada formulario contestado: quién y qué contestó --}}
+        @if (! empty($respuestas))
+            @php $mostrar = array_slice($respuestas, 0, 500); @endphp
+            <div class="tn-tarjeta ea-bloque" id="respuestas">
+                <div class="ea-cabeza">
+                    <div>
+                        <h4 class="ea-titulo">Formularios contestados</h4>
+                        <span class="ea-sub">Cada persona que contestó, con sus respuestas.{{ count($respuestas) > 500 ? ' Se muestran los 500 más recientes de '.number_format(count($respuestas)).'; el Excel trae todos.' : '' }}</span>
+                    </div>
+                    <input type="search" id="eaBuscar" class="form-control form-control-sm" style="max-width:280px" placeholder="Buscar nombre, folio o conciliador…" aria-label="Buscar en los formularios">
+                </div>
+                <div class="table-responsive ea-scroll">
+                    <table class="table table-hover ea-tabla ea-respuestas mb-0">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th><th>Folio</th><th>Contestó</th><th>Nombre</th><th>Sede</th><th>Conciliador(a)</th><th>Resolución</th>
+                                @foreach (AT::PREGUNTAS as $n => $p)<th class="text-center" title="{{ $p['texto'] }}">{{ $n }}. {{ $p['etapa'] }}</th>@endforeach
+                                <th>Comentarios</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($mostrar as $r)
+                                @php
+                                    $chip = function (int $n, ?string $v) {
+                                        if ($v === null) return 'ea-chip';
+                                        $malo = in_array($v, ['Mala', 'Malo', 'No'], true) || ($n === 7 && $v === 'Sí');
+                                        $bueno = in_array($v, ['Buena', 'Bueno', 'Sí'], true) && $n !== 7 || ($n === 7 && $v === 'No') || ($n === 5 && str_starts_with($v, 'Su trato'));
+                                        return 'ea-chip '.($malo ? 'ea-chip--malo' : ($bueno ? 'ea-chip--bueno' : 'ea-chip--medio'));
+                                    };
+                                @endphp
+                                <tr data-buscar="{{ mb_strtolower($r['nombre'].' '.$r['folio'].' '.$r['conciliador'].' '.$r['sede']) }}">
+                                    <td>{{ $r['fecha'] }}</td>
+                                    <td><b>{{ $r['folio'] }}</b></td>
+                                    <td>{{ $r['parte'] }}</td>
+                                    <td style="white-space:normal;min-width:180px"><b>{{ $r['nombre'] }}</b></td>
+                                    <td>{{ $r['sede'] }}</td>
+                                    <td>{{ $r['conciliador'] }}</td>
+                                    <td>{{ $r['resolucion'] }}</td>
+                                    @foreach (array_keys(AT::PREGUNTAS) as $n)
+                                        @php $v = $r['respuestas'][$n]; @endphp
+                                        <td class="text-center">
+                                            @if ($v === null)
+                                                <span class="ea-sub">—</span>
+                                            @else
+                                                <span class="{{ $chip($n, $v) }}" title="{{ $v }}">{{ $n === 5 && str_starts_with($v, 'Su trato') ? 'Equilibrado' : ($n === 6 ? \Illuminate\Support\Str::limit(str_replace(['Convenio de Conciliación', 'Constancia de No Conciliación', 'Constancia de Haber Agotado la Etapa de Conciliación Prejudicial'], ['Convenio', 'No conciliación', 'Etapa agotada'], $v), 20) : \Illuminate\Support\Str::limit($v, 26)) }}</span>
+                                            @endif
+                                        </td>
+                                    @endforeach
+                                    <td style="white-space:normal;min-width:260px">
+                                        @forelse ($r['comentarios'] as $n => $c)
+                                            <div class="small"><span class="ea-sub">{{ $n }}.</span> {{ $c }}</div>
+                                        @empty
+                                            <span class="ea-sub">—</span>
+                                        @endforelse
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                <p class="ea-sub mb-0 mt-2" id="eaSinResultados" hidden>Ningún formulario coincide con la búsqueda.</p>
+            </div>
+        @endif
+
         {{-- Alertas --}}
         <div class="tn-tarjeta ea-bloque" id="alertas">
             <div class="ea-cabeza"><div><h4 class="ea-titulo"><i class="bi bi-exclamation-triangle" style="color:#9A3A22"></i> Alertas</h4><span class="ea-sub">Presión al firmar el convenio, o una calificación «mala» con comentario. Contestadas en el periodo.</span></div></div>
             @forelse ($alertas ?? [] as $a)
                 <div class="ea-alerta {{ $a['seguimiento'] === 'atendida' ? 'is-atendida' : '' }}">
                     <div class="ea-alerta__cab">
-                        <span><b>{{ $a['folio'] }}</b> · {{ $a['sede'] }} · {{ $a['parte'] }} · {{ $a['fecha'] }}</span>
+                        <span><b>{{ $a['folio'] }}</b> · {{ $a['nombre'] }} ({{ mb_strtolower($a['parte']) }}) · {{ $a['sede'] }} · {{ $a['fecha'] }}</span>
                         <span>Conciliador(a): <b>{{ $a['conciliador'] }}</b> · Capturó: <b>{{ $a['capturo'] }}</b></span>
                     </div>
                     <div class="mt-1">
@@ -292,11 +356,11 @@
                 <div class="ea-cabeza"><div><h4 class="ea-titulo">Comentarios</h4><span class="ea-sub">{{ count($comentarios) }} en el periodo</span></div></div>
                 <div class="table-responsive ea-scroll">
                     <table class="table table-hover ea-tabla mb-0">
-                        <thead><tr><th>Fecha</th><th>Folio</th><th>Sede</th><th>Contestó</th><th>Pregunta</th><th>Respuesta</th><th>Persona</th><th>Comentario</th></tr></thead>
+                        <thead><tr><th>Fecha</th><th>Folio</th><th>Sede</th><th>Contestó</th><th>Nombre</th><th>Pregunta</th><th>Respuesta</th><th>Persona</th><th>Comentario</th></tr></thead>
                         <tbody>
                             @foreach ($comentarios as $c)
                                 <tr>
-                                    <td>{{ $c['fecha'] }}</td><td><b>{{ $c['folio'] }}</b></td><td>{{ $c['sede'] }}</td><td>{{ $c['parte'] }}</td>
+                                    <td>{{ $c['fecha'] }}</td><td><b>{{ $c['folio'] }}</b></td><td>{{ $c['sede'] }}</td><td>{{ $c['parte'] }}</td><td>{{ $c['nombre'] }}</td>
                                     <td>{{ $c['pregunta'] }}</td><td><span class="ea-chip ea-chip--{{ $c['nivel'] }}">{{ $c['respuesta'] }}</span></td>
                                     <td>{{ $c['persona'] ?: '—' }}</td>
                                     <td style="white-space:normal;min-width:260px">{{ $c['texto'] }}</td>
@@ -315,5 +379,22 @@
 @section('scripts')
     <script>
         document.querySelectorAll('#eaFiltros .ea-auto').forEach(function (s) { s.addEventListener('change', function () { s.form.submit(); }); });
+        (function () {
+            var buscar = document.getElementById('eaBuscar');
+            if (!buscar) { return; }
+            var filas = document.querySelectorAll('.ea-respuestas tbody tr');
+            var vacio = document.getElementById('eaSinResultados');
+            buscar.addEventListener('input', function () {
+                var q = buscar.value.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                var vistas = 0;
+                filas.forEach(function (tr) {
+                    var t = (tr.getAttribute('data-buscar') || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                    var ver = q === '' || t.indexOf(q) !== -1;
+                    tr.hidden = !ver;
+                    vistas += ver ? 1 : 0;
+                });
+                vacio.hidden = vistas > 0;
+            });
+        })();
     </script>
 @endsection

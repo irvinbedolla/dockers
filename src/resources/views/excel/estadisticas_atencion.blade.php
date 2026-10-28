@@ -53,16 +53,16 @@
     @elseif ($hoja === 'respuestas' || $hoja === 'alertas')
         @php $filas = $hoja === 'respuestas' ? $respuestas : ($alertas ?? []); @endphp
         <tr>
-            <th width="16" style="{{ $th }}">Fecha</th><th width="20" style="{{ $th }}">Folio</th><th width="14" style="{{ $th }}">Sede</th><th width="16" style="{{ $th }}">Contestó</th>
-            <th width="24" style="{{ $th }}">Conciliador(a)</th><th width="24" style="{{ $th }}">Capturó</th><th width="16" style="{{ $th }}">Resultado registrado</th>
+            <th width="16" style="{{ $th }}">Fecha</th><th width="20" style="{{ $th }}">Folio</th><th width="14" style="{{ $th }}">Sede</th><th width="16" style="{{ $th }}">Contestó</th><th width="30" style="{{ $th }}">Nombre</th>
+            <th width="24" style="{{ $th }}">Conciliador(a)</th><th width="24" style="{{ $th }}">Capturó</th><th width="16" style="{{ $th }}">Resolución</th>
             @foreach (AT::PREGUNTAS as $n => $p)<th width="16" style="{{ $th }}">{{ $n }}. {{ $p['etapa'] }}</th>@endforeach
             <th width="50" style="{{ $th }}">Comentarios</th>
             @if ($hoja === 'alertas')<th width="14" style="{{ $th }}">Seguimiento</th><th width="40" style="{{ $th }}">Nota</th>@endif
         </tr>
         @forelse ($filas as $r)
             <tr>
-                <td style="{{ $num }}">{{ $r['fecha'] }}</td><td style="{{ $num }}">{{ $r['folio'] }}</td><td style="{{ $num }}">{{ $r['sede'] }}</td><td style="{{ $num }}">{{ $r['parte'] }}</td>
-                <td style="{{ $td }}">{{ $r['conciliador'] }}</td><td style="{{ $td }}">{{ $r['capturo'] }}</td><td style="{{ $num }}">{{ $r['resultado'] }}</td>
+                <td style="{{ $num }}">{{ $r['fecha'] }}</td><td style="{{ $num }}">{{ $r['folio'] }}</td><td style="{{ $num }}">{{ $r['sede'] }}</td><td style="{{ $num }}">{{ $r['parte'] }}</td><td style="{{ $td }}">{{ $r['nombre'] }}</td>
+                <td style="{{ $td }}">{{ $r['conciliador'] }}</td><td style="{{ $td }}">{{ $r['capturo'] }}</td><td style="{{ $num }}">{{ $r['resolucion'] }}</td>
                 @foreach (array_keys(AT::PREGUNTAS) as $n)<td style="{{ $num }}">{{ $r['respuestas'][$n] ?? '' }}</td>@endforeach
                 <td style="{{ $td }}">{{ implode(' | ', array_map(fn ($n, $c) => $n.': '.$c, array_keys($r['comentarios']), $r['comentarios'])) }}</td>
                 @if ($hoja === 'alertas')<td style="{{ $num }}">{{ $r['seguimiento'] === 'atendida' ? 'Atendida '.$r['atendidaAt'] : 'Pendiente' }}</td><td style="{{ $td }}">{{ $r['nota'] }}</td>@endif
@@ -72,12 +72,12 @@
         @endforelse
     @else
         <tr>
-            <th width="12" style="{{ $th }}">Fecha</th><th width="20" style="{{ $th }}">Folio</th><th width="14" style="{{ $th }}">Sede</th><th width="16" style="{{ $th }}">Contestó</th>
+            <th width="12" style="{{ $th }}">Fecha</th><th width="20" style="{{ $th }}">Folio</th><th width="14" style="{{ $th }}">Sede</th><th width="16" style="{{ $th }}">Contestó</th><th width="30" style="{{ $th }}">Nombre</th>
             <th width="20" style="{{ $th }}">Pregunta</th><th width="18" style="{{ $th }}">Respuesta</th><th width="24" style="{{ $th }}">Persona</th><th width="60" style="{{ $th }}">Comentario</th>
         </tr>
         @forelse ($comentarios as $c)
             <tr>
-                <td style="{{ $num }}">{{ $c['fecha'] }}</td><td style="{{ $num }}">{{ $c['folio'] }}</td><td style="{{ $num }}">{{ $c['sede'] }}</td><td style="{{ $num }}">{{ $c['parte'] }}</td>
+                <td style="{{ $num }}">{{ $c['fecha'] }}</td><td style="{{ $num }}">{{ $c['folio'] }}</td><td style="{{ $num }}">{{ $c['sede'] }}</td><td style="{{ $num }}">{{ $c['parte'] }}</td><td style="{{ $td }}">{{ $c['nombre'] }}</td>
                 <td style="{{ $td }}">{{ $c['pregunta'] }}</td><td style="{{ $num }}">{{ $c['respuesta'] }}</td><td style="{{ $td }}">{{ $c['persona'] }}</td><td style="{{ $td }}">{{ $c['texto'] }}</td>
             </tr>
         @empty

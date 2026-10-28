@@ -71,6 +71,9 @@ class EstadisticasAtencion
             ->when($sedes, fn ($q) => $q->whereIn('id_solicitud', DB::table('seer_general')->whereIn('delegacion', $sedes)->select('id')))
             ->count();
 
+        // Nombre de la parte que contestó (las respuestas anteriores a la columna lo toman de la solicitud).
+        self::completarNombres($filas);
+
         $total = $filas->count();
         $etapas = [];
         foreach (self::ETAPAS as $n => $nombre) {
@@ -305,6 +308,8 @@ class EstadisticasAtencion
             'folio'       => $r->folio,
             'sede'        => $r->delegacion ?: '—',
             'parte'       => AtencionTramite::PARTES[$r->parte] ?? $r->parte,
+            'nombre'      => ($r->nombre ?? null) ?: '—',
+            'resolucion'  => ($r->resolucion_audiencia ?? null) ?: ($r->resultado ?: '—'),
             'conciliador' => $r->conciliador_id ? ($nombres[$r->conciliador_id] ?? 'Usuario '.$r->conciliador_id) : '—',
             'capturo'     => $r->capturo_id ? ($nombres[$r->capturo_id] ?? 'Usuario '.$r->capturo_id) : '—',
             'resultado'   => $r->resultado ?: '—',
@@ -315,6 +320,22 @@ class EstadisticasAtencion
             'nota'        => $r->seguimiento_nota,
             'atendidaAt'  => $r->seguimiento_at ? Carbon::parse($r->seguimiento_at)->format('d/m/Y H:i') : null,
         ];
+    }
+
+    /** Pone el nombre de la parte a las respuestas que no lo traen guardado. */
+    private static function completarNombres($filas): void
+    {
+        $faltan = $filas->filter(fn ($r) => empty($r->nombre ?? null));
+        if ($faltan->isEmpty()) {
+            return;
+        }
+        $generales = DB::table('seer_general')->whereIn('id', $faltan->pluck('id_solicitud')->unique()->all())->get()->keyBy('id');
+        $cache = [];
+        foreach ($faltan as $r) {
+            $g = $generales->get($r->id_solicitud);
+            $clave = $r->id_solicitud.'|'.$r->parte;
+            $r->nombre = $g ? ($cache[$clave] ??= AtencionTramite::nombreParte($g, $r->parte)) : null;
+        }
     }
 
     private static function comentarios($filas, array $nombres): array
@@ -331,6 +352,7 @@ class EstadisticasAtencion
                     'folio'     => $r->folio,
                     'sede'      => $r->delegacion ?: '—',
                     'parte'     => AtencionTramite::PARTES[$r->parte] ?? $r->parte,
+                    'nombre'    => ($r->nombre ?? null) ?: '—',
                     'pregunta'  => $n.'. '.$p['etapa'],
                     'respuesta' => $r->{'p'.$n} ? ($p['opciones'][$r->{'p'.$n}] ?? $r->{'p'.$n}) : '—',
                     'nivel'     => self::nivel($n, $r->{'p'.$n}),
