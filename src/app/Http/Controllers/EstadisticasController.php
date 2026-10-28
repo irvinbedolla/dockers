@@ -65,6 +65,8 @@ class EstadisticasController extends Controller
             'turnosMes' => EstadisticasTurnos::resumen(now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()),
             // Tarjeta de incidencias: hoy, este mes y este año.
             'incidenciasMes' => BitacoraIncidencias::cifras(),
+            // Tarjeta del formulario de atención del trámite: respuestas e índice del mes.
+            'atencionMes' => \App\Support\EstadisticasAtencion::resumen(),
             // Tarjeta de la sección de notificaciones: cifras del mes.
             'notificacionesMes' => DesempenoNotificadores::resumen(
                 DesempenoNotificadores::base(),

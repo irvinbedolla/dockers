@@ -294,6 +294,23 @@
                     </div>
                 </a>
 
+                @php($am = $atencionMes)
+                <a class="tn-tarjeta es-acceso" href="{{ route('estadisticas.atencion') }}">
+                    <div class="es-acceso__cabeza">
+                        <span class="es-acceso__icono" style="background:#E9F5EE;color:#1E7B3C;"><i class="bi bi-chat-square-heart"></i></span>
+                        <div>
+                            <h2 class="es-acceso__titulo">Atención del trámite</h2>
+                            <span class="es-acceso__sub">Qué opinan las partes de Recepción, captura y conciliadores</span>
+                        </div>
+                        <i class="bi bi-chevron-right es-acceso__ir" aria-hidden="true"></i>
+                    </div>
+                    <div class="es-acceso__cifras" title="Este mes">
+                        <div><b>{{ number_format($am['total']) }}</b><span>Respuestas este mes</span></div>
+                        <div><b>{{ $am['indice'] ?? '—' }}</b><span>Índice (0 a 100)</span></div>
+                        <div><b style="{{ $am['pendientes'] ? 'color:#9A3A22;' : '' }}">{{ number_format($am['pendientes']) }}</b><span>Alertas sin atender</span></div>
+                    </div>
+                </a>
+
                 @php($im = $incidenciasMes)
                 <a class="tn-tarjeta es-acceso" href="{{ route('estadisticas.incidencias') }}">
                     <div class="es-acceso__cabeza">
