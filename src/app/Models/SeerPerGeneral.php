@@ -15,6 +15,29 @@ class SeerPerGeneral extends Model
     'user_id','delegacion','conciliador_id', 'curp','tipo','tipo_solicitud','validado_conciliador','estatus','observaciones','fecha_terminacion','documentoExpediente',
     'documentoCitatoriosT','pendiente_firma','caso_excepcion','tipo_generacion','consecutivo','año', 'incidencia', 'motivo_incidencia','delegado_id', 'poder_id', 'confirmacion_id', 'numero_guia'];
 
+    /**
+     * Al concluir el caso (convenio o constancia) se manda por correo el folio
+     * y la liga del formulario de atención del trámite
+     * (App\Support\AtencionTramite). Se manda después de responder, para no
+     * hacer esperar a quien concluyó, y nunca tumba el guardado.
+     */
+    protected static function booted(): void
+    {
+        static::updated(function (SeerPerGeneral $general) {
+            if (! $general->wasChanged('estatus') || ! in_array($general->estatus, \App\Support\AtencionTramite::CONCLUIDOS, true)) {
+                return;
+            }
+            $id = (int) $general->id;
+            dispatch(function () use ($id) {
+                try {
+                    \App\Support\AtencionTramite::enviar($id);
+                } catch (\Throwable $e) {
+                    report($e);
+                }
+            })->afterResponse();
+        });
+    }
+
     // Genera un número de guía único de 10 dígitos: AAAA + 6 dígitos aleatorios.
     public static function generarNumeroGuia(): string
     {

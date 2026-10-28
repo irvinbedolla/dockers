@@ -127,6 +127,14 @@ Route::get('/generar-cita/exito',                   [HomeController::class, 'cit
 Route::permanentRedirect('/generarCita',            '/generar-cita');
 Route::permanentRedirect('/generarCitaExito',       '/generar-cita');
 Route::post('/turnos_guardar',                      [HomeController::class, 'turnos_publico']);
+// Formulario de atención del trámite de conciliación (público, con el folio de
+// la solicitud; App\Support\AtencionTramite). Con límite de intentos para que
+// no se puedan probar folios en masa.
+Route::get('/atencion-tramite-conciliacion',        [App\Http\Controllers\AtencionTramiteController::class, 'formulario'])->name('atencion.formulario')
+    ->middleware('throttle:40,1');
+Route::post('/atencion-tramite-conciliacion',       [App\Http\Controllers\AtencionTramiteController::class, 'guardar'])->name('atencion.guardar')
+    ->middleware('throttle:10,1');
+Route::get('/atencion-tramite-conciliacion/gracias', [App\Http\Controllers\AtencionTramiteController::class, 'gracias'])->name('atencion.gracias');
 Route::get('citas/{origen}',                                 [TurnosController::class, 'create_publico'])->name('create_cita');
 Route::post('/citas/store_publico',                 [TurnosController::class, 'store_publico'])->name('turnos.publico');
 Route::get('/validar_folio_abogado/{folio}',        [TurnosController::class, 'validarFolio'])->name('validar_folio_abogado');
@@ -256,6 +264,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('role:Super Usuario|Estadistica|Directivo');
     Route::get('/estadisticas/turnos/descargar',        [EstadisticasController::class, 'turnosDescargar'])->name('estadisticas.turnos.descargar')
         ->middleware('role:Super Usuario|Estadistica|Directivo');
+    // Formulario de atención del trámite: resultados, Excel y seguimiento de alertas (App\Support\EstadisticasAtencion).
+    Route::get('/estadisticas/atencion',                [App\Http\Controllers\EstadisticasAtencionController::class, 'index'])->name('estadisticas.atencion')
+        ->middleware('role:Super Usuario|Estadistica|Directivo');
+    Route::get('/estadisticas/atencion/descargar',      [App\Http\Controllers\EstadisticasAtencionController::class, 'descargar'])->name('estadisticas.atencion.descargar')
+        ->middleware('role:Super Usuario|Estadistica|Directivo');
+    Route::post('/estadisticas/atencion/{id}/atender',  [App\Http\Controllers\EstadisticasAtencionController::class, 'atender'])->name('estadisticas.atencion.atender')
+        ->whereNumber('id')->middleware('role:Super Usuario|Estadistica|Directivo');
     // Casos de excepción (art. 685 Ter): también los ve Conciliación, Género e Igualdad.
     Route::get('/estadisticas/excepciones',             [EstadisticasController::class, 'excepciones'])->name('estadisticas.excepciones')
         ->middleware(CasosExcepcionAcceso::class.':estadisticas');
