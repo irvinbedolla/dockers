@@ -526,23 +526,26 @@ class SeerController extends Controller
         }
 
         $carpeta = $carpetas[$tipo];
-        $rutaS3 = $carpeta . '/' . $id . '/' . $archivo;
+        $nombres = array_unique([$archivo, str_replace('"', '_', $archivo)]);
 
-        if (!Storage::disk('s3')->exists($rutaS3)) {
-            // Compatibilidad con documentos antiguos guardados sin subcarpeta de id
-            $rutaSinId = $carpeta . '/' . $archivo;
-            if (Storage::disk('s3')->exists($rutaSinId)) {
-                $rutaS3 = $rutaSinId;
-            } elseif (preg_match('/^(\d+)_/', $archivo, $m) && $m[1] !== (string) $id && Storage::disk('s3')->exists($carpeta . '/' . $m[1] . '/' . $archivo)) {
-                // Folios de "Agregar representante" que copiaron el nombre del
-                // documento del folio anterior: el archivo sigue en esa carpeta.
-                $rutaS3 = $carpeta . '/' . $m[1] . '/' . $archivo;
-            } else {
-                abort(404, 'El documento solicitado no existe.');
+        foreach ($nombres as $nombre) {
+            $candidatas = [
+                $carpeta . '/' . $id . '/' . $nombre,
+                $carpeta . '/' . $nombre,
+            ];
+    
+            if (preg_match('/^(\d+)_/', $nombre, $m) && $m[1] !== (string) $id) {
+                $candidatas[] = $carpeta . '/' . $m[1] . '/' . $nombre;
+            }
+
+            foreach ($candidatas as $rutaS3) {
+                if (Storage::disk('s3')->exists($rutaS3)) {
+                    return Storage::disk('s3')->response($rutaS3);
+                }
             }
         }
 
-        return Storage::disk('s3')->response($rutaS3);
+        abort(404, 'El documento solicitado no existe.');
     }
 
     public function index(Request $request)
