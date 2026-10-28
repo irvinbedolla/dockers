@@ -2,10 +2,10 @@
 @extends('emails.layouts.ccl')
 
 @section('titulo', 'Tu opinión es importante · Folio '.$d['folio'])
-@section('preheader', 'Cuéntanos cómo te atendimos en tu trámite de conciliación. Son 7 preguntas; tienes hasta el '.$d['vence'].'.')
+@section('preheader', 'Cuéntanos cómo te atendimos en tu trámite de conciliación. Son 7 preguntas y te toma unos 3 minutos.')
 @section('hero_titulo', 'Tu opinión es importante')
 @section('hero_texto')
-    Hola{{ $d['nombre'] ? ', '.$d['nombre'] : '' }}. Tu trámite de conciliación concluyó. Queremos saber cómo te atendimos para seguir mejorando.
+    Hola{{ $d['nombre'] ? ', '.$d['nombre'] : '' }}. Tu audiencia de conciliación ya tiene resolución. Queremos saber cómo te atendimos para seguir mejorando.
 @endsection
 
 @section('contenido')
@@ -41,11 +41,6 @@
         </td>
     </tr>
 
-    <tr>
-        <td class="px" style="padding:12px 32px 6px; font-family:Arial, Helvetica, sans-serif; font-size:14px; line-height:21px; color:#2E3C3D;">
-            <strong>Tienes hasta el {{ $d['vence'] }}</strong> para contestarlo; después, la liga caduca.
-        </td>
-    </tr>
     <tr>
         <td class="px" style="padding:6px 32px 18px; font-family:Arial, Helvetica, sans-serif; font-size:13px; line-height:19px; color:#5E6E6F;">
             Si el botón no abre, entra a <a href="{{ $d['ligaSola'] }}" target="_blank" style="color:#496163; font-weight:bold;">{{ $d['ligaSola'] }}</a>

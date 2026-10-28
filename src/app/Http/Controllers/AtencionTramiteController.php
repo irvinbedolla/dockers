@@ -35,7 +35,7 @@ class AtencionTramiteController extends Controller
                     'general'     => $general,
                     'estado'      => $estado['estado'],
                     'contestadas' => $estado['contestadas'],
-                    'resumen'     => AtencionTramite::resumen($general),
+                    'resumen'     => AtencionTramite::resumen($general, $estado['audiencia']),
                     'parte'       => array_key_exists($parte, AtencionTramite::PARTES) && ! in_array($parte, $estado['contestadas'], true) ? $parte : null,
                 ]);
             }

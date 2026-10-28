@@ -16,15 +16,17 @@ class SeerPerGeneral extends Model
     'documentoCitatoriosT','pendiente_firma','caso_excepcion','tipo_generacion','consecutivo','año', 'incidencia', 'motivo_incidencia','delegado_id', 'poder_id', 'confirmacion_id', 'numero_guia'];
 
     /**
-     * Al concluir el caso (convenio o constancia) se manda por correo el folio
-     * y la liga del formulario de atención del trámite
-     * (App\Support\AtencionTramite). Se manda después de responder, para no
-     * hacer esperar a quien concluyó, y nunca tumba el guardado.
+     * Respaldo de Audiencias::booted: al resolverse la audiencia la solicitud
+     * cambia a su resolución (convenio, no conciliación, archivo…) y se manda
+     * por correo el folio y la liga del formulario de atención del trámite
+     * (App\Support\AtencionTramite), por si ese camino actualizó la audiencia
+     * sin pasar por el modelo. No se repite si ya se mandó. Se manda después de
+     * responder, para no hacer esperar, y nunca tumba el guardado.
      */
     protected static function booted(): void
     {
         static::updated(function (SeerPerGeneral $general) {
-            if (! $general->wasChanged('estatus') || ! in_array($general->estatus, \App\Support\AtencionTramite::CONCLUIDOS, true)) {
+            if (! $general->wasChanged('estatus') || ! in_array($general->estatus, \App\Support\AtencionTramite::RESUELTOS_SOLICITUD, true)) {
                 return;
             }
             $id = (int) $general->id;

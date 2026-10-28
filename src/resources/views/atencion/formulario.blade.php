@@ -1,8 +1,7 @@
 {{--
     /atencion-tramite-conciliacion (AtencionTramiteController): primero se
-    escribe el folio de la solicitud; si el caso ya concluyó y no caduca
-    (App\Support\AtencionTramite::DIAS días desde que se levantó), se muestran
-    las preguntas.
+    escribe el folio de la solicitud; si la audiencia ya tiene resolución se
+    muestran las preguntas (App\Support\AtencionTramite); si no, cuándo es.
 --}}
 @extends('atencion.layout')
 @section('titulo', 'Formulario de atención del trámite')
@@ -40,6 +39,29 @@
         .at-error { color: #9A3A22; font-size: 13.5px; margin-top: 8px; font-weight: 600; }
         .at-parte label { padding: 14px 18px; font-size: 15.5px; }
         .at-hecho { font-size: 12px; font-weight: 700; color: #1E7B3C; margin-left: 4px; }
+        .at-ejemplo { border: 1px solid var(--borde); border-radius: 12px; background: #fff; margin: 0 0 16px; }
+        .at-ejemplo > summary { cursor: pointer; padding: 10px 14px; font-weight: 700; color: var(--verde); list-style: none; }
+        .at-ejemplo > summary::-webkit-details-marker { display: none; }
+        .at-ejemplo > summary::after { content: ' ▾'; }
+        .at-ejemplo[open] > summary::after { content: ' ▴'; }
+        .at-ejemplo__cuerpo { padding: 0 14px 14px; font-size: 14.5px; }
+        .at-doc { position: relative; max-width: 560px; margin: 0 auto; background: #fff; border: 1px solid #D9D9D9; border-radius: 4px; box-shadow: 0 6px 18px rgba(0,0,0,.08); font-family: Arial, Helvetica, sans-serif; color: #222; overflow: hidden; }
+        .at-doc__cinta { display: flex; justify-content: space-between; align-items: center; background: #5E5E5E; color: #fff; padding: 6px 12px; }
+        .at-doc__logo { font-size: 15px; letter-spacing: .5px; } .at-doc__logo b { font-weight: 800; }
+        .at-doc__logo--der { font-size: 11px; font-weight: 700; opacity: .9; }
+        .at-doc__arriba { display: flex; justify-content: flex-end; align-items: center; gap: 10px; padding: 14px 16px 6px; }
+        .at-doc__datos { display: grid; grid-template-columns: auto auto; gap: 2px 14px; margin: 0; padding: 8px 14px; border: 3px solid #2FD39A; border-radius: 40px; font-size: 12.5px; }
+        .at-doc__datos dt { font-weight: 700; margin: 0; } .at-doc__datos dd { margin: 0; }
+        .at-doc__folio { font-weight: 800; background: #FFF3B0; padding: 0 4px; border-radius: 3px; }
+        .at-doc__marca { font-size: 13px; font-weight: 800; color: #1E7B5A; white-space: nowrap; }
+        .at-doc__titulo { text-align: center; font-size: 11.5px; font-weight: 700; padding: 6px 12px 10px; }
+        .at-doc__texto { padding: 0 16px 14px; font-size: 11.5px; line-height: 1.5; }
+        .at-doc__texto p { margin: 0 0 2px; }
+        .at-doc__parrafo { margin-top: 8px !important; color: #444; }
+        .at-doc__fecha { font-weight: 700; border-bottom: 2px solid #E85A9B; }
+        .at-doc__tapa { display: inline-block; width: 150px; height: 9px; background: #E3E3E3; border-radius: 2px; vertical-align: middle; }
+        .at-doc__tapa--corta { width: 110px; }
+        @media (max-width: 576px) { .at-doc__arriba { flex-direction: column; align-items: flex-end; } .at-doc__datos { font-size: 11.5px; } }
         .at-privacidad { background: var(--fondo); border: 1px solid var(--borde); border-radius: 12px; padding: 12px 14px; font-size: 14px; }
         .at-privacidad .form-check-input { width: 1.2em; height: 1.2em; }
     </style>
@@ -61,13 +83,14 @@
 
             {{-- 1. Folio --}}
             <form method="GET" action="{{ route('atencion.formulario') }}" class="mb-3">
-                <label for="atFolio" class="form-label fw-bold">Folio de tu solicitud</label>
+                <label for="atFolio" class="form-label fw-bold">Folio de tu solicitud <span class="fw-normal" style="color: var(--suave);">(Número de identificación único)</span></label>
                 <div class="at-folio">
                     <input type="text" id="atFolio" name="folio" class="form-control" value="{{ $folio }}" placeholder="Ej. MOR/SOL/2026/04512" autocomplete="off" required>
                     <button type="submit" class="btn btn-verde"><i class="bi bi-search me-1"></i> {{ $general ? 'Buscar otro folio' : 'Continuar' }}</button>
                 </div>
-                <div class="form-text">Lo encuentras en tu acuse, en tu constancia o en el correo que te enviamos.</div>
+                <div class="form-text">Lo encuentras en tu citatorio, en tu acuse de solicitud, en tu constancia o en el correo que te enviamos.</div>
             </form>
+            @include('atencion._ejemplo_folio', ['abierto' => ! $general])
 
             @if ($noEncontrado)
                 <div class="at-aviso at-aviso--error"><i class="bi bi-search me-1"></i> No encontramos el folio <b>{{ $folio }}</b>. Revisa que esté bien escrito, por ejemplo <b>MOR/SOL/2026/04512</b>.</div>
@@ -77,14 +100,28 @@
                         <div><dt>Folio</dt><dd>{{ $resumen['folio'] }}</dd></div>
                         <div><dt>Sede</dt><dd>{{ $resumen['sede'] }}</dd></div>
                         <div><dt>Se levantó el</dt><dd>{{ $resumen['fecha'] }}</dd></div>
-                        <div><dt>Puedes contestar hasta el</dt><dd>{{ $resumen['vence'] }}</dd></div>
+                        @if ($resumen['audiencia'])
+                            <div>
+                                <dt>{{ $resumen['audiencia']['resolucion'] ? 'Audiencia' : 'Tu audiencia' }}</dt>
+                                <dd>{{ \Illuminate\Support\Str::ucfirst($resumen['audiencia']['fecha'] ?? 'Sin fecha') }}{{ $resumen['audiencia']['hora'] ? ' · '.$resumen['audiencia']['hora'].' h' : '' }}</dd>
+                            </div>
+                        @endif
                     </dl>
                 </div>
 
-                @if ($estado === 'caducado')
-                    <div class="at-aviso at-aviso--alerta"><i class="bi bi-clock-history me-1"></i> El formulario de este folio ya no está disponible: se puede contestar dentro de los {{ AT::DIAS }} días siguientes a que se levanta la solicitud y venció el {{ $resumen['vence'] }}. ¡Gracias por tu interés!</div>
-                @elseif ($estado === 'sin_concluir')
-                    <div class="at-aviso at-aviso--alerta"><i class="bi bi-hourglass-split me-1"></i> Tu trámite todavía no concluye. Podrás contestar el formulario cuando termine tu audiencia de conciliación (también te enviaremos la liga por correo). Tienes hasta el {{ $resumen['vence'] }}.</div>
+                @if ($estado === 'sin_resolucion')
+                    @php $aud = $resumen['audiencia']; @endphp
+                    <div class="at-aviso at-aviso--alerta">
+                        <i class="bi bi-hourglass-split me-1"></i>
+                        @if ($aud && $aud['fecha'] && ! $aud['pasada'])
+                            Tu audiencia de conciliación es el <b>{{ $aud['fecha'] }}{{ $aud['hora'] ? ' a las '.$aud['hora'].' h' : '' }}</b>{{ $aud['sala'] ? ', en '.$aud['sala'] : '' }} ({{ $aud['sede'] }}).
+                            Podrás contestar este formulario cuando tu audiencia tenga resolución; también te enviaremos la liga por correo.
+                        @elseif ($aud && $aud['fecha'])
+                            Tu audiencia de conciliación fue el <b>{{ $aud['fecha'] }}</b> y todavía no se registra su resolución. Podrás contestar en cuanto la tenga; también te enviaremos la liga por correo.
+                        @else
+                            Todavía no hay fecha para tu audiencia de conciliación. Podrás contestar este formulario cuando tu audiencia tenga resolución; también te enviaremos la liga por correo.
+                        @endif
+                    </div>
                 @elseif ($estado === 'contestado')
                     <div class="at-aviso at-aviso--ok"><i class="bi bi-check2-circle me-1"></i> Este formulario ya lo contestaron la parte trabajadora y la parte empleadora. ¡Gracias por tu opinión!</div>
                 @else

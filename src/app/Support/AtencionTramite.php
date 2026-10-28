@@ -17,22 +17,34 @@ use Illuminate\Support\Str;
  * (/atencion-tramite-conciliacion): lo contesta la parte trabajadora o la
  * empleadora con el folio de la solicitud (NUE), una vez por parte.
  *
- *   - Se puede contestar cuando el caso ya concluyó (convenio o constancia) y
- *     sólo dentro de los DIAS días desde que se levantó la solicitud; después
+ *   - Existe desde que se levanta la solicitud (el folio ya se reconoce), pero
+ *     sólo se puede contestar cuando la audiencia de conciliación ya tiene
+ *     resolución (RESOLUCIONES). Antes, se avisa cuándo es la audiencia. No
  *     caduca.
- *   - Al concluir el caso se manda por correo el folio y la liga a las partes
- *     que tienen correo (SeerPerGeneral::booted → enviar()). Lo que no se haya
+ *   - Al resolverse la audiencia (con cualquier resolución) se manda por correo
+ *     el folio y la liga a las partes que tienen correo (Audiencias::booted y,
+ *     de respaldo, SeerPerGeneral::booted → enviar()). Lo que no se haya
  *     mandado se puede mandar con `php artisan atencion:enviar`.
  *   - Cada respuesta guarda una copia de la solicitud (sede, quién la capturó,
  *     conciliador, resultado…) para las estadísticas (EstadisticasAtencion).
  */
 class AtencionTramite
 {
-    /** Días desde que se levanta la solicitud para contestar. */
-    public const DIAS = 60;
+    /**
+     * Estatus de una audiencia que ya tiene resolución. "Reagendada" y "No
+     * conciliacion reagendada" no: el caso sigue y habrá otra audiencia.
+     */
+    public const RESOLUCIONES = ['Conciliacion', 'No conciliacion', 'Archivada', 'Archivada en Audiencia', 'Incompetencia', 'Desistimiento', 'Reinstalacion', 'Incomparecencia', 'Canalizada'];
 
-    /** Estatus de la solicitud con los que ya se puede contestar (ya hubo audiencia y resultado). */
-    public const CONCLUIDOS = ['Conciliacion', 'Reinstalacion', 'No conciliacion', 'Concluida', 'Incumplimiento'];
+    /**
+     * Estatus de la solicitud que se ponen al resolver la audiencia (respaldo
+     * para los caminos que actualizan la audiencia sin pasar por el modelo).
+     * "Concluida" e "Incumplimiento" no: llegan después, con los pagos.
+     */
+    public const RESUELTOS_SOLICITUD = ['Conciliacion', 'No conciliacion', 'Archivada', 'Incompetencia', 'Desistimiento', 'Reinstalacion'];
+
+    /** Estatus de la solicitud que ya implican una audiencia resuelta (casos sin audiencia registrada). */
+    public const CONCLUIDOS = ['Conciliacion', 'Reinstalacion', 'No conciliacion', 'Concluida', 'Incumplimiento', 'Archivada', 'Incompetencia', 'Desistimiento'];
 
     /** Estatus que quieren decir que hubo convenio (para comparar con la pregunta 6). */
     public const CON_CONVENIO = ['Conciliacion', 'Reinstalacion', 'Concluida', 'Incumplimiento'];
@@ -130,45 +142,92 @@ class AtencionTramite
         return DB::table('seer_general')->where('NUE', $nue)->orderByDesc('id')->first();
     }
 
-    /** Hasta cuándo se puede contestar (fin del día). */
-    public static function vence(object $general): ?Carbon
+    /** La última audiencia con resolución, si ya la hay. */
+    public static function audienciaResuelta(object $general): ?object
     {
-        return $general->fecha ? Carbon::parse($general->fecha)->addDays(self::DIAS)->endOfDay() : null;
+        return DB::table('audiencias')->where('id_solicitud', $general->id)
+            ->whereIn('estatus', self::RESOLUCIONES)
+            ->orderByDesc('fecha')->orderByDesc('id')->first();
+    }
+
+    /** La próxima audiencia todavía sin resolución (la de hoy o la siguiente; si no, la última pendiente). */
+    public static function audienciaPendiente(object $general): ?object
+    {
+        $base = fn () => DB::table('audiencias')->where('id_solicitud', $general->id)
+            ->where(fn ($q) => $q->where('estatus', 'Pendiente')->orWhereNull('estatus')->orWhere('estatus', ''));
+
+        return $base()->where('fecha', '>=', today()->toDateString())->orderBy('fecha')->orderBy('hora')->first()
+            ?? $base()->orderByDesc('fecha')->orderByDesc('id')->first();
     }
 
     /**
-     * ¿Se puede contestar? ['estado' => abierto|caducado|sin_concluir|contestado,
-     * 'vence' => Carbon, 'contestadas' => [partes]].
+     * ¿Se puede contestar? ['estado' => abierto|sin_resolucion|contestado,
+     * 'audiencia' => la resuelta o la pendiente, 'contestadas' => [partes]].
      */
     public static function estado(object $general): array
     {
-        $vence = self::vence($general);
         $contestadas = self::migrado()
             ? DB::table('atencion_tramite')->where('id_solicitud', $general->id)->pluck('parte')->all()
             : [];
+        $resuelta = self::audienciaResuelta($general);
+        // Casos viejos que concluyeron sin audiencia registrada con su estatus.
+        $abierto = $resuelta || in_array($general->estatus, self::CONCLUIDOS, true);
 
         $estado = match (true) {
-            ! $vence || now()->gt($vence)                                  => 'caducado',
-            ! in_array($general->estatus, self::CONCLUIDOS, true)          => 'sin_concluir',
+            ! $abierto                                                             => 'sin_resolucion',
             count(array_intersect(array_keys(self::PARTES), $contestadas)) === count(self::PARTES) => 'contestado',
-            default                                                        => 'abierto',
+            default                                                                => 'abierto',
         };
 
-        return ['estado' => $estado, 'vence' => $vence, 'contestadas' => $contestadas];
+        return [
+            'estado'      => $estado,
+            'audiencia'   => $abierto ? $resuelta : self::audienciaPendiente($general),
+            'contestadas' => $contestadas,
+        ];
     }
 
     /** Lo poco que se muestra de la solicitud en la página pública. */
-    public static function resumen(object $general): array
+    public static function resumen(object $general, ?object $audiencia = null): array
     {
-        $vence = self::vence($general);
-
         return [
-            'folio'  => $general->NUE,
-            'sede'   => $general->delegacion,
-            'fecha'  => $general->fecha ? Str::ucfirst(Carbon::parse($general->fecha)->locale('es')->isoFormat('D [de] MMMM [de] YYYY')) : '—',
-            'vence'  => $vence ? $vence->copy()->locale('es')->isoFormat('dddd D [de] MMMM [de] YYYY') : '—',
-            'tipo'   => (int) $general->tipo_solicitud === 2 ? 'Solicitud de la parte empleadora' : 'Solicitud de la parte trabajadora',
+            'folio'     => $general->NUE,
+            'sede'      => $general->delegacion,
+            'fecha'     => $general->fecha ? Str::ucfirst(Carbon::parse($general->fecha)->locale('es')->isoFormat('D [de] MMMM [de] YYYY')) : '—',
+            'tipo'      => (int) $general->tipo_solicitud === 2 ? 'Solicitud de la parte empleadora' : 'Solicitud de la parte trabajadora',
+            'audiencia' => $audiencia ? [
+                'fecha'      => $audiencia->fecha ? Carbon::parse($audiencia->fecha)->locale('es')->isoFormat('dddd D [de] MMMM [de] YYYY') : null,
+                'hora'       => $audiencia->hora ? Carbon::parse($audiencia->hora)->format('H:i') : null,
+                'sala'       => $audiencia->sala ?: null,
+                'sede'       => $audiencia->delegacion ?: $general->delegacion,
+                'pasada'     => $audiencia->fecha && Carbon::parse($audiencia->fecha)->lt(today()),
+                'resolucion' => in_array($audiencia->estatus, self::RESOLUCIONES, true) ? $audiencia->estatus : null,
+            ] : null,
         ];
+    }
+
+    /** Nombre de quien es esa parte en la solicitud (para identificar la respuesta en estadísticas). */
+    public static function nombreParte(object $general, string $parte): ?string
+    {
+        $solicitaEmpleador = (int) $general->tipo_solicitud === 2;
+        $esSolicitante = ($parte === 'trabajadora') !== $solicitaEmpleador;
+        $nombres = $esSolicitante
+            ? DB::table('seer_solicitante')->where('id_solicitud', $general->id)->pluck('nombre')->all()
+            : DB::table('seer_citados')->where('id_solicitud', $general->id)
+                ->where(fn ($q) => $q->whereNull('tipo_notificacion')->orWhere('tipo_notificacion', '!=', 'Multa'))
+                ->get(['nombre', 'primer_apellido', 'segundo_apellido'])
+                ->map(fn ($c) => trim(preg_replace('/\s+/', ' ', ($c->nombre ?? '').' '.($c->primer_apellido ?? '').' '.($c->segundo_apellido ?? ''))))
+                ->all();
+        $nombres = array_values(array_unique(array_filter(array_map(fn ($n) => Str::title(mb_strtolower(trim((string) $n))), $nombres))));
+
+        return $nombres ? mb_substr(implode(', ', $nombres), 0, 250) : null;
+    }
+
+    /** ¿Ya corrió la migración que agrega nombre y audiencia a las respuestas? */
+    public static function conNombre(): bool
+    {
+        static $listo = null;
+
+        return $listo ??= self::migrado() && Schema::hasColumn('atencion_tramite', 'nombre');
     }
 
     /** Reglas de validación del formulario. */
@@ -243,6 +302,12 @@ class AtencionTramite
             $valores['p'.$n] = $aplica ? ($datos['p'.$n] ?? null) : null;
             $c = $aplica ? trim((string) ($datos['c'.$n] ?? '')) : '';
             $valores['c'.$n] = $c !== '' ? $c : null;
+        }
+        if (self::conNombre()) {
+            $audiencia = self::audienciaResuelta($general);
+            $valores['nombre'] = self::nombreParte($general, $datos['parte']);
+            $valores['audiencia_id'] = $audiencia?->id;
+            $valores['resolucion_audiencia'] = $audiencia?->estatus;
         }
         // Lo que pide atención se marca para seguimiento.
         $valores['seguimiento'] = self::esAlerta((object) $valores) ? 'pendiente' : null;
@@ -320,8 +385,8 @@ class AtencionTramite
     }
 
     /**
-     * Manda el folio y la liga a quien falte. Sólo si el caso ya concluyó y
-     * todavía no caduca. Devuelve cuántos correos salieron.
+     * Manda el folio y la liga a quien falte. Sólo si la audiencia ya tiene
+     * resolución. Devuelve cuántos correos salieron.
      */
     public static function enviar(int $idSolicitud, bool $simular = false): int
     {
