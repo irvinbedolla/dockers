@@ -82,6 +82,7 @@
         if($solicitud->delegacion === 'Sahuayo') {
             $direccion_sede='AV. UNIVERSIDAD SUR NO. 3000, COL. LOMAS DE UNIVERSIDAD, C.P. 59103 SAHUAYO DE MORELOS, MICHOACÁN DE OCAMPO';
         } 
+        $ultimaFecha = $citados->max('fecha');
     @endphp
     <body>
         <img src="{{ public_path('assets/images/pdf_Siconcilio.jpg') }}" class="fondo-membrete">
@@ -145,7 +146,7 @@
                     solicitud de Conciliación, señalando que la celebración de la Audiencia de Conciliación se realizaría el <b>{{ \Carbon\Carbon::parse($audiencia->fecha)->translatedFormat('d \d\e F \d\e\l Y') }}</b> a las<b>
                     {{ \Carbon\Carbon::parse($audiencia->hora)->translatedFormat('H:i') }}</b> horas, en las instalaciones de este Centro.<br><br>
 
-                    <b>Tercero.</b> El <b>{{ \Carbon\Carbon::parse($citado->fecha)->translatedFormat('d \d\e F \d\e\l Y') }}</b>, se concluyó la notificación personal de él(los) citado(s).<br><br>
+                    <b>Tercero.</b> El <b>{{ \Carbon\Carbon::parse($ultimaFecha)->translatedFormat('d \d\e F \d\e\l Y') }}</b>, se concluyó la notificación personal de él(los) citado(s).<br><br>
 
                     <b>Cuarto.</b> El día de la audiencia, <b>{{ $solicitante->nombre }}</b> no se presentó en ningún momento 
                               durante el tiempo que se tenía programado para la audiencia.<br><br>

@@ -7401,7 +7401,7 @@ class SeerController extends Controller
             ->first();
         $citados = SeerCitados::where("id_solicitud",$id)
         ->where('tipo_notificacion', '!=', 'Multa')
-        ->select('nombre','primer_apellido','segundo_apellido')
+        ->select('nombre','primer_apellido','segundo_apellido','fecha')
         ->get();
         $motivos = SeerMotivo::join('catalogo_motivos','catalogo_motivos.id','seer_motivos.id_motivo')
         ->where('id_solicitud',$id)
