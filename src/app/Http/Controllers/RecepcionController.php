@@ -1030,6 +1030,7 @@ class RecepcionController extends Controller
                 'otro_dia'                => '0',
                 'confirmada', 'atendida'  => '1',
                 'ya_confirmada', 'pasada' => '2',
+                'cancelada'               => '5',
                 default                   => '3', // tarde, expirada
             };
 

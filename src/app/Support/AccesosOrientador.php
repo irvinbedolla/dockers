@@ -55,6 +55,7 @@ class AccesosOrientador
 
         // 2. Citas de hoy de sus módulos.
         $hoyCitas = DB::table('recepcion')->where('fecha', $hoy)->whereIn('modulo_id', $ids ?: [0])
+            ->where('estatus', '!=', 'cancelada')
             ->get(['estatus', 'atencion_inicio_at', ...(FlujoCita::conFinAtencion() ? ['atencion_fin_at'] : [])]);
         $duraciones = $hoyCitas
             ->filter(fn ($c) => $c->estatus === 'atendido' && $c->atencion_inicio_at && ($c->atencion_fin_at ?? null))

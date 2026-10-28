@@ -13,7 +13,8 @@ class Recepcion extends Model
     protected $primaryKey = 'id';
     protected $fillable = ['consecutivo','codigo','fecha','hora','hora_fin','auxiliar','solicitante','tipo','lugar_auxiliar','estatus','delegacion','exepcion','edad','sexo','vulnerables','conflicto','tipo_caso','motivo_excepcion','prestacionSS','orientacion','tarjeta','folio','resultado','INS', 'telefono', 'correo', 'estado','municipio', 'observaciones', 'modulo_id', 'origen',
         'es_prueba', 'curp', 'domicilio', 'llamado_at', 'atencion_inicio_at', 'atencion_fin_at', 'confirmada_at',
-        'creado_por', 'creado_por_nombre', 'atendido_por', 'atendido_por_nombre', 'llego_tarde', 'llego_tarde_por'];
+        'creado_por', 'creado_por_nombre', 'atendido_por', 'atendido_por_nombre', 'llego_tarde', 'llego_tarde_por',
+        'ip', 'user_agent'];
 
     protected $casts = [
         'fecha' => 'date',

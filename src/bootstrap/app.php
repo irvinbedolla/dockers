@@ -56,6 +56,8 @@ $app->booted(function () use ($app) {
     
     // 3. Forzar la inyección global del Middleware CSP al grupo de rutas 'web'
     $router->pushMiddlewareToGroup('web', \App\Http\Middleware\ContentSecurityPolicy::class);
+    
+    $router->aliasMiddleware('api.key', \App\Http\Middleware\VerifyApiKey::class);
 });
 
 /*

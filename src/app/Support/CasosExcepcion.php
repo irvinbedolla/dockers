@@ -267,13 +267,13 @@ class CasosExcepcion
 
     /**
      * Por atender: citas de excepción de los últimos 30 días (hasta hoy) que
-     * todavía no tienen formato de atención, salvo las que no llegaron.
+     * todavía no tienen formato de atención, salvo las que no llegaron o se cancelaron.
      */
     public static function porAtender(): Builder
     {
         return self::citas()
             ->whereBetween('r.fecha', [now()->subDays(30)->toDateString(), now()->toDateString()])
-            ->where('r.estatus', '!=', 'expirada')
+            ->whereNotIn('r.estatus', ['expirada', 'cancelada'])
             ->whereNotExists(fn ($s) => $s->select(DB::raw(1))->from('seer_casos_excepcion as x')->whereColumn('x.id_turno', 'r.id')
                 ->when(self::conFormato(), fn ($q) => $q->whereNotNull('x.terminado_at')));
     }

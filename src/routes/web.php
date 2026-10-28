@@ -44,6 +44,8 @@ use App\Http\Controllers\RecepcionController;
 use App\Http\Controllers\CitaDireccionController;
 use App\Http\Controllers\CorreosController;
 use App\Http\Controllers\AdministracionController;
+use App\Http\Controllers\CancelacionCitasController;
+
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use App\Models\SeerPerGeneral;
@@ -127,6 +129,14 @@ Route::get('/generar-cita/exito',                   [HomeController::class, 'cit
 Route::permanentRedirect('/generarCita',            '/generar-cita');
 Route::permanentRedirect('/generarCitaExito',       '/generar-cita');
 Route::post('/turnos_guardar',                      [HomeController::class, 'turnos_publico']);
+// Formulario de atención del trámite de conciliación (público, con el folio de
+// la solicitud; App\Support\AtencionTramite). Con límite de intentos para que
+// no se puedan probar folios en masa.
+Route::get('/atencion-tramite-conciliacion',        [App\Http\Controllers\AtencionTramiteController::class, 'formulario'])->name('atencion.formulario')
+    ->middleware('throttle:40,1');
+Route::post('/atencion-tramite-conciliacion',       [App\Http\Controllers\AtencionTramiteController::class, 'guardar'])->name('atencion.guardar')
+    ->middleware('throttle:10,1');
+Route::get('/atencion-tramite-conciliacion/gracias', [App\Http\Controllers\AtencionTramiteController::class, 'gracias'])->name('atencion.gracias');
 Route::get('citas/{origen}',                                 [TurnosController::class, 'create_publico'])->name('create_cita');
 Route::post('/citas/store_publico',                 [TurnosController::class, 'store_publico'])->name('turnos.publico');
 Route::get('/validar_folio_abogado/{folio}',        [TurnosController::class, 'validarFolio'])->name('validar_folio_abogado');
@@ -256,6 +266,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('role:Super Usuario|Estadistica|Directivo');
     Route::get('/estadisticas/turnos/descargar',        [EstadisticasController::class, 'turnosDescargar'])->name('estadisticas.turnos.descargar')
         ->middleware('role:Super Usuario|Estadistica|Directivo');
+    // Formulario de atención del trámite: resultados, Excel y seguimiento de alertas (App\Support\EstadisticasAtencion).
+    Route::get('/estadisticas/atencion',                [App\Http\Controllers\EstadisticasAtencionController::class, 'index'])->name('estadisticas.atencion')
+        ->middleware('role:Super Usuario|Estadistica|Directivo');
+    Route::get('/estadisticas/atencion/descargar',      [App\Http\Controllers\EstadisticasAtencionController::class, 'descargar'])->name('estadisticas.atencion.descargar')
+        ->middleware('role:Super Usuario|Estadistica|Directivo');
+    Route::post('/estadisticas/atencion/{id}/atender',  [App\Http\Controllers\EstadisticasAtencionController::class, 'atender'])->name('estadisticas.atencion.atender')
+        ->whereNumber('id')->middleware('role:Super Usuario|Estadistica|Directivo');
     // Casos de excepción (art. 685 Ter): también los ve Conciliación, Género e Igualdad.
     Route::get('/estadisticas/excepciones',             [EstadisticasController::class, 'excepciones'])->name('estadisticas.excepciones')
         ->middleware(CasosExcepcionAcceso::class.':estadisticas');
@@ -338,13 +355,26 @@ Route::middleware(['auth', 'verified'])->group(function () {
      |-- (Gestión de Roles, Usuarios y Configuraciones Globales de SiConcilio)
      |*/
 
+    // Fuera del grupo de abajo: Directivo no está en él y, dentro, tendría
+    // que cumplir los dos filtros de rol.
+    
     Route::middleware(['role:Super Usuario|Administrador|Delegado|Enlace'])->group(function () {
-        // Configuración Avanzada de Sedes y Retrocesos de Estatus
-        Route::get('administracion/configuracion',          [AdministracionController::class, 'configuracion'])->name('configuracion');
-        // Módulos de atención: catálogo, citas del día por módulo y reasignación.
+        Route::get('administracion/configuracion', [AdministracionController::class, 'configuracion'])
+            ->name('configuracion')
+            ->middleware('role:Super Usuario|Administrador|Delegado|Enlace|Directivo');
+        // Cancelación/Reagenda de citas. Delegado y Enlace, sólo su sede y su oficina de apoyo.
+        Route::middleware(['role:Super Usuario|Delegado|Enlace|Directivo'])->group(function () {
+            Route::get('administracion/citas-cancelacion',                 [CancelacionCitasController::class, 'index'])->name('citas_cancelacion.index');
+            Route::post('administracion/citas-cancelacion/{id}/cancelar',  [CancelacionCitasController::class, 'cancelar'])->name('citas_cancelacion.cancelar')->whereNumber('id');
+            Route::post('administracion/citas-cancelacion/{id}/reagendar', [CancelacionCitasController::class, 'reagendar'])->name('citas_cancelacion.reagendar')->whereNumber('id');
+        });
+
+    // Módulos de atención: catálogo, citas del día por módulo y reasignación.
         Route::middleware('role:Super Usuario')->group(function () {
             Route::get('administracion/modulos',                         [ModulosController::class, 'index'])->name('modulos.index');
             Route::post('administracion/modulos',                        [ModulosController::class, 'guardar'])->name('modulos.crear');
+            // Tope de citas en línea por IP, correo y teléfono (antes que {modulo}, que la atraparía).
+            Route::put('administracion/modulos/limite-citas',            [ModulosController::class, 'limite'])->name('modulos.limite');
             Route::put('administracion/modulos/{modulo}',                [ModulosController::class, 'guardar'])->name('modulos.actualizar');
             Route::post('administracion/modulos/citas/{id}/reasignar',   [ModulosController::class, 'reasignar'])->name('modulos.reasignar')->whereNumber('id');
             Route::get('administracion/horarios',                        [HorariosCitasController::class, 'index'])->name('horarios.index');
@@ -378,7 +408,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         // Historiales de borrado de cumplimientos y cambios de fecha: solo Super Usuario
         Route::get('/administracion/historial/{tipo}',      [BitacoraAdministracionController::class, 'index'])->name('administracion_historial')
-            ->where('tipo', 'borrar_cumplimiento|cambio_fecha_audiencia|cambio_fecha_cumplimiento')
+            ->where('tipo', 'borrar_cumplimiento|cambio_fecha_audiencia|cambio_fecha_cumplimiento|cancelacion_reagenda_cita')
             ->middleware('role:Super Usuario');
 
         // Historial de ediciones guardadas desde "Revisar audiencia": solo Super Usuario

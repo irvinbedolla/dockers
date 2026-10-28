@@ -276,6 +276,19 @@ class HomeController extends Controller
         /*if($correo){
             return redirect()->route('citas')->with('error', 'No se ha podido completar tu cita. El correo ya ha sido registrado en los últimos 30 días.'); 
         }*/
+        // Aviso de privacidad: la casilla del formulario es obligatoria.
+        if (! $request->boolean('acepta_privacidad')) {
+            return back()->withInput()->with('error', 'Para agendar tu cita es necesario leer y aceptar el Aviso de privacidad.');
+        }
+
+        // Tope de citas en línea por conexión (IP), correo y teléfono (Administración → Módulos).
+        if ($bloqueo = \App\Support\LimiteCitas::revisar($request->ip(), $data['email'] ?? null, $data['telefono'] ?? null)) {
+            \App\Support\LimiteCitas::registrarBloqueo($bloqueo, $request->ip(), $request->userAgent(), $camposFlujo + $data);
+            Log::info('Cita en línea detenida por el límite', ['motivo' => $bloqueo['motivo'], 'llevaba' => $bloqueo['llevaba'], 'ip' => $request->ip()]);
+
+            return back()->withInput()->with('error', $bloqueo['mensaje']);
+        }
+
         //El horario seleccionado en el calendario ya no debe estar ocupado ni caer en un día/horario inhábil
         if (!(new RecepcionController())->turnoSlotDisponible($sede, $tipo, $fecha_turno, $hora_turno, $excepcion, true)) {
             return back()->withInput()->with('error', 'El horario seleccionado ya no está disponible. Por favor selecciona otro.');
@@ -336,6 +349,12 @@ class HomeController extends Controller
             'telefono'      => $data["telefono"],
             'observaciones' => $data["conflicto"]
         ) + $camposFlujo;
+
+        // Desde qué conexión y navegador se agendó (estadísticas y límite de citas).
+        if (\App\Support\LimiteCitas::migrado()) {
+            $data_insertar['ip'] = $request->ip();
+            $data_insertar['user_agent'] = \App\Support\LimiteCitas::agente($request->userAgent());
+        }
     
             // Motivo exacto del caso de excepción (CasosExcepcion::MOTIVOS).
             if (\App\Support\CasosExcepcion::conMotivo()) {

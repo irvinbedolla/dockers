@@ -99,6 +99,9 @@ class EstadisticasTurnos
         'Tiempo promedio'            => 'Minutos promedio de atención, sólo de las que tienen hora de inicio y de fin.',
         'Llegaron tarde'             => 'Se atendieron aunque su cita ya había expirado.',
         'Casos de excepción'         => 'Citas marcadas como caso de excepción (art. 685 Ter LFT).',
+        'Conexión (IP)'              => 'Dirección de internet desde la que se agendó la cita en línea. Varias personas pueden compartirla (una empresa, una escuela, un mismo proveedor de celular).',
+        'IP, correo o teléfono frecuente' => 'El que registró el número de citas en línea elegido o más en el periodo; «personas distintas» cuenta CURP diferentes.',
+        'Intentos detenidos'         => 'Citas en línea que no se registraron porque la conexión, el correo o el teléfono ya tenía el máximo (Administración → Módulos).',
     ];
 
     /** Lee y acomoda los filtros (fechas al revés se voltean; por omisión, este mes por día). */
@@ -128,6 +131,8 @@ class EstadisticasTurnos
             'tipo'    => in_array($tipo, self::TIPOS, true) ? $tipo : '',
             'origen'  => array_key_exists($origen, self::ORIGENES) ? $origen : '',
             'minutos' => in_array($minutos, self::UMBRALES, true) ? $minutos : self::UMBRAL,
+            // ¿Quién agenda las citas en línea? (AgendadoresCitas): desde cuántas citas es "frecuente".
+            'frecuente' => AgendadoresCitas::frecuente($request->query('frecuente', AgendadoresCitas::FRECUENTE_DEF)),
         ];
     }
 
@@ -287,6 +292,8 @@ class EstadisticasTurnos
 
         return DB::table('recepcion as r')
             ->whereBetween('r.fecha', [$f['desde'], $f['hasta']])
+            // Una cancelada no cuenta: ni se atendió ni faltó, y su horario lo pudo tomar alguien más.
+            ->where('r.estatus', '!=', 'cancelada')
             ->when($sedes, fn ($q) => $q->whereIn('r.delegacion', array_values(array_unique($sedes))))
             ->when($f['tipo'] !== '', fn ($q) => $q->where('r.tipo', $f['tipo']))
             ->when($f['origen'] === 'linea', fn ($q) => $q->where('r.origen', 'linea'))

@@ -21,6 +21,10 @@ class BitacoraAdministracionController extends Controller
             'titulo'   => 'Historial de cambios de fecha de cumplimiento',
             'regresar' => 'cambio_fecha_cumplimiento',
         ],
+        'cancelacion_reagenda_cita' => [
+            'titulo'   => 'Historial de cancelaciones y reagendas de citas',
+            'regresar' => 'citas_cancelacion.index',
+        ],
     ];
 
     public function index(Request $request, string $tipo)

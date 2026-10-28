@@ -17,6 +17,7 @@
         'confirmada' => 'Confirmadas',
         'atendido'   => 'Atendidos',
         'expirada'   => 'Expiradas',
+        'cancelada'  => 'Canceladas',
     ];
     $estatusActivo = $filtros['estatus'] ?? null;
     // El acuse vive en las rutas de quien crea turnos (CreaTurnos); Directivo sólo consulta.
