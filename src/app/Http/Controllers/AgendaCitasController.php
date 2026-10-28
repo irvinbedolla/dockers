@@ -58,6 +58,8 @@ class AgendaCitasController extends Controller
             ->whereBetween('r.fecha', [$desde, $hasta])
             ->whereIn('r.delegacion', $sedes)
             ->where('r.origen', 'linea')
+            // Las canceladas liberan su horario: si se pintaran, se encimarían con quien lo tomó después.
+            ->where('r.estatus', '!=', 'cancelada')
             ->when($soloExcepcion, fn ($q) => $q->where('r.exepcion', 'Si'))
             // Morelia 02 sólo ve las de ratificación (Recepcion::tramitesVisibles).
             ->when(Recepcion::tramitesVisibles($usuario), fn ($q, $tramites) => $q->whereIn('r.tipo', $tramites))

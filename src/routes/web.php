@@ -44,6 +44,8 @@ use App\Http\Controllers\RecepcionController;
 use App\Http\Controllers\CitaDireccionController;
 use App\Http\Controllers\CorreosController;
 use App\Http\Controllers\AdministracionController;
+use App\Http\Controllers\CancelacionCitasController;
+
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use App\Models\SeerPerGeneral;
@@ -353,10 +355,21 @@ Route::middleware(['auth', 'verified'])->group(function () {
      |-- (Gestión de Roles, Usuarios y Configuraciones Globales de SiConcilio)
      |*/
 
+    // Fuera del grupo de abajo: Directivo no está en él y, dentro, tendría
+    // que cumplir los dos filtros de rol.
+    
     Route::middleware(['role:Super Usuario|Administrador|Delegado|Enlace'])->group(function () {
-        // Configuración Avanzada de Sedes y Retrocesos de Estatus
-        Route::get('administracion/configuracion',          [AdministracionController::class, 'configuracion'])->name('configuracion');
-        // Módulos de atención: catálogo, citas del día por módulo y reasignación.
+        Route::get('administracion/configuracion', [AdministracionController::class, 'configuracion'])
+            ->name('configuracion')
+            ->middleware('role:Super Usuario|Administrador|Delegado|Enlace|Directivo');
+        // Cancelación/Reagenda de citas. Delegado y Enlace, sólo su sede y su oficina de apoyo.
+        Route::middleware(['role:Super Usuario|Delegado|Enlace|Directivo'])->group(function () {
+            Route::get('administracion/citas-cancelacion',                 [CancelacionCitasController::class, 'index'])->name('citas_cancelacion.index');
+            Route::post('administracion/citas-cancelacion/{id}/cancelar',  [CancelacionCitasController::class, 'cancelar'])->name('citas_cancelacion.cancelar')->whereNumber('id');
+            Route::post('administracion/citas-cancelacion/{id}/reagendar', [CancelacionCitasController::class, 'reagendar'])->name('citas_cancelacion.reagendar')->whereNumber('id');
+        });
+
+    // Módulos de atención: catálogo, citas del día por módulo y reasignación.
         Route::middleware('role:Super Usuario')->group(function () {
             Route::get('administracion/modulos',                         [ModulosController::class, 'index'])->name('modulos.index');
             Route::post('administracion/modulos',                        [ModulosController::class, 'guardar'])->name('modulos.crear');
@@ -395,7 +408,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         // Historiales de borrado de cumplimientos y cambios de fecha: solo Super Usuario
         Route::get('/administracion/historial/{tipo}',      [BitacoraAdministracionController::class, 'index'])->name('administracion_historial')
-            ->where('tipo', 'borrar_cumplimiento|cambio_fecha_audiencia|cambio_fecha_cumplimiento')
+            ->where('tipo', 'borrar_cumplimiento|cambio_fecha_audiencia|cambio_fecha_cumplimiento|cancelacion_reagenda_cita')
             ->middleware('role:Super Usuario');
 
         // Historial de ediciones guardadas desde "Revisar audiencia": solo Super Usuario
