@@ -81,6 +81,8 @@
         }
         .rt-atajo:hover { border-color: var(--tn-verde-claro); color: var(--tn-verde); }
         .rt-atajo.is-activo { background: var(--tn-verde); border-color: var(--tn-verde); color: #fff; }
+        .rt-tarde { display: flex; flex-direction: column; align-items: center; gap: 3px; margin-bottom: 6px; }
+        .rt-tarde .btn { white-space: nowrap; }
 
         .rt-encabezado-dia { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
         .rt-encabezado-dia h4 { margin: 0; font-size: 18px; font-weight: 700; color: var(--tn-tinta); }
@@ -296,6 +298,21 @@
                                         </td>
                                     @endcan
                                     <td class="text-center">
+                                        @if (isset($tardes[$solicitud->id]))
+                                            @php
+                                                $citaTarde = $tardes[$solicitud->id];
+                                                $folioTarde = \App\Support\FolioCita::mostrar($citaTarde);
+                                            @endphp
+                                            {{-- La cita expiró hoy (llegó tarde o el módulo la marcó "No se presentó") y la persona sí está. --}}
+                                            <form method="POST" action="{{ route('ratificacion.atender_tarde', $solicitud->id) }}" class="rt-tarde"
+                                                  data-confirmar="¿Atender de todos modos la ratificación {{ $solicitud->NUE }}? Su cita {{ $folioTarde }} expiró hoy: vuelve a la fila de su módulo, después de quienes llegaron a tiempo.">
+                                                @csrf
+                                                <button type="submit" class="btn btn-warning btn-sm fw-semibold" title="La cita {{ $folioTarde }} de las {{ substr((string) $citaTarde->getRawOriginal('hora'), 0, 5) }} expiró: llegó tarde o no se presentó a tiempo">
+                                                    <i class="bi bi-person-check-fill me-1"></i> Atender de todos modos
+                                                </button>
+                                                <span class="rt-secundario">Cita {{ $folioTarde }} · {{ substr((string) $citaTarde->getRawOriginal('hora'), 0, 5) }} · expirada</span>
+                                            </form>
+                                        @endif
                                         @can('ratificaciones_concluir')
                                         
                                             @if($solicitud->estatus == "Confirmado")
@@ -475,6 +492,14 @@
 @section('scripts')
     <script src="{{ asset('assets/js/poderes/general.js') }}"></script>
     <script>
+        // "Atender de todos modos": confirma antes de reactivar la cita.
+        document.querySelectorAll('form.rt-tarde').forEach(function (f) {
+            f.addEventListener('submit', function (e) {
+                if (!window.confirm(f.dataset.confirmar)) { e.preventDefault(); return; }
+                var b = f.querySelector('button'); if (b) { b.disabled = true; }
+            });
+        });
+
         // Elegir un día o un orden ya filtra; no hace falta el botón.
         // En "Últimas ratificaciones" el día va vacío: si eligen uno, manda ese día y no "ultimas".
         function cuidarUltimas() {

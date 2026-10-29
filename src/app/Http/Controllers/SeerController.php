@@ -15765,7 +15765,10 @@ class SeerController extends Controller
             return $audiencia;
         });
 
-        return view('ratificaciones.ratificaciones_todas', compact('solicitudes', 'userRole', 'conteo', 'estatus', 'orden', 'fecha', 'ultimas', 'ultimasPorOmision'));
+        // "Atender de todos modos": las de esta página cuya cita expiró hoy (llegaron tarde).
+        $tardes = \App\Http\Controllers\RatificacionTardeController::expiradasHoy($solicitudes->getCollection(), $user);
+
+        return view('ratificaciones.ratificaciones_todas', compact('solicitudes', 'userRole', 'conteo', 'estatus', 'orden', 'fecha', 'ultimas', 'ultimasPorOmision', 'tardes'));
     }
 
     public function todas_solicitudes(Request $request) {

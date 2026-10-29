@@ -664,6 +664,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/revisar/indexAudiencia',                               [SeerController::class, 'todas_audiencias'])->name('todas_audiencias');
     Route::get('/revisar/indexSolictudes',                              [SeerController::class, 'todas_solicitudes'])->name('todas_solicitudes');
     Route::get('/revisar/indexRatificaciones',                          [SeerController::class, 'todas_ratificaciones'])->name('todas_ratificaciones');
+    // La cita de la ratificación expiró hoy (llegó tarde) y la persona sí está: vuelve a la fila.
+    Route::post('/revisar/ratificaciones/{id}/atender-tarde',           App\Http\Controllers\RatificacionTardeController::class)->name('ratificacion.atender_tarde')->whereNumber('id');
     Route::get('/revisar/indexCumplimientos',                           [SeerController::class, 'todos_complimientos'])->name('todos_complimientos');
     Route::get('/seer/estadistica',                                     [SeerController::class, 'estadistica'])->name('seer.estadistica');
     Route::get('/solicitudes/home',                                     [SeerController::class, 'solicitudes'])->name('solicitudes_index')->middleware('especialidad:solicitudes_revisar');
