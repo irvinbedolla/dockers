@@ -21,6 +21,16 @@
                                                 // sin descarga y con una sola pastilla. El servidor le cierra
                                                 // además las otras fuentes (middleware SinRecepcion).
                                                 $esRecepcion   = \App\Support\Recepcion::es(auth()->user());
+
+                                                // El notificador sólo ve audiencias y sus notificaciones
+                                                // pendientes (App\Support\AgendaNotificador; el servidor le
+                                                // cierra lo demás con el middleware SinNotificador).
+                                                $esNotificador = \App\Support\AgendaNotificador::soloNotificador(auth()->user());
+
+                                                // Conciliación, Género e Igualdad sólo ve las citas en línea
+                                                // con caso de excepción, de todas las sedes (CasosExcepcion;
+                                                // el servidor le cierra lo demás con SinCasosExcepcion).
+                                                $esExcepcion   = \App\Support\CasosExcepcion::soloRol(auth()->user());
                                             @endphp
 
                                             <div class="col-12">
@@ -64,7 +74,7 @@
                                                                 <i class="bi bi-arrows-angle-expand"></i> Fin de semana
                                                             </button>
 
-                                                            @unless ($esRecepcion)
+                                                            @unless ($esRecepcion || $esNotificador || $esExcepcion)
                                                                 <button type="button" id="calExportar" class="cal-select" title="Descargar en Excel la agenda del rango visible">
                                                                     <i class="bi bi-file-earmark-excel"></i> Exportar
                                                                 </button>
@@ -92,7 +102,7 @@
                                                             {{-- Un conciliador no elige: el valor va fijo y oculto,
                                                                  calendar.js lo lee igual que antes. --}}
                                                             <input type="hidden" id="filter-conciliador" value="{{ $idUsuario }}">
-                                                        @elseif ($esRecepcion && $conciliadores->isEmpty())
+                                                        @elseif ($esNotificador || $esExcepcion || ($esRecepcion && $conciliadores->isEmpty()))
                                                             {{-- Las citas no tienen conciliador todavía: no hay nada
                                                                  que elegir. El input vacío hace que calendar.js no
                                                                  mande filtro, igual que "Todos". --}}
@@ -113,7 +123,12 @@
                                                          elegirlas pintan sus hijas juntas y despliegan la fila de
                                                          abajo para acotar a una sola. --}}
                                                     <div class="cal-tabs">
-                                                        @if ($esRecepcion)
+                                                        @if ($esNotificador)
+                                                            <button type="button" class="cal-tab btn-calendar active" data-tipo="btn-mis-notificaciones">Mis notificaciones</button>
+                                                            <button type="button" class="cal-tab btn-calendar" data-tipo="btn-audiencias">Audiencias</button>
+                                                        @elseif ($esExcepcion)
+                                                            <button type="button" class="cal-tab btn-calendar active" data-tipo="btn-citas-linea">Citas en línea · casos de excepción</button>
+                                                        @elseif ($esRecepcion)
                                                             @php $fuentesRecepcion = \App\Support\Recepcion::fuentes(auth()->user()); @endphp
                                                             <button type="button" class="cal-tab btn-calendar active" data-tipo="btn-citas-linea">Citas en línea</button>
                                                             @if (in_array('audiencias', $fuentesRecepcion, true))
@@ -154,6 +169,40 @@
                                                     {{-- La pinta calendar.js con el semaforo del tipo activo; el
                                                          catalogo viene de App\Support\SemaforoAgenda. --}}
                                                     <div class="cal-leyenda" id="calLeyenda" style="display:none;"></div>
+
+                                                    {{-- Vista para celulares (agenda-movil.js). En escritorio va
+                                                         oculta y no se usa; en un teléfono sustituye a la
+                                                         cuadrícula de FullCalendar con los mismos filtros. --}}
+                                                    <div id="calMovil" class="cm" hidden>
+                                                        <div class="cm-cabeza">
+                                                            <div class="cm-cabeza__texto">
+                                                                <h4 class="cm-mes" id="cmMes">&nbsp;</h4>
+                                                                <span class="cm-sub" id="cmSub"></span>
+                                                            </div>
+                                                            <div class="cm-acciones">
+                                                                <button type="button" class="cm-btn" id="cmPrev" aria-label="Mes anterior"><i class="bi bi-chevron-left"></i></button>
+                                                                <button type="button" class="cm-btn cm-btn--texto" id="cmHoy">Hoy</button>
+                                                                <button type="button" class="cm-btn" id="cmNext" aria-label="Mes siguiente"><i class="bi bi-chevron-right"></i></button>
+                                                                <button type="button" class="cm-btn cm-btn--vista" id="cmVista" aria-pressed="false" aria-label="Cambiar entre días y mes completo"><i class="bi bi-calendar3"></i></button>
+                                                                @unless ($esRecepcion || $esNotificador || $esExcepcion)
+                                                                    <button type="button" class="cm-btn" id="cmExportar" aria-label="Descargar la agenda del mes en Excel" title="Descargar el mes en Excel"><i class="bi bi-file-earmark-excel"></i></button>
+                                                                @endunless
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="cm-tira" id="cmTira" role="listbox" aria-label="Días del mes"></div>
+                                                        <div class="cm-rejilla" id="cmRejilla" hidden></div>
+
+                                                        <div class="cm-dia">
+                                                            <div class="cm-dia__cabeza">
+                                                                <h5 class="cm-dia__titulo" id="cmDiaTitulo"></h5>
+                                                                <span class="cm-dia__cuenta" id="cmDiaCuenta"></span>
+                                                            </div>
+                                                            <div class="cm-aviso" id="cmAviso" hidden></div>
+                                                            <div class="cm-lista" id="cmLista" aria-live="polite"></div>
+                                                            <p class="cm-pista"><i class="bi bi-arrow-left-right"></i> Desliza la lista para cambiar de día</p>
+                                                        </div>
+                                                    </div>
 
                                                     <div id="calZona" class="cal-zona" aria-busy="true">
                                                         <div id="calSkeleton" class="cal-skeleton">

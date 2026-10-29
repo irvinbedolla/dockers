@@ -76,7 +76,9 @@
                                         <h3 class="text-center" style="color:black">Datos del Solicitante</h3>
                                     </div>    
                                     <!--Se realiza el envío de datos con formulario de Laravel Collective-->
-                                    <form id="frmSolicitante" class="needs-validation" novalidate method="POST" action="{{route('guardaSolicitanteA')}}" enctype='multipart/form-data'>
+                                    {{-- Flujo nuevo: datos de la cita (App\Support\PrellenadoCita). --}}
+@include('solicitudes.auxiliares._prellenado')
+<form id="frmSolicitante" class="needs-validation" novalidate method="POST" action="{{route('guardaSolicitanteA')}}" enctype='multipart/form-data'>
                                         @csrf
                                         <input type="hidden" name="id" value="{{$id}}">
                                         <input type="hidden" name="draft_id" value="{{ $draftId }}">
@@ -539,21 +541,19 @@
                                                     </div>
                                                 </div>
                                             </div>-->
-                                            <div class="col-xs-12 col-sm-12 col-md-4" style="display:none;">
-                                                <label for="excepcion">Posible caso de excepción <span style="color:red;">(*)</span>
+                                            <div class="col-xs-12 col-sm-12 col-md-4">
+                                                {{-- Lo consulta el Departamento de Conciliación, Género e Igualdad
+                                                     (App\Support\CasosExcepcion); va a seer_general.caso_excepcion. --}}
+                                                <label for="excepcion">Posible caso de excepción (art. 685 Ter)
                                                     <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#exampleModal">
                                                         ?
                                                     </button>
                                                 </label>
-                                                
-                                                <input type="hidden" name="excepcion" value="No">
-                                                <!--
-                                                <select name="excepcion" class="form-control" onchange="cambiaExcepcion(this)" required>
-                                                    <option value="">Seleccione</option>
-                                                    <option value="Si">Si</option>
-                                                    <option value="No">No</option>
+                                                <select name="excepcion" id="excepcion" class="form-control">
+                                                    <option value="No" selected>No</option>
+                                                    <option value="Si">Sí</option>
                                                 </select>
-                                                -->
+                                                <small class="text-muted d-block mt-1">Con "Sí", Conciliación, Género e Igualdad podrá consultar la solicitud.</small>
                                                 <div class="invalid-feedback">
                                                     El campo posible caso de excepción es obligatorio.
                                                 </div>

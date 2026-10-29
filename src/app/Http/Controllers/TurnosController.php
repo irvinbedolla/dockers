@@ -34,6 +34,11 @@ use NumberToWords\NumberToWords; // para convertir números(cantidades) a letras
 use DateTime;
 use Illuminate\Support\Facades\Log;
 use App\Services\RetrocesoRecorder;
+use App\Services\HistorialRatificacionRecorder;
+use Illuminate\Support\Facades\Mail;
+use App\Support\HorarioCitas;
+use SimpleSoftwareIO\QrCode\Facades\QrCode;
+use Barryvdh\DomPDF\PDF;
 
 class TurnosController extends Controller 
 {
@@ -562,10 +567,10 @@ class TurnosController extends Controller
         return redirect()->route('misturnos');
     }
 
-    public function create_publico(){
+    public function create_publico($origen){
         $estados = Estados::all();
         $municipios = Municipios::all();
-        return view('citas', compact('estados','municipios'));
+        return view('citas', compact('estados','municipios', 'origen'));
     }
 
     public function store_publico(Request $request)
@@ -579,7 +584,11 @@ class TurnosController extends Controller
         $año_actual = date('Y');
         $fecha_actual = date('Y-m-d');
         $hora_actual =  date("H:i:s");
-        $user = auth()->user()->id;
+        $user = 0;
+        if(auth()->user()){
+            $user = auth()->user()->id;
+        }
+        
         if(isset($data["folio"])){
             request()->validate([
                 'folio'             => 'required',
@@ -657,6 +666,7 @@ class TurnosController extends Controller
                 $telefono = $representante["numero_representante"];
                 $curp   = $representante["curp_representante"];
             }
+            $nombre_completo = $representante["nombres_patronal"]. ' '.$representante["primer_apellido_patronal"]. ' '.$representante["segundo_apellido_patronal"];
             $data_insertar= array(
                 'consecutivo'       => $numero_consecutivo,    
                 'empresa'           => $representante["nombres_patronal"],
@@ -699,7 +709,7 @@ class TurnosController extends Controller
                 'num_ext'           => $data["N_Ext"],
                 'codigo_postal'     => $data["cp"],
                 'idAbogado'         => $data["folio"],
-                'user_id'           => $user,
+                'user_id'           => $user ?? 0,
                 'fecha'             => $data["fecha"],
                 'hora'              => $data["hora"],
                 'hora_fin'          => $data["hora"],
@@ -713,6 +723,7 @@ class TurnosController extends Controller
             
         }
         else{
+            $nombre_completo = $data["empresa"] . ' '. $data["primero_empresa"] . ' ' . $data["segundo_empresa"];
             $data_insertar= array(
                 'consecutivo'               => $numero_consecutivo,    
                 'empresa'                   => $data["empresa"],
@@ -807,9 +818,55 @@ class TurnosController extends Controller
         }
 
         unset($data_insertar['ine'], $data_insertar['representacion'], $data_insertar['documentoidentificacion']);
+        $recepcion = null;
+        if($data['origen'] === 'externo'){
+            $elegido = \App\Support\AsignadorModulos::elegir($data['sede'], 'Ratificación', $data["fecha"], $data["hora"]);
+            if (!$elegido) {
+                return redirect()->back()->with('error', 'No se ha podido completar tu cita. No se ha encontrado auxiliar disponible.');
+            }
+            $id_aux    = $elegido->user_id;
+            $modulo    = $elegido->nombre;
+            $modulo_id = $elegido->id;
+            $hora_fin = HorarioCitas::horaFin($data['sede'], 'Ratificación', 0, $data['hora']); //el 0 representa que no es caso de excepcion
+
+                $direccion = HorarioCitas::DIRECCIONES_SEDES[$data['sede']];
+
+                $data_recepcion= array(
+                    'consecutivo'   => $numero_consecutivo,
+                    'solicitante'   => $nombre_completo,
+                    'auxiliar'      => $id_aux,
+                    'lugar_auxiliar'=> $modulo,
+                    'modulo_id'     => $modulo_id,
+                    'origen'        => 'linea',
+                    'tipo'          => 'Ratificación',
+                    'fecha'         => $data['fecha'],
+                    'hora'          => $data['hora'],
+                    'hora_fin'      => $hora_fin,
+                    'delegacion'    => $data['sede'],
+                    'estatus'       => "pendiente",
+                    'exepcion'      => 'No',
+                    'municipio'     => $data["municipio_rat"],
+                    'correo'        => $email ,
+                    'telefono'      => $telefono,
+                );
+        
+                // En transacción: si el INSERT falla, también se deshace el folio
+                // que se apartó en folios_citas y no quedan números saltados.
+                try {
+                   $recepcion = DB::transaction(fn () => Recepcion::create($data_recepcion));
+                }
+                catch (\Throwable $e) { 
+                    return redirect()->back()->with('error', 'No se ha podido completar tu cita.'); 
+                }
+                $fecha=$recepcion->fecha->format('Y-m-d');
+                $hora=$recepcion->hora->format('H:i');
+                $pdfCitas = $this->verDocumentoCita($recepcion->id);
+                // Correo con diseño institucional y el acuse adjunto (emails.cita_agendada).
+                Mail::to($email)->send(new \App\Mail\CitaAgendadaMail($pdfCitas, $recepcion));
+        }
+        
         $turno = Turnos::create($data_insertar);
         $id_turno = $turno->id;
-
         //Documentos si cargaron el folio
         if(isset($data["folio"])){
             $representante  = Poder::find($data["folio"]);
@@ -890,8 +947,13 @@ class TurnosController extends Controller
         }
         
         */
+        
+        if($data['origen'] === 'externo'){
+            $turno->update(['recepcion_id' => $recepcion->id]);
+            return redirect()->route('citas_exito')->with(['success' => true,'id'=>$recepcion->id,'folio' => $recepcion->folio_cita,'fecha' => $fecha,'hora' => $hora,'delegacion' => $recepcion->delegacion, 'modulo' => $recepcion->lugar_auxiliar, 'direccion' => $direccion]);
+        }
         return back()->with('success', 'Debes ingresar a '. 
-        ' http://siconcilio.cclmichoacan.gob.mx/ en el apartado de buzón electrónico.'  ); 
+        ' http://siconcilio.ccl.michoacan.gob.mx/ en el apartado de buzón electrónico.'  ); 
     }
 
     public function pagoA_ratificacion(Request $request){
@@ -994,6 +1056,7 @@ class TurnosController extends Controller
         $fecha_inicio = now()->format('Y-m-d');
         $fecha_fin = now()->addDays(60)->format('Y-m-d');
         $sede = $request->input('sede'); // Obtener sede de la solicitud
+        $origen = $request->input('origen');
 
         $inhabiles = DiasInhabiles::where('centro', $sede)
             ->whereNull('user_id')
@@ -1003,10 +1066,16 @@ class TurnosController extends Controller
             })
             ->get();
         $maxEmpalme = $sede === 'Morelia' ?  2 : 1;
-        $ocupadosQuery = Recepcion::whereBetween('fecha', [$fecha_inicio, $fecha_fin])->where('tipo', 'Ratificación')->where('delegacion', $sede)->get(['fecha', 'hora']);
+        if($origen === 'externo')
+            $ocupadosQuery = Recepcion::whereBetween('fecha', [$fecha_inicio, $fecha_fin])->where('tipo', 'Ratificación')->where('delegacion', $sede)->get(['fecha', 'hora']);
+        else
+            $ocupadosQuery = Turnos::whereBetween('fecha', [$fecha_inicio, $fecha_fin])->where('tipo', 'Ratificación')->where('delegacion', $sede)->get(['fecha', 'hora']);
         $ocupadosCount = [];
         foreach ($ocupadosQuery as $turno) {
-            $key = $turno->fecha->format('Y-m-d') . 'T' . $turno->hora->format('H:i');
+            $fechaTurno = \Carbon\Carbon::parse($turno->fecha)->format('Y-m-d');
+            $horaTurno = \Carbon\Carbon::parse($turno->hora)->format('H:i');
+
+            $key = $fechaTurno . 'T' . $horaTurno;
             $ocupadosCount[$key] = ($ocupadosCount[$key] ?? 0) + 1;
         }
 
@@ -1016,16 +1085,15 @@ class TurnosController extends Controller
 
         while ($fecha <= $fin) {
             if ($fecha->format('N') < 6) { 
-                $slotEndDt = new \DateTime($fecha->format('Y-m-d') . ' 15:30:00');
-                if($fecha->format('Y-m-d') >= '2026-11-01'){
-                    $slotDt = new \DateTime($fecha->format('Y-m-d') . ' 08:30:00');
-                    $slotComida = new \DateTime($fecha->format('Y-m-d') . ' 17:00:00');
-                }
-                else{
-                    $slotDt = new \DateTime($fecha->format('Y-m-d') . ' 09:00:00');
-                    $slotComida = new \DateTime($fecha->format('Y-m-d') . ' 13:00:00');
-                }
                 
+                if($fecha->format('Y-m-d') >= '2026-10-22'){
+                    $slotEndDt = new \DateTime($fecha->format('Y-m-d') . ' 15:00:00');
+                    $slotDt = new \DateTime($fecha->format('Y-m-d') . ' 08:30:00');
+                    $slotComida =  new \DateTime($fecha->format('Y-m-d') . ' 13:30:00');
+                    if($sede === 'Zamora' && $fecha->format('Y-m-d') <= '2026-10-23'){
+                        $slotComida = new \DateTime($fecha->format('Y-m-d') . ' 17:40:00');
+                    }
+                }
 
                 while ($slotDt <= $slotEndDt) {
                         $hora_str = $slotDt->format('H:i:s');
@@ -1109,11 +1177,11 @@ class TurnosController extends Controller
                             ];
                         }
 
-                        if($slotDt->format('H:i') === '13:00' ){
+                        if($slotDt->format('H:i') === $slotComida->format('H:i') ){
                             $slotDt->modify('+30 minutes');
                         }
                         else{
-                            if($fecha->format('Y-m-d') >= '2026-11-01'){
+                            if($fecha->format('Y-m-d') >= '2026-10-19'){
                                 $slotDt->modify('+50 minutes');
                             }
                             else{
@@ -1215,9 +1283,8 @@ class TurnosController extends Controller
             $deduccionesTexto[$deduccion->id] = $this->convertirNumerosALetras($deduccion->monto);
         }
 
-        $totalPrestaciones = $prestaciones->sum('monto');
-        $totalDeducciones = $deducciones->sum('monto');
-        $pagoTotal = $totalPrestaciones - $totalDeducciones;
+        // Neto a pagar y monto de las cláusulas QUINTA y SEXTA (ver montoConvenio()).
+        [$pagoTotal, $montoConvenio] = $this->montoConvenio($prestaciones, $deducciones, $solicitud->monto);
 
         $dias_descanso = $solicitud->dias !== null ? 7 - $solicitud->dias : null;
         $salario_diario = $this->calcularSalarioDiario($solicitud->salario, $solicitud->frecuencia);
@@ -1225,7 +1292,7 @@ class TurnosController extends Controller
 
         $diarioTexto = $this->convertirNumerosALetras($salario_diario);
         $mensualTexto = $this->convertirNumerosALetras($salario_mensual);
-        $montoTexto = $this->convertirNumerosALetras($solicitud->monto);
+        $montoTexto = $this->convertirNumerosALetras($montoConvenio);
 
         // Obtener el número de pagos
         $pagosDif = Pagos::join("turnos", "turnos.id", "=", "pago_solicitud.id_solicitud")
@@ -1253,7 +1320,7 @@ class TurnosController extends Controller
                 'diarioTexto', 'mensualTexto', 'montoTexto', 'conceptosTexto', 'deduccionesTexto', 
                 'pagosDif', 'conciliador', 'abogado', 'municipioEmpresa', 'estadoEmpresa', 'pagoTotal', 
                 'descripcionIdentificacionS', 'descripcionIdentificacionP','prestaciones','deducciones','delegado',
-                'inicialesConcluye', 'etiquetaIniciales'
+                'inicialesConcluye', 'etiquetaIniciales', 'montoConvenio'
             )
         )->render();
 
@@ -1280,29 +1347,28 @@ class TurnosController extends Controller
         }
     }
 
+    /**
+     * Monto del convenio de una ratificación: el neto de lo que se capturó al
+     * concluir (prestaciones menos deducciones), redondeado a centavos. Es lo
+     * mismo que la tabla "Neto a pagar", así que las cláusulas, la letra y la
+     * tabla siempre dicen la misma cantidad.
+     *
+     * turnos.monto es el "monto total del convenio" que se capturó en la
+     * solicitud y no se actualiza si al concluir cambian los conceptos o se
+     * agregan deducciones; sólo se usa si la ratificación no tiene conceptos.
+     *
+     * @return array{0: float, 1: float} [neto a pagar, monto del convenio]
+     */
+    private function montoConvenio($prestaciones, $deducciones, $montoCapturado): array
+    {
+        $neto = round((float) $prestaciones->sum('monto') - (float) $deducciones->sum('monto'), 2);
+
+        return [$neto, $prestaciones->isNotEmpty() ? $neto : round((float) $montoCapturado, 2)];
+    }
+
     private function convertirNumerosALetras($valor) {
-        $valor = (float) $valor;
-        $numberToWords = new NumberToWords();
-        $numberTransformer = $numberToWords->getNumberTransformer('es');
-        $parteEntera = floor($valor);
-        $parteDecimal = round(($valor - $parteEntera) * 100);
-        $letras = $parteEntera > 0
-            ? strtoupper($numberTransformer->toWords($parteEntera))
-            : 'CERO';
-        $centavos = str_pad($parteDecimal, 2, '0', STR_PAD_LEFT);
-        if ($parteEntera == 0 && $parteDecimal > 0) {
-            return "CERO PESOS {$centavos}/100 M.N.";
-        }
-        return "{$letras} PESOS {$centavos}/100 M.N.";
-        /*$numberToWords = new NumberToWords();
-        $numberTransformer = $numberToWords->getNumberTransformer('es'); 
-
-        $parteEntera = floor($valor);
-        $letras = strtoupper($numberTransformer->toWords($parteEntera)); 
-
-        $parteDecimal = round(($valor - $parteEntera) * 100);
-        $centavos = str_pad($parteDecimal, 2, '0', STR_PAD_LEFT); 
-        return "{$letras} PESOS {$centavos}/100";*/
+        // Ver App\Support\MontoEnLetras: redondea a centavos antes de pasar a letra.
+        return \App\Support\MontoEnLetras::texto($valor, true);
     }
 
     private function obtenerInicialesNombre(?string $nombre): string
@@ -1884,8 +1950,23 @@ class TurnosController extends Controller
         $user = User::find($id_usuario);
         $sede = $user->delegacion;
 
-        //Revisar si existe
-        if(isset($data["dias_pagos"])){
+        //Regresar error si faltan fechas de pago o conceptos (antes de guardar nada)
+        if(!isset($data["dias_pagos"])){
+            return back()->withErrors('Debes agregar por lo menos una fecha de pago.');
+        }
+        if(!isset($data["tipo_pago"])){
+            return back()->withErrors('Debes agregar por lo menos un concepto de pago.');
+        }
+
+        // Todo va en una transacción: si algo falla no quedan pagos/conceptos sueltos
+        // con la ratificación aún en "Confirmado". El lockForUpdate + la revisión del
+        // estatus evitan que un doble envío (doble clic, otra pestaña) duplique registros.
+        $concluida = DB::transaction(function () use ($data, $sede, $id_usuario) {
+            $turno = Turnos::lockForUpdate()->find($data["id"]);
+            if(!$turno || $turno->estatus !== "Confirmado"){
+                return false;
+            }
+
             $conteo = count($data["dias_pagos"]);
             for($i = 0; $i < $conteo; $i++) {
                 $data_citado = [
@@ -1900,12 +1981,7 @@ class TurnosController extends Controller
                 ];
                 Pagos::create($data_citado);
             }
-        }
-        //Regresar error
-        else{
-            return back()->withErrors('Debes agregar por lo menos una fecha de pago.');
-        }
-        if(isset($data["tipo_pago"])){
+
             $tiposPago = $data["tipo_pago"];
             $cont = count($data["monto_pago"]);
             $otrasPrestaciones = $data["otra_prestacion"] ?? [];
@@ -1922,62 +1998,64 @@ class TurnosController extends Controller
                     'descripcion'   => $descripcion,
                     'tipo_pago'     => "Ratificacion"
                 ];
-                //dd($data_citado);
                 Concepto::create($data_citado);
             }
-        }
-        //Regresar error
-        else{
-            return back()->withErrors('Debes agregar por lo menos un concepto de pago.');
-        }
-        if(isset($data["descripcion_deduccion"])){
-            $cont = count($data["descripcion_deduccion"]);
-            for($i = 0; $i < $cont; $i++) {
-                $data_deduccion = [
-                    'id_solicitud'  => $data["id"], 
-                    'monto'         => $data["monto_deduccion"][$i], 
-                    'descripcion'   => $data["descripcion_deduccion"][$i],
-                    'tipo_pago'     => "Ratificacion"
-                ];
-                Deducciones::create($data_deduccion);
+
+            if(isset($data["descripcion_deduccion"])){
+                $cont = count($data["descripcion_deduccion"]);
+                for($i = 0; $i < $cont; $i++) {
+                    $data_deduccion = [
+                        'id_solicitud'  => $data["id"], 
+                        'monto'         => $data["monto_deduccion"][$i], 
+                        'descripcion'   => $data["descripcion_deduccion"][$i],
+                        'tipo_pago'     => "Ratificacion"
+                    ];
+                    Deducciones::create($data_deduccion);
+                }
             }
+
+            if($conteo >= 2){
+                $estatus = "Concluida Pagos";
+            }
+            else{
+                $estatus = "Concluida";
+            }
+
+            //Generar numero de expediente
+            $expediente = $this->GeneraExpediente($turno["consecutivo"],$turno["delegacion"]);
+
+            $updateData = [
+                'resolucion_primera'        => $data["primera"],
+                //'resolucion_trabajadores' => $data["trabajadores"],
+                'resolucion_justificacion'  => $data["justificacion"],
+                'resolucion_segunda'        => $data["segunda"],
+                'vacaciones_dias'           => $data["vacaciones"],
+                'aguinaldo_dias'            => $data["aguinaldo"],
+                'otros_dias'                => $data["otros"],
+                'horario'                   => $data["horario"],
+                'comida'                    => $data["comida"],
+                /*'domicilio'               => $data["domicilio"],*/
+                'NUE'                       => $expediente,
+                'id_conciliador'            => $data["conciliador_id"],
+                'user_id'                   => $id_usuario,
+                'estatus'                   => $estatus,
+                'conclucion_id'             => $id_usuario,
+                'fecha_conclucion'          => \Carbon\Carbon::now()->format('Y-m-d'),
+            ];
+
+            if (!empty($data["year_ptu"])) {
+                $updateData['year_ptu'] = (int) $data["year_ptu"][array_key_first($data["year_ptu"])];
+            }
+
+            $turno->update($updateData);
+
+            return true;
+        });
+
+        if(!$concluida){
+            return redirect()->route('todas_ratificaciones')
+                ->withErrors('Esta ratificación ya fue concluida o ya no está en estatus Confirmado; no se guardó de nuevo.');
         }
-
-        if($conteo >= 2){
-            $estatus = "Concluida Pagos";
-        }
-        else{
-            $estatus = "Concluida";
-        }
-
-        //Generar numero de expediente
-        $delegacion = Turnos::find($data["id"]);
-        $expediente = $this->GeneraExpediente($delegacion["consecutivo"],$delegacion["delegacion"]);
-
-        $updateData = [
-            'resolucion_primera'        => $data["primera"],
-            //'resolucion_trabajadores' => $data["trabajadores"],
-            'resolucion_justificacion'  => $data["justificacion"],
-            'resolucion_segunda'        => $data["segunda"],
-            'vacaciones_dias'           => $data["vacaciones"],
-            'aguinaldo_dias'            => $data["aguinaldo"],
-            'otros_dias'                => $data["otros"],
-            'horario'                   => $data["horario"],
-            'comida'                    => $data["comida"],
-            /*'domicilio'               => $data["domicilio"],*/
-            'NUE'                       => $expediente,
-            'id_conciliador'            => $data["conciliador_id"],
-            'user_id'                   => $id_usuario,
-            'estatus'                   => $estatus,
-            'conclucion_id'             => $id_usuario,
-            'fecha_conclucion'          => \Carbon\Carbon::now()->format('Y-m-d'),
-        ];
-
-        if (!empty($data["year_ptu"])) {
-            $updateData['year_ptu'] = (int) $data["year_ptu"][array_key_first($data["year_ptu"])];
-        }
-
-        $rechazar = Turnos::find($data["id"])->update($updateData);
         
         $id_solicitud =  $data["id"];
         if($data["valor"] == 1){
@@ -2950,36 +3028,6 @@ class TurnosController extends Controller
     }
 
 
-    public function actualizar_folio(){
-        $tableName = 'turnos'; // Reemplaza con el nombre real de tu tabla
-        $idColumn = 'id'; // Columna para ordenar la secuencia (usualmente 'id')
-        $delegacionColumn = 'delegacion'; // Columna de agrupación
-        $consecutivoColumn = 'consecutivo'; // Columna a actualizar
-
-        $sql = "
-            UPDATE {$tableName} AS r
-            JOIN (
-                SELECT 
-                    {$idColumn},
-                    {$delegacionColumn},
-                    @consecutivo_delegacion := IF(
-                        @delegacion_actual = {$delegacionColumn}, 
-                        @consecutivo_delegacion + 1, 
-                        1
-                    ) AS nuevo_consecutivo,                    
-                    @delegacion_actual := {$delegacionColumn} AS dummy_var 
-                FROM 
-                    {$tableName}
-                ORDER BY 
-                    {$delegacionColumn} ASC, 
-                    {$idColumn} ASC 
-            ) AS subquery 
-            ON r.{$idColumn} = subquery.{$idColumn}
-            SET 
-                r.{$consecutivoColumn} = subquery.nuevo_consecutivo;";
-
-        DB::statement($sql);
-    }
     //Conveio de PTU cuando el trabajador NO SIGUE laborando
     public function VerPDFConvenioPTU_rat($id){
         $ratificacion = Turnos::find($id);
@@ -3027,10 +3075,8 @@ class TurnosController extends Controller
             $deduccionesTexto[$deduccion->id] = $this->convertirNumerosALetras($deduccion->monto);
         }
 
-        $totalPrestaciones = $prestaciones->sum('monto');
-        $totalDeducciones = $deducciones->sum('monto');
-        //Total a pagar
-        $pagoTotal= $totalPrestaciones-$totalDeducciones;
+        // Neto a pagar y monto de las cláusulas (ver montoConvenio()).
+        [$pagoTotal, $montoConvenio] = $this->montoConvenio($prestaciones, $deducciones, $ratificacion->monto);
         $conciliador  = User::join("turnos","turnos.id_conciliador","=","users.id");
         $conciliador = $conciliador->where("turnos.id", "=", $id)
         ->select('users.name')
@@ -3048,7 +3094,7 @@ class TurnosController extends Controller
         $salario_mensual = $salario_diario * 30;
         $diarioTexto = $this->convertirNumerosALetras($salario_diario);
         $mensualTexto = $this->convertirNumerosALetras($salario_mensual);
-        $montoTexto = $this->convertirNumerosALetras($ratificacion->monto);
+        $montoTexto = $this->convertirNumerosALetras($montoConvenio);
         
         $pagosDif  = Pagos::join("turnos","turnos.id","=","pago_solicitud.id_solicitud");
         $pagosDif = $pagosDif->where("pago_solicitud.id_solicitud", "=", $id)
@@ -3067,10 +3113,10 @@ class TurnosController extends Controller
 
         if($ratificacion->fecha_termino){
             $html = view('PDF/convenioPTUNoLaboraRati', compact('id','ratificacion','conciliador','prestaciones','deducciones','deduccionesTexto','pagoTotal','descripcionIdentificacionS','salario_mensual','mensualTexto',
-            'descripcionIdentificacionP','abogado','conceptosTexto','municipioEmpresa','estadoEmpresa','montoTexto','pagosDif','pagos','delegado', 'inicialesConcluye','etiquetaIniciales'))->render();
+            'descripcionIdentificacionP','abogado','conceptosTexto','municipioEmpresa','estadoEmpresa','montoTexto','pagosDif','pagos','delegado', 'inicialesConcluye','etiquetaIniciales','montoConvenio'))->render();
         } else {
             $html = view('PDF/convenioPTULaboraRati', compact('id','ratificacion','conciliador','prestaciones','deducciones','deduccionesTexto','pagoTotal','descripcionIdentificacionS','salario_mensual','mensualTexto',
-            'descripcionIdentificacionP','abogado','conceptosTexto','municipioEmpresa','estadoEmpresa','montoTexto','pagosDif','pagos','delegado', 'inicialesConcluye','etiquetaIniciales'))->render();
+            'descripcionIdentificacionP','abogado','conceptosTexto','municipioEmpresa','estadoEmpresa','montoTexto','pagosDif','pagos','delegado', 'inicialesConcluye','etiquetaIniciales','montoConvenio'))->render();
         }
 
         $pdf = \PDF::loadHTML($html)
@@ -3087,6 +3133,10 @@ class TurnosController extends Controller
         $id_usuario     = auth()->user()->id;
         $user           = User::find($id_usuario);           
         $solicitud      = Turnos::find($id);
+        if (!$solicitud->puedeEditarse()) {
+            return redirect()->route('todas_ratificaciones')
+                ->withErrors('Esta ratificación ya fue concluida y solo podía editarse hasta un día después de su conclusión.');
+        }
         $sede           = $user->delegacion;
         $representantes = Poder::find($solicitud["idAbogado"]);
         $abogados       = Poder::all();
@@ -3132,6 +3182,11 @@ class TurnosController extends Controller
 
         $solicitud = Turnos::find($data['id']);
 
+        if (!$solicitud->puedeEditarse()) {
+            return redirect()->route('todas_ratificaciones')
+                ->withErrors('Esta ratificación ya fue concluida y solo podía editarse hasta un día después de su conclusión.');
+        }
+
         if (in_array($solicitud->estatus, ['Concluida', 'Concluida Pagos', 'Incumplimiento'])) {
             $request->validate(
                 ['conciliador_id' => 'required'],
@@ -3139,54 +3194,62 @@ class TurnosController extends Controller
             );
         }
 
+        $request->validate(
+            ['motivo_edicion' => 'required|string|max:255'],
+            [
+                'motivo_edicion.required' => 'El motivo de la edición es obligatorio.',
+                'motivo_edicion.max'      => 'El motivo de la edición no debe pasar de 255 caracteres.',
+            ]
+        );
+
         //Variables opcionales
         if(isset($data["Aguinaldo"]) && $data["motivo"] == "Pago de prestaciones"){
             $Aguinaldo =  1;
         }
         else{
-            $Aguinaldo =  0;
+            $Aguinaldo =  null;
         }
         if(isset($data["Vacaciones"]) && $data["motivo"] == "Pago de prestaciones"){
             $Vacaciones =  1;
         }
         else{
-            $Vacaciones =  0;
+            $Vacaciones = null;
         }
         if(isset($data["PrimaVacacional"]) && $data["motivo"] == "Pago de prestaciones"){
             $PrimaVacacional = 1;
         }
         else{
-            $PrimaVacacional = 0;
+            $PrimaVacacional = null;
         }
         if(isset($data["PagoPTU"]) && $data["motivo"] == "Pago de prestaciones"){
             $PagoPTU =  1;
         }
         else{
-            $PagoPTU = 0;
+            $PagoPTU = null;
         }
         if(isset($data["Gratificación"]) && $data["motivo"] == "Pago de prestaciones"){
             $Gratificación =  1;
         }
         else{
-            $Gratificación = 0;
+            $Gratificación = null;
         }
         if(isset($data["PrimaAntigüedad"]) && $data["motivo"] == "Pago de prestaciones"){
             $PrimaAntigüedad =  1;
         }
         else{
-            $PrimaAntigüedad = 0;
+            $PrimaAntigüedad = null;
         }
         if(isset($data["Otras"]) && $data["motivo"] == "Pago de prestaciones"){
             $Otras =  1;
         }
         else{
-            $Otras =  0;
+            $Otras =  null;
         }
         if(isset($data["Especifique"]) && $data["motivo"] == "Pago de prestaciones"){
             $Especifique =  $data["Especifique"];
         }
         else{
-            $Especifique = 0;
+            $Especifique = null;
         }
         //Obtener el abogado actual y obtener el historial mas reciente 
         $ultimoRegistro = HistorialAbogado::where('id_abogado', $data["folio"])->latest()->first();
@@ -3249,7 +3312,7 @@ class TurnosController extends Controller
             $request->file('cuantificacion')->storeAs('documentos_ratificacion/' . $id_solicitud, $nombre_cuantificacion);
             $updateData["documentoCuanti"] = $nombre_cuantificacion; 
         }
-        $solicitud->update($updateData);
+        HistorialRatificacionRecorder::actualizar($solicitud, $updateData, $data['motivo_edicion']);
 
         return redirect()->route('todas_ratificaciones')->with('success', 'Actualizado correctamente');
 
@@ -3479,6 +3542,36 @@ class TurnosController extends Controller
         }
 
         return $pagos;
+    }
+    public function verDocumentoCita($id)
+    {
+        $cita = Recepcion::findOrFail($id);
+        $fecha = $cita->fecha->format('Y-m-d');
+        $hora = $cita->hora->format('H:i');
+        $todas_direcciones = [
+            'Morelia' => 'BLVD. GARCÍA DE LEÓN NO. 1575, COL. CHAPULTEPEC ORIENTE, C.P. 58260, MORELIA, MICHOACÁN',
+            'Zitácuaro' => '5 DE MAYO NTE. 3, CENTRO, C.P. 61500, ZITÁCUARO, MICHOACÁN.',
+            'Zamora' => 'JUSTO SIERRA NO. 290, COL. JARDINES DE CATEDRAL, C.P. 59670, ZAMORA DE HIDALGO, MICHOACÁN.',
+            'Sahuayo' => 'AV. UNIVERSIDAD SUR NO. 3000, SEGUNDO PISO, EDIFICIO CENTRAL, COL. LOMAS DE UNIVERSIDAD, C.P. 59103, SAHUAYO DE MORELOS, MICHOACÁN.',
+            'Uruapan' => 'NUEVO PARICUTÍN NO. 308, COL. SAN RAFAEL, C.P. 60136, URUAPAN, MICHOACÁN.',
+            'Lázaro Cárdenas' => 'PARACHO NO. 26, COL. 600 CASAS, C.P. 60950, LÁZARO CÁRDENAS, MICHOACÁN.',
+        ];
+        $direccion = $todas_direcciones[$cita->delegacion];
+        // Se genera la URL absoluta que abrirá el teléfono al escanear
+        $urlConfirmacion = route('citas.confirmar', $cita->id);
+
+        // Se crea el QR apuntando a esa URL específica
+        $qrCode = QrCode::size(200)->color(94, 119, 122)->generate($urlConfirmacion);
+        $html = view('recepcion.acuse_cita', compact('cita', 'qrCode', 'direccion','fecha','hora'))->render();
+        
+        $pdf = \PDF::loadHTML($html)
+            ->setPaper('a4', 'portrait')
+            ->setOption('isHtml5ParserEnabled', true)
+            ->setOption('isPhpEnabled', true); 
+
+        $nombreArchivo = 'Confirmacion_cita' .'.pdf';
+        return $pdf; 
+
     }
     
 

@@ -66,11 +66,28 @@
                      cuando se puede escribir bien; si no, queda el saludo a
                      secas. Lo resuelve App\Support\Saludo. --}}
                 <p>{{ $saludo }}</p>
+
+                {{-- Recepción: accesos rápidos en la misma tarjeta del saludo. --}}
+                @if (! empty($accesos))
+                    @include('inicio._accesos_recepcion')
+                @endif
+                {{-- Conciliación, Género e Igualdad: sus casos de excepción. --}}
+                @if (! empty($casos))
+                    @include('inicio._accesos_excepcion')
+                @endif
+                {{-- Orientadores y auxiliares con módulo: quién sigue y su día. --}}
+                @if (! empty($orientador))
+                    @include('inicio._accesos_orientador')
+                @endif
             </div>
 
-            {{-- Estadísticas para todos los roles: va antes de la bifurcación
-                 de abajo, que es la que separa al Directivo del resto. --}}
-            @include('inicio._tarjetas')
+            {{-- Tabla de posiciones para todos los roles menos recepción (que
+                 tiene sus accesos arriba): va antes de la bifurcación de
+                 abajo, que separa al Directivo del resto. Las tarjetas de
+                 cifras del mes viven en el Panel estadístico. --}}
+            @if (! empty($posiciones))
+                @include('inicio._tarjeta_posiciones')
+            @endif
         </div>
 
         @if(in_array('Directivo', $userRole))

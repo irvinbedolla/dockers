@@ -17,8 +17,12 @@
         'confirmada' => 'Confirmadas',
         'atendido'   => 'Atendidos',
         'expirada'   => 'Expiradas',
+        'cancelada'  => 'Canceladas',
     ];
     $estatusActivo = $filtros['estatus'] ?? null;
+    // El acuse vive en las rutas de quien crea turnos (CreaTurnos); Directivo sólo consulta.
+    $puedeAcuse = auth()->user()->hasAnyRole(array_merge(\App\Http\Middleware\CreaTurnos::ROLES, \App\Support\Recepcion::ROLES))
+        || \App\Support\CasosExcepcion::es(auth()->user());
 @endphp
 
 @section('page_css')
@@ -42,6 +46,13 @@
             color: var(--tn-tenue);
             margin-bottom: 4px;
         }
+
+        /* Llegó tarde / cuánto lleva en sala sin que la llamen (Mi módulo usa lo mismo). */
+        .tn-marca { display: inline-block; margin-top: 4px; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+        .tn-marca--tarde { background: #FBF4E1; color: #7A5D10; }
+        .tn-marca--sala  { background: #EEF0F3; color: #5F6B7A; }
+        .tn-marca--espera { background: #FBE3E3; color: #A61B1B; }
+        .tn-tarde-error { display: block; font-size: 11.5px; color: #A61B1B; margin-top: 4px; white-space: normal; }
 
         .tn-dia { display: flex; align-items: stretch; gap: 6px; }
         .tn-dia .form-control { min-width: 150px; }
@@ -166,16 +177,33 @@
     <section class="section tn">
         <div class="section-header d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
             <div>
-                <a href="{{ route('turnos') }}" class="text-decoration-none small" style="color: var(--tn-verde-claro);">
-                    <i class="bi bi-arrow-left"></i> Turnos
-                </a>
+                {{-- Directivo y Delegado no entran a la pantalla de Turnos de recepción. --}}
+                @if (! auth()->user()->hasAnyRole(array_merge(\App\Http\Middleware\CreaTurnos::ROLES, \App\Support\Recepcion::ROLES)))
+                    <a href="{{ route('inicio') }}" class="text-decoration-none small" style="color: var(--tn-verde-claro);">
+                        <i class="bi bi-arrow-left"></i> Inicio
+                    </a>
+                @else
+                    <a href="{{ route('turnos') }}" class="text-decoration-none small" style="color: var(--tn-verde-claro);">
+                        <i class="bi bi-arrow-left"></i> Turnos
+                    </a>
+                @endif
                 <h3 class="page__heading mb-0">Todos los turnos</h3>
             </div>
-            @can('turnos_crear')
-                <a class="btn tn-boton-dorado shadow-sm" href="{{ route('nueva_cita') }}" onclick="crear_turnos();">
-                    <i class="bi bi-plus-lg me-1"></i> Nuevo turno
-                </a>
-            @endcan
+            <div class="d-flex gap-2 flex-wrap">
+                @if (\App\Support\AgendaTurnos::puedeDescargar(auth()->user()))
+                    <button type="button" class="btn btn-outline-secondary shadow-sm" data-bs-toggle="modal" data-bs-target="#agModal">
+                        <i class="bi bi-download me-1"></i> Descargar agenda
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary shadow-sm" data-bs-toggle="modal" data-bs-target="#ocModal">
+                        <i class="bi bi-calendar3 me-1"></i> Ocupación
+                    </button>
+                @endif
+                @can('turnos_crear')
+                    <a class="btn tn-boton-dorado shadow-sm" href="{{ route('nueva_cita') }}" onclick="crear_turnos();">
+                        <i class="bi bi-plus-lg me-1"></i> Nuevo turno
+                    </a>
+                @endcan
+            </div>
         </div>
 
         <div class="section-body">
@@ -230,7 +258,7 @@
                         <label for="tnTipo">Trámite</label>
                         <select id="tnTipo" name="tipo" class="form-select">
                             <option value="">Todos</option>
-                            @foreach (\App\Http\Controllers\TurnosHistorialController::TIPOS as $t)
+                            @foreach (\App\Support\Recepcion::tramitesVisibles(auth()->user()) ?? \App\Http\Controllers\TurnosHistorialController::TIPOS as $t)
                                 <option value="{{ $t }}" @selected(($filtros['tipo'] ?? '') === $t)>{{ $t }}</option>
                             @endforeach
                         </select>
@@ -325,6 +353,9 @@
                                     @php
                                         $enLinea = $turno->origen === 'linea';
                                         $estatus = strtolower((string) $turno->estatus);
+                                        $esHoy   = $turno->fecha === $hoy;
+                                        // Minutos en sala sin que la llamen (sólo hoy); desde 30, en rojo.
+                                        $enSala  = $esHoy ? \App\Support\SigueEnModulo::esperando((object) ['estatus' => $estatus, 'llamado_at' => $turno->llamado_at ?? null, 'confirmada_at' => $turno->confirmada_at ?? null, 'hora' => $turno->hora], $ahora) : null;
                                     @endphp
                                     <tr>
                                         <td class="text-center tn-folio">{{ \App\Support\FolioCita::mostrar($turno) }}</td>
@@ -347,6 +378,9 @@
                                             @else
                                                 <span class="tn-origen tn-origen--ventanilla">Ventanilla</span>
                                             @endif
+                                            @if (! empty($turno->es_prueba))
+                                                <span class="tn-origen" style="background:#FBF4E1;color:#7A5D10;">Prueba</span>
+                                            @endif
                                         </td>
                                         <td>
                                             {{ $turno->auxiliar ? \Illuminate\Support\Str::title(mb_strtolower($turno->auxiliar)) : 'Pendiente' }}
@@ -355,11 +389,26 @@
                                         @if ($multiSede)<td>{{ $turno->delegacion }}</td>@endif
                                         <td class="text-center">
                                             <span class="tn-estatus tn-estatus--{{ $estatus }}">{{ $estatus }}</span>
+                                            @if (! empty($turno->llego_tarde) && $estatus !== 'expirada')
+                                                <br><span class="tn-marca tn-marca--tarde" title="Recepción la atendió aunque llegó tarde">Llegó tarde</span>
+                                            @endif
+                                            @if ($enSala !== null && $enSala > 0)
+                                                <br><span class="tn-marca {{ $enSala >= \App\Support\SigueEnModulo::ESPERA_ALERTA ? 'tn-marca--espera' : 'tn-marca--sala' }}" title="En sala sin que la llamen">En sala {{ $enSala }} min</span>
+                                            @endif
                                         </td>
                                         <td class="text-end text-nowrap">
-                                            <a class="btn btn-outline-secondary btn-sm" href="{{ route('citas.documento', $turno->id) }}" target="_blank" rel="noopener" title="Acuse de la cita">
-                                                <i class="bi bi-file-pdf"></i> Acuse
-                                            </a>
+                                            @if ($puedeTarde && $esHoy && $estatus === 'expirada')
+                                                <button type="button" class="btn btn-warning btn-sm me-1 tn-tarde" data-url="{{ route('recepcion.escaner.tarde', $turno->id) }}"
+                                                        data-resumen="{{ \App\Support\FolioCita::mostrar($turno) }} · {{ $turno->solicitante }}"
+                                                        title="La persona sí está: vuelve a la fila de su módulo, después de quienes llegaron a tiempo">
+                                                    <i class="bi bi-person-check-fill"></i> Atender de todos modos
+                                                </button>
+                                            @endif
+                                            @if ($puedeAcuse)
+                                                <a class="btn btn-outline-secondary btn-sm" href="{{ route('citas.documento', $turno->id) }}" target="_blank" rel="noopener" title="Acuse de la cita">
+                                                    <i class="bi bi-file-pdf"></i> Acuse
+                                                </a>
+                                            @endif
                                             {{-- Reasignar módulo: mismo diálogo y reglas que Administración → Módulos
                                                  (pendiente o confirmada, hoy o después, sin excepción). Las opciones
                                                  sólo vienen para las citas que se pueden mover y si hay permiso. --}}
@@ -391,6 +440,84 @@
         'opciones'     => $opciones,
         'urlReasignar' => route('turnos.reasignar', ['id' => '__ID__']),
     ])
+
+    {{-- Calendario de ocupación de la agenda (App\Support\OcupacionTurnos). Mismos permisos que la descarga. --}}
+    @if (\App\Support\AgendaTurnos::puedeDescargar(auth()->user()))
+        @include('turnos._ocupacion')
+    @endif
+
+    {{-- Descargar la agenda de un día o una semana (App\Support\AgendaTurnos). --}}
+    @if (\App\Support\AgendaTurnos::puedeDescargar(auth()->user()))
+        @push('modals')
+            <div class="modal fade tn" id="agModal" tabindex="-1" aria-labelledby="agModalTitulo" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <form class="modal-content" method="GET" action="{{ route('turnos.agenda.descargar') }}" id="agForm" data-sin-carga>
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="agModalTitulo"><i class="bi bi-calendar-week me-1"></i> Descargar agenda de turnos</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row g-3">
+                                <div class="col-sm-6">
+                                    <label for="agFecha" class="form-label small fw-semibold">Día</label>
+                                    <input type="date" class="form-control" id="agFecha" name="fecha" value="{{ $fecha ?? $hoy }}" required>
+                                </div>
+                                <div class="col-sm-6">
+                                    <label class="form-label small fw-semibold d-block">Periodo</label>
+                                    <div class="btn-group w-100" role="group" aria-label="Periodo">
+                                        <input type="radio" class="btn-check" name="periodo" id="agDia" value="dia" checked>
+                                        <label class="btn btn-outline-secondary" for="agDia">Ese día</label>
+                                        <input type="radio" class="btn-check" name="periodo" id="agSemana" value="semana">
+                                        <label class="btn btn-outline-secondary" for="agSemana">Su semana</label>
+                                    </div>
+                                    <div class="form-text" id="agSemanaTexto"></div>
+                                </div>
+                                <div class="col-sm-6">
+                                    <label for="agSede" class="form-label small fw-semibold">Sede</label>
+                                    <select class="form-select" id="agSede" name="sede">
+                                        @if (count($sedesPermitidas) > 1)
+                                            <option value="">{{ count($sedesPermitidas) >= count(\App\Support\Recepcion::TODAS_LAS_SEDES) ? 'Todas las sedes' : 'Mis sedes ('.implode(' y ', $sedesPermitidas).')' }}</option>
+                                        @endif
+                                        @foreach ($sedesPermitidas as $s)
+                                            <option value="{{ $s }}" @selected(($filtros['sede'] ?? '') === $s)>{{ $s }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-sm-6">
+                                    <label for="agExcepcion" class="form-label small fw-semibold">Casos de excepción</label>
+                                    <select class="form-select" id="agExcepcion" name="excepcion">
+                                        @foreach (['incluir' => 'Incluirlos', 'excluir' => 'Excluirlos', 'solo' => 'Sólo esos casos'] as $valor => $texto)
+                                            <option value="{{ $valor }}">{{ $texto }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                @role('Super Usuario')
+                                    <div class="col-12">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" value="1" id="agPruebas" name="pruebas">
+                                            <label class="form-check-label small" for="agPruebas">Incluir citas de prueba</label>
+                                        </div>
+                                    </div>
+                                @endrole
+                            </div>
+                            <p class="small mt-3 mb-0" style="color: var(--tn-tenue);">
+                                Incluye hora, módulo, folio, trámite, quién llega, quién le atiende, a qué hora llegó, la atención y en qué quedó.
+                                Excel trae una hoja de resumen y una por sede; la imagen se abre en otra pestaña y se descarga sola.
+                            </p>
+                        </div>
+                        <div class="modal-footer justify-content-between">
+                            <button type="button" class="btn btn-link text-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <div class="d-flex gap-2 flex-wrap">
+                                <button type="submit" name="formato" value="xlsx" class="btn btn-success"><i class="bi bi-file-earmark-excel me-1"></i> Excel</button>
+                                <button type="submit" name="formato" value="pdf" class="btn btn-danger"><i class="bi bi-file-earmark-pdf me-1"></i> PDF</button>
+                                <button type="submit" name="formato" value="png" formtarget="_blank" class="btn btn-outline-secondary"><i class="bi bi-image me-1"></i> Imagen</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        @endpush
+    @endif
 @endsection
 
 @push('body_end')
@@ -402,6 +529,52 @@
 
 @section('scripts')
     <script src="{{ asset('assets/js/turnos/turnos.js') }}"></script>
+    <script>
+        // Descargar agenda: muestra qué semana se va a bajar.
+        (function () {
+            var fecha = document.getElementById('agFecha');
+            var texto = document.getElementById('agSemanaTexto');
+            if (!fecha || !texto) return;
+            var meses = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+            function pinta() {
+                var semana = document.getElementById('agSemana').checked;
+                if (!semana || !fecha.value) { texto.textContent = ''; return; }
+                var d = new Date(fecha.value + 'T12:00:00');
+                var lunes = new Date(d); lunes.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+                var domingo = new Date(lunes); domingo.setDate(lunes.getDate() + 6);
+                texto.textContent = 'Del ' + lunes.getDate() + ' ' + meses[lunes.getMonth()] + ' al ' + domingo.getDate() + ' ' + meses[domingo.getMonth()];
+            }
+            fecha.addEventListener('change', pinta);
+            document.querySelectorAll('input[name="periodo"]').forEach(function (r) { r.addEventListener('change', pinta); });
+            // Bajar un archivo no cambia de página: se cierra el diálogo.
+            document.getElementById('agForm').addEventListener('submit', function (e) {
+                var formato = e.submitter ? e.submitter.value : '';
+                if (formato !== 'png') {
+                    setTimeout(function () { bootstrap.Modal.getInstance(document.getElementById('agModal'))?.hide(); }, 300);
+                }
+            });
+        })();
+    </script>
+    <script>
+        // "Atender de todos modos": la cita expiró hoy y la persona sí está (mismo
+        // endpoint que el escáner). Al terminar se recarga la lista.
+        document.querySelectorAll('.tn-tarde').forEach(function (b) {
+            b.addEventListener('click', async function () {
+                if (!confirm('¿Atender de todos modos ' + b.dataset.resumen + '?\nVuelve a la fila de su módulo, después de quienes llegaron a tiempo.')) return;
+                b.disabled = true;
+                var token = document.querySelector('meta[name="csrf-token"]');
+                var aviso = function (t) { var s = document.createElement('span'); s.className = 'tn-tarde-error'; s.textContent = t; b.after(s); };
+                try {
+                    var r = await fetch(b.dataset.url, { method: 'POST', credentials: 'same-origin',
+                        headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': token ? token.content : '' } });
+                    var d = r.ok ? await r.json() : null;
+                    if (d && d.resultado === 'confirmada_tarde') { location.reload(); return; }
+                    aviso(d ? d.mensaje : (r.status === 419 ? 'La sesión expiró; recarga la página.' : 'No se pudo (' + r.status + ').'));
+                } catch (e) { aviso('Sin conexión.'); }
+                b.disabled = false;
+            });
+        });
+    </script>
     <script>
         // Elegir un día o un filtro de lista ya filtra; no hace falta el botón.
         (function () {

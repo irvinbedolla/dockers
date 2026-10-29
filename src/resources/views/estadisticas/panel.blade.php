@@ -3,9 +3,12 @@
 {{--
     /estadisticas (EstadisticasController). Arriba, la descarga de reportes:
     es el mismo formulario de /seer/estadistica, con el mismo destino
-    (seer.mostar) y los mismos nombres de campo, sólo reacomodado. Abajo, el
-    mapa de sedes y las gráficas del Inicio del Directivo, incluidos desde sus
-    parciales para no mantener dos copias. Aquí se irán sumando gráficas.
+    (seer.mostar) y los mismos nombres de campo, sólo reacomodado. Luego las
+    cifras del mes (convenios pagados, montos y tasa de conciliación) que
+    antes iban en el Inicio, y abajo el mapa de sedes y las gráficas del
+    Inicio del Directivo, incluidos desde sus parciales para no mantener dos
+    copias. Aquí se irán sumando gráficas. Los temas con más detalle tienen
+    su propia página (Secciones), p. ej. /estadisticas/notificaciones.
 
     Cada reporte se ofrece sólo con los formatos que de verdad genera
     SeerController::mostrar_reporte (p. ej. INEGI siempre sale en Excel) y
@@ -102,6 +105,23 @@
         .es-formato:disabled { opacity: .5; }
 
         .es-seccion { margin: 6px 2px 10px; }
+
+        /* Secciones del panel: una tarjeta por tema que lleva a su página. */
+        .es-secciones { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; margin-bottom: 18px; }
+        .es-acceso {
+            display: flex; flex-direction: column; gap: 12px; text-decoration: none; color: inherit;
+            transition: border-color .15s, box-shadow .15s, transform .15s;
+        }
+        .es-acceso:hover { border-color: var(--tn-verde-claro); box-shadow: 0 6px 18px rgba(46, 60, 61, .08); transform: translateY(-1px); color: inherit; }
+        .es-acceso__cabeza { display: flex; align-items: center; gap: 12px; }
+        .es-acceso__icono { width: 40px; height: 40px; border-radius: 10px; flex: 0 0 auto; display: grid; place-items: center; font-size: 19px; background: #E7EFEF; color: var(--tn-verde); }
+        .es-acceso__titulo { margin: 0; font-size: 15px; font-weight: 700; color: var(--tn-tinta); line-height: 1.2; }
+        .es-acceso__sub { font-size: 12.5px; color: var(--tn-tenue); }
+        .es-acceso__ir { margin-left: auto; color: var(--tn-tenue); font-size: 18px; }
+        .es-acceso:hover .es-acceso__ir { color: var(--tn-verde); }
+        .es-acceso__cifras { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding-top: 12px; border-top: 1px solid var(--tn-borde); }
+        .es-acceso__cifras b { display: block; font-size: 19px; font-weight: 800; color: var(--tn-tinta); font-variant-numeric: tabular-nums; line-height: 1.1; }
+        .es-acceso__cifras span { font-size: 11.5px; color: var(--tn-suave); font-weight: 600; }
 
         @media (max-width: 1100px) {
             .es-campos { grid-template-columns: 1fr 1fr; }
@@ -224,6 +244,115 @@
                 </form>
                 @endif
             </div>
+
+            {{-- ===================== Secciones ===================== --}}
+            {{-- Cada tema con más detalle vive en su página; aquí sólo la tarjeta. --}}
+            <h3 class="tn-titulo-seccion es-seccion">Secciones</h3>
+            <div class="es-secciones">
+                @php($nm = $notificacionesMes)
+                <a class="tn-tarjeta es-acceso" href="{{ route('estadisticas.notificaciones') }}">
+                    <div class="es-acceso__cabeza">
+                        <span class="es-acceso__icono"><i class="bi bi-envelope-paper"></i></span>
+                        <div>
+                            <h2 class="es-acceso__titulo">Notificaciones</h2>
+                            <span class="es-acceso__sub">Desempeño por notificador y sede</span>
+                        </div>
+                        <i class="bi bi-chevron-right es-acceso__ir" aria-hidden="true"></i>
+                    </div>
+                    <div class="es-acceso__cifras" title="Este mes">
+                        <div><b>{{ number_format($nm['asignadas']) }}</b><span>Asignadas este mes</span></div>
+                        <div><b style="color:#1E7B3C;">{{ number_format($nm['exitosas']) }}</b><span>Exitosas</span></div>
+                        <div><b>{{ $nm['efectividad'] === null ? '—' : rtrim(rtrim(number_format($nm['efectividad'], 1), '0'), '.').'%' }}</b><span>Efectividad</span></div>
+                    </div>
+                </a>
+
+                <a class="tn-tarjeta es-acceso" href="{{ route('estadisticas.seguimiento') }}">
+                    <div class="es-acceso__cabeza">
+                        <span class="es-acceso__icono"><i class="bi bi-signpost-2"></i></span>
+                        <div>
+                            <h2 class="es-acceso__titulo">Seguimiento de casos</h2>
+                            <span class="es-acceso__sub">De la cita al pago: etapas y días que tardan</span>
+                        </div>
+                        <i class="bi bi-chevron-right es-acceso__ir" aria-hidden="true"></i>
+                    </div>
+                </a>
+
+                @php($tm = $turnosMes)
+                <a class="tn-tarjeta es-acceso" href="{{ route('estadisticas.turnos') }}">
+                    <div class="es-acceso__cabeza">
+                        <span class="es-acceso__icono" style="background:#E3EEF9;color:#1F4E79;"><i class="bi bi-ticket-perforated"></i></span>
+                        <div>
+                            <h2 class="es-acceso__titulo">Turnos y citas</h2>
+                            <span class="es-acceso__sub">Atendidas, no acudieron y tiempos por sede</span>
+                        </div>
+                        <i class="bi bi-chevron-right es-acceso__ir" aria-hidden="true"></i>
+                    </div>
+                    <div class="es-acceso__cifras" title="Este mes">
+                        <div><b>{{ number_format($tm['citas']) }}</b><span>Citas este mes</span></div>
+                        <div><b style="color:#1E7B3C;">{{ number_format($tm['atendidas']) }}</b><span>Atendidas</span></div>
+                        <div><b style="color:#9A3A22;">{{ number_format($tm['noAcudieron']) }}</b><span>No acudieron</span></div>
+                    </div>
+                </a>
+
+                @php($am = $atencionMes)
+                <a class="tn-tarjeta es-acceso" href="{{ route('estadisticas.atencion') }}">
+                    <div class="es-acceso__cabeza">
+                        <span class="es-acceso__icono" style="background:#E9F5EE;color:#1E7B3C;"><i class="bi bi-chat-square-heart"></i></span>
+                        <div>
+                            <h2 class="es-acceso__titulo">Atención del trámite</h2>
+                            <span class="es-acceso__sub">Qué opinan las partes de Recepción, captura y conciliadores</span>
+                        </div>
+                        <i class="bi bi-chevron-right es-acceso__ir" aria-hidden="true"></i>
+                    </div>
+                    <div class="es-acceso__cifras" title="Este mes">
+                        <div><b>{{ number_format($am['total']) }}</b><span>Respuestas este mes</span></div>
+                        <div><b>{{ $am['indice'] ?? '—' }}</b><span>Índice (0 a 100)</span></div>
+                        <div><b style="{{ $am['pendientes'] ? 'color:#9A3A22;' : '' }}">{{ number_format($am['pendientes']) }}</b><span>Alertas sin atender</span></div>
+                    </div>
+                </a>
+
+                @php($im = $incidenciasMes)
+                <a class="tn-tarjeta es-acceso" href="{{ route('estadisticas.incidencias') }}">
+                    <div class="es-acceso__cabeza">
+                        <span class="es-acceso__icono" style="background:#FBF4E1;color:#8A6A12;"><i class="bi bi-arrow-counterclockwise"></i></span>
+                        <div>
+                            <h2 class="es-acceso__titulo">Incidencias</h2>
+                            <span class="es-acceso__sub">Retrocesos y correcciones: qué, por qué y quién</span>
+                        </div>
+                        <i class="bi bi-chevron-right es-acceso__ir" aria-hidden="true"></i>
+                    </div>
+                    <div class="es-acceso__cifras">
+                        <div><b>{{ number_format($im['hoy']) }}</b><span>Hoy</span></div>
+                        <div><b>{{ number_format($im['mes']) }}</b><span>Este mes</span></div>
+                        <div><b>{{ number_format($im['anio']) }}</b><span>Este año</span></div>
+                    </div>
+                </a>
+
+                @php($xm = $excepcionesMes)
+                <a class="tn-tarjeta es-acceso" href="{{ route('estadisticas.excepciones') }}">
+                    <div class="es-acceso__cabeza">
+                        <span class="es-acceso__icono" style="background:#F6E4EA;color:#8C1D40;"><i class="bi bi-shield-exclamation"></i></span>
+                        <div>
+                            <h2 class="es-acceso__titulo">Casos de excepción</h2>
+                            <span class="es-acceso__sub">Art. 685 Ter: atendidos y canalizados</span>
+                        </div>
+                        <i class="bi bi-chevron-right es-acceso__ir" aria-hidden="true"></i>
+                    </div>
+                    <div class="es-acceso__cifras" title="Este mes">
+                        <div><b>{{ number_format($xm['detectados']) }}</b><span>Detectados este mes</span></div>
+                        <div><b>{{ number_format($xm['atendidos']) }}</b><span>Atendidos</span></div>
+                        <div><b style="color:#9A3A22;">{{ number_format($xm['canaliza']) }}</b><span>Canalizados</span></div>
+                        @if ($xm['incompetente'] ?? 0)
+                            <div><b style="color:#4B3F7A;">{{ number_format($xm['incompetente']) }}</b><span>No competentes</span></div>
+                        @endif
+                    </div>
+                </a>
+            </div>
+
+            {{-- ===================== Cifras del mes ===================== --}}
+            {{-- Antes iban en el Inicio de todos los roles. --}}
+            <h3 class="tn-titulo-seccion es-seccion">Cifras del mes</h3>
+            @include('inicio._tarjetas')
 
             {{-- ===================== Mapa y gráficas ===================== --}}
             <h3 class="tn-titulo-seccion es-seccion">Sedes · totales acumulados</h3>

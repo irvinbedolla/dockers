@@ -53,8 +53,35 @@ class HistorialAbogado extends Model
         'reprecentante',
         'idUsuario',
         'id_abogado',
-        'id_user'
+        'id_user',
+        // App\Support\HistorialPoderes: qué fue (alta, edicion, validacion,
+        // representante, baja), de qué folio salió y cuál es la foto anterior.
+        'accion',
+        'origen_abogado',
+        'previo_id',
     ];
+
+    /**
+     * Cada foto guarda cuál es la anterior del mismo folio y qué fue: alta,
+     * edición o validación (Pendiente → Validado). 'representante' y 'baja'
+     * los pone quien la crea (PoderController::guardarHistorial). Así lo leen
+     * el modal Historial e Incidencias sin comparar todo cada vez.
+     */
+    protected static function booted(): void
+    {
+        static::creating(function (HistorialAbogado $foto) {
+            if (! \App\Support\HistorialPoderes::conAccion() || ! $foto->id_abogado) {
+                return;
+            }
+            $previa = static::query()->where('id_abogado', $foto->id_abogado)->orderByDesc('id')->first(['id', 'estatus']);
+            if ($foto->accion !== 'representante') {
+                $foto->previo_id ??= $previa?->id;
+            }
+            $foto->accion ??= ! $previa
+                ? 'alta'
+                : ($previa->estatus === 'Pendiente' && $foto->estatus === 'Validado' ? 'validacion' : 'edicion');
+        });
+    }
 
     public function abogado()
     {

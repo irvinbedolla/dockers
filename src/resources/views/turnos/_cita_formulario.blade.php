@@ -14,6 +14,7 @@
                                 @csrf
                                 <input type="hidden" name="orientacion" id="orientacion" value="No">
                                 <input type="hidden" name="excepcion" id="excepcion" value="No">
+                                <input type="hidden" name="motivo_excepcion" id="motivo_excepcion" value="">
                                 <input type="hidden" name="delegacion" id="delegacion" value="">
                                 <input type="hidden" name="fecha_turno" id="fecha_turno" value="">
                                 <input type="hidden" name="hora_turno" id="hora_turno" value="">
@@ -45,16 +46,36 @@
                                             <label class="form-label" for="tipo">Tipo de trámite <span class="gc-req">*</span></label>
                                             <select id="tipo" name="tipo" class="form-select" onchange="blockCalendar();" required>
                                                 <option value="">Elige una opción</option>
-                                                <option value="Asesoría">Asesoría</option>
-                                                <option value="Solicitud">Solicitud de conciliación</option>
-                                                <option value="Ratificación">Ratificación de convenio</option>
+                                                {{-- ?tipo=Solicitud llega ya elegido (accesos rápidos de recepción en el Inicio).
+                                                     En ventanilla cada recepción ve sólo los trámites que puede agendar
+                                                     (Recepcion::tramitesQuePuedeCrear); si es uno solo, ya va elegido. --}}
+                                                @php
+                                                    $etiquetasTramite = ['Asesoría' => 'Asesoría', 'Solicitud' => 'Solicitud de conciliación', 'Ratificación' => 'Ratificación de convenio'];
+                                                    $tramitesForm = $ventanilla
+                                                        ? array_values(array_intersect(array_keys($etiquetasTramite), \App\Support\Recepcion::tramitesQuePuedeCrear(auth()->user())))
+                                                        : array_keys($etiquetasTramite);
+                                                    $tipoInicial = old('tipo', request()->query('tipo'));
+                                                    if (count($tramitesForm) === 1) { $tipoInicial = $tramitesForm[0]; }
+                                                @endphp
+                                                @foreach ($tramitesForm as $tramite)
+                                                    <option value="{{ $tramite }}" @selected($tipoInicial === $tramite)>{{ $etiquetasTramite[$tramite] }}</option>
+                                                @endforeach
                                             </select>
                                             <div class="form-text gc-ayuda-tramite" id="gcAyudaTramite">Elige una opción y te explicamos de qué se trata.</div>
                                             <div class="invalid-feedback">Elige el tipo de trámite.</div>
                                         </div>
                                         @unless ($ventanilla)
+                                        <div class="col-md-6" style="display:none;" id="calidad">
+                                            <label class="form-label" for="folio_patronal">Acudes en calidad de: </label>
+                                            <select id="puesto" class="form-select">
+                                                <option value="">Elige una opción</option>
+                                                <option value="trabajador">Trabajador</option>
+                                                <option value="empleador">Empleador</option>
+                                            </select>
+                                            
+                                        </div>
                                         <div class="col-md-6" style="display:none;" id="si_ratificacion">
-                                            <label class="form-label" for="folio_patronal">¿Ya tienes un folio de ratificación que te dio tu patrón?</label>
+                                            <label class="form-label" for="folio_patronal">¿Ya tienes un folio de representante patronal?</label>
                                             <select id="folio_patronal" class="form-select">
                                                 <option value="">Elige una opción</option>
                                                 <option value="si">Sí, ya tengo folio</option>
@@ -128,6 +149,46 @@
                                                    placeholder="Escríbelo otra vez" required>
                                             <div class="invalid-feedback" id="gcCorreo2Error">Los correos no coinciden.</div>
                                         </div>
+                                        {{-- Recepción (Morelia 01, 02 y General): si la persona no trae correo,
+                                             se puede usar el institucional (App\Support\Recepcion::CORREO). --}}
+                                        @if ($ventanilla && \App\Support\Recepcion::es(auth()->user()))
+                                            <div class="col-12">
+                                                <div class="gc-correo-recepcion" role="note">
+                                                    <i class="bi bi-envelope-at" aria-hidden="true"></i>
+                                                    <span>
+                                                        <b>¿La persona no tiene correo?</b> Usa el de recepción,
+                                                        <b>{{ \App\Support\Recepcion::CORREO }}</b>: es válido para registrar el turno cuando la persona no cuenta con correo.
+                                                    </span>
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="gcUsarCorreoRecepcion" data-correo="{{ \App\Support\Recepcion::CORREO }}">
+                                                        Usar este correo
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <style>
+                                                .gc-correo-recepcion { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 10px 14px; border-radius: 10px; background: #EEF2F2; color: #5E6E6F; font-size: 13px; }
+                                                .gc-correo-recepcion > .bi { font-size: 18px; color: #496163; }
+                                                .gc-correo-recepcion > span { flex: 1 1 280px; }
+                                                .gc-correo-recepcion b { color: #2E3C3D; }
+                                                .gc-correo-recepcion.is-usado { background: #E5F3EA; }
+                                            </style>
+                                            <script>
+                                                document.addEventListener('DOMContentLoaded', function () {
+                                                    var boton = document.getElementById('gcUsarCorreoRecepcion');
+                                                    if (!boton) { return; }
+                                                    boton.addEventListener('click', function () {
+                                                        ['gcCorreo', 'gcCorreo2'].forEach(function (id) {
+                                                            var campo = document.getElementById(id);
+                                                            if (!campo) { return; }
+                                                            campo.value = boton.getAttribute('data-correo');
+                                                            campo.dispatchEvent(new Event('input', { bubbles: true }));
+                                                            campo.dispatchEvent(new Event('change', { bubbles: true }));
+                                                        });
+                                                        boton.closest('.gc-correo-recepcion').classList.add('is-usado');
+                                                        boton.textContent = 'Correo de recepción puesto';
+                                                    });
+                                                });
+                                            </script>
+                                        @endif
                                         <div class="col-md-6">
                                             <label class="form-label" for="gcTelefono">Teléfono o celular <span class="gc-req">*</span></label>
                                             <input type="tel" id="gcTelefono" name="telefono" class="form-control" inputmode="numeric" autocomplete="tel-national"
@@ -150,6 +211,10 @@
                                             <div class="form-text">Nos ayuda a darte la atención adecuada.</div>
                                             <div class="invalid-feedback">Elige una opción.</div>
                                         </div>
+                                        {{-- CURP y domicilio para el prellenado (App\Support\FlujoCita). --}}
+                                        @if (\App\Support\FlujoCita::camposExtra($ventanilla))
+                                            @include('turnos._campos_flujo')
+                                        @endif
                                     </div>
                                 </fieldset>
 
@@ -165,41 +230,16 @@
                                             <select id="gcTipoCaso" name="tipo_caso" class="form-select" onchange="cambiaExcepcion(this); blockCalendar();" required>
                                                 <option value="">Elige una opción</option>
                                                 <option value="Ninguno" style="font-weight: bold;">No, ninguno de estos</option>
-                                                <optgroup label="Discriminación en el empleo por:">
-                                                    <option value="Acoso u hostigamiento sexual">Acoso u hostigamiento sexual</option>
-                                                    <option value="Discriminación">Condición social</option>
-                                                    <option value="Discriminación">Embarazo</option>
-                                                    <option value="Discriminación">Raza</option>
-                                                    <option value="Discriminación">Razones de sexo</option>
-                                                    <option value="Discriminación">Religión</option>
-                                                    <option value="Discriminación">Orientación sexual</option>
-                                                    <option value="Discriminación">Origen étnico</option>
-                                                </optgroup>
-                                                <optgroup label="Designación de beneficiarios:">
-                                                    <option value="Designacion">Designación de beneficiarios por muerte</option>
-                                                </optgroup>
-                                                <optgroup label="Prestaciones de seguridad social por:">
-                                                    <option value="Prestaciones">Accidentes de trabajo</option>
-                                                    <option value="Prestaciones">Enfermedades</option>
-                                                    <option value="Prestaciones">Guarderías</option>
-                                                    <option value="Prestaciones">Invalidez</option>
-                                                    <option value="Prestaciones">Maternidad</option>
-                                                    <option value="Prestaciones">Riesgos de trabajo</option>
-                                                    <option value="Prestaciones">Prestaciones en especie</option>
-                                                    <option value="Prestaciones">Vida</option>
-                                                </optgroup>
-                                                <optgroup label="Derechos fundamentales y libertades laborales:">
-                                                    <option value="Libertades_publicas">Libertad de asociación</option>
-                                                    <option value="Libertades_publicas">Libertad sindical</option>
-                                                    <option value="Libertades_publicas">Reconocimiento efectivo de la negociación colectiva</option>
-                                                    <option value="Libertades_publicas">Trabajo infantil</option>
-                                                    <option value="Libertades_publicas">Trabajo forzoso u obligatorio</option>
-                                                </optgroup>
-                                                <optgroup label="Disputa de titularidad o estatutos sindicales:">
-                                                    <option value="Titularidad">Contratos colectivos</option>
-                                                    <option value="Titularidad">Contratos ley</option>
-                                                    <option value="Titularidad">Impugnación de los estatutos de los sindicatos o su modificación</option>
-                                                </optgroup>
+                                                {{-- Catálogo en App\Support\CasosExcepcion::MOTIVOS. El value es el de
+                                                     siempre (recepcion.tipo_caso, el grupo); data-motivo es el motivo
+                                                     exacto y viaja en motivo_excepcion, para el reporte por motivo. --}}
+                                                @foreach (\App\Support\CasosExcepcion::motivosAgrupados() as $grupo => $opciones)
+                                                    <optgroup label="{{ $grupo }}">
+                                                        @foreach ($opciones as $op)
+                                                            <option value="{{ $op['valor'] }}" data-motivo="{{ $op['clave'] }}">{{ $op['texto'] }}</option>
+                                                        @endforeach
+                                                    </optgroup>
+                                                @endforeach
                                             </select>
                                             <div class="form-text" id="gcAyudaCaso">Si no estás seguro, elige "No, ninguno de estos".</div>
                                             <div class="invalid-feedback">Elige una opción.</div>
@@ -227,6 +267,21 @@
                                         </div>
                                     </div>
                                 </fieldset>
+
+
+                                @unless ($ventanilla)
+                                    {{-- Aviso de privacidad: obligatorio para agendar en línea (HomeController::turnos_publico lo revisa). --}}
+                                    <div class="gc-privacidad">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="gcPrivacidad" name="acepta_privacidad" value="1" required @checked(old('acepta_privacidad'))>
+                                            <label class="form-check-label" for="gcPrivacidad">
+                                                He leído el <a href="#" data-bs-toggle="modal" data-bs-target="#seguridadModal">Aviso de privacidad</a> y acepto que mis datos,
+                                                incluida la dirección IP desde la que me conecto, se usen para agendar y dar seguimiento a mi cita.
+                                            </label>
+                                            <div class="invalid-feedback">Para agendar tu cita, lee y acepta el Aviso de privacidad.</div>
+                                        </div>
+                                    </div>
+                                @endunless
 
                                 <div class="gc-enviar">
                                     <button id="btnGuardar" type="submit" class="btn btn-oro btn-lg gc-enviar__boton">

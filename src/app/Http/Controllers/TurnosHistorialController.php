@@ -21,17 +21,19 @@ use Illuminate\Validation\Rule;
 class TurnosHistorialController extends Controller
 {
     public const TIPOS    = ['Solicitud', 'Ratificación', 'Asesoría', 'Cumplimiento'];
-    public const ESTATUS  = ['pendiente', 'confirmada', 'atendido', 'expirada'];
+    public const ESTATUS  = ['pendiente', 'confirmada', 'atendido', 'expirada', 'cancelada'];
     private const POR_PAGINA = 25;
 
     public function __invoke(Request $request)
     {
         $sedesPermitidas = Recepcion::sedesVisibles($request->user());
+        // Morelia 02 sólo ve ratificaciones y cumplimientos; los demás, todo.
+        $tiposPermitidos = Recepcion::tramitesVisibles($request->user()) ?? self::TIPOS;
 
         $filtros = $request->validate([
             'fecha'   => ['nullable', 'date_format:Y-m-d'],
             'sede'    => ['nullable', Rule::in($sedesPermitidas)],
-            'tipo'    => ['nullable', Rule::in(self::TIPOS)],
+            'tipo'    => ['nullable', Rule::in($tiposPermitidos)],
             'estatus' => ['nullable', Rule::in(self::ESTATUS)],
             'origen'  => ['nullable', Rule::in(['linea', 'ventanilla'])],
             'q'       => ['nullable', 'string', 'max:100'],
@@ -44,7 +46,8 @@ class TurnosHistorialController extends Controller
         // aunque en ese momento se esté viendo sólo uno.
         $base = DB::table('recepcion as r')
             ->leftJoin('users as u', 'u.id', '=', 'r.auxiliar')
-            ->whereIn('r.delegacion', $sedes === [] ? ['__ninguna__'] : $sedes);
+            ->whereIn('r.delegacion', $sedes === [] ? ['__ninguna__'] : $sedes)
+            ->when($tiposPermitidos !== self::TIPOS, fn ($q) => $q->whereIn('r.tipo', $tiposPermitidos));
 
         if (! empty($filtros['fecha'])) {
             $base->where('r.fecha', $filtros['fecha']);
@@ -95,6 +98,11 @@ class TurnosHistorialController extends Controller
                 'r.hora_fin', 'r.estatus', 'r.exepcion', 'r.lugar_auxiliar', 'r.delegacion',
                 'r.correo', 'r.telefono', 'r.origen', 'u.name as auxiliar',
                 'r.modulo_id', 'r.auxiliar as auxiliar_id',
+                // Citas de prueba del flujo nuevo (columna de la fase 0).
+                ...(\App\Support\FlujoCita::migrado() ? ['r.es_prueba', 'r.llamado_at'] : []),
+                // En sala desde cuándo (aviso de espera larga) y si se atendió aunque llegó tarde.
+                ...(\App\Support\FlujoCita::conSeguimiento() ? ['r.confirmada_at'] : []),
+                ...(\App\Support\FlujoCita::conTardias() ? ['r.llego_tarde'] : []),
             ])
             ->paginate(self::POR_PAGINA)
             ->withQueryString();
@@ -114,6 +122,9 @@ class TurnosHistorialController extends Controller
 
         return view('turnos.todos', [
             'opciones'        => $opciones,
+            // "Atenderla de todos modos" para las que expiraron hoy (ValidadorCita::atenderTarde).
+            'puedeTarde'      => \App\Support\ValidadorCita::puedeReactivar($request->user()) && \App\Support\FlujoCita::conTardias(),
+            'ahora'           => now(),
             'turnos'          => $turnos,
             'filtros'         => $filtros,
             'fecha'           => $fecha,

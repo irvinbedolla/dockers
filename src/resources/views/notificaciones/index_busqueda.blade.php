@@ -18,7 +18,7 @@
         $notif = auth()->user()->can('notificaciones_ver_notificacion');
         $par = fn ($notificacion, $multa) => array_filter(['Notificación' => $notif ? $r($notificacion) : null, 'Multa' => $r($multa)]);
         return match ($n->estatus) {
-            'Finalizado exitosamente'                                          => $par('PDFRazonNoticacion', 'PDFmultaNotificacion'),
+            'Finalizado exitosamente', 'Recibe pero no firma'                  => $par('PDFRazonNoticacion', 'PDFmultaNotificacion'),
             'No notificada', 'Notificada en Audiencia', 'Exitosa por Instructivo' => $par('PDFInstructivo', 'VerPDFMultaInstructivo'),
             'No exitosa se constituye'                                         => $par('VerPDFNoExitConstituye', 'VerPDFMultaNoExitConstituye'),
             'No exitosa no se constituye'                                      => $par('PDFnotificadoNoexitosaNS', 'VerPDFMultaNoExitConstituye'),
@@ -26,10 +26,35 @@
         };
     };
     $verDocs = auth()->user()->can('notificaciones_ver_documento');
+
+    // Periodos rápidos del filtro avanzado.
+    $hoyC = \Illuminate\Support\Carbon::today();
+    $periodos = [
+        'Hoy'          => [$hoyC->toDateString(), $hoyC->toDateString()],
+        'Esta semana'  => [$hoyC->copy()->startOfWeek()->toDateString(), $hoyC->copy()->endOfWeek()->toDateString()],
+        'Este mes'     => [$hoyC->copy()->startOfMonth()->toDateString(), $hoyC->copy()->endOfMonth()->toDateString()],
+        'Mes pasado'   => [$hoyC->copy()->subMonthNoOverflow()->startOfMonth()->toDateString(), $hoyC->copy()->subMonthNoOverflow()->endOfMonth()->toDateString()],
+    ];
+    $desde = $filtros['desde'] ?? null;
+    $hasta = $filtros['hasta'] ?? null;
+    // Las cifras por notificador viven en /estadisticas/notificaciones.
+    $verEstadisticas = auth()->user()->hasAnyRole(['Super Usuario', 'Estadistica', 'Directivo'])
+        && \Illuminate\Support\Facades\Route::has('estadisticas.notificaciones');
 @endphp
 
 @section('page_css')
     @include('notificaciones._estilos')
+    <style>
+        /* Filtro por sede y periodo de la lista. */
+        .nt-periodo { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--tn-borde); }
+        .nt-periodo label { display: block; font-size: 11.5px; font-weight: 600; color: var(--tn-tenue); margin-bottom: 4px; }
+        .nt-periodo .form-control, .nt-periodo .form-select { min-width: 150px; }
+        .nt-atajos { display: flex; flex-wrap: wrap; gap: 6px; }
+        .nt-atajo { padding: 5px 12px; border-radius: 999px; border: 1px solid var(--tn-borde); background: #fff; color: var(--tn-suave); font-size: 12.5px; font-weight: 600; text-decoration: none; }
+        .nt-atajo:hover { border-color: var(--tn-verde-claro); color: var(--tn-verde); }
+        .nt-atajo.is-activo { background: var(--tn-verde); border-color: var(--tn-verde); color: #fff; }
+
+    </style>
 @endsection
 
 @section('content')
@@ -41,6 +66,11 @@
                 </a>
                 <h3 class="page__heading mb-0">Historial de notificaciones</h3>
             </div>
+            @if ($verEstadisticas)
+                <a class="btn btn-outline-secondary btn-sm" href="{{ route('estadisticas.notificaciones', array_filter(['sede' => $filtros['sede'] ?? null, 'tipo' => $filtros['tipo'] ?? null, 'notificador' => $filtros['notificador'] ?? null, 'desde' => $filtros['desde'] ?? null, 'hasta' => $filtros['hasta'] ?? null])) }}">
+                    <i class="bi bi-bar-chart-line"></i> Estadísticas
+                </a>
+            @endif
         </div>
 
         <div class="section-body">
@@ -76,6 +106,17 @@
                             @endforeach
                         </select>
                     </div>
+                    @if (count($sedesPermitidas) > 1)
+                        <div>
+                            <label for="ntSede">Sede</label>
+                            <select id="ntSede" name="sede" class="form-select nt-auto">
+                                <option value="">Todas</option>
+                                @foreach ($sedesPermitidas as $s)
+                                    <option value="{{ $s }}" @selected(($filtros['sede'] ?? '') === $s)>{{ $s }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    @endif
                     <div>
                         <label for="ntTipo">Tipo</label>
                         <select id="ntTipo" name="tipo" class="form-select nt-auto">
@@ -89,6 +130,34 @@
                         @if (array_filter(request()->except(['page', 'por'])))
                             <a href="{{ route('notificaciones_consultar') }}" class="btn btn-outline-secondary">Limpiar</a>
                         @endif
+                    </div>
+                </div>
+
+                {{-- Periodo --}}
+                <div class="nt-periodo">
+                    <div>
+                        <label>Periodo</label>
+                        <div class="nt-atajos">
+                            <a class="nt-atajo {{ ! $hayPeriodo ? 'is-activo' : '' }}" href="{{ $url(['desde' => null, 'hasta' => null]) }}">Todo</a>
+                            @foreach ($periodos as $etiqueta => [$d, $h])
+                                <a class="nt-atajo {{ $desde === $d && $hasta === $h ? 'is-activo' : '' }}" href="{{ $url(['desde' => $d, 'hasta' => $h]) }}">{{ $etiqueta }}</a>
+                            @endforeach
+                        </div>
+                    </div>
+                    <div>
+                        <label for="ntDesde">Desde</label>
+                        <input type="date" id="ntDesde" name="desde" class="form-control" value="{{ $desde }}">
+                    </div>
+                    <div>
+                        <label for="ntHasta">Hasta</label>
+                        <input type="date" id="ntHasta" name="hasta" class="form-control" value="{{ $hasta }}">
+                    </div>
+                    <div>
+                        <label for="ntFechaDe">La lista filtra por</label>
+                        <select id="ntFechaDe" name="fecha_de" class="form-select">
+                            <option value="notificacion" @selected(($filtros['fecha_de'] ?? 'notificacion') === 'notificacion')>Fecha de la diligencia</option>
+                            <option value="asignacion" @selected(($filtros['fecha_de'] ?? '') === 'asignacion')>Fecha de asignación</option>
+                        </select>
                     </div>
                 </div>
             </form>
@@ -147,7 +216,11 @@
                                         <td>@include('notificaciones._direccion', ['n' => $n])</td>
                                         <td>
                                             @include('notificaciones._estatus', ['estatus' => $n->estatus])
-                                            @if ($n->updated_at)<span class="nt-sub mt-1">{{ \Illuminate\Support\Carbon::parse($n->updated_at)->format('d/m/Y') }}</span>@endif
+                                            @if ($n->fecha && ! in_array($n->estatus, ['Sin asignar', 'Pendiente'], true))
+                                                <span class="nt-sub mt-1" title="Fecha de la diligencia">{{ \Illuminate\Support\Carbon::parse($n->fecha)->format('d/m/Y H:i') }}</span>
+                                            @elseif ($n->updated_at)
+                                                <span class="nt-sub mt-1">{{ \Illuminate\Support\Carbon::parse($n->updated_at)->format('d/m/Y') }}</span>
+                                            @endif
                                         </td>
                                         <td>
                                             @if ($n->estatus === 'Notificada en Audiencia')

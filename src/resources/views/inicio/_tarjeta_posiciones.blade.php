@@ -1,6 +1,7 @@
 {{--
     Tarjeta: tabla de posiciones del mes, conciliadores, auxiliares y
-    orientadores. Va debajo de las tarjetas de cifras, a todo lo ancho.
+    orientadores. Va en el Inicio, debajo del saludo, a todo lo ancho (las
+    tarjetas de cifras se mudaron al Panel estadístico).
 
     Los tres grupos se ven a la vez, en columnas, no en pastillas: son competencias
     distintas y ninguna es "la otra vista" de la primera. Cada una abre con su
@@ -21,6 +22,8 @@
 
     Espera $posiciones, de App\Support\TablaPosiciones::resumen().
 --}}
+
+@include('inicio._tarjeta_base')
 
 <div class="inicio-tarjeta tp">
     <h3 class="inicio-tarjeta__titulo">

@@ -29,4 +29,25 @@
         .uf-roles__aviso { font-size: 12px; color: #8A6A12; background: #FBF4E1; border-radius: 6px; padding: 4px 8px; margin-top: 6px; }
         .uf .form-check-label { font-weight: 500; color: var(--tn-tinta); font-size: 13.5px; }
         @media (max-width: 768px) { .uf-roles { grid-template-columns: 1fr; } .uf-roles__lista { columns: 1; } }
+        /* Agenda del conciliador */
+        .uf-opciones { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+        .uf-opcion {
+            display: flex; gap: 10px; align-items: flex-start; margin: 0;
+            padding: 10px 12px; border: 1px solid var(--tn-borde); border-radius: 10px; cursor: pointer;
+            font-weight: 500 !important;
+        }
+        .uf-opcion:has(input:checked) { border-color: var(--tn-verde); box-shadow: inset 0 0 0 1px var(--tn-verde); background: #F7FAFA; }
+        .uf-opcion input { margin-top: 3px; flex: 0 0 auto; }
+        .uf-opcion__titulo { display: block; font-weight: 700; font-size: 14px; color: var(--tn-tinta); }
+        .uf-opcion__texto { display: block; font-size: 12px; color: var(--tn-tenue); line-height: 1.35; }
+        .uf-dias { display: flex; flex-wrap: wrap; gap: 6px; }
+        .btn.uf-dia { min-width: 54px; border: 1px solid var(--tn-borde); background: #fff; color: var(--tn-suave); font-weight: 700; font-size: 13px; }
+        .btn-check:checked + .btn.uf-dia { background: var(--tn-verde); border-color: var(--tn-verde); color: #fff; }
+        .btn.uf-dia:not(.btn-social):not(.btn-social-icon):hover { border-color: var(--tn-verde-claro) !important; color: var(--tn-verde); background: #fff; }
+        .btn-check:checked + .btn.uf-dia:not(.btn-social):not(.btn-social-icon):hover { background: #354647; color: #fff; }
+        .uf-seccion__num .bi { font-size: 13px; }
+        .uf-sinotifico { padding: 10px 14px; border: 1px solid #EBDDB0; border-radius: 10px; background: #FBF6E7; }
+        .uf-sinotifico .form-check-label { font-weight: 600; }
+        .uf-enlace { border-color: #E2CDEB; background: #F8F1FB; }
+        @media (max-width: 768px) { .uf-opciones { grid-template-columns: 1fr; } }
     </style>

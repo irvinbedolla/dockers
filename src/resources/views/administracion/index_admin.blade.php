@@ -62,7 +62,21 @@
             'titulo' => 'Cambiar fecha de cumplimiento',
             'texto'  => 'Reprogramar un cumplimiento agendado.',
             'roles'  => ['Super Usuario', 'Delegado', 'Enlace'],
-        ]
+        ],
+        [
+            'ruta'   => 'historial_ediciones',
+            'icono'  => 'bi-clock-history',
+            'titulo' => 'Historial de ediciones',
+            'texto'  => 'Cambios guardados al revisar solicitudes y audiencias.',
+            'roles'  => ['Super Usuario'],
+        ],
+        [
+            'ruta'   => 'citas_cancelacion.index',
+            'icono'  => 'bi-calendar2-x',
+            'titulo' => 'Cancelación/Reagenda de citas',
+            'texto'  => 'Cancelar una cita o moverla a otro día y hora.',
+            'roles'  => ['Super Usuario', 'Delegado', 'Enlace', 'Directivo'],
+        ],
     ];
 
     $userRoleActual = $userRole[0] ?? null;

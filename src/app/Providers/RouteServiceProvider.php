@@ -48,5 +48,17 @@ class RouteServiceProvider extends ServiceProvider
         RateLimiter::for('api', function (Request $request) {
             return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
         });
+
+        // Login de SíNotifico: pocos intentos por cuenta y un tope por IP.
+        RateLimiter::for('sinotifico-login', function (Request $request) {
+            $correo = strtolower((string) $request->input('email'));
+
+            return [
+                Limit::perMinute(config('sinotifico.login_intentos_por_cuenta'))
+                    ->by('sinotifico-login:'.$correo.'|'.$request->ip()),
+                Limit::perMinute(config('sinotifico.login_intentos_por_ip'))
+                    ->by('sinotifico-login-ip:'.$request->ip()),
+            ];
+        });
     }
 }

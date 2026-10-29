@@ -1,98 +1,59 @@
 @extends('layouts.app')
-@section('title', 'Solicitud')
-    <style>
-            .card {
-                border: none;
-                margin: 30px 30px; /* posición de los botones en la vista */
-            }
-            .card-group {
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                flex-wrap: wrap;
-                width: 600px;
-                gap: 24px; /* Define un espacio entre los botones */
-            }
-            /*Estilos boton*/
-            .button-link {
-                display: flex;
-                justify-content: center; 
-                align-items: center; 
-                padding: 0; 
-                font-size: 16px;
-                text-align: center;
-                width: 130px;   
-                height: 65px;   
-                background-color: #CEA845; 
-                color: white; 
-                text-decoration: none; 
-                border-radius: 5px; /* Bordes redondeados */
-                cursor: pointer;
-                transition: transform 0.3s ease; /* Transición suave para el zoom */
-                line-height: 1.2;
-            }
+@section('title', 'Nueva solicitud')
 
-            /* Efecto de zoom al pasar el ratón */
-            .button-link:hover {
-                transform: scale(1.2); /* Aumenta el tamaño del botón en un 20% */
-            }
+{{--
+    Nueva solicitud (auxiliar): ¿quién la presenta? Si viene de una cita
+    (App\Support\PrellenadoCita) se resalta "Soy trabajador(a)": las citas de
+    solicitud las agenda la persona trabajadora.
+--}}
 
-            /* Efecto de zoom al hacer clic en el botón */
-            .button-link:active {
-                transform: scale(1); /* Vuelve al tamaño original */
-            }
+@php $prellenado = \App\Support\PrellenadoCita::paraVista(); @endphp
 
-            /* Efecto de cambio de color al pasar el ratón */
-            .button-link:hover {
-                background-color:#FFC3D0; /* Cambia el color de fondo al pasar el ratón */
-                border-radius: 5px; /* Bordes redondeados */
-                color: white; 
-            } 
-            .button-link:hover,
-            .button-link:focus,
-            .button-link:active {
-                text-decoration: none !important;
-                box-shadow: none !important; 
-            }
-            .responsive-img{
-                max-width: 100%;
-                height: auto;
-            }
-    </style>
+@section('page_css')
+    @include('solicitudes.auxiliares._estilos')
+@endsection
+
 @section('content')
-    <section class="section">
-        <div class="section-header">
-            <h3 class="page__heading">Solicitud</h3>
-        </div>
-        <div class="section-body">
-            <?php $fecha_actual = date('d-m-Y');?>
-            <div class="row">
-                <div class="col-lg-12">
-                    <div class="card">
+    <section class="section tn">
+        <div class="section-body sa">
+            <div class="sa-cabeza">
+                <a href="{{ route('solicitudes_index') }}" class="sa-cabeza__regreso"><i class="bi bi-arrow-left"></i> Solicitudes</a>
+                <h3 class="page__heading">Nueva solicitud</h3>
+                <p class="sa-cabeza__sub">¿Quién presenta la solicitud?</p>
+            </div>
 
-                            <div class="card-body">
-                                <center><img src="{{ asset('assets/images/Baner.png') }}" class="responsive-img" width="750" height="350" alt="Descripción de la imagen"></center><br>
-                                <center><div class="card-group">
-                                      <!-- Inicio Seer -->
-                                        <div style="display: block; text-align: center;">
-                                            <a href="{{ route('solicitud.industriaAuxiliar', ['tipo_solicitud' =>1, 'draft_id' => $draftId ?? null]) }}" class="button-link">
-                                                SOY <br>TRABAJADOR(A)
-                                            </a> 
-                                        </div> 
-                                    
-                                  
-                                        <div style="display: block; text-align: center;">
-                                            <a href="{{ route('solicitud.industriaAuxiliarP', ['tipo_solicitud' =>2, 'draft_id' => $draftId ?? null]) }}" class="button-link">
-                                                SOY <br>PATRONAL INDIVIDUAL   
-                                            </a>
-                                        </div>  
-                                 
-                                    
-                                </center><br><br><br>
-                            </div>
-          
-                    </div>
+            @if (session('info'))
+                <div class="alert alert-info alert-dismissible fade show" role="alert">
+                    {{ session('info') }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
                 </div>
+            @endif
+
+            @if ($prellenado)
+                @include('solicitudes.auxiliares._prellenado_banner', [
+                    'texto' => 'Viene de su cita: elige <b>Soy trabajador(a)</b> y en las siguientes pantallas verás los datos ya puestos para revisarlos.',
+                ])
+            @endif
+
+            <div class="sa-tipos">
+                <a href="{{ route('solicitud.industriaAuxiliar', ['tipo_solicitud' => 1, 'draft_id' => $draftId ?? null]) }}"
+                   class="sa-tipo {{ $prellenado ? 'is-sugerido' : '' }}">
+                    @if ($prellenado)<span class="sa-tipo__marca"><i class="bi bi-magic"></i> Su cita</span>@endif
+                    <span class="sa-tipo__icono"><i class="bi bi-person-badge" aria-hidden="true"></i></span>
+                    <span>
+                        <span class="sa-tipo__titulo">Soy trabajador(a)</span>
+                        <span class="sa-tipo__texto">La persona trabajadora cita a su patrón(a) o empresa.</span>
+                    </span>
+                    <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                </a>
+                <a href="{{ route('solicitud.industriaAuxiliarP', ['tipo_solicitud' => 2, 'draft_id' => $draftId ?? null]) }}" class="sa-tipo">
+                    <span class="sa-tipo__icono"><i class="bi bi-building" aria-hidden="true"></i></span>
+                    <span>
+                        <span class="sa-tipo__titulo">Soy patronal individual</span>
+                        <span class="sa-tipo__texto">El patrón(a) o la empresa cita a una persona trabajadora.</span>
+                    </span>
+                    <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                </a>
             </div>
         </div>
     </section>

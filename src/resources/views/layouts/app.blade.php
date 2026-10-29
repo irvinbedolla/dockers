@@ -725,6 +725,18 @@
          carga, modales sueltos). Antes se escribían fuera de @section y Blade
          los emitía ANTES del <!DOCTYPE>, lo que dejaba el documento en quirks
          mode y el <head> vacío. --}}
+    {{-- Flujo nuevo cita → solicitud (fase 3): aviso "prepárate" al auxiliar. Lo decide el interruptor. --}}
+    @auth
+        @if (\App\Http\Controllers\MiModuloController::puedeVer(auth()->user()))
+            @include('mi_modulo._avisos')
+        @endif
+        {{-- Aviso al conciliador (y al auxiliar que la lleva) cuando llega alguien a su audiencia, ratificación o cumplimiento. --}}
+        @if (\App\Support\LlegadasHoy::recibeAvisos(auth()->user()))
+            @include('llegadas._avisos')
+        @endif
+    @endauth
+    {{-- Barra "cargando" al cambiar de página. --}}
+    @include('layouts._carga_pagina')
     @stack('body_end')
 
 </body>

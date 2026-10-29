@@ -15,6 +15,7 @@
         | roles  : roles que ven el ítem
         | id     : opcional, id del <a> (lo usa menu.js para el badge)
         | badge  : opcional, id del <span> del contador
+        | si     : opcional, closure que también debe dar true (interruptores).
         | especialidad : opcional, permiso que necesita quien entra SÓLO como
         |          Auxiliar (ver App\Support\Especialidades). Así el de
         |          ratificaciones no ve Solicitudes ni el de solicitudes ve
@@ -31,20 +32,26 @@
         $menu = [
             // 'roles' => '*' significa que lo ve cualquiera que haya entrado.
             ['route' => 'inicio',                     'label' => 'Inicio',                  'icon' => 'bi bi-house-door',          'roles' => '*'],
-            ['route' => 'configuracion',              'label' => 'Administración',          'icon' => 'bi bi-lock-fill',           'roles' => ['Super Usuario', 'Delegado', 'Enlace']],
-            ['route' => 'agenda',                     'label' => 'Agenda',                  'icon' => 'bi bi-calendar-week',       'roles' => ['Super Usuario', 'Administrador', 'Auxiliar', 'Orientador', 'Conciliador', 'Notificador', 'Delegado', 'Excepcion',  'Cumplimientos', 'Directivo','Turnos', ...$recepcion]],
-            ['route' => 'todas_notificaciones',       'label' => 'Búsqueda Notificaciones', 'icon' => 'bi bi-search',              'roles' => ['Super Usuario', 'Administrador','Directivo', 'Delegado']],
+            // Flujo nuevo cita → solicitud: sólo si el interruptor lo habilita para esta persona.
+            ['route' => 'mi_modulo',                  'label' => 'Mi módulo',               'icon' => 'bi bi-person-workspace',    'roles' => '*',
+                'si' => fn () => \App\Http\Controllers\MiModuloController::puedeVer(auth()->user())],
+            // Llegadas hoy: la recepción (Morelia 02 y la General) marca quién llegó; el conciliador sólo consulta.
+            ['route' => 'llegadas.index',             'label' => 'Llegadas hoy',            'icon' => 'bi bi-person-check',        'roles' => \App\Support\LlegadasHoy::roles(),
+                'si' => fn () => \App\Support\LlegadasHoy::migrado()],
+            ['route' => 'configuracion',              'label' => 'Administración',          'icon' => 'bi bi-lock-fill',           'roles' => ['Super Usuario', 'Delegado', 'Enlace', 'Directivo']],
+            ['route' => 'agenda',                     'label' => 'Agenda',                  'icon' => 'bi bi-calendar-week',       'roles' => ['Super Usuario', 'Administrador', 'Auxiliar', 'Orientador', 'Conciliador', 'Notificador', 'Delegado', 'Excepcion', \App\Support\CasosExcepcion::ROL,  'Cumplimientos', 'Directivo','Turnos', ...$recepcion]],
             ['route' => 'capacitaciones',             'label' => 'Capacitaciones',          'icon' => 'bi bi-backpack4-fill',      'roles' => ['Capacitacion Admin']],
             ['route' => 'subir_doc_masivo',           'label' => 'Carga Masiva',            'icon' => 'bi bi-bank',                'roles' => []],
-            ['route' => 'excepcion',                  'label' => 'Casos de Excepción',      'icon' => 'bi-person-vcard',           'roles' => ['Super Usuario', 'Excepcion', 'Directivo', 'Delegado']],
-            ['route' => 'index_conciliadores',        'label' => 'Conciliadores',           'icon' => 'bi bi-person-fill',         'roles' => ['Super Usuario', 'Delegado']],
+            // Casos de excepción: sus roles y quien tenga el distintivo "Enlace de Género e Igualdad".
+            ['route' => 'excepcion',                  'label' => 'Casos de Excepción',      'icon' => 'bi-person-vcard',           'roles' => '*', 'activo' => ['excepcion', 'excepciones.*', 'atender_excepcion'],
+                'si' => fn () => \App\Support\CasosExcepcion::consulta(auth()->user())],
+            // Sólo el departamento (ni el Enlace de Género e Igualdad). Super Usuario y Directivo la abren desde el Panel estadístico.
+            ['route' => 'estadisticas.excepciones',   'label' => 'Estadísticas de excepción', 'icon' => 'bi bi-bar-chart-line',     'roles' => [\App\Support\CasosExcepcion::ROL]],
+            ['route' => 'nueva_cita',                 'label' => 'Crear turno',             'icon' => 'bi bi-calendar-plus',       'roles' => [\App\Support\CasosExcepcion::ROL]],
             ['route' => 'indexDireccionGeneral',      'label' => 'Dirección General',       'icon' => 'bi bi-bank',                'roles' => []],
             ['route' => 'expedientes',                'label' => 'Expediente',              'icon' => 'bi bi-graph-down',          'roles' => ['Capacitacion Admin']],
-            ['route' => 'persona.historial',          'label' => 'Historial',               'icon' => 'bi bi-file-text-fill',      'roles' => ['Super Usuario', 'Capacitacion Admin', 'Delegado']],
             ['route' => 'crear_inidencia',            'label' => 'Incidencia Crear',        'icon' => 'bi bi-bank',                'roles' => []],
             ['route' => 'crear_inidencia',            'label' => 'Incidencia',              'icon' => 'bi bi-bank',                'roles' => []],
-            ['route' => 'incidencias.busqueda.index', 'label' => 'Incidencias Consulta',    'icon' => 'bi bi-bank',                'roles' => ['Super Usuario', 'Administrador', 'Delegado']],
-            ['route' => 'incidencias.busqueda.index', 'label' => 'Incidencias',             'icon' => 'bi bi-bank',                'roles' => []],
             //['route' => 'Historial_Notificacador',    'label' => 'Mis Notificaciones',      'icon' => 'bi bi-file-person',         'roles' => ['Notificador']],
             ['route' => 'ratificacion',               'label' => 'Mis Ratificaciones',      'icon' => 'bi bi-bank',                'roles' => ['Solicitante']],
             ['route' => 'mis_solicitudes',            'label' => 'Mis Solicitudes',         'icon' => 'bi bi-file-person',         'roles' => ['Solicitante']],
@@ -58,13 +65,13 @@
             
             ['route' => 'solicitudes_index',          'label' => 'Solicitudes',             'icon' => 'bi bi-file-earmark-text-fill', 'roles' => ['Super Usuario', 'Administrador', 'Orientador', 'Auxiliar', 'Conciliador',  'Cumplimientos', 'Directivo','Excepcion', 'Delegado'], 'especialidad' => 'solicitudes_revisar'],
             ['route' => 'solicitudes_pendientes',     'label' => 'Solicitudes',             'icon' => 'bi bi-file-earmark-text-fill', 'roles' => ['Administrador Solicitante']],
-            ['route' => 'index_ratificacion',         'label' => 'Ratificaciones',          'icon' => 'bi bi-bank',                'roles' => ['Super Usuario', 'Administrador', 'Auxiliar', 'Excepcion','Directivo', 'Delegado', 'Conciliador'], 'especialidad' => 'ratificaciones_consultar'],
+            ['route' => 'todas_ratificaciones',         'label' => 'Ratificaciones',          'icon' => 'bi bi-bank',                'roles' => ['Super Usuario', 'Administrador', 'Auxiliar', 'Excepcion','Directivo', 'Delegado', 'Conciliador'], 'especialidad' => 'ratificaciones_consultar'],
             ['route' => 'Ratificacion',               'label' => 'Ratificaciones',          'icon' => 'bi bi-bank',                'roles' => ['Administrador Solicitante']],
             ['route' => 'audiencias.cumplimiento',    'label' => 'Cumplimientos',           'icon' => 'bi bi-cash-coin',           'roles' => ['Super Usuario', 'Auxiliar', 'Cumplimientos', 'Directivo', 'Delegado', 'Orientador'], 'especialidad' => 'cumplimientos_consultar'],
             ['route' => 'todas_audiencias',           'label' => 'Audiencias',              'icon' => 'bi bi-people-fill',         'roles' => ['Super Usuario', 'Administrador', 'Conciliador', 'Directivo','Excepcion', 'Delegado']],
             ['route' => 'index_notificaciones',       'label' => 'Notificaciones',          'icon' => 'bi bi-envelope',            'roles' => ['Super Usuario', 'Enlace', 'Directivo','Excepcion','Notificador', 'Delegado']],
             ['route' => 'create_asesoria',            'label' => 'Asesorías',               'icon' => 'bi bi-person-check-fill',   'roles' => ['Super Usuario', 'Orientador', 'Delegado', 'Auxiliar'], 'especialidad' => 'asesoria_crear'],
-            ['route' => 'estadisticas.index',        'label' => 'Panel estadístico',       'icon' => 'bi bi-bar-chart-line-fill', 'roles' => ['Super Usuario', 'Estadistica', 'Directivo']],
+            ['route' => 'estadisticas.index',        'label' => 'Panel estadístico',       'icon' => 'bi bi-bar-chart-line-fill', 'roles' => ['Super Usuario', 'Estadistica', 'Directivo'], 'activo' => 'estadisticas.*'],
             ['route' => 'seer.estadistica',           'label' => 'Estadísticas',            'icon' => 'bi bi-clipboard-data-fill', 'roles' => ['Super Usuario', 'Auxiliar', 'Orientador', 'Administrador', 'Enlace', 'Estadistica', 'Directivo', 'Notificador', 'Delegado','Excepcion', 'Cumplimientos']],
             ['route' => 'reportes_conciliador',       'label' => 'Estadísticas',            'icon' => 'bi bi-clipboard-data-fill', 'roles' => ['Conciliador']],
             ['route' => 'misestadisticas',            'label' => 'Estadísticas',            'icon' => 'bi bi-clipboard-data-fill', 'roles' => ['Cumplimientos']],
@@ -73,6 +80,11 @@
             ['route' => 'solicitudes_pendientes',     'label' => 'Solicitudes Pendientes',  'icon' => 'bi bi-file-earmark-text-fill', 'roles' => []],
             ['route' => 'index_tercer_encuentro',     'label' => 'Tercer Encuentro',        'icon' => 'bi bi-bank',                'roles' => ['Tercer Encuentro']],
             ['route' => 'turnos',                     'label' => 'Turnos',                  'icon' => 'bi bi-file-person',         'roles' => ['Super Usuario', 'Turnos', ...$recepcion]],
+            // Directivo siempre; el Delegado sólo con el permiso turnos_ver (ve su región).
+            ['route' => 'turnos.todos',               'label' => 'Turnos',                  'icon' => 'bi bi-file-person',         'roles' => ['Directivo', 'Delegado'],
+                // Quien ya tiene el "Turnos" de recepción (arriba) no lo ve dos veces: desde ahí llega a Todos los turnos.
+                'si' => fn () => ! auth()->user()->hasAnyRole(['Super Usuario', 'Turnos', ...$recepcion])
+                    && (auth()->user()->hasRole('Directivo') || auth()->user()->can('turnos_ver'))],
             ['route' => 'recepcion.escaner',          'label' => 'Escanear cita',           'icon' => 'bi bi-qr-code-scan',        'roles' => ['Super Usuario', ...$recepcion]],
             // Sólo la recepción Morelia 01 por ahora; la pantalla dice "Próximamente".
             ['route' => 'correspondencia',            'label' => 'Correspondencia',         'icon' => 'bi bi-envelope-paper',      'roles' => [\App\Support\Recepcion::MORELIA_01]],
@@ -95,6 +107,11 @@
                 $visible = auth()->user()->can($item['especialidad']);
             }
 
+            // Condición extra opcional ('si' => closure), p. ej. el interruptor del flujo de citas.
+            if ($visible && isset($item['si'])) {
+                $visible = (bool) ($item['si'])();
+            }
+
             // Si la ruta no existe, se omite en lugar de reventar toda la página.
             $destino = null;
             $activo  = false;
@@ -104,7 +121,8 @@
                     $destino = $item['url'];
                 } elseif (isset($item['route']) && \Illuminate\Support\Facades\Route::has($item['route'])) {
                     $destino = route($item['route']);
-                    $activo  = request()->routeIs($item['route']);
+                    // 'activo' (opcional): patrón de rutas que también marcan el renglón, p. ej. sus secciones.
+                    $activo  = request()->routeIs($item['activo'] ?? $item['route']);
                 }
             }
         @endphp

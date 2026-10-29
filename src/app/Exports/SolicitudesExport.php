@@ -24,6 +24,9 @@ class SolicitudesExport implements FromView
     public function view(): View
     {        
         $user = Auth::user();
+        $roles = $user->roles->pluck('name');
+        $jerarquiaRoles = ['Delegado', 'Enlace', 'Conciliador', 'Excepcion', 'Auxiliar', 'Orientador'];
+        $userRole = collect($jerarquiaRoles)->first(fn($rol) => $roles->contains($rol)) ?? $roles->first();
         $sedeUsuario = $user->delegacion ?? '';
         
         $delegacionesFiltro = [$this->sede];
@@ -75,7 +78,7 @@ class SolicitudesExport implements FromView
             ->when($this->sede !== "Todos", function ($q) use ($delegacionesFiltro) {
                 return $q->whereIn('seer_general.delegacion', $delegacionesFiltro);
             })
-            ->when($user->hasRole('Auxiliar') || $user->hasRole('Orientador'), function ($q) use ($user) {
+            ->when(in_array($userRole, ['Auxiliar', 'Orientador']), function ($q) use ($user) {
                 return $q->where('seer_general.tipo_generacion', $user->id);
             })
 

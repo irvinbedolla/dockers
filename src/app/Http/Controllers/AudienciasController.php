@@ -374,8 +374,17 @@ class AudienciasController extends Controller
         $sedesAconsultar = $mapaSedes[$user->delegacion] ?? [$user->delegacion];
 
         // Iniciamos la consulta base
+        // abogados = registro de la parte patronal (poderes). Con alias para no
+        // pisar turnos.estatus ni turnos.tipo.
         $query = Turnos::whereBetween('turnos.fecha', [$fecha_inicio, $fecha_final])->leftjoin('users','users.id','turnos.id_conciliador')
-        ->select('turnos.*','users.name');
+        ->leftJoin('abogados as ab', 'ab.idAbogado', '=', 'turnos.idAbogado')
+        ->select('turnos.*','users.name',
+            'ab.idAbogado as ab_id', 'ab.reprecentante as ab_tiene_representante',
+            'ab.nombres_patronal as ab_patron', 'ab.primer_apellido_patronal as ab_patron1',
+            'ab.segundo_apellido_patronal as ab_patron2',
+            'ab.nombre_representante as ab_nombre', 'ab.primer_apellido_representante as ab_apellido1',
+            'ab.segundo_apellido_representante as ab_apellido2',
+            'ab.estatus as ab_estatus', 'ab.fechaVigencia as ab_vigencia');
 
         if (! \App\Support\Supervision::veTodasLasSedes(auth()->user())) {
             if ($sedeFiltro != "Todos") {
@@ -414,10 +423,19 @@ class AudienciasController extends Controller
                 $color = SemaforoAgenda::ratificacion($rati->estatus);
 
                 $trabajador = $rati->trabajador." ".$rati->primero_trabajador." ".$rati->segundo_trabajador;
+
+                // Registro patronal (abogados): guía para Recepción 2. Sólo cuenta si
+                // existe y ya está Validado; si no, "No existe registro aún".
+                $nombre = fn (...$partes) => trim(preg_replace('/\s+/', ' ', implode(' ', $partes)));
+                $registroValidado = $rati->ab_id && $rati->ab_estatus === 'Validado';
+                $representante = $nombre($rati->ab_nombre, $rati->ab_apellido1, $rati->ab_apellido2);
+                $conRepresentante = $registroValidado && $rati->ab_tiene_representante === 'Si' && $representante !== '';
+                // En una ratificación quien solicita es la empresa y el citado es
+                // el trabajador (antes salían al revés en la agenda).
                 $eventos[] = [
                     'id' => $rati->id,
                     'title' => $rati->empresa,
-                    'solicitante' => $trabajador,
+                    'solicitante' => $rati->empresa,
                     'start' => $rati->fecha . 'T' . $rati->hora,
                     'extendedProps' => [
                         'hora' => $rati->hora,
@@ -429,8 +447,24 @@ class AudienciasController extends Controller
                         'usuario' => $userID,
                         'tipo' => $tipo,
                         'conciliador' => $rati->name,
-                        'solicitante' => $trabajador,
-                        'citado' => $rati->empresa,
+                        'solicitante' => $rati->empresa,
+                        'citado' => $trabajador,
+                        // Folio del registro patronal = abogados.idAbogado (así lo
+                        // entrega Poderes). Validado decide "existe" o "no existe aún".
+                        'registro_patronal' => $rati->ab_id ? [
+                            'folio'         => (int) $rati->ab_id,
+                            'validado'      => (bool) $registroValidado,
+                            'representante' => $conRepresentante ? $representante : null,
+                            'patron'        => $registroValidado ? ($nombre($rati->ab_patron, $rati->ab_patron1, $rati->ab_patron2) ?: null) : null,
+                            'vigencia'      => $registroValidado && $rati->ab_vigencia ? Carbon::parse($rati->ab_vigencia)->format('d/m/Y') : null,
+                        ] : null,
+                        // Renglones de la tarjeta en el calendario (calContenidoEvento).
+                        'lineas' => [
+                            ['Solicitante', $rati->empresa],
+                            ['Citado', $trabajador],
+                            ['Conciliador', $rati->name],
+                            ['Registro', $registroValidado ? 'Validado' : 'No existe aún'],
+                        ],
                     ]
                 ];
         }

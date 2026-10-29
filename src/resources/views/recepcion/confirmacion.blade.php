@@ -72,7 +72,19 @@
                     </div>
                     
                     <div class="card-body p-4"> 
-                        @if($bandera === '1')
+                        @php $tarde = session('atenderTarde'); @endphp
+                        @if($tarde && $tarde['ok'] && $cita)
+                            {{-- Recién reactivada con "Atenderla de todos modos". --}}
+                            <div class="alert alert-success text-center mb-4 border-0 shadow-sm" role="alert" style="background-color: #d4edda; color: #155724;">
+                                <i class="bi bi-person-check-fill"></i> Se atenderá aunque llegó tarde: <strong>{{ \App\Support\FolioCita::mostrar($cita) }}</strong>
+                                <div class="small mt-1">{{ $tarde['mensaje'] }}</div>
+                            </div>
+                            <div class="px-3" style="font-size: 1.05rem; line-height: 1.8;">
+                                <p class="mb-2"><strong>Nombre:</strong> {{ $cita->solicitante }}</p>
+                                <p class="mb-2"><strong>Fecha y Hora:</strong> {{ $fecha_hora }}</p>
+                                @if($cita->lugar_auxiliar) <p class="mb-2"><strong>Pasa a:</strong> {{ $cita->lugar_auxiliar }}</p> @endif
+                            </div>
+                        @elseif($bandera === '1')
                             <div class="alert alert-success text-center mb-4 border-0 shadow-sm" role="alert" style="background-color: #d4edda; color: #155724;">
                                 <i class="bi bi-bookmark-check"></i> ¡Asistencia de folio: <strong>{{ \App\Support\FolioCita::mostrar($cita) }}</strong> confirmada!
                             </div>
@@ -93,6 +105,27 @@
                         @elseif($bandera === '3')
                             <div class="alert alert-danger text-center mb-4 border-0 shadow-sm" role="alert">
                                 <h5 ><i class="bi bi-exclamation-triangle-fill"></i> ¡La cita ya expiro! </h5>
+                                @unless($puedeTarde ?? false)
+                                    <h5 class="text-guinda "> Favor de generar una nueva cita</h5>
+                                @endunless
+                            </div>
+                            @if($tarde && ! $tarde['ok'])
+                                <p class="text-danger text-center">{{ $tarde['mensaje'] }}</p>
+                            @endif
+                            @if($puedeTarde ?? false)
+                                {{-- Expiró hoy y la persona está aquí (ValidadorCita::atenderTarde). --}}
+                                <div class="p-3 mb-3 rounded" style="background:#FBF4E1;border:1px solid #EAD9A6;color:#6B5413;">
+                                    <p class="mb-2"><strong>{{ \App\Support\FolioCita::mostrar($cita) }}</strong> · {{ $cita->solicitante }} · {{ $fecha_hora }}</p>
+                                    <p class="mb-3 small">Si la persona está aquí, puedes atenderla de todos modos: vuelve a la fila de su módulo, después de quienes llegaron a tiempo.</p>
+                                    <form method="POST" action="{{ route('recepcion.escaner.tarde', $cita->id) }}">
+                                        @csrf
+                                        <button type="submit" class="btn btn-warning fw-semibold"><i class="bi bi-person-check-fill me-1"></i> Atenderla de todos modos</button>
+                                    </form>
+                                </div>
+                            @endif
+                        @elseif($bandera === '5')
+                            <div class="alert alert-danger text-center mb-4 border-0 shadow-sm" role="alert">
+                                <h5 ><i class="bi bi-calendar2-x-fill"></i> ¡La cita fue cancelada! </h5>
                                 <h5 class="text-guinda "> Favor de generar una nueva cita</h5>
                             </div>
                         @elseif($bandera === '4')

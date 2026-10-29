@@ -34,8 +34,19 @@ class RecepcionController extends Controller
         if (!$request->has('tipo') || empty($request->input('tipo'))) {
             return redirect()->back()->with('error', 'Es necesario seleccionar el Tipo de Trámite.');
         }
+        // Cada recepción agenda sólo sus trámites (App\Support\Recepcion::CREA).
+        $tramitesPermitidos = \App\Support\Recepcion::tramitesQuePuedeCrear(auth()->user());
+        if (! in_array($request->input('tipo'), $tramitesPermitidos, true)) {
+            return redirect()->back()->withInput()->with('error', 'Tu cuenta sólo puede agendar: '.implode(', ', $tramitesPermitidos).'.');
+        }
         if (!$request->filled('fecha_turno') || !$request->filled('hora_turno')) {
             return redirect()->back()->with('error', 'Es necesario seleccionar la fecha y el horario del turno en el calendario.');
+        }
+
+        // CURP y domicilio del flujo nuevo (sólo si el formulario los pidió).
+        [$camposFlujo, $errorFlujo] = \App\Support\FlujoCita::camposDeCita($request);
+        if ($errorFlujo) {
+            return back()->withInput()->with('error', $errorFlujo);
         }
 
         $data = $request->all();
@@ -93,7 +104,7 @@ class RecepcionController extends Controller
             DB::transaction(function () use (
                 $sede, $fecha_asignada_str, $hora_turno, $hora_fin, $id_aux, 
                 $tipoTramite, $modulo, $modulo_id, $data, $tipo_caso, $prestacionSS, 
-                $vulnerables, &$numero_consecutivo, &$cita
+                $vulnerables, $camposFlujo, &$numero_consecutivo, &$cita
             ) {
                 $ultimoTurno = Recepcion::where('delegacion', $sede) 
                     ->lockForUpdate()
@@ -116,6 +127,10 @@ class RecepcionController extends Controller
                     'edad'            => $data["edad"] ?? null,
                     'sexo'            => $data["sexo"] ?? null,
                     'tipo_caso'       => $tipo_caso,
+                    // Motivo exacto del caso de excepción (CasosExcepcion::MOTIVOS).
+                    ...(\App\Support\CasosExcepcion::conMotivo()
+                        ? ['motivo_excepcion' => \App\Support\CasosExcepcion::motivoValido($data['motivo_excepcion'] ?? null)]
+                        : []),
                     'prestacionSS'    => $prestacionSS,
                     'vulnerables'     => $vulnerables,
                     'conflicto'       => $data["conflicto"] ?? null,
@@ -129,7 +144,7 @@ class RecepcionController extends Controller
                     'telefono'        => $data["telefono"],
                     'correo'          => $data["correo"],
                     'municipio'       => $data["municipio_solicitante"],
-                ]);
+                ] + $camposFlujo);
             }); 
 
             $fechaFormateada = ucfirst(Carbon::parse($fecha_asignada_str)->isoFormat('dddd D [de] MMMM'));
@@ -189,7 +204,9 @@ class RecepcionController extends Controller
         $sedesVisibles = \App\Support\Recepcion::sedesVisibles($user);
         $hoy = DB::table('recepcion')
             ->whereIn('delegacion', $sedesVisibles ?: ['__ninguna__'])
-            ->where('fecha', $fecha_actual);
+            ->where('fecha', $fecha_actual)
+            // Morelia 02 sólo ve ratificaciones y cumplimientos.
+            ->when(\App\Support\Recepcion::tramitesVisibles($user), fn ($q, $tramites) => $q->whereIn('tipo', $tramites));
 
         $hoyPorEstatus = (clone $hoy)
             ->selectRaw('estatus, COUNT(*) as total')
@@ -203,8 +220,14 @@ class RecepcionController extends Controller
             ->limit(6)
             ->get(['id', 'consecutivo', 'solicitante', 'tipo', 'hora', 'lugar_auxiliar', 'origen', 'delegacion']);
 
+        // Quien lleva 30 min o más en sala sin que lo llamen, y cuántas se
+        // atendieron aunque llegaron tarde (escáner → "Atenderla de todos modos").
+        $tramitesHoy    = \App\Support\Recepcion::tramitesVisibles($user);
+        $esperandoMucho = \App\Support\SigueEnModulo::esperandoEnSedes($sedesVisibles, $tramitesHoy, now());
+        $llegaronTarde  = \App\Support\FlujoCita::conTardias() ? (clone $hoy)->where('llego_tarde', 1)->count() : 0;
+
         return view('turnos.index',compact('auxiliares_morelia','total', 'last_hora_solicitud', 'last_hora_ratificacion', 'last_sede_solicitud', 'last_sede_ratificacion',
-            'sedesVisibles', 'hoyPorEstatus', 'hoyEnLinea', 'proximos'));
+            'sedesVisibles', 'hoyPorEstatus', 'hoyEnLinea', 'proximos', 'esperandoMucho', 'llegaronTarde'));
     }
 
     public function create()
@@ -931,75 +954,9 @@ class RecepcionController extends Controller
         return !$inhabil;
     }
 
-    public function index_excepciones()
-    {
-        $fecha_actual = date('Y-m-d');
-        $recepciones = Recepcion::where('exepcion', 'Si')->where('fecha',$fecha_actual)->orderBy('hora')->get();
+    // Bandeja, formato y canalización de casos de excepción: ahora en
+    // CasosExcepcionController (App\Support\CasosExcepcion / FormatoExcepcion).
 
-        return view('excepciones.index',compact('recepciones'));
-    }
-
-    public function atender_excepcion($id){
-        
-        $recepcion = Recepcion::find($id);
-        return view('excepciones.atender', compact('recepcion'));
-    }
-    public function solicitud_excepcion($id){
-        
-        $recepcion = Recepcion::find($id);
-        $recepcion->update(['exepcion' => 'No']);
-         return redirect()->route('solicitud');
-    }
-
-    public function guardar_excepcion(Request $request){
-
-        $data = $request->all();
-        $id_user = auth()->user()->id;
-        $fecha_actual = date('Y-m-d');
-        $hora_actual= date('H:i');
-        $data_insertar = array(
-            'id_turno'          => $data['id'],
-            'id_user'           => $id_user,
-            'observaciones'     => $data['observaciones'],
-            'dependencia'       => $data['dependencia'],
-            'expediente'        => $data['expediente'], 
-            'situacion_laboral' => $data['situacion_laboral'],
-            'frecuencia'        => $data['frecuencia'],
-            'descripcion_conductas' => $data['descripcion_conductas'] ?? null,
-            'tipo_caso'         => $data['tipo_caso'],
-            'vulnerables'       => $data['vulnerables'],
-            'jefe_inmediato'    => $data['jefe_inmediato'],
-            'empresa'           => $data['empresa'],
-            'ubicacion'         =>$data['ubicacion'],
-            'puesto'            => $data['puesto'],
-            'area_adscripcion'   => $data['area_adscripcion'],
-            'fecha'             => $fecha_actual, 
-            'hora'              => $hora_actual ,
-        );
-
-        if(!isset($data['descripcion_persona'])){
-            $data_insertar['descripcion_persona'] =null;
-        }
-        else{
-            $data_insertar['descripcion_persona'] =  $data['descripcion_persona'];
-        }
-        if(isset($data['motivo'])){
-            $data_insertar['motivos'] =  $data['motivo'];
-        }
-        else{
-            $data_insertar['motivos'] = null;
-        }
-        
-        
-        SeerCasosExcepcion::create($data_insertar);
-        
-        $data_update = DB::table('recepcion')
-        ->where('id', $data["id"])
-        ->update(['estatus' => 'atendido']);
-
-        return redirect()->route('excepcion');
-
-    }
     public function Verpdfcasosprevistos($id){
         $recepcion = Recepcion::find($id);
         $caso = SeerCasosExcepcion::where('id_turno', $id)->first();
@@ -1073,17 +1030,24 @@ class RecepcionController extends Controller
                 'otro_dia'                => '0',
                 'confirmada', 'atendida'  => '1',
                 'ya_confirmada', 'pasada' => '2',
+                'cancelada'               => '5',
                 default                   => '3', // tarde, expirada
             };
 
-            return view('recepcion.confirmacion', compact('cita', 'bandera', 'fecha_hora'));
+            // Expiró hoy y la persona está aquí: recepción puede atenderla de todos modos.
+            $puedeTarde = $bandera === '3'
+                && \App\Support\ValidadorCita::puedeReactivar(auth()->user(), $cita)
+                && \App\Support\ValidadorCita::puedeAtenderTarde($cita->fresh());
+
+            return view('recepcion.confirmacion', compact('cita', 'bandera', 'fecha_hora', 'puedeTarde'));
         }
         catch (\Throwable $e) {
             $bandera = '4';
             $cita = null;
             $fecha_hora = null;
+            $puedeTarde = false;
 
-            return view('recepcion.confirmacion', compact('cita', 'bandera', 'fecha_hora'));
+            return view('recepcion.confirmacion', compact('cita', 'bandera', 'fecha_hora', 'puedeTarde'));
         }
     }
 }

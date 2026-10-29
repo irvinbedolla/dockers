@@ -25,13 +25,24 @@ use Illuminate\Support\Str;
  *     pantalla pública.
  *
  * Qué se considera "vigente" (puede aparecer):
- *   - confirmada (la persona ya llegó y escaneó su QR) y no atendida, de las
- *     últimas HORAS_CONFIRMADA horas;
+ *   - confirmada (la persona ya llegó y escaneó su QR) y no atendida, de
+ *     cualquier hora del día: quien está en sala no se cae de la fila aunque
+ *     el módulo vaya muy atrasado;
  *   - pendiente cuya hora no ha rebasado la tolerancia de llegada.
  *
  * El turno "ahora" de cada módulo es su cita vigente más temprana cuya hora
  * ya llegó (con ADELANTO minutos de margen). Así la pantalla "llama" el folio
  * en cuanto empieza su horario, como un tablero de turnos.
+ *
+ * Flujo cita → solicitud (FlujoCita, fase 4): a las citas no las llama la
+ * hora sino el auxiliar con "Llamar" en Mi módulo (recepcion.llamado_at). La
+ * última llamada vigente del módulo es su turno "ahora" hasta que la termina
+ * o la marca como no presentada; volver a llamar la anuncia otra vez.
+ *
+ * "Sigue" en cada módulo es quien ya llegó y confirmó su cita (en sala), en
+ * orden de hora; las que se atendieron aunque llegaron tarde
+ * (recepcion.llego_tarde) van después de quienes llegaron a tiempo. Si nadie
+ * ha llegado, la siguiente cita por hora.
  */
 class PantallaEspera
 {
@@ -47,9 +58,6 @@ class PantallaEspera
 
     /** Minutos antes de su hora en que una cita ya se muestra como "ahora". */
     private const ADELANTO = 5;
-
-    /** Una confirmada que nadie terminó deja de mostrarse después de esto. */
-    private const HORAS_CONFIRMADA = 3;
 
     /** Audiencias y cumplimientos que empezaron hace más de esto ya no salen. */
     private const MINUTOS_ATRAS = 60;
@@ -71,40 +79,108 @@ class PantallaEspera
         return $slug === false ? null : $slug;
     }
 
-    public static function datos(string $sede): array
+    /**
+     * $conPruebas: incluye las citas de prueba del flujo nuevo (FlujoCita).
+     * La pantalla real nunca las muestra; /pantalla-morelia?pruebas=1 sí.
+     */
+    public static function datos(string $sede, bool $conPruebas = false): array
     {
         return Cache::remember(
-            'pantalla_espera.'.self::slug($sede),
+            'pantalla_espera.'.self::slug($sede).($conPruebas ? '.pruebas' : ''),
             self::SEGUNDOS_CACHE,
-            fn () => self::calcular($sede, now())
+            fn () => self::calcular($sede, now(), $conPruebas)
         );
     }
 
-    public static function calcular(string $sede, Carbon $ahora): array
+    /** Tras Llamar / Atender / Terminar: que las teles lo vean ya, sin esperar el caché. */
+    public static function olvidar(string $sede): void
     {
-        $hoy        = $ahora->toDateString();
-        $horaAhora  = $ahora->format('H:i:s');
+        $slug = self::slug($sede);
+        if ($slug === null) {
+            return;
+        }
+
+        Cache::forget('pantalla_espera.'.$slug);
+        Cache::forget('pantalla_espera.'.$slug.'.pruebas');
+    }
+
+    /**
+     * Citas de hoy de la sede que pueden estar en pantalla (ver arriba qué es
+     * "vigente"), por hora. $extra: columnas de más (p. ej. r.solicitante
+     * para Mi módulo; la pantalla pública nunca las muestra).
+     */
+    public static function citasVigentes(string $sede, Carbon $ahora, bool $conPruebas = false, array $extra = []): Collection
+    {
+        $conFlujo   = FlujoCita::migrado();
+        $sinPruebas = ! $conPruebas && $conFlujo;
         $tolerancia = $ahora->copy()->subMinutes(ValidadorCita::TOLERANCIA_MINUTOS)->format('H:i:s');
-        $limiteConf = $ahora->copy()->subHours(self::HORAS_CONFIRMADA)->format('H:i:s');
-        $adelanto   = $ahora->copy()->addMinutes(self::ADELANTO)->format('H:i:s');
+
+        return DB::table('recepcion as r')
+            ->leftJoin('modulos as m', 'm.id', '=', 'r.modulo_id')
+            ->where('r.fecha', $ahora->toDateString())
+            ->where('r.delegacion', $sede)
+            ->when($sinPruebas, fn ($q) => $q->where('r.es_prueba', 0))
+            ->where(function ($q) use ($tolerancia, $conFlujo) {
+                $q->where(fn ($p) => $p->where('r.estatus', 'pendiente')->where('r.hora', '>=', $tolerancia))
+                  // En sala: sigue en la fila hasta que la atiendan, a la hora que sea.
+                  ->orWhere('r.estatus', 'confirmada');
+                // Ya llamada por el auxiliar y sin terminar: sigue aunque se le haya pasado la hora.
+                if ($conFlujo) {
+                    $q->orWhere(fn ($l) => $l->whereNotNull('r.llamado_at')->whereIn('r.estatus', ['pendiente', 'confirmada']));
+                }
+            })
+            ->orderBy('r.hora')
+            ->orderBy('r.id')
+            ->get(array_merge([
+                'r.id', 'r.codigo', 'r.consecutivo', 'r.tipo', 'r.hora', 'r.estatus',
+                'r.origen', 'r.modulo_id', 'r.lugar_auxiliar', 'm.nombre as modulo_nombre',
+            ], $conFlujo ? ['r.es_prueba', 'r.llamado_at', 'r.atencion_inicio_at'] : [],
+               FlujoCita::conSeguimiento() ? ['r.confirmada_at'] : [],
+               FlujoCita::conTardias() ? ['r.llego_tarde'] : [], $extra));
+    }
+
+    /**
+     * Turno "ahora" y el que "sigue" de un módulo, de sus citas vigentes
+     * (citasVigentes ya filtradas por módulo, en orden de hora).
+     *
+     * @return array{0: ?object, 1: ?object}
+     */
+    public static function turnoDeModulo(Collection $suyas, Carbon $ahora): array
+    {
+        $adelanto = $ahora->copy()->addMinutes(self::ADELANTO)->format('H:i:s');
+
+        // Primero la última que llamó el auxiliar; si no hay, la regla de la hora
+        // (sólo para las citas que no esperan a que las llamen).
+        $actual = $suyas->filter(fn ($c) => ! empty($c->llamado_at ?? null))->sortByDesc('llamado_at')->first()
+            ?? $suyas->first(fn ($c) => $c->hora <= $adelanto && ! self::esperaLlamado($c));
+
+        $llamada = $actual !== null && ! empty($actual->llamado_at ?? null);
+
+        // Las que esperan llamado van en su orden aunque su hora ya haya pasado.
+        $pendientes = $suyas->filter(fn ($c) => empty($c->llamado_at ?? null)
+            && ($actual === null || ($c->id !== $actual->id
+                && ($llamada || $c->hora >= $actual->hora || self::esperaLlamado($c)))));
+
+        // Sigue quien ya llegó y confirmó (en sala), primero quienes llegaron a
+        // tiempo y luego las que se atendieron aunque llegaron tarde; si nadie
+        // ha llegado, la siguiente por hora.
+        $siguiente = $pendientes->first(fn ($c) => $c->estatus === 'confirmada' && empty($c->llego_tarde ?? null))
+            ?? $pendientes->first(fn ($c) => $c->estatus === 'confirmada')
+            ?? $pendientes->first();
+
+        return [$actual, $siguiente];
+    }
+
+    public static function calcular(string $sede, Carbon $ahora, bool $conPruebas = false): array
+    {
+        $sinPruebas = ! $conPruebas && FlujoCita::migrado();
+        $hoy        = $ahora->toDateString();
+        $tolerancia = $ahora->copy()->subMinutes(ValidadorCita::TOLERANCIA_MINUTOS)->format('H:i:s');
 
         // audiencias/pago_solicitud guardan la sede a veces sin acento.
         $variantes = array_values(array_unique([$sede, Str::ascii($sede)]));
 
-        $citas = DB::table('recepcion as r')
-            ->leftJoin('modulos as m', 'm.id', '=', 'r.modulo_id')
-            ->where('r.fecha', $hoy)
-            ->where('r.delegacion', $sede)
-            ->where(function ($q) use ($tolerancia, $limiteConf) {
-                $q->where(fn ($p) => $p->where('r.estatus', 'pendiente')->where('r.hora', '>=', $tolerancia))
-                  ->orWhere(fn ($c) => $c->where('r.estatus', 'confirmada')->where('r.hora', '>=', $limiteConf));
-            })
-            ->orderBy('r.hora')
-            ->orderBy('r.id')
-            ->get([
-                'r.id', 'r.codigo', 'r.consecutivo', 'r.tipo', 'r.hora', 'r.estatus',
-                'r.origen', 'r.modulo_id', 'r.lugar_auxiliar', 'm.nombre as modulo_nombre',
-            ]);
+        $citas = self::citasVigentes($sede, $ahora, $conPruebas);
 
         $modulos = DB::table('modulos')
             ->where('delegacion', $sede)
@@ -117,9 +193,7 @@ class PantallaEspera
         $tablero  = [];
 
         foreach ($modulos as $modulo) {
-            $suyas = $citas->where('modulo_id', $modulo->id)->values();
-            $actual = $suyas->first(fn ($c) => $c->hora <= $adelanto);
-            $siguiente = $suyas->first(fn ($c) => $actual === null || ($c->id !== $actual->id && $c->hora >= $actual->hora));
+            [$actual, $siguiente] = self::turnoDeModulo($citas->where('modulo_id', $modulo->id)->values(), $ahora);
 
             if ($actual) {
                 $enModulo[] = $actual->id;
@@ -136,8 +210,8 @@ class PantallaEspera
         }
 
         $proximas = $citas
-            ->reject(fn ($c) => in_array($c->id, $enModulo, true))
-            ->where('hora', '>=', $tolerancia)
+            ->reject(fn ($c) => in_array($c->id, $enModulo, true) || ! empty($c->llamado_at ?? null))
+            ->filter(fn ($c) => $c->hora >= $tolerancia || self::esperaLlamado($c))
             ->take(20)
             ->map(fn ($c) => self::cita($c))
             ->values()
@@ -190,11 +264,13 @@ class PantallaEspera
         $atendidos = DB::table('recepcion')
             ->where('fecha', $hoy)
             ->where('delegacion', $sede)
+            ->when($sinPruebas, fn ($q) => $q->where('es_prueba', 0))
             ->where('estatus', 'atendido')
             ->count();
 
         return [
             'sede'          => $sede,
+            'pruebas'       => $conPruebas,
             'generado'      => $ahora->toIso8601String(),
             'modulos'       => $tablero,
             'proximas'      => $proximas,
@@ -202,10 +278,16 @@ class PantallaEspera
             'cumplimientos' => $cumplimientos,
             'cifras'        => [
                 'atendidos' => $atendidos,
-                'enEspera'  => $citas->where('estatus', 'confirmada')->count(),
+                'enEspera'  => $citas->where('estatus', 'confirmada')->filter(fn ($c) => empty($c->atencion_inicio_at ?? null))->count(),
                 'porLlegar' => $citas->where('estatus', 'pendiente')->count(),
             ],
         ];
+    }
+
+    /** ¿Esta cita espera a que el auxiliar la llame (flujo cita → solicitud) en vez de su hora? */
+    private static function esperaLlamado(object $c): bool
+    {
+        return FlujoCita::migrado() && FlujoCita::aplicaA($c);
     }
 
     /** Lo que la pantalla necesita de una cita, sin datos personales. */
@@ -225,6 +307,9 @@ class PantallaEspera
             'estatus' => (string) $c->estatus,
             'enLinea' => $c->origen === 'linea',
             'modulo'  => $c->modulo_nombre ? self::nombreModulo($c->modulo_nombre) : trim((string) $c->lugar_auxiliar),
+            // Cambia cada vez que el auxiliar llama (o vuelve a llamar): la tele lo anuncia.
+            'llamado'    => ($c->llamado_at ?? null) ? (string) $c->llamado_at : null,
+            'enAtencion' => ! empty($c->atencion_inicio_at ?? null),
         ];
     }
 

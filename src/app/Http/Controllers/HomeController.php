@@ -222,18 +222,40 @@ class HomeController extends Controller
     }
 
     public function citas(){
+        // Citas en línea apagadas (CITAS_EN_LINEA): aviso de fuera de servicio.
+        if (! config('app.citas_en_linea')) {
+            return redirect()->route('citas.fuera_servicio');
+        }
         $estados = Estados::all();
         $municipios=Municipios::where('estado',16)->get();
         return view('turnos', compact('estados', 'municipios'));
     }
 
+    public function fuera_servicio(){
+        // Ya reabiertas, la liga vieja no se queda en el aviso.
+        if (config('app.citas_en_linea')) {
+            return redirect()->route('citas');
+        }
+        return response()->view('fuera_servicio')->header('Cache-Control', 'no-store');
+    }
+
     public function turnos_publico(Request $request){
+        // Citas en línea apagadas: no se registra nada aunque manden el formulario.
+        if (! config('app.citas_en_linea')) {
+            return redirect()->route('citas.fuera_servicio');
+        }
         
         
         if (!$request->filled('fecha_turno') || !$request->filled('hora_turno')) {
             return back()->withInput()->with('error', 'Es necesario seleccionar la fecha y el horario del turno en el calendario.');
         }
         
+        // CURP y domicilio del flujo nuevo (sólo si el formulario los pidió).
+        [$camposFlujo, $errorFlujo] = \App\Support\FlujoCita::camposDeCita($request);
+        if ($errorFlujo) {
+            return back()->withInput()->with('error', $errorFlujo);
+        }
+
         $data = $request->all();
         $sede = $data["delegacion"];
         $tipo = $data["tipo"];
@@ -250,10 +272,23 @@ class HomeController extends Controller
         ];
         
         $fecha_inicio = Carbon::parse($fecha_turno)->subDays(30)->format('Y-m-d');
-        $correo = Recepcion::where('correo', $data['email'])->whereBetween('fecha', [$fecha_inicio, $fecha_turno])->exists();
-        if($correo){
+        //$correo = Recepcion::where('correo', $data['email'])->whereBetween('fecha', [$fecha_inicio, $fecha_turno])->exists();
+        /*if($correo){
             return redirect()->route('citas')->with('error', 'No se ha podido completar tu cita. El correo ya ha sido registrado en los últimos 30 días.'); 
+        }*/
+        // Aviso de privacidad: la casilla del formulario es obligatoria.
+        if (! $request->boolean('acepta_privacidad')) {
+            return back()->withInput()->with('error', 'Para agendar tu cita es necesario leer y aceptar el Aviso de privacidad.');
         }
+
+        // Tope de citas en línea por conexión (IP), correo y teléfono (Administración → Módulos).
+        if ($bloqueo = \App\Support\LimiteCitas::revisar($request->ip(), $data['email'] ?? null, $data['telefono'] ?? null)) {
+            \App\Support\LimiteCitas::registrarBloqueo($bloqueo, $request->ip(), $request->userAgent(), $camposFlujo + $data);
+            Log::info('Cita en línea detenida por el límite', ['motivo' => $bloqueo['motivo'], 'llevaba' => $bloqueo['llevaba'], 'ip' => $request->ip()]);
+
+            return back()->withInput()->with('error', $bloqueo['mensaje']);
+        }
+
         //El horario seleccionado en el calendario ya no debe estar ocupado ni caer en un día/horario inhábil
         if (!(new RecepcionController())->turnoSlotDisponible($sede, $tipo, $fecha_turno, $hora_turno, $excepcion, true)) {
             return back()->withInput()->with('error', 'El horario seleccionado ya no está disponible. Por favor selecciona otro.');
@@ -313,8 +348,18 @@ class HomeController extends Controller
             'correo'        => $data["email"],
             'telefono'      => $data["telefono"],
             'observaciones' => $data["conflicto"]
-        );
+        ) + $camposFlujo;
+
+        // Desde qué conexión y navegador se agendó (estadísticas y límite de citas).
+        if (\App\Support\LimiteCitas::migrado()) {
+            $data_insertar['ip'] = $request->ip();
+            $data_insertar['user_agent'] = \App\Support\LimiteCitas::agente($request->userAgent());
+        }
     
+            // Motivo exacto del caso de excepción (CasosExcepcion::MOTIVOS).
+            if (\App\Support\CasosExcepcion::conMotivo()) {
+                $data_insertar['motivo_excepcion'] = \App\Support\CasosExcepcion::motivoValido($data['motivo_excepcion'] ?? null);
+            }
             // En transacción: si el INSERT falla, también se deshace el folio
             // que se apartó en folios_citas y no quedan números saltados.
             $recepcion = DB::transaction(fn () => Recepcion::create($data_insertar));

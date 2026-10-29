@@ -16,6 +16,12 @@
             if (inputExcepcion) {
                 inputExcepcion.value = (valor === 'Ninguno') ? 'No' : 'Si';
             }
+            // Motivo exacto (varias opciones comparten value, p. ej. "Discriminación").
+            var inputMotivo = document.getElementById('motivo_excepcion');
+            if (inputMotivo) {
+                var opcion = elemento.options[elemento.selectedIndex];
+                inputMotivo.value = opcion && opcion.dataset.motivo ? opcion.dataset.motivo : '';
+            }
         }
 
         function blockCalendar() {

@@ -417,8 +417,17 @@
                                 <li>Administrar la información y datos del solicitante para efectuar el Procedimiento de Conciliación Prejudicial obligatorio y las notificaciones que deriven del mismo.</li><br>
                                 <li>Generar información estadística y de control, en la que sus datos personales serán disociados de la información estadística para que no sea posible identificar a los titulares.</li><br>
                                 <li>Establecer comunicación con los trabajadores y patrones por correo electrónico, por escrito, mediante correo ordinario o por teléfono, sobre aspectos relacionados con las 
-                                    fases y etapas del procedimiento de conciliación individual.</li>
+                                    fases y etapas del procedimiento de conciliación individual.</li><br>
+                                <li>Cuidar el uso adecuado del sistema de citas en línea, para que los horarios disponibles se repartan entre todas las personas que los necesitan.</li>
                             </ul>
+                            <p class="mb-2"><b>Datos que se registran al agendar una cita en línea.</b> Además de los que escribes en el formulario, el sistema guarda de forma automática la
+                                dirección IP (la dirección de internet desde la que te conectas) y el tipo de navegador y dispositivo que usas. Estos datos se usan sólo para la seguridad del
+                                sistema y para evitar que una misma conexión, correo o teléfono acapare las citas; no se usan para identificarte con otros fines ni se comparten, salvo
+                                requerimiento fundado y motivado de autoridad competente.</p>
+                            <p class="mb-2">Para que todas las personas tengan oportunidad de agendar, el Centro puede fijar un número máximo de citas en línea por conexión, correo o teléfono.
+                                Si se alcanza, puedes acudir directamente a la sede del Centro; el trámite es gratuito.</p>
+                            <p class="mb-0">Puedes ejercer tus derechos de acceso, rectificación, cancelación y oposición (derechos ARCO) ante la Unidad de Transparencia del Centro de Conciliación Laboral
+                                del Estado de Michoacán de Ocampo.</p>
                         </div>
                     </div>
                 </div> 
@@ -480,6 +489,18 @@
                 
                 if (tipoSeleccionado === 'Ratificación') {
 
+                    $('#calidad').fadeIn();
+                } else {
+
+                    $('#calidad').fadeOut();
+                    $('#puesto').val(''); 
+                }
+            });
+            $('#puesto').on('change', function() {
+                var tipoSeleccionado = $(this).val();
+                
+                if (tipoSeleccionado === 'empleador') {
+
                     $('#si_ratificacion').fadeIn();
                 } else {
 
@@ -493,7 +514,7 @@
                 var tieneFolio = $(this).val();
                 
                 if (tieneFolio === 'si') {
-                    window.location.href = '{{ route('create_cita') }}'; 
+                    window.location.href = '{{ route('create_cita', ['origen' => 'externo']) }}';
                 }
             });
 

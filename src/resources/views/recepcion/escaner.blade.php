@@ -142,6 +142,10 @@
         .es-datos dd { margin: 0; color: var(--tn-tinta); }
         .es-modulo { font-size: 20px; font-weight: 800; color: var(--tn-verde); }
 
+        .es-tarde { margin: 0 0 14px; padding: 12px 14px; border-radius: 10px; background: #FBF4E1; border: 1px solid #F0DCA4; }
+        .es-tarde p { margin: 0 0 8px; font-size: 13px; color: #6B5210; }
+        .es-tarde .btn { font-weight: 700; }
+
         .es-espera { padding: 34px 20px; text-align: center; color: var(--tn-tenue); }
         .es-espera i { font-size: 40px; display: block; margin-bottom: 8px; color: var(--tn-verde-claro); }
 
@@ -266,12 +270,14 @@
 
         var ESTILO = {
             confirmada:    { clase: 'ok',    icono: 'bi-check-circle-fill',       chip: '#1E7B3C' },
+            confirmada_tarde: { clase: 'ok', icono: 'bi-alarm',                   chip: '#1E7B3C' },
             ya_confirmada: { clase: 'info',  icono: 'bi-info-circle-fill',        chip: '#2F6F8F' },
             atendida:      { clase: 'info',  icono: 'bi-person-check-fill',       chip: '#2F6F8F' },
             otro_dia:      { clase: 'aviso', icono: 'bi-calendar-event-fill',     chip: '#B4530F' },
             pasada:        { clase: 'aviso', icono: 'bi-calendar-x-fill',         chip: '#B4530F' },
             tarde:         { clase: 'error', icono: 'bi-alarm-fill',              chip: '#A3162E' },
             expirada:      { clase: 'error', icono: 'bi-x-octagon-fill',          chip: '#A3162E' },
+            cancelada:     { clase: 'error', icono: 'bi-calendar2-x-fill',        chip: '#A3162E' },
             otra_sede:     { clase: 'error', icono: 'bi-geo-alt-fill',            chip: '#A3162E' },
             no_encontrada: { clase: 'error', icono: 'bi-question-octagon-fill',   chip: '#A3162E' },
             error:         { clase: 'error', icono: 'bi-exclamation-triangle-fill', chip: '#A3162E' }
@@ -446,6 +452,19 @@
             var c = d.cita;
             var cuerpo = el('div', 'es-datos');
             cuerpo.appendChild(el('p', 'es-datos__nombre', c.solicitante || 'Sin nombre'));
+
+            // Expiró hoy pero la persona está aquí: atenderla de todos modos.
+            if (d.atenderTarde) {
+                var cajaTarde = el('div', 'es-tarde');
+                cajaTarde.appendChild(el('p', null, 'Si la persona está aquí, puedes atenderla de todos modos: vuelve a la fila de su módulo, después de quienes llegaron a tiempo.'));
+                var b = el('button', 'btn btn-warning btn-sm');
+                b.type = 'button';
+                b.appendChild(el('i', 'bi bi-person-check-fill me-1'));
+                b.appendChild(document.createTextNode('Atenderla de todos modos'));
+                b.addEventListener('click', function () { atenderTarde(d.atenderTarde, b); });
+                cajaTarde.appendChild(b);
+                cuerpo.appendChild(cajaTarde);
+            }
             var dl = el('dl');
             [
                 ['Folio', c.folio],
@@ -472,6 +491,26 @@
             acuse.appendChild(document.createTextNode('Ver acuse'));
             cuerpo.appendChild(acuse);
             resultado.appendChild(cuerpo);
+        }
+
+        async function atenderTarde(url, b) {
+            b.disabled = true;
+            b.textContent = 'Reactivando…';
+            var datos;
+            try {
+                var r = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': TOKEN },
+                    credentials: 'same-origin'
+                });
+                datos = r.ok ? await r.json()
+                    : { resultado: 'error', titulo: r.status === 419 ? 'La sesión expiró' : 'No se pudo reactivar', mensaje: r.status === 419 ? 'Recarga la página e inicia sesión de nuevo.' : 'Error del servidor (' + r.status + ').' };
+            } catch (e) {
+                datos = { resultado: 'error', titulo: 'Sin conexión', mensaje: 'No se pudo contactar al servidor.' };
+            }
+            pintar(datos);
+            agregarHistorial(datos);
+            sonar(datos.resultado === 'confirmada_tarde');
         }
 
         var vacio = true;

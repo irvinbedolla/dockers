@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 
 use App\Http\Controllers\Controller;
+use App\Models\PermisosConciliador;
 use App\Models\User;
 use App\Support\FotoPerfil;
+use App\Support\Sinotifico\Acceso;
 use App\Support\TablaPosiciones;
 use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\DB;
@@ -20,7 +22,7 @@ class UsuarioController extends Controller
     {
         // Todo el personal (sin solicitantes), activos e inactivos: desde aquí
         // se reactivan. Son ~150, así que el filtro se hace en el navegador.
-        $usuarios = User::with('roles:id,name')
+        $usuarios = User::with('roles:id,name', 'permissions:id,name')
             ->whereHas('roles', fn ($q) => $q->where('name', '!=', 'Solicitante'))
             ->orderByRaw("estatus = 'Activo' DESC")
             ->orderBy('name')
@@ -66,6 +68,9 @@ class UsuarioController extends Controller
             'user'      => new User(),
             'roles'         => $this->rolesAsignables(),
             'rolesActuales' => [],
+            'agenda'        => PermisosConciliador::resumen(null),
+            'supervisaSinotifico' => false,
+            'enlaceExcepcion' => false,
             'soyYo'     => false,
             'sedes'    => self::SEDES,
             'sistemas' => self::SISTEMAS,
@@ -91,7 +96,9 @@ class UsuarioController extends Controller
             'type'        => ['required', Rule::in(array_keys(self::SISTEMAS))],
             'password'    => ['required', 'string', 'min:8', 'max:72', 'same:confirm-password'],
             'foto_perfil' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:8192', 'dimensions:min_width=200,min_height=200'],
-        ], $this->mensajes());
+            'sinotifico_supervisa' => ['nullable', 'boolean'],
+            'excepcion_enlace' => ['nullable', 'boolean'],
+        ] + $this->reglasAgenda($request), $this->mensajes());
 
         $foto = null;
         if ($request->hasFile('foto_perfil')) {
@@ -117,6 +124,9 @@ class UsuarioController extends Controller
             ]);
             $user->forceFill(['estatus' => $request->boolean('activo', true) ? 'Activo' : 'Inactivo'])->save();
             $user->syncRoles($this->conRolBase($datos['roles']));
+            $this->guardarAgenda($user, $datos);
+            Acceso::elegirSupervisor($user, $request->boolean('sinotifico_supervisa'));
+            \App\Support\CasosExcepcion::elegirEnlace($user, $request->boolean('excepcion_enlace'));
 
             return $user;
         });
@@ -161,6 +171,9 @@ class UsuarioController extends Controller
             'user'      => $user,
             'roles'     => $roles,
             'rolesActuales' => $rolesActuales,
+            'agenda'        => PermisosConciliador::resumen($user->id),
+            'supervisaSinotifico' => Acceso::supervisaPorEleccion($user),
+            'enlaceExcepcion' => \App\Support\CasosExcepcion::enlace($user),
             'sedes'     => self::SEDES,
             'sistemas'  => self::SISTEMAS,
             'soyYo'     => (int) $user->id === (int) auth()->id(),
@@ -192,7 +205,9 @@ class UsuarioController extends Controller
             'type'        => ['required', Rule::in(array_keys(self::SISTEMAS))],
             'password'    => ['nullable', 'string', 'min:8', 'max:72', 'same:confirm-password'],
             'foto_perfil' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:8192', 'dimensions:min_width=200,min_height=200'],
-        ], $this->mensajes());
+            'sinotifico_supervisa' => ['nullable', 'boolean'],
+            'excepcion_enlace' => ['nullable', 'boolean'],
+        ] + $this->reglasAgenda($request), $this->mensajes());
 
         // Uno mismo no se quita el acceso ni el rol de Super Usuario: no habría
         // quién lo deshiciera desde aquí.
@@ -248,6 +263,11 @@ class UsuarioController extends Controller
             // syncRoles quita sólo los roles de este modelo y limpia la caché
             // de permisos (el DELETE a mano borraba por model_id sin tipo).
             $user->syncRoles($this->conRolBase($datos['roles']));
+            $this->guardarAgenda($user, $datos);
+            // Supervisión en SíNotifico: sólo para Enlaces elegidos a mano.
+            Acceso::elegirSupervisor($user, $request->boolean('sinotifico_supervisa'));
+            // Enlace de Género e Igualdad: distintivo a la persona (CasosExcepcion::elegirEnlace).
+            \App\Support\CasosExcepcion::elegirEnlace($user, $request->boolean('excepcion_enlace'));
         });
 
         TablaPosiciones::olvidar();
@@ -319,6 +339,46 @@ class UsuarioController extends Controller
         return redirect()->route('usuarios')->with('success', "Se eliminó la cuenta de {$nombre}.");
     }
 
+    /**
+     * Agenda del conciliador (permisos_conciliador). Sólo es obligatoria si
+     * se le marca el rol Conciliador: sin ella el reparto automático de
+     * audiencias (SeerController::ObtenerAudiencia) nunca lo toma en cuenta.
+     */
+    private function reglasAgenda(Request $request): array
+    {
+        $esConciliador = in_array('Conciliador', (array) $request->input('roles', []), true);
+
+        return [
+            'conciliador_tipo'   => [Rule::requiredIf($esConciliador), 'nullable', Rule::in(array_keys(PermisosConciliador::TIPOS))],
+            'conciliador_dias'   => [Rule::requiredIf($esConciliador), 'nullable', 'array', 'min:1'],
+            'conciliador_dias.*' => [Rule::in(array_keys(PermisosConciliador::DIAS))],
+            'conciliador_inicio' => [Rule::requiredIf($esConciliador), 'nullable', 'date_format:H:i'],
+            'conciliador_fin'    => [Rule::requiredIf($esConciliador), 'nullable', 'date_format:H:i', 'after:conciliador_inicio'],
+        ];
+    }
+
+    /**
+     * Con el rol Conciliador se crea o actualiza su agenda. Si se le quita el
+     * rol, la agenda se conserva (ObtenerAudiencia ya no lo toma porque exige
+     * el rol) para que al devolvérselo vuelva con el mismo horario.
+     */
+    private function guardarAgenda(User $user, array $datos): void
+    {
+        if (! in_array('Conciliador', $datos['roles'], true)) {
+            return;
+        }
+
+        $base = PermisosConciliador::PREDETERMINADO;
+
+        PermisosConciliador::guardarPara(
+            $user->id,
+            $datos['conciliador_tipo'] ?? $base['tipo'],
+            array_values($datos['conciliador_dias'] ?? $base['dias']),
+            $datos['conciliador_inicio'] ?? $base['inicio'],
+            $datos['conciliador_fin'] ?? $base['fin']
+        );
+    }
+
     private function mensajes(): array
     {
         return [
@@ -343,6 +403,14 @@ class UsuarioController extends Controller
             'foto_perfil.max'        => 'La foto no debe pesar más de 8 MB.',
             'foto_perfil.dimensions' => 'La foto debe medir al menos 200x200 píxeles.',
             'foto_perfil.uploaded'   => 'La foto no se pudo subir: excede el límite del servidor.',
+            'conciliador_tipo.required'   => 'Elige qué audiencias recibe el conciliador.',
+            'conciliador_dias.required'   => 'Marca al menos un día en que recibe audiencias.',
+            'conciliador_dias.min'        => 'Marca al menos un día en que recibe audiencias.',
+            'conciliador_inicio.required' => 'Indica la hora en que empieza a recibir audiencias.',
+            'conciliador_fin.required'    => 'Indica la hora en que deja de recibir audiencias.',
+            'conciliador_fin.after'       => 'La hora final debe ser después de la inicial.',
+            'conciliador_inicio.date_format' => 'La hora no es válida.',
+            'conciliador_fin.date_format'    => 'La hora no es válida.',
         ];
     }
 }

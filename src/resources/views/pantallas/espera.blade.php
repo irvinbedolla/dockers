@@ -21,10 +21,11 @@
       - un tablero fijo "turno en módulo" a la izquierda y, a la derecha,
         paneles que rotan solos (próximas citas, audiencias, cumplimientos)
         con barra de progreso para saber cuándo cambian;
-      - cuando un módulo cambia de turno la tarjeta destella y, si alguien tocó
+      - cuando un módulo cambia de turno (o el auxiliar vuelve a llamar el
+        folio desde Mi módulo) la tarjeta destella y, si alguien tocó
         la pantalla una vez, suena un aviso y se anuncia por voz;
       - sin nombres completos: sólo el primero y las iniciales;
-      - se actualiza sola cada 15 s sin recargar, avisa si se perdió la
+      - se actualiza sola cada 10 s sin recargar, avisa si se perdió la
         conexión y se recarga sola al cambiar el día.
 --}}
 <style>
@@ -189,6 +190,7 @@
     }
     .pe-chip--linea { background: var(--pe-dorado-suave); color: var(--pe-dorado-tinta); }
     .pe-chip--sala { background: var(--pe-verde-suave); color: var(--pe-verde); }
+    .pe-chip--pase { background: var(--pe-teal); color: #fff; }
     .pe-hora { font-size: 1.5rem; font-weight: 800; color: var(--pe-teal); }
 
     /* --- panel que rota --- */
@@ -288,7 +290,7 @@
         <img class="pe-logo" src="{{ asset('assets/images/Logo pantalla.png') }}" alt="SíConcilio">
         <span class="pe-separador" aria-hidden="true"></span>
         <div>
-            <div class="pe-sede">Sede {{ $sede }}</div>
+            <div class="pe-sede">Sede {{ $sede }}@if (! empty($pruebas)) <span style="font-size:1.4rem;background:#FBF4E1;color:#7A5D10;border-radius:99rem;padding:.2rem 1rem;vertical-align:middle;">MODO PRUEBAS</span>@endif</div>
             <div class="pe-centro">Centro de Conciliación Laboral del Estado de Michoacán</div>
         </div>
         <div class="pe-reloj" aria-live="off">
@@ -327,7 +329,7 @@
 
     var URL_DATOS   = @json($urlDatos);
     var ZONA        = @json(config('app.timezone'));
-    var CADA_DATOS  = 15000;  // ms entre actualizaciones
+    var CADA_DATOS  = 10000;  // ms entre actualizaciones (el servidor cachea 10 s y se limpia al llamar)
     var CADA_PAGINA = 10000;  // ms que se ve cada página del panel derecho
     var FILAS       = 7;      // renglones por página del panel derecho
 
@@ -389,7 +391,11 @@
     function chipsCita(c) {
         var html = '<span class="pe-hora">' + esc(c.hora) + '</span>' +
                    '<span class="pe-chip">' + esc(c.tipo) + '</span>';
-        if (c.enLinea) { html += '<span class="pe-chip pe-chip--linea">En línea</span>'; }
+        // Tres chips como máximo para que no se encimen: si el auxiliar ya la
+        // llamó, eso importa más que "En línea".
+        if (c.enAtencion) { html += '<span class="pe-chip pe-chip--sala">En atención</span>'; }
+        else if (c.llamado) { html += '<span class="pe-chip pe-chip--pase">Pase al módulo</span>'; }
+        else if (c.enLinea) { html += '<span class="pe-chip pe-chip--linea">En línea</span>'; }
         return html;
     }
 
@@ -429,11 +435,12 @@
         }).join('');
     }
 
-    // Qué módulos cambiaron de turno desde la última vez.
+    // Qué módulos cambiaron de turno desde la última vez. La clave lleva la hora
+    // de la llamada: si el auxiliar vuelve a llamar el mismo folio, se anuncia otra vez.
     function detectarLlamados(primeraVez) {
         var llamados = [];
         (datos.modulos || []).forEach(function (m) {
-            var id = m.actual ? m.actual.id : null;
+            var id = m.actual ? m.actual.id + '|' + (m.actual.llamado || '') : null;
             if (!primeraVez && id && turnoPorModulo[m.id] !== id) { llamados.push(m.id); }
             turnoPorModulo[m.id] = id;
         });

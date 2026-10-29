@@ -1,140 +1,310 @@
 @extends('layouts.app')
-@section('title', 'Cambio de Fecha en Audiencia')
+@section('title', 'Cambio de fecha en audiencia')
+
+{{--
+    Administración → Cambio de fecha en audiencia.
+    Arranca con la tabla de audiencias (App\Support\ListadoAudiencias): vistas
+    Próximas / Pendientes vencidas / Todas, filtros por texto, sede,
+    conciliador y fechas. Se conserva el buscador por NUE (modal) y el
+    historial de cambios. Reagendar abre el mismo calendario de siempre.
+--}}
+
+@php
+    use Illuminate\Support\Carbon;
+
+    $con = fn (array $cambios) => route('cambio_fecha_audiencia', array_filter(
+        array_merge(request()->except('page'), $cambios),
+        fn ($v) => $v !== null && $v !== ''
+    ));
+    $fechaLarga = fn ($f) => \Illuminate\Support\Str::ucfirst(Carbon::parse($f)->locale('es')->isoFormat('dddd D [de] MMMM [de] YYYY'));
+    $hoy = Carbon::today()->toDateString();
+    $claseEstatus = function (?string $estatus, $fecha) use ($hoy) {
+        if ($estatus === 'Pendiente') {
+            return Carbon::parse($fecha)->toDateString() < $hoy ? 'ca-estatus--vencida' : 'ca-estatus--pendiente';
+        }
+        return match ($estatus) {
+            'Conciliacion', 'Reinstalacion'                      => 'ca-estatus--convenio',
+            'Reagendada', 'No conciliacion reagendada'           => 'ca-estatus--reagendada',
+            'No conciliacion', 'Incompetencia', 'Desistimiento', 'Canalizada' => 'ca-estatus--cerrada',
+            default                                              => 'ca-estatus--archivo',
+        };
+    };
+    // La base guarda algunos valores sin acento ("Zitacuaro", "Conciliacion").
+    $nombreSede = fn ($s) => collect(['Morelia', 'Uruapan', 'Zamora', 'Zitácuaro', 'Lázaro Cárdenas', 'Sahuayo'])
+        ->first(fn ($n) => \Illuminate\Support\Str::ascii($n) === \Illuminate\Support\Str::ascii((string) $s)) ?? $s;
+    $nombreEstatus = fn ($e) => [
+        'Conciliacion'               => 'Conciliación',
+        'No conciliacion'            => 'No conciliación',
+        'No conciliacion reagendada' => 'No conciliación reagendada',
+        'Reinstalacion'              => 'Reinstalación',
+    ][$e] ?? ($e ?: 'Sin estatus');
+    $hayFiltros = $filtros['q'] !== '' || $filtros['sede'] !== '' || $filtros['conciliador'] || $filtros['desde'] || $filtros['hasta'];
+    $multiSede = count($delegaciones) > 1;
+@endphp
+
+@section('page_css')
+    @include('turnos._estilos')
+    <style>
+        .ca-cabeza { display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 12px; }
+        .ca-cabeza p { margin: 2px 0 0; font-size: 13px; color: var(--tn-tenue); }
+        .ca-botones { display: flex; flex-wrap: wrap; gap: 8px; }
+        .ca-botones .btn { font-weight: 600; }
+        .btn.tn-boton-verde { background: var(--tn-verde); border-color: var(--tn-verde); color: #fff; font-weight: 600; }
+        .btn.tn-boton-verde:not(.btn-social):not(.btn-social-icon):hover,
+        .btn.tn-boton-verde:not(.btn-social):not(.btn-social-icon):focus { background: #354647; border-color: #354647 !important; color: #fff; }
+
+        .ca-filtros { display: grid; grid-template-columns: minmax(0, 2.2fr) repeat(4, minmax(0, 1fr)) auto; gap: 12px; align-items: end; }
+        .ca-filtros.sin-sede { grid-template-columns: minmax(0, 2.2fr) repeat(3, minmax(0, 1fr)) auto; }
+        @media (max-width: 1200px) { .ca-filtros, .ca-filtros.sin-sede { grid-template-columns: repeat(2, minmax(0, 1fr)); } .ca-filtros .ca-q { grid-column: 1 / -1; } }
+        @media (max-width: 640px)  { .ca-filtros, .ca-filtros.sin-sede { grid-template-columns: 1fr; } }
+        .ca-filtros label { display: block; font-size: 11.5px; font-weight: 600; color: var(--tn-tenue); margin-bottom: 4px; }
+        .ca-acciones-filtro { display: flex; gap: 6px; }
+        .ca-acciones-filtro .btn { white-space: nowrap; }
+
+        .ca-vistas { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 12px; }
+        .ca-vista {
+            display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 10px;
+            border: 1px solid var(--tn-borde); background: #fff; color: var(--tn-tinta);
+            font-size: 13px; font-weight: 600; text-decoration: none;
+        }
+        .ca-vista:hover { border-color: var(--tn-verde-claro); color: var(--tn-tinta); }
+        .ca-vista.is-activa { border-color: var(--tn-verde); box-shadow: inset 0 0 0 1px var(--tn-verde); }
+        .ca-vista__num { min-width: 24px; padding: 1px 7px; border-radius: 999px; background: var(--tn-fondo); font-size: 12px; text-align: center; }
+        .ca-vista--vencida .ca-vista__num { background: #FBE9E7; color: #9A2B1C; }
+
+        .ca-tabla { margin: 0; }
+        .tn .table.ca-tabla > :not(caption) > * > th,
+        .tn .table.ca-tabla > :not(caption) > * > td { padding: 10px 12px; height: auto; }
+        .tn .table.ca-tabla thead th {
+            background: #354647; --bs-table-bg: #354647; color: #fff !important;
+            font-size: 12px; font-weight: 600; letter-spacing: .03em; white-space: nowrap; border: 0;
+        }
+        .ca-tabla td { vertical-align: middle; font-size: 13.5px; color: var(--tn-tinta); }
+        .ca-tabla .ca-dia td { background: var(--tn-fondo); font-size: 12.5px; font-weight: 700; color: var(--tn-verde); padding-block: 8px; }
+        .ca-hora { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+        .ca-nue { font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+        .ca-sub { display: block; font-size: 12px; color: var(--tn-tenue); font-weight: 400; }
+        .ca-persona { min-width: 170px; }
+        .ca-tabla .btn-sm { white-space: nowrap; }
+        .ca-mas { font-size: 11.5px; color: var(--tn-tenue); font-weight: 600; white-space: nowrap; }
+
+        .ca-estatus { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+        .ca-estatus--pendiente  { background: #FBF4E1; color: #7A5D10; }
+        .ca-estatus--vencida    { background: #FBE9E7; color: #9A2B1C; }
+        .ca-estatus--convenio   { background: #E5F3EA; color: #1E7B3C; }
+        .ca-estatus--reagendada { background: #E7EEF9; color: #2A4F8A; }
+        .ca-estatus--cerrada    { background: #EEF2F2; color: var(--tn-verde); }
+        .ca-estatus--archivo    { background: #F1F1F1; color: #6B6B6B; }
+
+        .ca-localizada { border-left: 4px solid var(--tn-dorado); }
+        .ca-localizada dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px 18px; margin: 12px 0 0; }
+        .ca-localizada dt { font-size: 11.5px; font-weight: 600; color: var(--tn-tenue); }
+        .ca-localizada dd { margin: 0; font-size: 14px; color: var(--tn-tinta); font-weight: 600; overflow-wrap: anywhere; }
+        .ca-vacio { text-align: center; color: var(--tn-tenue); padding: 36px 12px; font-size: 14px; }
+        .ca-pie { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 14px; font-size: 13px; color: var(--tn-tenue); }
+        .ca-pie nav { margin: 0; }
+        .ca-pie .pagination { margin: 0; }
+    </style>
+@endsection
+
 @section('content')
-    <section class="section">
-        <div class="section-header">
-            <h3 class="page__heading">Cambio de Fecha en Audiencia</h3>
+    <section class="section tn">
+        <div class="section-header ca-cabeza">
+            <div>
+                <h3 class="page__heading mb-0">Cambio de fecha en audiencia</h3>
+                <p>Todas las audiencias{{ $multiSede ? '' : ' de '.reset($delegaciones) }}. Filtra o busca un NUE y reagenda desde el calendario.</p>
+            </div>
+            <div class="ca-botones">
+                <button type="button" class="btn tn-boton-verde" data-bs-toggle="modal" data-bs-target="#ModalRetroceso">
+                    <i class="bi bi-search"></i> Buscar por NUE
+                </button>
+                @if (auth()->user()->hasRole('Super Usuario'))
+                    <a href="{{ route('administracion_historial', 'cambio_fecha_audiencia') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-clock-history"></i> Historial
+                    </a>
+                @endif
+                <a href="{{ route('configuracion') }}" class="btn btn-outline-secondary">Regresar</a>
+            </div>
         </div>
+
         <div class="section-body">
-            <div class="row">
-                <div class="col-lg-12">
-                    <div class="card">
-                        <div class="card-body">
+            @if (session('success'))
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <strong>Audiencia reagendada.</strong> {{ session('success') }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+                </div>
+            @endif
 
-                            <div class="row">
-                                <div class="col-xs-12 col-sm-6 col-md-4"><br>
-                                    <button type="button" class="btn btn-primary open-modal" data-bs-toggle="modal" data-bs-target="#ModalRetroceso">
-                                        <i class="bi bi-search"></i> Buscar audiencia
-                                    </button>
-                                </div>
-                                <div class="col-xs-12 col-sm-6 col-md-4"><br>
-                                    <a href="{{ route('configuracion') }}" class="btn btn-secondary">Regresar</a>
-                                </div>
-                                @if (auth()->user()->hasRole('Super Usuario'))
-                                    <div class="col-xs-12 col-sm-6 col-md-4"><br>
-                                        <a href="{{ route('administracion_historial', 'cambio_fecha_audiencia') }}" class="btn btn-outline-primary">
-                                            <i class="bi bi-clock-history"></i> Historial
-                                        </a>
-                                    </div>
-                                @endif
-                            </div>
-                            <br>
+            @if ($errors->any())
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <strong>No se pudo completar.</strong>
+                    <ul class="mb-0">
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+                </div>
+            @endif
 
-                            @if(session()->has('success'))
-                                <div class="alert alert-success alert-dismissible fade show" role="alert">
-                                    <strong>Retroceso aplicado.</strong>
-                                    {{ session()->get('success') }}
-                                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                                        <span aria-hidden="true">&times;</span>
-                                    </button>
-                                </div>
-                            @endif
-
-                            @if ($errors->any())
-                                <div class="alert alert-dark alert-dismissible fade show" role="alert">
-                                    <strong>¡Revise los campos!</strong>
-                                    <ul>
-                                        @foreach ($errors->all() as $error)
-                                            <li>{{ $error }}</li>
-                                        @endforeach
-                                    </ul>
-                                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                                        <span aria-hidden="true">&times;</span>
-                                    </button>
-                                </div>
-                            @endif
-
-                            @if (session('message'))
-                                <div class="alert alert-info alert-dismissible fade show" role="alert">
-                                    <strong>Expediente localizado.</strong>
-                                    {{ session()->get('message') }}
-                                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                                        <span aria-hidden="true">&times;</span>
-                                    </button>
-                                </div>
-
-                                <div class="row">
-                                    <div class="table-responsive">
-                                          <input type="hidden" id="modal-id" name="citado" value="">
-                                        <table id="example" class="table table-striped table-hover mt-3 border shadow-sm">
-                                            <thead style="background-color: #354647; color: white;">
-                                                <tr>
-                                                    <th class="text-center text-white" style="color: white;">NUE</th>
-                                                    <th class="text-center text-white" style="color: white;">Delegación</th>
-                                                    <th class="text-center text-white" style="color: white;">Solictante</th>
-                                                    <th class="text-center text-white" style="color: white;">Citado</th>
-                                                    <th class="text-center text-white" style="color: white;">Fecha</th>
-                                                    <th class="text-center text-white" style="color: white;">Hora</th>
-                                                    <th class="text-center text-white" style="color: white;">Estatus</th>
-                                                    <th class="text-center text-white" style="color: white;">Conciliador</th>
-                                                    <th class="text-center text-white" style="color: white;">Acciones</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                @if (session('folio'))
-                                                   @php
-                                                        $folio = session('folio');
-                                                    @endphp
-                                                        <tr>
-                                                            <td class="text-center align-middle"><strong>{{ $folio['NUE'] }}</strong></td>
-                                                            <td class="text-center align-middle">
-                                                                <span class="badge" style="background-color: #6c757d;">{{ $folio['delegacion'] ?? 'N/A' }}</span>
-                                                            </td>
-                                                            <td class="text-center align-middle">{{ $folio['solicitante'] ?: 'N/A' }}</td>
-                                                            <td class="text-center align-middle">{{ $folio['citados'] ?: 'N/A' }}</td>
-                                                            <td class="text-center align-middle">
-                                                                {{ $folio['fecha'] ? \Carbon\Carbon::parse($folio['fecha'])->format('d/m/Y') : 'N/A' }}
-                                                            </td>
-                                                            <td class="text-center align-middle">
-                                                                {{ $folio['hora'] ? \Carbon\Carbon::parse($folio['hora'])->format('H:i') : 'N/A' }}
-                                                            </td>
-                                                            <td class="text-center align-middle">
-                                                                <span class="badge" style="background-color: #ffc107; color: black;">{{ $folio['estatus'] }}</span>
-                                                            </td>
-                                                            <td class="text-center align-middle">{{ $folio['conciliador'] ?: 'N/A' }}</td>
-                                                            <td class="text-center align-middle">
-                                                                <input type="hidden" name="fecha_turno" id="fecha_turno" value="">
-                                                            <input type="hidden" name="hora_turno" id="hora_turno" value="">
-                                                            @can('cambiar_fecha_audiencia')
-                                                                <button type="button" class="btn btn-info open-modal" 
-                                                                    data-bs-toggle="modal" 
-                                                                    data-bs-target="#ModalReagendar" 
-                                                                    data-id="{{ $folio['id'] }}"
-                                                                    data-sede="{{ $folio['delegacion'] }}"
-                                                                    data-id-conciliador="{{ $folio['id_conciliador'] }}"
-                                                                    data-nue="{{ $folio['NUE'] }}">
-                                                                    Reagendar
-                                                                </button>
-                                                            @endcan
-                                                            <div id="resumenTurno" class="alert alert-info mt-2" style="display:none;"></div>
-                                                            </td>
-                                                        </tr>
-                                                    
-                                                @endif
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            @endif
-
+            {{-- Resultado del buscador por NUE --}}
+            @if (session('folio'))
+                @php $folio = session('folio'); @endphp
+                <div class="tn-tarjeta ca-localizada mb-3">
+                    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                        <div>
+                            <p class="tn-titulo-seccion mb-1">Audiencia localizada</p>
+                            <span class="ca-nue" style="font-size: 18px;">{{ $folio['NUE'] }}</span>
+                            <span class="ca-estatus {{ $claseEstatus($folio['estatus'], $folio['fecha']) }} ms-2">{{ $nombreEstatus($folio['estatus']) }}</span>
                         </div>
+                        @can('cambiar_fecha_audiencia')
+                            <button type="button" class="btn tn-boton-verde"
+                                data-bs-toggle="modal" data-bs-target="#ModalReagendar"
+                                data-id="{{ $folio['id'] }}" data-sede="{{ $folio['delegacion'] }}"
+                                data-id-conciliador="{{ $folio['id_conciliador'] }}" data-nue="{{ $folio['NUE'] }}">
+                                <i class="bi bi-calendar2-week"></i> Reagendar
+                            </button>
+                        @endcan
                     </div>
+                    <dl>
+                        <div><dt>Fecha y hora</dt><dd>{{ $folio['fecha'] ? Carbon::parse($folio['fecha'])->format('d/m/Y') : 'N/A' }} · {{ $folio['hora'] ? Carbon::parse($folio['hora'])->format('H:i') : '' }}</dd></div>
+                        <div><dt>Sede</dt><dd>{{ $folio['delegacion'] ?: 'N/A' }}</dd></div>
+                        <div><dt>Solicitante</dt><dd>{{ $folio['solicitante'] ?: 'N/A' }}</dd></div>
+                        <div><dt>Citado</dt><dd>{{ $folio['citados'] ?: 'N/A' }}</dd></div>
+                        <div><dt>Conciliador</dt><dd>{{ $folio['conciliador'] ?: 'N/A' }}</dd></div>
+                    </dl>
+                </div>
+            @endif
+
+            <div class="tn-tarjeta">
+                <form method="GET" action="{{ route('cambio_fecha_audiencia') }}" class="ca-filtros {{ $multiSede ? '' : 'sin-sede' }}" role="search">
+                    <input type="hidden" name="vista" value="{{ $filtros['vista'] }}">
+                    <div class="ca-q">
+                        <label for="caQ">Buscar</label>
+                        <input type="search" id="caQ" name="q" class="form-control" value="{{ $filtros['q'] }}"
+                               placeholder="NUE, folio, solicitante, citado o conciliador" autocomplete="off">
+                    </div>
+                    @if ($multiSede)
+                        <div>
+                            <label for="caSede">Sede</label>
+                            <select id="caSede" name="sede" class="form-select">
+                                <option value="">Todas</option>
+                                @foreach ($delegaciones as $nombre)
+                                    <option value="{{ $nombre }}" @selected($filtros['sede'] === $nombre)>{{ $nombre }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    @endif
+                    <div>
+                        <label for="caConciliador">Conciliador</label>
+                        <select id="caConciliador" name="conciliador" class="form-select">
+                            <option value="">Todos</option>
+                            @foreach ($conciliadores as $c)
+                                <option value="{{ $c->id }}" @selected((int) $filtros['conciliador'] === (int) $c->id)>{{ $c->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label for="caDesde">Desde</label>
+                        <input type="date" id="caDesde" name="desde" class="form-control" value="{{ $filtros['desde'] }}">
+                    </div>
+                    <div>
+                        <label for="caHasta">Hasta</label>
+                        <input type="date" id="caHasta" name="hasta" class="form-control" value="{{ $filtros['hasta'] }}">
+                    </div>
+                    <div class="ca-acciones-filtro">
+                        <button type="submit" class="btn tn-boton-verde"><i class="bi bi-funnel"></i> Filtrar</button>
+                        @if ($hayFiltros)
+                            <a href="{{ route('cambio_fecha_audiencia', ['vista' => $filtros['vista']]) }}" class="btn btn-outline-secondary" title="Quitar filtros">Limpiar</a>
+                        @endif
+                    </div>
+                </form>
+
+                <div class="ca-vistas">
+                    @foreach (\App\Support\ListadoAudiencias::VISTAS as $clave => $etiqueta)
+                        <a href="{{ $con(['vista' => $clave]) }}"
+                           class="ca-vista {{ $filtros['vista'] === $clave ? 'is-activa' : '' }} {{ $clave === 'vencidas' && $conteos[$clave] ? 'ca-vista--vencida' : '' }}">
+                            {{ $etiqueta }} <span class="ca-vista__num">{{ number_format($conteos[$clave]) }}</span>
+                        </a>
+                    @endforeach
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table ca-tabla">
+                        <thead>
+                            <tr>
+                                <th>Hora</th>
+                                <th>NUE</th>
+                                <th>Solicitante</th>
+                                <th>Citado</th>
+                                <th>Sede · Sala</th>
+                                <th>Conciliador</th>
+                                <th>Estatus</th>
+                                <th class="text-end">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @php $diaAnterior = null; @endphp
+                            @forelse ($audiencias as $a)
+                                @php $dia = Carbon::parse($a->fecha)->toDateString(); @endphp
+                                @if ($dia !== $diaAnterior)
+                                    <tr class="ca-dia"><td colspan="8">{{ $fechaLarga($dia) }}{{ $dia === $hoy ? ' · Hoy' : '' }}</td></tr>
+                                    @php $diaAnterior = $dia; @endphp
+                                @endif
+                                <tr>
+                                    <td class="ca-hora">{{ substr((string) $a->hora, 0, 5) }}</td>
+                                    <td>
+                                        <span class="ca-nue">{{ $a->NUE }}</span>
+                                        <span class="ca-sub">Audiencia {{ $a->numero_audiencia }}</span>
+                                    </td>
+                                    <td class="ca-persona">{{ $a->solicitante ?: '—' }}</td>
+                                    <td class="ca-persona">
+                                        {{ $a->citado ?: '—' }}
+                                        @if ($a->citados_total > 1)
+                                            <span class="ca-mas">+{{ $a->citados_total - 1 }}</span>
+                                        @endif
+                                    </td>
+                                    <td>{{ $nombreSede($a->delegacion) }}@if ($a->sala)<span class="ca-sub">{{ $a->sala }}</span>@endif</td>
+                                    <td>{{ $a->conciliador ?: '—' }}</td>
+                                    <td><span class="ca-estatus {{ $claseEstatus($a->estatus, $a->fecha) }}">{{ $nombreEstatus($a->estatus) }}</span></td>
+                                    <td class="text-end">
+                                        @if ($a->estatus === 'Pendiente')
+                                            @can('cambiar_fecha_audiencia')
+                                                <button type="button" class="btn btn-sm btn-outline-secondary"
+                                                    data-bs-toggle="modal" data-bs-target="#ModalReagendar"
+                                                    data-id="{{ $a->id }}" data-sede="{{ $a->sede_solicitud ?: $a->delegacion }}"
+                                                    data-id-conciliador="{{ $a->id_conciliador }}" data-nue="{{ $a->NUE }}">
+                                                    <i class="bi bi-calendar2-week"></i> Reagendar
+                                                </button>
+                                            @endcan
+                                        @endif
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="8" class="ca-vacio">
+                                        No hay audiencias {{ $filtros['vista'] === 'todas' ? '' : 'en «'.\App\Support\ListadoAudiencias::VISTAS[$filtros['vista']].'»' }} con estos filtros.
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="ca-pie">
+                    <span>
+                        @if ($audiencias->total())
+                            Mostrando {{ number_format($audiencias->firstItem()) }}–{{ number_format($audiencias->lastItem()) }} de {{ number_format($audiencias->total()) }}
+                        @endif
+                    </span>
+                    {{ $audiencias->onEachSide(1)->links('pagination::bootstrap-4') }}
                 </div>
             </div>
         </div>
     </section>
 @endsection
 
+@push('modals')
 <div class="modal fade" id="ModalRetroceso" tabindex="-1" role="dialog" aria-labelledby="retrocesoModalLabel" aria-hidden="true">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
@@ -188,7 +358,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-dismiss="modal">Cerrar</button>
-                    <button type="submit" class="btn btn-primary">Buscar</button>
+                    <button type="submit" class="btn tn-boton-verde">Buscar</button>
                 </div>
             </form>
         </div>
@@ -205,7 +375,7 @@
         <div class="modal-content">
             <!-- Restaura el header que se había borrado -->
             <div class="modal-header">
-                <h5 class="modal-title" id="exampleModalLabel">Fecha de la reagenda</h5>
+                <h5 class="modal-title" id="exampleModalLabel">Fecha de la reagenda <small class="text-muted" id="tituloNueReagendar"></small></h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             
@@ -215,6 +385,12 @@
                 <input type="hidden" id="sedeReagendar" value="">
                 <input type="hidden" id="idConciliador" value="">
                 <input type="hidden" id="fechaConfirmacion" value="">
+                <input type="hidden" id="modal-id" value="">
+                @if ($puedeEmpalmar)
+                    <div class="alert alert-info py-2 small mb-2">
+                        <i class="bi bi-info-circle"></i> Como Super Usuario puedes elegir un horario ocupado: la audiencia quedará empalmada con las del conciliador.
+                    </div>
+                @endif
                 
                 <div id="calendarReagendar"></div>
                 <input type="hidden" name="fecha" id="fechaSeleccionada">
@@ -229,6 +405,7 @@
     </div>
     </form>
 </div>
+@endpush
 
 @section('scripts')
     <!--Estilos y Librerías Externas -->
@@ -255,6 +432,7 @@
 
     <!--Inicialización General y Búsqueda -->
     <script>
+        var PUEDE_EMPALMAR = @json($puedeEmpalmar);
         document.addEventListener('DOMContentLoaded', function () {
             // Vista previa del NUE
             var delegacion  = document.getElementById('delegacion_retroceso');
@@ -305,39 +483,17 @@
     <!-- Logica de DataTables y Calendario -->
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            if ($.fn.DataTable.isDataTable('#tablaAudienciasServerSide')) {
-                $('#tablaAudienciasServerSide').DataTable().destroy();
-            }
-
-            $('#tablaAudienciasServerSide').DataTable({
-                "responsive": true,
-                "processing": true,
-                "serverSide": true,
-                "pageLength": 10,
-                "searching": true,
-                "ordering": false,
-                "ajax": { "url": "{{ route('buscar_abogados_audiencia_ajax') }}", "type": "GET" },
-                "columnDefs": [{ "targets": 3, "render": function (data, type, row) { return data; } }],
-                "language": {
-                    "processing": "Consultando...", "lengthMenu": "Mostrar _MENU_ registros",
-                    "zeroRecords": "No se encontraron representantes", "info": "Mostrando _START_ al _END_ de _TOTAL_ registros",
-                    "search": "Filtrar:", "paginate": { "next": "Siguiente", "previous": "Anterior" }
-                }
-            });
-
-            // Carga de datos al abrir el modal (Con jQuery para evitar errores si falta un input)
-            $('.open-modal').click(function() {
-                const id = $(this).data('id'); 
-                const sede = $(this).data('sede');
-                const idConc = $(this).data('id-conciliador');
-                const nue = $(this).data('nue');
-
+            // Botones Reagendar (tabla y audiencia localizada): llenan el modal del calendario.
+            $(document).on('click', '[data-bs-target="#ModalReagendar"]', function () {
+                const id = $(this).data('id');
                 $('#modal-id').val(id);
                 $('#modal-id-reagendar').val(id);
-                $('#sedeReagendar').val(sede);
-                $('#idConciliador').val(idConc);
-                $('#NUE').val(nue);
-                
+                $('#sedeReagendar').val($(this).data('sede'));
+                $('#idConciliador').val($(this).data('id-conciliador'));
+                $('#NUE').val($(this).data('nue'));
+                $('#tituloNueReagendar').text($(this).data('nue') ? '· ' + $(this).data('nue') : '');
+                $('#fechaSeleccionada, #horaSeleccionada').val('');
+                $('#btnGuardarReagenda').prop('disabled', true);
             });
 
             let calendarReagendar;
@@ -503,8 +659,10 @@
                             if (estadoClick === 'ocupado') {
                                 if (window.Swal){
                                     Swal.fire({
-                                        icon: 'warning', title: 'Aviso',
-                                        html: 'Esta fecha ya esta esta reservada.<br><br><b>' + '¿Esta seguro de continuar?' + '</b>.'
+                                        icon: 'warning', title: 'Horario ocupado',
+                                        html: PUEDE_EMPALMAR
+                                            ? 'El conciliador ya tiene audiencia en este horario.<br><br>Si continúas, la <b>audiencia se empalmará</b>.'
+                                            : 'El conciliador ya tiene audiencia en este horario.<br><br>Sólo un Super Usuario puede empalmar; al guardar el sistema lo rechazará.'
                                     });
                                     $('.fc-event-selected').removeClass('fc-event-selected');
                                     info.el.classList.add('fc-event-selected');

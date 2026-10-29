@@ -2171,15 +2171,17 @@
                         const titulo = (info.event && info.event.title) ? String(info.event.title) : '';
 
                         
+                        // Sus propias audiencias sí se pueden empalmar (también en horario lleno): sólo se avisa.
                         if (estadoClick === 'ocupado') {
                             if (window.Swal && typeof Swal.fire === 'function') {
+                                const enSlot = (info.event.extendedProps && info.event.extendedProps.audiencias_en_slot) || 0;
                                 Swal.fire({
-                                    icon: 'warning',
-                                    title: 'Horario ocupado',
-                                    text: 'Este horario ya está ocupado y no se puede seleccionar.',
+                                    icon: 'info',
+                                    title: 'Horario con audiencias',
+                                    html: 'Este horario ya tiene ' + (enSlot > 1 ? '<b>' + enSlot + ' audiencias</b> programadas' : '<b>una audiencia</b> programada') +
+                                        '.<br><br>Si continúas, la <b>audiencia se empalmará</b>.',
                                 });
                             }
-                            return;
                         }
 
                         if (/audiencia\s*\(/i.test(titulo)) {
@@ -2192,7 +2194,7 @@
                             }
                         }
 
-                        const estadoSeleccionable = (estadoClick === 'disponible' || /audiencia\s*\(/i.test(titulo));
+                        const estadoSeleccionable = (estadoClick === 'disponible' || estadoClick === 'ocupado' || /audiencia\s*\(/i.test(titulo));
                         const fechaSeleccionable = (slot > new Date() && slot.toISOString().slice(0,10) >= fechaMinimaStr);
 
                         if (estadoSeleccionable && fechaSeleccionable) {

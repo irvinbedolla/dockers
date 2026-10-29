@@ -34,6 +34,12 @@ class AgendaContexto
     /** Ven su región y a los conciliadores de su delegación. */
     private const ROLES_DE_REGION = ['Delegado', 'Enlace'];
 
+    /** Las sedes de la región de una delegación (la principal y su subsede). */
+    public static function sedesDeRegion(?string $delegacion): array
+    {
+        return self::SEDES_POR_DELEGACION[$delegacion] ?? ($delegacion ? [$delegacion] : []);
+    }
+
     /**
      * @return array{sedes: array<int, string>, conciliadores: \Illuminate\Database\Eloquent\Collection}
      */
@@ -59,6 +65,15 @@ class AgendaContexto
                         ->orderBy('name')
                         ->get()
                     : new \Illuminate\Database\Eloquent\Collection(),
+            ];
+        }
+
+        // Conciliación, Género e Igualdad: sólo citas en línea de excepción,
+        // de todas las sedes y sin conciliadores (CasosExcepcion).
+        if (CasosExcepcion::soloRol($usuario)) {
+            return [
+                'sedes'         => self::TODAS_LAS_SEDES,
+                'conciliadores' => new \Illuminate\Database\Eloquent\Collection(),
             ];
         }
 

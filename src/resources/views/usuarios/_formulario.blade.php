@@ -1,7 +1,9 @@
 {{--
     Campos del alta y de la edición de usuarios (crear.blade.php y
     editar.blade.php). Espera: $user (nuevo o existente), $roles, $rolesActuales,
-    $sedes, $sistemas y $soyYo. La CURP vive en users.profile_photo_path.
+    $agenda (PermisosConciliador::resumen), $supervisaSinotifico, $sedes,
+    $sistemas y $soyYo.
+    La CURP vive en users.profile_photo_path.
 --}}
 @php
     $esNuevo = ! $user->exists;
@@ -112,6 +114,45 @@
             </div>
             <div class="form-text">Puede tener varios: por ejemplo, Recepción General y Auxiliar de Solicitudes en una sede chica.</div>
         </div>
+        {{-- SíNotifico: los Enlaces asignan notificaciones, pero sólo los
+             elegidos aquí supervisan a los notificadores de su sede en la app. --}}
+        @php
+            $supervisaMarcado = old('sinotifico_supervisa', ($supervisaSinotifico ?? false) ? '1' : '0') === '1';
+        @endphp
+        <div class="col-12" id="ufSinotifico" @if (! in_array('Enlace', $marcados, true)) hidden @endif>
+            <div class="uf-sinotifico">
+                <div class="form-check form-switch mb-0">
+                    <input type="hidden" name="sinotifico_supervisa" value="0">
+                    <input class="form-check-input" type="checkbox" role="switch" id="sinotifico_supervisa" name="sinotifico_supervisa" value="1"
+                           @checked($supervisaMarcado)>
+                    <label class="form-check-label" for="sinotifico_supervisa">Supervisa notificadores en SíNotifico</label>
+                </div>
+                <div class="form-text mt-1">
+                    Ve en la app cómo van los notificadores de su sede: asignadas, pendientes y fuera de plazo.
+                    Delegados, Directivos y Super Usuarios ya lo tienen por su rol.
+                </div>
+            </div>
+        </div>
+        {{-- Enlace de Género e Igualdad: distintivo para apoyar al departamento
+             desde otra delegación (CasosExcepcion::elegirEnlace). Quien ya tiene
+             el rol no lo necesita. --}}
+        @php
+            $enlaceMarcado = old('excepcion_enlace', ($enlaceExcepcion ?? false) ? '1' : '0') === '1';
+        @endphp
+        <div class="col-12" id="ufEnlaceExcepcion" @if (in_array(\App\Support\CasosExcepcion::ROL, $marcados, true)) hidden @endif>
+            <div class="uf-sinotifico uf-enlace">
+                <div class="form-check form-switch mb-0">
+                    <input type="hidden" name="excepcion_enlace" value="0">
+                    <input class="form-check-input" type="checkbox" role="switch" id="excepcion_enlace" name="excepcion_enlace" value="1"
+                           @checked($enlaceMarcado)>
+                    <label class="form-check-label" for="excepcion_enlace">{{ \App\Support\CasosExcepcion::DISTINTIVO }}</label>
+                </div>
+                <div class="form-text mt-1">
+                    Apoya desde su delegación al Departamento de Conciliación, Género e Igualdad: le aparece "Casos de excepción"
+                    y puede atender, canalizar y cerrar casos, igual que el departamento (sin sus estadísticas). No cambia lo demás de sus roles.
+                </div>
+            </div>
+        </div>
         <div class="col-md-6">
             <label for="delegacion">Sede <span class="req">*</span></label>
             <select name="delegacion" id="delegacion" class="form-select {{ $campo('delegacion') }}" required>
@@ -145,6 +186,71 @@
                 @endif
                 @error('activo')<div class="text-danger small">{{ $message }}</div>@enderror
             </div>
+        </div>
+    </div>
+</div>
+
+{{-- Agenda del conciliador: sólo se ve con el rol Conciliador marcado. Sin
+     ella el reparto automático nunca le asigna audiencias. --}}
+@php
+    $agendaTipo   = old('conciliador_tipo', $agenda['tipo']);
+    $agendaDias   = (array) old('conciliador_dias', $agenda['dias']);
+    $agendaInicio = old('conciliador_inicio', $agenda['inicio']);
+    $agendaFin    = old('conciliador_fin', $agenda['fin']);
+    $subsedes     = ['Morelia' => 'Zitácuaro', 'Uruapan' => 'Lázaro Cárdenas', 'Zamora' => 'Sahuayo'];
+@endphp
+<div class="tn-tarjeta uf-seccion" id="ufAgenda" @if (! in_array('Conciliador', (array) old('roles', $rolesActuales), true)) hidden @endif>
+    <h5 class="uf-seccion__titulo"><span class="uf-seccion__num"><i class="bi bi-calendar-week"></i></span> Audiencias del conciliador</h5>
+    <p class="uf-seccion__ayuda">
+        Con esto el sistema le reparte audiencias en automático al confirmar solicitudes.
+        @if (! $agenda['existe'] && ! $esNuevo)
+            <strong style="color:#8A6A12;">Todavía no tiene agenda: hoy no recibe audiencias.</strong>
+        @endif
+    </p>
+    <div class="row g-3">
+        <div class="col-12">
+            <label>Qué audiencias recibe <span class="req">*</span></label>
+            <div class="uf-opciones">
+                @foreach (\App\Models\PermisosConciliador::TIPOS as $valor => $etiqueta)
+                    <label class="uf-opcion">
+                        <input class="form-check-input" type="radio" name="conciliador_tipo" value="{{ $valor }}" @checked($agendaTipo === $valor)>
+                        <span>
+                            <span class="uf-opcion__titulo">{{ $etiqueta }}</span>
+                            <span class="uf-opcion__texto" data-texto-tipo="{{ $valor }}">
+                                @switch($valor)
+                                    @case('Precencial') De su sede, en sala. @break
+                                    @case('Virtual') De la subsede (<span data-subsede>Zitácuaro, Lázaro Cárdenas o Sahuayo</span>). @break
+                                    @default De su sede y de la subsede. También ve los cumplimientos de la subsede.
+                                @endswitch
+                            </span>
+                        </span>
+                    </label>
+                @endforeach
+            </div>
+            @error('conciliador_tipo')<div class="text-danger small">{{ $message }}</div>@enderror
+        </div>
+        <div class="col-md-7">
+            <label>Días <span class="req">*</span></label>
+            <div class="uf-dias">
+                @foreach (\App\Models\PermisosConciliador::DIAS as $dia => $corto)
+                    <input type="checkbox" class="btn-check" name="conciliador_dias[]" value="{{ $dia }}" id="dia-{{ $dia }}" autocomplete="off" @checked(in_array($dia, $agendaDias, true))>
+                    <label class="btn uf-dia" for="dia-{{ $dia }}">{{ $corto }}</label>
+                @endforeach
+            </div>
+            @error('conciliador_dias')<div class="text-danger small">{{ $message }}</div>@enderror
+        </div>
+        <div class="col-6 col-md-auto">
+            <label for="conciliador_inicio">Desde <span class="req">*</span></label>
+            <input type="time" class="form-control {{ $campo('conciliador_inicio') }}" id="conciliador_inicio" name="conciliador_inicio" value="{{ $agendaInicio }}" step="60">
+            <div class="invalid-feedback">{{ $errors->first('conciliador_inicio') }}</div>
+        </div>
+        <div class="col-6 col-md-auto">
+            <label for="conciliador_fin">Hasta <span class="req">*</span></label>
+            <input type="time" class="form-control {{ $campo('conciliador_fin') }}" id="conciliador_fin" name="conciliador_fin" value="{{ $agendaFin }}" step="60">
+            <div class="invalid-feedback">{{ $errors->first('conciliador_fin') }}</div>
+        </div>
+        <div class="col-12">
+            <div class="form-text mt-0">Las vacaciones y permisos de un día se bloquean en Administración → bloqueo de conciliadores; aquí va su horario normal.</div>
         </div>
     </div>
 </div>
@@ -233,6 +339,38 @@
             if (!revisarRoles()) { e.preventDefault(); e.stopImmediatePropagation(); cajaRoles.scrollIntoView({ block: 'center' }); }
         }, true);
         revisarRoles();
+
+        // Agenda del conciliador: aparece al marcar el rol y nombra la
+        // subsede según la sede elegida.
+        var agenda = document.getElementById('ufAgenda');
+        var rolConciliador = cajaRoles.querySelector('input[name="roles[]"][value="Conciliador"]');
+        var sede = document.getElementById('delegacion');
+        var SUBSEDES = @json($subsedes);
+        function revisarAgenda() {
+            if (!agenda) { return; }
+            agenda.hidden = !(rolConciliador && rolConciliador.checked);
+            var sub = SUBSEDES[sede.value];
+            agenda.querySelectorAll('[data-subsede]').forEach(function (s) {
+                s.textContent = sub || 'Zitácuaro, Lázaro Cárdenas o Sahuayo';
+            });
+            // Las subsedes no tienen subsede propia: su conciliador vive en la sede principal.
+        }
+        if (rolConciliador) { rolConciliador.addEventListener('change', revisarAgenda); }
+
+        // SíNotifico: la opción de supervisar sólo aplica con el rol Enlace.
+        var bloqueSinotifico = document.getElementById('ufSinotifico');
+        var rolEnlace = cajaRoles.querySelector('input[name="roles[]"][value="Enlace"]');
+        if (bloqueSinotifico && rolEnlace) {
+            rolEnlace.addEventListener('change', function () { bloqueSinotifico.hidden = !rolEnlace.checked; });
+        }
+        // Enlace de Género e Igualdad: sobra si ya tiene el rol del departamento.
+        var bloqueEnlace = document.getElementById('ufEnlaceExcepcion');
+        var rolGenero = cajaRoles.querySelector('input[name="roles[]"][value="' + @json(\App\Support\CasosExcepcion::ROL) + '"]');
+        if (bloqueEnlace && rolGenero) {
+            rolGenero.addEventListener('change', function () { bloqueEnlace.hidden = rolGenero.checked; });
+        }
+        if (sede) { sede.addEventListener('change', revisarAgenda); }
+        revisarAgenda();
 
         document.getElementById('verPassword').addEventListener('click', function () {
             var ver = pass.type === 'password';
