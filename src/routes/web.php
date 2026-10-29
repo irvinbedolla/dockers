@@ -304,7 +304,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
     Route::permanentRedirect('/recepcion/audiencias-hoy',   '/recepcion/llegadas-hoy');
     Route::get('/llegadas/avisos',                      [App\Http\Controllers\LlegadasHoyController::class, 'avisos'])->name('llegadas.avisos')
-        ->middleware('role:Super Usuario|'.implode('|', \App\Support\LlegadasHoy::CONSULTAN));
+        ->middleware('role:Super Usuario|'.implode('|', \App\Support\LlegadasHoy::RECIBEN));
 
     // Escáner de QR de citas. La cámara sólo se permite en esta pantalla
     // (ver ContentSecurityPolicy). Super Usuario y las tres recepciones.
