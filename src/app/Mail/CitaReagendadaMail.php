@@ -19,7 +19,8 @@ class CitaReagendadaMail extends Mailable
 
     // Fecha y módulo anteriores protegidos: si fueran públicos, Laravel los
     // pasaría tal cual a la vista y pisarían los ya formateados en build().
-    public function __construct(public $pdf, public Recepcion $cita, protected string $fechaAnterior, protected ?string $moduloAnterior)
+    // $otros: lo que cambió además de la fecha (sede, trámite, folio): [etiqueta => [antes, ahora]].
+    public function __construct(public $pdf, public Recepcion $cita, protected string $fechaAnterior, protected ?string $moduloAnterior, protected array $otros = [])
     {
     }
 
@@ -32,11 +33,12 @@ class CitaReagendadaMail extends Mailable
         // Remitente fijo para la ciudadanía, aunque el .env del servidor
         // todavía diga otra cosa en MAIL_FROM_NAME.
         return $this->from(config('mail.from.address'), 'SíConcilio | CCL Michoacán')
-            ->subject("Tu cita cambió de fecha · {$datos['tipo']} · Folio {$datos['folio']}")
+            ->subject(($this->otros ? 'Tu cita cambió' : 'Tu cita cambió de fecha')." · {$datos['tipo']} · Folio {$datos['folio']}")
             ->view('emails.cita_reagendada', [
                 'd'              => $datos,
                 'fechaAnterior'  => $this->fechaAnterior,
                 'moduloAnterior' => $this->moduloAnterior ? str_replace('Modulo', 'Módulo', $this->moduloAnterior) : null,
+                'otros'          => $this->otros,
             ])
             ->attachData($this->pdf->output(), "Acuse de cita {$datos['folio']}.pdf", ['mime' => 'application/pdf']);
     }

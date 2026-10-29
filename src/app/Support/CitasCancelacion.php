@@ -354,6 +354,12 @@ class CitasCancelacion
             'motivo'      => self::motivoLimpio($m->motivo),
             'quien'       => self::nombre($m->user_nombre),
             'contacto'    => trim(implode(' · ', array_filter([$m->correo ?? null, $m->telefono ?? null]))),
+            // Lo que cambió el Super Usuario además de la fecha: ['Sede' => [antes, ahora], ...].
+            'otros'       => array_filter([
+                'Sede'    => isset($despues['delegacion']) ? [self::sede($antes['delegacion'] ?? null), self::sede($despues['delegacion'])] : null,
+                'Trámite' => isset($despues['tipo']) ? [self::tramite($antes['tipo'] ?? null), self::tramite($despues['tipo'])] : null,
+                'Folio'   => isset($despues['codigo']) ? [(string) ($antes['codigo'] ?? ''), (string) $despues['codigo']] : null,
+            ]),
         ];
     }
 

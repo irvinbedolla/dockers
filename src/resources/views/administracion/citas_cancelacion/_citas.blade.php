@@ -88,7 +88,9 @@
                                     data-tipo="{{ $cita->tipo }}"
                                     data-excepcion="{{ $cita->exepcion === 'Si' ? 'Si' : 'No' }}"
                                     data-fecha="{{ $cita->fecha->format('Y-m-d') }}"
-                                    data-hora="{{ substr($cita->getRawOriginal('hora'), 0, 5) }}">Reagendar</button>
+                                    data-hora="{{ substr($cita->getRawOriginal('hora'), 0, 5) }}"
+                                    data-sede-catalogo="{{ CC::sede($cita->delegacion) }}"
+                                    data-tramite="{{ CC::tramite($cita->tipo) }}">{{ CancelacionCitasController::puedeCambiarTodo(auth()->user()) ? 'Cambiar' : 'Reagendar' }}</button>
                             <button type="button" class="btn btn-sm btn-outline-danger"
                                     data-bs-toggle="modal" data-bs-target="#modalCancelar"
                                     data-folio="{{ $cita->folio_cita }}"

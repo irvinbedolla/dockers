@@ -99,6 +99,13 @@
         .rg-motivo-txt { min-width: 180px; max-width: 320px; white-space: normal; }
         .rg-pie-tabla { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
         .rg-pie-tabla .pagination { margin: 0; }
+        .rg-otro { color: #5A5446; }
+
+        /* Diálogo: sede y trámite (sólo Super Usuario) */
+        .rg-cambiar { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; padding-bottom: 14px; margin-bottom: 14px; border-bottom: 1px solid #E3E8E8; }
+        .rg-cambiar .form-label { font-size: 12.5px; font-weight: 700; color: #5B6B6C; margin-bottom: 3px; }
+        .rg-cambiar__nota { grid-column: 1 / -1; margin: 0; padding: 8px 10px; border-radius: 8px; background: #FBF7EA; color: #5A4A14; font-size: 12.5px; }
+        @media (max-width: 520px) { .rg-cambiar { grid-template-columns: 1fr; } }
         @media (max-width: 640px) { .rg-filtros__grid .rg-filtros__buscar { grid-column: auto; } }
     </style>
     @include('turnos._horario_estilos')
@@ -306,7 +313,7 @@
         <input type="hidden" name="hora">
         <div class="modal-header rg-encabezado py-3">
             <div>
-                <h5 class="modal-title text-white mb-0" id="rgTitulo"><i class="bi bi-calendar-week me-2" aria-hidden="true"></i>Reagendar cita <span data-folio></span></h5>
+                <h5 class="modal-title text-white mb-0" id="rgTitulo"><i class="bi bi-calendar-week me-2" aria-hidden="true"></i>{{ \App\Http\Controllers\CancelacionCitasController::puedeCambiarTodo(auth()->user()) ? 'Cambiar cita' : 'Reagendar cita' }} <span data-folio></span></h5>
                 <span class="hc-contexto" data-contexto></span>
             </div>
             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
@@ -314,6 +321,28 @@
 
         <div class="modal-body hc-cuerpo">
             <div class="rg-actual" data-actual></div>
+
+            @if (\App\Http\Controllers\CancelacionCitasController::puedeCambiarTodo(auth()->user()))
+                {{-- Sólo el Super Usuario: también la sede y el trámite; los horarios se buscan en el calendario nuevo. --}}
+                <div class="rg-cambiar">
+                    <div>
+                        <label class="form-label" for="rgSedeNueva">Sede</label>
+                        <select id="rgSedeNueva" name="sede" class="form-select" data-sede-nueva>
+                            @foreach (array_keys(\App\Support\FolioCita::SEDES) as $s)<option value="{{ $s }}">{{ $s }}</option>@endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label" for="rgTipoNuevo">Trámite</label>
+                        <select id="rgTipoNuevo" name="tipo" class="form-select" data-tipo-nuevo>
+                            @foreach (array_keys(\App\Support\CitasCancelacion::TRAMITES) as $t)<option value="{{ $t }}">{{ $t }}</option>@endforeach
+                        </select>
+                    </div>
+                    <p class="rg-cambiar__nota" data-nota-cambio hidden>
+                        <i class="bi bi-info-circle" aria-hidden="true"></i> Se muestran los horarios libres de <b data-destino></b>.
+                        Al guardar, la cita recibe un folio nuevo y se le manda su acuse; su código QR sigue sirviendo.
+                    </p>
+                </div>
+            @endif
 
             <div class="hc-semana">
                 <button type="button" class="hc-flecha" data-anterior aria-label="Semana anterior"><i class="bi bi-chevron-left"></i></button>
@@ -324,7 +353,7 @@
             <div class="hc-horas" data-horas aria-live="polite"></div>
 
             <div class="rg-motivo">
-                <label class="form-label" for="rgMotivo">Motivo de la reagenda</label>
+                <label class="form-label" for="rgMotivo">{{ \App\Http\Controllers\CancelacionCitasController::puedeCambiarTodo(auth()->user()) ? 'Motivo del cambio' : 'Motivo de la reagenda' }}</label>
                 <textarea id="rgMotivo" name="motivo" class="form-control" rows="2" minlength="10" maxlength="500" required></textarea>
             </div>
         </div>
@@ -333,7 +362,7 @@
             <div class="hc-elegido" data-elegido>Toca un horario para elegirlo.</div>
             <div class="hc-pie__botones">
                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
-                <button class="btn btn-primary" data-guardar disabled><i class="bi bi-check2 me-1" aria-hidden="true"></i>Reagendar</button>
+                <button class="btn btn-primary" data-guardar disabled><i class="bi bi-check2 me-1" aria-hidden="true"></i>{{ \App\Http\Controllers\CancelacionCitasController::puedeCambiarTodo(auth()->user()) ? 'Guardar cambios' : 'Reagendar' }}</button>
             </div>
         </div>
     </form></div>
@@ -363,9 +392,12 @@
             semana: $('[data-semana]'), anterior: $('[data-anterior]'), siguiente: $('[data-siguiente]'),
             dias: $('[data-dias]'), horas: $('[data-horas]'), elegido: $('[data-elegido]'),
             contexto: $('[data-contexto]'), actual: $('[data-actual]'), guardar: $('[data-guardar]'),
-            fecha: $('[name=fecha]'), hora: $('[name=hora]')
+            fecha: $('[name=fecha]'), hora: $('[name=hora]'),
+            // Sólo existen para el Super Usuario.
+            sedeNueva: $('[data-sede-nueva]'), tipoNuevo: $('[data-tipo-nuevo]'), nota: $('[data-nota-cambio]'), destino: $('[data-destino]')
         };
-        let cita = null;            // sede, tipo, excepcion, fecha y hora actuales
+        let cita = null;            // sede, tipo, excepcion, fecha y hora con que se buscan horarios
+        let original = null;        // cómo está la cita: sede y trámite del catálogo y tal como están guardados
         let lunes = null, lunesMinimo = null, porDia = {}, diaActivo = null, elegido = null;
         let peticion = 0;           // descarta respuestas viejas si se navega rápido
 
@@ -387,11 +419,44 @@
                 const estado = e.extendedProps && e.extendedProps.estado;
                 if (estado !== 'disponible' && estado !== 'turnos') return;
                 const [f, h] = String(e.start).split('T');
-                // Su propio horario no es una opción: sería no moverla.
-                if (dias[f] && !(f === cita.fecha && h.slice(0, 5) === cita.hora)) dias[f].push(h.slice(0, 5));
+                // Su propio horario no es una opción si nada más cambia: sería no moverla.
+                if (dias[f] && !(sinCambios() && f === original.fecha && h.slice(0, 5) === original.hora)) dias[f].push(h.slice(0, 5));
             });
+            // Si sólo cambia el trámite dentro del mismo calendario, su lugar sigue siendo suyo
+            // aunque el horario se vea lleno (lo ocupa ella misma).
+            if (!sinCambios() && mismoCalendario() && dias[original.fecha] && !dias[original.fecha].includes(original.hora)
+                && new Date(original.fecha + 'T' + original.hora) > new Date()) {
+                dias[original.fecha].push(original.hora);
+            }
             Object.keys(dias).forEach(k => dias[k].sort());
             return dias;
+        }
+
+        // Sede y trámite elegidos (si no es Super Usuario, los de la cita).
+        const sedeElegida = () => el.sedeNueva ? el.sedeNueva.value : original.sede;
+        const tipoElegido = () => el.tipoNuevo ? el.tipoNuevo.value : original.tipo;
+        const grupo = t => t === 'Ratificación' ? 'Ratificación' : 'Solicitud';
+        const sinCambios = () => sedeElegida() === original.sede && tipoElegido() === original.tipo;
+        const mismoCalendario = () => original.excepcion === 'Si'
+            || (sedeElegida() === original.sede && grupo(tipoElegido()) === grupo(original.tipo));
+
+        function contexto() {
+            el.contexto.textContent = 'Oficina ' + sedeElegida() + ' · ' + tipoElegido() + (original.excepcion === 'Si' ? ' · Excepción' : '');
+        }
+
+        // El Super Usuario cambió la sede o el trámite: se buscan horarios en ese calendario.
+        function cambiarDestino() {
+            const cambia = !sinCambios();
+            cita.sede = sedeElegida() === original.sede ? original.sedeGuardada : sedeElegida();
+            cita.tipo = tipoElegido() === original.tipo ? original.tipoGuardado : tipoElegido();
+            el.nota.hidden = !cambia;
+            el.destino.textContent = tipoElegido() + ' en ' + sedeElegida();
+            contexto();
+            elegido = null;
+            el.fecha.value = el.hora.value = '';
+            el.guardar.disabled = true;
+            el.elegido.textContent = 'Toca un horario para elegirlo.';
+            irA(lunesMinimo, true);
         }
 
         function mensaje(icono, texto, accion) {
@@ -465,7 +530,8 @@
             el.hora.value = hora;
             el.elegido.textContent = '';
             el.elegido.appendChild(document.createTextNode('Nuevo horario: '));
-            el.elegido.appendChild(nodo('strong', null, largo(fecha) + ' · ' + hora + ' h'));
+            el.elegido.appendChild(nodo('strong', null, largo(fecha) + ' · ' + hora + ' h'
+                + (sinCambios() ? '' : ' · ' + tipoElegido() + ' en ' + sedeElegida())));
             el.guardar.disabled = false;
             pintarHoras();
         }
@@ -498,16 +564,27 @@
         }
 
         el.anterior.addEventListener('click', () => irA(masDias(lunes, -7)));
+        if (el.sedeNueva) {
+            el.sedeNueva.addEventListener('change', cambiarDestino);
+            el.tipoNuevo.addEventListener('change', cambiarDestino);
+        }
         el.siguiente.addEventListener('click', () => irA(masDias(lunes, 7)));
 
         modal.addEventListener('show.bs.modal', function (e) {
             const b = e.relatedTarget.dataset;
             cita = { sede: b.sede, tipo: b.tipo, excepcion: b.excepcion, fecha: b.fecha, hora: b.hora };
+            original = { sede: b.sedeCatalogo || b.sede, tipo: b.tramite || b.tipo, sedeGuardada: b.sede, tipoGuardado: b.tipo,
+                         excepcion: b.excepcion, fecha: b.fecha, hora: b.hora };
+            if (el.sedeNueva) {
+                el.sedeNueva.value = original.sede;
+                el.tipoNuevo.value = original.tipo;
+                el.nota.hidden = true;
+            }
             elegido = null;
             el.fecha.value = el.hora.value = '';
             el.guardar.disabled = true;
             el.elegido.textContent = 'Toca un horario para elegirlo.';
-            el.contexto.textContent = 'Oficina ' + cita.sede + ' · ' + cita.tipo + (cita.excepcion === 'Si' ? ' · Excepción' : '');
+            contexto();
             el.actual.textContent = '';
             el.actual.appendChild(document.createTextNode('Cita actual: '));
             el.actual.appendChild(nodo('strong', null, largo(cita.fecha) + ' · ' + cita.hora + ' h'));

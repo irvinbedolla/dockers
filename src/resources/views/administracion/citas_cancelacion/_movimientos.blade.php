@@ -86,6 +86,9 @@
                             @if ($m['dias'] !== null)
                                 <span class="rg-dias">{{ $m['dias'] === 0 ? 'mismo día' : ($m['dias'] > 0 ? '+' : '').$m['dias'].' '.(abs($m['dias']) === 1 ? 'día' : 'días') }}</span>
                             @endif
+                            @foreach ($m['otros'] as $etiqueta => [$antesO, $ahoraO])
+                                <span class="rg-dias rg-otro">{{ $etiqueta }}: {{ $antesO }} → <b>{{ $ahoraO }}</b></span>
+                            @endforeach
                         @else
                             <s>{{ $m['antes'] }}</s>
                         @endif

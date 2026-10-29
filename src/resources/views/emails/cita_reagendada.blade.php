@@ -1,9 +1,10 @@
-{{-- Aviso de reagenda con el acuse nuevo. Datos: $d, $fechaAnterior y $moduloAnterior. --}}
+{{-- Aviso de reagenda con el acuse nuevo. Datos: $d, $fechaAnterior, $moduloAnterior y $otros (sede, trámite o folio que cambiaron). --}}
 @extends('emails.layouts.ccl')
 
-@section('titulo', 'Tu cita cambió de fecha · Folio '.$d['folio'])
+@php $otros = $otros ?? []; @endphp
+@section('titulo', ($otros ? 'Tu cita cambió' : 'Tu cita cambió de fecha').' · Folio '.$d['folio'])
 @section('preheader', 'Tu nueva cita es el '.$d['fechaLarga'].' a las '.$d['hora'].' h en '.$d['sede'].'. Tu nuevo acuse con código QR va adjunto.')
-@section('hero_titulo', 'Tu cita cambió de fecha')
+@section('hero_titulo', $otros ? 'Tu cita cambió' : 'Tu cita cambió de fecha')
 @section('hero_texto')
     Hola, {{ $d['nombre'] }}. Reprogramamos tu cita de <strong style="color:#FFFFFF;">{{ $d['tipoCorto'] }}</strong>. Estos son los nuevos datos.
 @endsection
@@ -18,6 +19,9 @@
                     <td style="padding:14px 18px; font-family:Arial, Helvetica, sans-serif; font-size:14px; line-height:21px; color:#2E3C3D;">
                         Antes: <span style="color:#8A9899; text-decoration:line-through;">{{ $fechaAnterior }}</span><br>
                         Ahora: <strong>{{ $d['fechaLarga'] }} a las {{ $d['hora'] }} h</strong><br>
+                        @foreach ($otros as $etiqueta => [$antes, $ahora])
+                            {{ $etiqueta }}: <span style="color:#8A9899; text-decoration:line-through;">{{ $antes }}</span> → <strong>{{ $ahora }}</strong><br>
+                        @endforeach
                         <span style="color:#5E6E6F;">Tu código QR sigue siendo el mismo; preséntate en la nueva fecha y hora. Te adjuntamos el acuse actualizado.</span>
                     </td>
                 </tr>

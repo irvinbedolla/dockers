@@ -37,7 +37,7 @@ class CitasCancelacionExport extends DefaultValueBinder implements FromArray, Wi
     public function headings(): array
     {
         return $this->vista === 'movimientos'
-            ? ['Fecha del movimiento', 'Movimiento', 'Folio', 'Solicitante', 'Sede', 'Trámite', 'Origen', 'Cita antes', 'Cita nueva', 'Días que se movió', 'Motivo', 'Hecho por', 'Estatus actual', 'Contacto']
+            ? ['Fecha del movimiento', 'Movimiento', 'Folio', 'Solicitante', 'Sede', 'Trámite', 'Origen', 'Cita antes', 'Cita nueva', 'Días que se movió', 'Otros cambios', 'Motivo', 'Hecho por', 'Estatus actual', 'Contacto']
             : ['Fecha', 'Hora', 'Folio', 'Solicitante', 'CURP', 'Sede', 'Trámite', 'Origen', 'Estatus', 'Correo', 'Teléfono', 'Veces reagendada', 'Cancelación', 'Último movimiento'];
     }
 
@@ -55,6 +55,7 @@ class CitasCancelacionExport extends DefaultValueBinder implements FromArray, Wi
                 $m['antes'],
                 $m['despues'] ?? '',
                 $m['dias'] ?? '',
+                implode(' · ', array_map(fn ($e, $par) => $e.': '.$par[0].' → '.$par[1], array_keys($m['otros']), $m['otros'])),
                 $m['motivo'],
                 $m['quien'],
                 CitasCancelacion::ESTATUS[$m['estatusHoy']] ?? (string) $m['estatusHoy'],
