@@ -2,24 +2,29 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\CitasCancelacionExport;
 use App\Mail\CitaCanceladaMail;
 use App\Mail\CitaReagendadaMail;
 use App\Models\Recepcion;
 use App\Models\Sedes;
 use App\Services\BitacoraAdministracionRecorder;
 use App\Support\AsignadorModulos;
+use App\Support\CitasCancelacion;
 use App\Support\HorarioCitas;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
+use Maatwebsite\Excel\Facades\Excel;
 
 /**
  * Administración → Cancelación/Reagenda de citas.
- * Se ven las citas de un día (o se busca por folio, CURP o nombre) y las
- * pendientes se cancelan o se mueven a otro día y hora con lugar. Cada
- * cambio queda en historial_administracion.
+ * Pestaña Citas: las citas de un rango de fechas con filtros (sede, trámite,
+ * estatus, origen) o buscadas por folio, CURP, nombre, correo o teléfono; las
+ * pendientes se cancelan o se mueven a otro día y hora con lugar. Pestaña
+ * Movimientos: cada cancelación y reagenda hecha aquí, que queda en
+ * historial_administracion. Filtros y consultas: App\Support\CitasCancelacion.
  */
 class CancelacionCitasController extends Controller
 {
@@ -36,45 +41,64 @@ class CancelacionCitasController extends Controller
     }
 
     /**
-     * Sin búsqueda: todas las citas de un día (hoy si no se elige otro).
-     * Con búsqueda: por folio, CURP o nombre, de cualquier día.
+     * Citas: hoy si no se elige otro rango; con búsqueda (folio, CURP, nombre,
+     * correo o teléfono), de cualquier día. Movimientos: los últimos 30 días.
      */
     public function index(Request $request)
     {
-        $datos = $request->validate([
-            'fecha'  => ['nullable', 'date_format:Y-m-d'],
-            'buscar' => ['nullable', 'string', 'max:100'],
-        ]);
-        $hoy    = Carbon::today()->toDateString();
-        $fecha  = $datos['fecha'] ?? $hoy;
-        $buscar = trim($datos['buscar'] ?? '');
+        $sedesAlcance = $this->sedesDelAlcance($request);
+        $sedes        = $sedesAlcance ?? \App\Support\Recepcion::TODAS_LAS_SEDES;
+        $f            = CitasCancelacion::filtros($request, $sedes);
+        $hoy          = Carbon::today()->toDateString();
 
-        if (mb_strlen($buscar) >= 3) {
-            $citas = $this->delAlcance($request)
-                ->where(fn ($q) => $q->where('codigo', $buscar)
-                    ->orWhere('consecutivo', $buscar)
-                    ->orWhere('curp', mb_strtoupper($buscar))
-                    ->orWhere('solicitante', 'like', '%'.$buscar.'%'))
-                ->orderByDesc('fecha')
-                ->orderBy('hora')
-                ->limit(50)
-                ->get();
+        $datos = [
+            'f'        => $f,
+            'sedes'    => $sedes,
+            'hoy'      => $hoy,
+            'usuarios' => CitasCancelacion::usuarios($sedesAlcance),
+        ];
+
+        if ($f['vista'] === 'movimientos') {
+            $movs = CitasCancelacion::movimientos($sedesAlcance, $f);
+            $datos += [
+                'resumen'     => CitasCancelacion::resumenMovimientos($movs),
+                'movimientos' => CitasCancelacion::paginar($movs, $request),
+            ];
         } else {
-            $citas = $this->delAlcance($request)
-                ->where('fecha', $fecha)
-                ->orderBy('hora')
-                ->orderBy('delegacion')
-                ->get();
+            $consulta = CitasCancelacion::consultaCitas($this->delAlcance($request), $f);
+            $citas    = CitasCancelacion::listarCitas($consulta, $f);
+            $datos += [
+                'resumen'   => CitasCancelacion::resumenCitas($consulta),
+                'citas'     => $citas,
+                'historial' => CitasCancelacion::historialDe($citas->getCollection()->pluck('id')),
+            ];
         }
 
-        return view('administracion.citas_cancelacion.index', [
-            'buscar'       => $buscar,
-            'citas'        => $citas,
-            'hoy'          => $hoy,
-            'fecha'        => $fecha,
-            'diaAnterior'  => Carbon::parse($fecha)->subDay()->toDateString(),
-            'diaSiguiente' => Carbon::parse($fecha)->addDay()->toDateString(),
-        ]);
+        return view('administracion.citas_cancelacion.index', $datos);
+    }
+
+    /** Excel de la pestaña que se está viendo, con los mismos filtros. */
+    public function descargar(Request $request)
+    {
+        $sedesAlcance = $this->sedesDelAlcance($request);
+        $f            = CitasCancelacion::filtros($request, $sedesAlcance ?? \App\Support\Recepcion::TODAS_LAS_SEDES);
+
+        if ($f['vista'] === 'movimientos') {
+            $filas = CitasCancelacion::movimientos($sedesAlcance, $f);
+        } else {
+            $consulta = CitasCancelacion::consultaCitas($this->delAlcance($request), $f);
+            if ($f['estatus']) {
+                $consulta->where('estatus', $f['estatus']);
+            }
+            $citas = $consulta->orderBy('fecha')->orderBy('hora')->orderBy('id')->limit(CitasCancelacion::MAX_FILAS)->get();
+            $hist  = CitasCancelacion::historialDe($citas->pluck('id'));
+            $filas = $citas->map(fn ($c) => ['cita' => $c, 'historial' => $hist[$c->id] ?? null]);
+        }
+
+        $nombre = 'citas_'.($f['vista'] === 'movimientos' ? 'movimientos' : 'citas').'_'
+            .($f['buscando'] ? 'busqueda' : $f['desde'].($f['unDia'] ? '' : '_a_'.$f['hasta'])).'.xlsx';
+
+        return Excel::download(new CitasCancelacionExport($f['vista'], $filas), $nombre);
     }
 
     public function cancelar(Request $request, int $id)
@@ -169,21 +193,26 @@ class CancelacionCitasController extends Controller
      */
     private function delAlcance(Request $request)
     {
+        $sedes = $this->sedesDelAlcance($request);
+
+        // En recepcion hay registros sin acento ("Lazaro Cardenas").
+        return $sedes === null ? Recepcion::query() : Recepcion::whereIn('delegacion', CitasCancelacion::variantes($sedes));
+    }
+
+    /** Las sedes que ve (null = todas). Ver delAlcance(). */
+    private function sedesDelAlcance(Request $request): ?array
+    {
         $usuario = $request->user();
         if ($usuario->hasAnyRole(['Super Usuario', 'Directivo']) || ! $usuario->hasAnyRole(['Delegado', 'Enlace'])) {
-            return Recepcion::query();
+            return null;
         }
 
         $sede  = Sedes::where('nombre', $usuario->delegacion)->first();
         $madre = $sede && $sede->oficina_apoyo ? Sedes::find($sede->oficina_apoyo) : $sede;
-        $sedes = $madre
+
+        return $madre
             ? Sedes::where('id', $madre->id)->orWhere('oficina_apoyo', $madre->id)->pluck('nombre')->all()
             : [$usuario->delegacion];
-
-        // En recepcion hay registros sin acento ("Lazaro Cardenas").
-        $nombres = array_values(array_unique(array_merge($sedes, array_map(fn ($s) => Str::ascii($s), $sedes))));
-
-        return Recepcion::whereIn('delegacion', $nombres);
     }
 
     /**

@@ -365,6 +365,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Cancelación/Reagenda de citas. Delegado y Enlace, sólo su sede y su oficina de apoyo.
         Route::middleware(['role:Super Usuario|Delegado|Enlace|Directivo'])->group(function () {
             Route::get('administracion/citas-cancelacion',                 [CancelacionCitasController::class, 'index'])->name('citas_cancelacion.index');
+            Route::get('administracion/citas-cancelacion/descargar',       [CancelacionCitasController::class, 'descargar'])->name('citas_cancelacion.descargar');
             Route::post('administracion/citas-cancelacion/{id}/cancelar',  [CancelacionCitasController::class, 'cancelar'])->name('citas_cancelacion.cancelar')->whereNumber('id');
             Route::post('administracion/citas-cancelacion/{id}/reagendar', [CancelacionCitasController::class, 'reagendar'])->name('citas_cancelacion.reagendar')->whereNumber('id');
         });
