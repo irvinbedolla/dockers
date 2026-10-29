@@ -17,7 +17,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // \PDF corrige caracteres raros antes de imprimir (ver App\Support\PdfSeguro).
+        $this->app->bind('dompdf.wrapper', function ($app) {
+            return new \App\Support\PdfSeguro($app['dompdf'], $app['config'], $app['files'], $app['view']);
+        });
     }
 
     /**
