@@ -69,35 +69,35 @@ class AtencionTramite
         ],
         2 => [
             'etapa'    => 'Captura',
-            'texto'    => 'Al momento de capturar tus datos en el sistema, la atención brindada por la persona Auxiliar del Centro fue:',
+            'texto'    => 'La atención de quien registró su solicitud para iniciar el trámite fue:',
             'opciones' => ['buena' => 'Buena', 'regular' => 'Regular', 'mala' => 'Mala'],
         ],
         3 => [
             'etapa'    => 'Derechos',
-            'texto'    => '¿Se te informó acerca de tus derechos y obligaciones dentro del Procedimiento de Conciliación Laboral?',
+            'texto'    => '¿Le explicaron sus derechos y obligaciones en este trámite de conciliación?',
             'opciones' => ['si' => 'Sí', 'no' => 'No', 'no_recuerdo' => 'No recuerdo'],
         ],
         4 => [
             'etapa'    => 'Conciliador',
-            'texto'    => 'El comportamiento del Conciliador(a) que atendió tu audiencia fue:',
+            'texto'    => 'El trato del conciliador (o conciliadora) durante su audiencia fue:',
             'opciones' => ['buena' => 'Bueno', 'regular' => 'Regular', 'mala' => 'Malo'],
         ],
         5 => [
             'etapa'    => 'Imparcialidad',
-            'texto'    => 'Durante tu audiencia, el Conciliador(a) se mostró:',
+            'texto'    => 'En la audiencia, ¿sintió que el conciliador(a) favoreció a alguien?',
             'opciones' => [
-                'citada'      => 'A favor de la parte citada',
-                'solicitante' => 'A favor de la parte solicitante',
-                'equilibrado' => 'Su trato fue equilibrado y justo con ambas partes',
+                'a_mi'        => 'Sí, estuvo a mi favor',
+                'otra_parte'  => 'Sí, estuvo a favor de la otra parte',
+                'equilibrado' => 'No, fue parejo y justo con los dos',
             ],
         ],
         6 => [
             'etapa'    => 'Resultado',
-            'texto'    => '¿Cuál fue el resultado de tu audiencia de conciliación?',
+            'texto'    => '¿En qué terminó su audiencia?',
             'opciones' => [
-                'convenio'        => 'Convenio de Conciliación',
-                'no_conciliacion' => 'Constancia de No Conciliación',
-                'agotada'         => 'Constancia de Haber Agotado la Etapa de Conciliación Prejudicial',
+                'convenio'        => 'Llegamos a un arreglo (Convenio de Conciliación)',
+                'no_conciliacion' => 'No hubo acuerdo (Constancia de No Conciliación)',
+                'agotada'         => 'La otra parte no fue / Terminó el trámite (Constancia de etapa agotada)',
             ],
         ],
         7 => [

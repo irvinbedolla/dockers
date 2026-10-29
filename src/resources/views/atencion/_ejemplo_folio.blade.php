@@ -7,8 +7,7 @@
     <summary><i class="bi bi-question-circle me-1" aria-hidden="true"></i> ¿Dónde encuentro mi folio?</summary>
     <div class="at-ejemplo__cuerpo">
         <p class="mb-2">
-            Es el <b>Número de identificación único</b>. Viene arriba, a la derecha, en tu <b>citatorio</b>
-            (también en tu acuse de solicitud y en tu constancia), junto a la oficina:
+            Es el <b>Número de identificación único</b>. Lo encontrarás en la parte superior derecha, de tu <b>citatorio</b>, junto a la oficina:
         </p>
 
         <div class="at-doc" role="img" aria-label="Ejemplo de citatorio: el folio MOR/SOL/2026/01234 aparece junto a Número de identificación único, arriba a la derecha">
@@ -34,8 +33,7 @@
         </div>
 
         <p class="small mb-0 mt-2" style="color: var(--suave);">
-            Escríbelo tal cual: las letras de la sede (MOR, URU, ZAM, ZIT, SAH o LAZ), «SOL», el año y el número. En el mismo citatorio
-            viene la fecha de tu audiencia: el formulario se puede contestar cuando ya tengas la resolución.
+            Tu folio representa la sede (MOR, URU, ZAM, ZIT, SAH o LAZ), tipo de trámite solicitud y/o ratificación, año y número del expediente asignado.
         </p>
     </div>
 </details>
