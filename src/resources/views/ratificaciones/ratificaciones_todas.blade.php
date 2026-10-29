@@ -26,7 +26,7 @@
         'archivadas'     => ['Archivadas', 'bi-archive', 'rt-i-archivada'],
     ];
     $hoy = now()->toDateString();
-    // Vista con que abre la pantalla: "Últimas ratificaciones" si quien entra ha registrado alguna; si no, Hoy.
+    // Vista con que abre la pantalla: "Últimas ratificaciones".
     $ultimas = $ultimas ?? false;
     $enVistaInicial = ($ultimasPorOmision ?? false) ? $ultimas : (! $ultimas && $fecha === $hoy);
     $ayer = now()->subDay()->toDateString();

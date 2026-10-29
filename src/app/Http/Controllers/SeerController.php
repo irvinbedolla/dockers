@@ -15710,10 +15710,10 @@ class SeerController extends Controller
 
         // Día de la cita (Y-m-d). Va antes del conteo para que los apartados lo respeten.
         // "Últimas ratificaciones" (fecha=ultimas): las que registró quien entra, de
-        // cualquier día. Sin parámetro se abre ahí si ha registrado alguna; si no, en
-        // Hoy. "Todos los días" manda fecha=todos.
-        $ultimasPorOmision = Turnos::where('tipo', 'Ratificación')->where('user_id', $user->id)->exists();
-        $ultimas = $request->input('fecha') === 'ultimas' || (! $request->has('fecha') && $ultimasPorOmision);
+        // cualquier día. Es la vista con que abre (sin parámetro). "Todos los días"
+        // manda fecha=todos.
+        $ultimasPorOmision = true;
+        $ultimas = $request->input('fecha') === 'ultimas' || ! $request->has('fecha');
         $fecha = $ultimas ? null : ($request->has('fecha') ? $request->input('fecha') : now()->toDateString());
         if ($ultimas) {
             $query->where('user_id', $user->id);
