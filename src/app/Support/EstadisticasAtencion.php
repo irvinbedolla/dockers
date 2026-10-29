@@ -231,11 +231,36 @@ class EstadisticasAtencion
         ];
     }
 
+    /** Texto corto para la tabla de respuestas (pregunta => [clave => texto]). */
+    private const CORTAS = [
+        6 => ['convenio' => 'Convenio', 'no_conciliacion' => 'No conciliación', 'agotada' => 'Etapa agotada'],
+    ];
+
     /**
-     * Pregunta 5 por parte que contesta, y traducida a quién se percibe que
-     * favoreció (trabajador o empleador): la "parte solicitante" es el
-     * trabajador cuando él solicita (tipo 1) y el empleador en el tipo 2.
+     * Pregunta 5 traducida a quién se percibe que favoreció: 'trabajador',
+     * 'empleador' o 'equilibrado' (null si no contestó). La respuesta es
+     * relativa a quien contesta ("a mi favor" / "a la otra parte"), así que
+     * depende de su parte. Las claves anteriores (solicitante / citada) se
+     * traducen con el tipo de solicitud: en el tipo 2 solicita el empleador.
      */
+    public static function favorecido(object $r): ?string
+    {
+        $yo = $r->parte === 'empleadora' ? 'empleador' : 'trabajador';
+        $otro = $yo === 'empleador' ? 'trabajador' : 'empleador';
+        $solicitaEmpleador = (int) ($r->tipo_solicitud ?? 1) === 2;
+
+        return match ($r->p5 ?? null) {
+            null, ''      => null,
+            'equilibrado' => 'equilibrado',
+            'a_mi'        => $yo,
+            'otra_parte'  => $otro,
+            'solicitante' => $solicitaEmpleador ? 'empleador' : 'trabajador',
+            'citada'      => $solicitaEmpleador ? 'trabajador' : 'empleador',
+            default       => null,
+        };
+    }
+
+    /** Pregunta 5 por parte que contesta y traducida a quién se percibe que favoreció. */
     private static function imparcialidad($filas): array
     {
         $porParte = [];
@@ -247,15 +272,10 @@ class EstadisticasAtencion
         $favorece = ['trabajador' => 0, 'empleador' => 0, 'equilibrado' => 0];
         $favorecePorParte = ['trabajadora' => ['trabajador' => 0, 'empleador' => 0, 'equilibrado' => 0], 'empleadora' => ['trabajador' => 0, 'empleador' => 0, 'equilibrado' => 0]];
         foreach ($filas as $r) {
-            if (! $r->p5) {
+            $a = self::favorecido($r);
+            if ($a === null) {
                 continue;
             }
-            $solicitaEmpleador = (int) $r->tipo_solicitud === 2;
-            $a = match ($r->p5) {
-                'equilibrado' => 'equilibrado',
-                'solicitante' => $solicitaEmpleador ? 'empleador' : 'trabajador',
-                default       => $solicitaEmpleador ? 'trabajador' : 'empleador',
-            };
             $favorece[$a]++;
             if (isset($favorecePorParte[$r->parte])) {
                 $favorecePorParte[$r->parte][$a]++;
@@ -291,9 +311,16 @@ class EstadisticasAtencion
 
     private static function renglon(object $r, array $nombres): array
     {
-        $resp = [];
+        // Por pregunta: el texto completo, uno corto para la tabla y el nivel
+        // (bueno / medio / malo) sacado de la clave, no del texto, para que
+        // se puedan reescribir las opciones sin romper los colores.
+        $resp = $cortas = $niveles = [];
+        $favorecido = ['trabajador' => 'Al trabajador', 'empleador' => 'Al empleador', 'equilibrado' => 'Equilibrado'];
         foreach (AtencionTramite::PREGUNTAS as $n => $p) {
-            $resp[$n] = $r->{'p'.$n} ? ($p['opciones'][$r->{'p'.$n}] ?? $r->{'p'.$n}) : null;
+            $v = $r->{'p'.$n};
+            $resp[$n] = $v ? ($p['opciones'][$v] ?? $v) : null;
+            $cortas[$n] = $v ? ($n === 5 ? ($favorecido[self::favorecido($r)] ?? $resp[$n]) : (self::CORTAS[$n][$v] ?? $resp[$n])) : null;
+            $niveles[$n] = $v ? self::nivel($n, $v) : null;
         }
         $coment = [];
         foreach (array_keys(AtencionTramite::PREGUNTAS) as $n) {
@@ -314,6 +341,8 @@ class EstadisticasAtencion
             'capturo'     => $r->capturo_id ? ($nombres[$r->capturo_id] ?? 'Usuario '.$r->capturo_id) : '—',
             'resultado'   => $r->resultado ?: '—',
             'respuestas'  => $resp,
+            'cortas'      => $cortas,
+            'niveles'     => $niveles,
             'comentarios' => $coment,
             'presion'     => $r->p7 === 'si',
             'seguimiento' => $r->seguimiento,
