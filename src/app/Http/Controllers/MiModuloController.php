@@ -6,6 +6,7 @@ use App\Models\Modulo;
 use App\Models\User;
 use App\Support\FlujoCita;
 use App\Support\FolioCita;
+use App\Support\MotivoTermino;
 use App\Support\HorarioCitas;
 use App\Support\PantallaEspera;
 use App\Support\SigueEnModulo;
@@ -116,7 +117,8 @@ class MiModuloController extends Controller
      *   llamar   → la pantalla muestra el folio en su módulo y lo anuncia
      *              (otra vez, si ya estaba llamada);
      *   atender  → empezó la atención (si no la había llamado, la llama);
-     *   terminar → estatus "atendido";
+     *   terminar → estatus "atendido"; en solicitudes y asesorías pide por
+     *              qué terminó (MotivoTermino);
      *   ausente  → no se presentó: estatus "expirada", como cuando no llega
      *              a escanear su QR a tiempo (ValidadorCita).
      *
@@ -129,7 +131,13 @@ class MiModuloController extends Controller
         abort_unless(self::puedeVer($usuario), 403);
         abort_unless(in_array($accion, self::ACCIONES, true), 404);
 
-        $cita = DB::transaction(function () use ($usuario, $id, $accion) {
+        // Terminar una solicitud o asesoría pide la razón (App\Support\MotivoTermino).
+        $motivo = null;
+        if ($accion === 'terminar' && MotivoTermino::aplicaTipo(DB::table('recepcion')->where('id', $id)->value('tipo'))) {
+            $motivo = validator($request->all(), MotivoTermino::reglas(), MotivoTermino::mensajes())->validate();
+        }
+
+        $cita = DB::transaction(function () use ($usuario, $id, $accion, $motivo) {
             $cita = \App\Models\Recepcion::lockForUpdate()->findOrFail($id);
 
             abort_unless($this->esDeSusModulos($usuario, $cita), 403, 'La cita no es de tu módulo.');
@@ -161,6 +169,10 @@ class MiModuloController extends Controller
                     $cita->estatus = 'atendido';
                     if (FlujoCita::conFinAtencion()) {
                         $cita->atencion_fin_at = $ahora;
+                    }
+                    if ($motivo) {
+                        $cita->motivo_termino       = $motivo['motivo_termino'];
+                        $cita->motivo_termino_texto = trim((string) ($motivo['motivo_termino_texto'] ?? '')) ?: null;
                     }
                     break;
 
@@ -197,6 +209,7 @@ class MiModuloController extends Controller
             'modulo'  => $cita->modulo_id,
             'usuario' => $usuario->id,
             'prueba'  => (bool) $cita->es_prueba,
+            'motivo'  => $motivo['motivo_termino'] ?? null,
         ]);
 
         $folio = FolioCita::mostrar($cita);
@@ -516,6 +529,7 @@ class MiModuloController extends Controller
                 ...(FlujoCita::conFinAtencion() ? ['r.atencion_fin_at'] : []),
                 ...(FlujoCita::conSeguimiento() ? ['r.confirmada_at'] : []),
                 ...(FlujoCita::conTardias() ? ['r.llego_tarde'] : []),
+                ...(MotivoTermino::migrado() ? ['r.motivo_termino', 'r.motivo_termino_texto'] : []),
                 'mu.nombre as municipio',
             ])
             ->map(function ($c) use ($ahora, $hoy, $aviso, $actualId, $sigueId) {
@@ -551,6 +565,9 @@ class MiModuloController extends Controller
                     'llamado'     => $c->llamado_at ? substr((string) $c->llamado_at, 11, 5) : null,
                     'enAtencion'  => (bool) $c->atencion_inicio_at,
                     'llegoTarde'  => (bool) ($c->llego_tarde ?? false),
+                    // Por qué terminó (solicitud y asesoría) y si "Terminar" lo pide.
+                    'termino'     => MotivoTermino::etiqueta($c->motivo_termino ?? null, $c->motivo_termino_texto ?? null),
+                    'pideMotivo'  => MotivoTermino::aplicaTipo($c->tipo),
                     // Minutos en sala sin que la llamen (aviso si pasa de SigueEnModulo::ESPERA_ALERTA).
                     'esperando'   => SigueEnModulo::esperando($c, $ahora),
                     // Minutos, para los promedios del día.

@@ -16,7 +16,8 @@ use Illuminate\Support\Str;
  * recepción que recibe a la gente (Morelia 02 y, en las sedes regionales, la
  * Recepción General) lo marca y el conciliador asignado
  * recibe un aviso con sonido (llegadas/_avisos), igual que el auxiliar que
- * lleva la ratificación o el cumplimiento (AUXILIARES). Ambos también ven
+ * lleva la ratificación o el cumplimiento (AUXILIARES) y que el orientador
+ * con el permiso de ese trámite activo (ORIENTADOR). Todos ellos también ven
  * la pantalla, sólo para consultar.
  *
  *   delDia()      lo de hoy de unas sedes, con sus partes y quién llegó;
@@ -72,6 +73,23 @@ class LlegadasHoy
 
     /** Quién sólo consulta (las de sus sedes; por omisión, las suyas). */
     public const CONSULTAN = ['Conciliador', ...self::AUXILIARES];
+
+    /**
+     * El orientador recibe los avisos (y ve la pantalla) de las ratificaciones
+     * y cumplimientos que lleva, igual que un auxiliar, sólo mientras tenga
+     * activo el permiso de ese trámite (por su rol o dado directo al usuario).
+     * Son los mismos permisos que pide un módulo para atender el trámite
+     * (Especialidades::PERMISO_POR_TRAMITE).
+     */
+    public const ORIENTADOR = 'Orientador';
+
+    public const PERMISO_ORIENTADOR = [
+        'ratificacion' => 'ratificaciones_crear',
+        'cumplimiento' => 'cumplimientos_consultar',
+    ];
+
+    /** Roles a los que les puede llegar el aviso (la ruta; el permiso lo revisa recibeAvisos()). */
+    public const RECIBEN = [...self::CONSULTAN, self::ORIENTADOR];
 
     /** Tabla de observaciones (una fila por registro). */
     public const TABLA_OBS = 'llegadas_observaciones';
@@ -213,10 +231,10 @@ class LlegadasHoy
         ];
     }
 
-    /** Roles con la pestaña en el menú. */
+    /** Roles con la pestaña en el menú (al orientador además se le pide el permiso: puedeVer()). */
     public static function roles(): array
     {
-        return array_merge(self::MARCAN, self::CONSULTAN);
+        return array_merge(self::MARCAN, self::RECIBEN);
     }
 
     public static function puedeMarcar(?User $usuario): bool
@@ -226,13 +244,47 @@ class LlegadasHoy
 
     public static function puedeVer(?User $usuario): bool
     {
-        return $usuario !== null && self::migrado() && $usuario->hasAnyRole(self::roles());
+        return $usuario !== null && self::migrado()
+            && ($usuario->hasAnyRole(array_merge(self::MARCAN, self::CONSULTAN)) || self::orientadorConPermiso($usuario));
     }
 
     /** ¿Le llegan los avisos con sonido? (layouts/app incluye llegadas/_avisos) */
     public static function recibeAvisos(?User $usuario): bool
     {
-        return $usuario !== null && self::migrado() && $usuario->hasAnyRole(self::CONSULTAN);
+        return $usuario !== null && self::migrado()
+            && ($usuario->hasAnyRole(self::CONSULTAN) || self::orientadorConPermiso($usuario));
+    }
+
+    /**
+     * Qué lleva como auxiliar u orientador: ['ratificacion' => bool, 'cumplimiento' => bool].
+     * Los auxiliares (AUXILIARES), los dos; el orientador, los de su permiso activo.
+     */
+    public static function lleva(User $usuario): array
+    {
+        $aux = $usuario->hasAnyRole(self::AUXILIARES);
+        $ori = $usuario->hasRole(self::ORIENTADOR);
+
+        $lleva = [];
+        foreach (self::PERMISO_ORIENTADOR as $tipo => $permiso) {
+            $lleva[$tipo] = $aux || ($ori && $usuario->can($permiso));
+        }
+
+        return $lleva;
+    }
+
+    /** ¿Es orientador con el permiso de ratificaciones o de cumplimientos activo? */
+    private static function orientadorConPermiso(User $usuario): bool
+    {
+        if (! $usuario->hasRole(self::ORIENTADOR)) {
+            return false;
+        }
+        foreach (self::PERMISO_ORIENTADOR as $permiso) {
+            if ($usuario->can($permiso)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -326,16 +378,18 @@ class LlegadasHoy
 
     /**
      * Llegadas recientes a lo de hoy que lleva esta persona: como conciliador
-     * asignado o como auxiliar (ver AUXILIARES).
+     * asignado, o como auxiliar u orientador (ver lleva()).
      *
      * @return Collection<int, array>
      */
     public static function avisosPara(User $usuario): Collection
     {
         $esConc = $usuario->hasRole('Conciliador');
-        $esAux  = $usuario->hasAnyRole(self::AUXILIARES);
+        $lleva  = self::lleva($usuario);
+        $rat    = $lleva['ratificacion'];
+        $cum    = $lleva['cumplimiento'];
 
-        if (! self::migrado() || (! $esConc && ! $esAux)) {
+        if (! self::migrado() || (! $esConc && ! $rat && ! $cum)) {
             return collect();
         }
 
@@ -348,7 +402,7 @@ class LlegadasHoy
         $sedesRat = DB::table('turnos')->where('tipo', 'Ratificación')->where('fecha', $hoy)
             ->where(fn ($q) => $q->where('id_conciliador', $id)->orWhere('user_id', $id))
             ->distinct()->pluck('delegacion')->filter()->all();
-        if ($esAux) {
+        if ($rat) {
             $sedesRat = array_values(array_unique(array_merge($sedesRat, self::sedes($usuario))));
         }
         if ($sedesRat) {
@@ -367,14 +421,15 @@ class LlegadasHoy
             ->addSelect(['a.hora', 'a.sala as lugar', 'g.NUE', 'a.id_solicitud'])
             ->get();
 
-        $ratificaciones = $base('ratificacion')
+        // Sin ninguna condición el where() quedaría vacío y traería todo: por eso el collect().
+        $ratificaciones = ! $esConc && ! $rat ? collect() : $base('ratificacion')
             ->join('turnos as t', 't.id', '=', 'l.registro_id')
             ->where('t.fecha', $hoy)
-            ->where(function ($q) use ($id, $esConc, $esAux) {
+            ->where(function ($q) use ($id, $esConc, $rat) {
                 if ($esConc) {
                     $q->orWhere('t.id_conciliador', $id);
                 }
-                if ($esAux) {
+                if ($rat) {
                     // La capturó, o su cita cayó en su módulo.
                     $q->orWhere('t.user_id', $id)
                       ->orWhereExists(fn ($e) => $e->select(DB::raw(1))->from('recepcion as rc')
@@ -386,14 +441,14 @@ class LlegadasHoy
             ->addSelect(['t.hora', DB::raw("'' as lugar"), 't.NUE', DB::raw('NULL as id_solicitud')])
             ->get();
 
-        $cumplimientos = $base('cumplimiento')
+        $cumplimientos = ! $esConc && ! $cum ? collect() : $base('cumplimiento')
             ->join('pago_solicitud as p', 'p.id', '=', 'l.registro_id')
             ->where('p.fecha', $hoy)
-            ->where(function ($q) use ($id, $esConc, $esAux) {
+            ->where(function ($q) use ($id, $esConc, $cum) {
                 if ($esConc) {
                     $q->orWhere('p.id_conciliador', $id);
                 }
-                if ($esAux) {
+                if ($cum) {
                     // Lo agendó, o es el pago de una ratificación que capturó.
                     $q->orWhere('p.user_id', $id)
                       ->orWhereExists(fn ($e) => $e->select(DB::raw(1))->from('turnos as tr')

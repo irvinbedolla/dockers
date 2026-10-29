@@ -105,6 +105,7 @@ class PrellenadoCita
                 'llamado_at'         => $cita->llamado_at ? null : $ahora,
                 'atencion_inicio_at' => $cita->atencion_inicio_at ? null : $ahora,
                 'atencion_fin_at'    => FlujoCita::conFinAtencion() ? $ahora : null,
+                'motivo_termino'     => MotivoTermino::migrado() && ! $cita->motivo_termino ? 'solicitud' : null,
             ]))->save();
             PantallaEspera::olvidar((string) $cita->delegacion);
         }

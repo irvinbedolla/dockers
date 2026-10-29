@@ -88,7 +88,7 @@
                     <input type="text" id="atFolio" name="folio" class="form-control" value="{{ $folio }}" placeholder="Ej. MOR/SOL/2026/04512" autocomplete="off" required>
                     <button type="submit" class="btn btn-verde"><i class="bi bi-search me-1"></i> {{ $general ? 'Buscar otro folio' : 'Continuar' }}</button>
                 </div>
-                <div class="form-text">Lo encuentras en tu citatorio, en tu acuse de solicitud, en tu constancia o en el correo que te enviamos.</div>
+                <div class="form-text">Lo encuentras en tu citatorio.</div>
             </form>
             @include('atencion._ejemplo_folio', ['abierto' => ! $general])
 
@@ -99,7 +99,7 @@
                     <dl class="at-datos mb-0">
                         <div><dt>Folio</dt><dd>{{ $resumen['folio'] }}</dd></div>
                         <div><dt>Sede</dt><dd>{{ $resumen['sede'] }}</dd></div>
-                        <div><dt>Se levantó el</dt><dd>{{ $resumen['fecha'] }}</dd></div>
+                        <div><dt>Fecha de la solicitud</dt><dd>{{ $resumen['fecha'] }}</dd></div>
                         @if ($resumen['audiencia'])
                             <div>
                                 <dt>{{ $resumen['audiencia']['resolucion'] ? 'Audiencia' : 'Tu audiencia' }}</dt>

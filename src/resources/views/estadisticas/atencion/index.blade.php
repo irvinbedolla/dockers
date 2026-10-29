@@ -274,14 +274,6 @@
                         </thead>
                         <tbody>
                             @foreach ($mostrar as $r)
-                                @php
-                                    $chip = function (int $n, ?string $v) {
-                                        if ($v === null) return 'ea-chip';
-                                        $malo = in_array($v, ['Mala', 'Malo', 'No'], true) || ($n === 7 && $v === 'Sí');
-                                        $bueno = in_array($v, ['Buena', 'Bueno', 'Sí'], true) && $n !== 7 || ($n === 7 && $v === 'No') || ($n === 5 && str_starts_with($v, 'Su trato'));
-                                        return 'ea-chip '.($malo ? 'ea-chip--malo' : ($bueno ? 'ea-chip--bueno' : 'ea-chip--medio'));
-                                    };
-                                @endphp
                                 <tr data-buscar="{{ mb_strtolower($r['nombre'].' '.$r['folio'].' '.$r['conciliador'].' '.$r['sede']) }}">
                                     <td>{{ $r['fecha'] }}</td>
                                     <td><b>{{ $r['folio'] }}</b></td>
@@ -296,7 +288,7 @@
                                             @if ($v === null)
                                                 <span class="ea-sub">—</span>
                                             @else
-                                                <span class="{{ $chip($n, $v) }}" title="{{ $v }}">{{ $n === 5 && str_starts_with($v, 'Su trato') ? 'Equilibrado' : ($n === 6 ? \Illuminate\Support\Str::limit(str_replace(['Convenio de Conciliación', 'Constancia de No Conciliación', 'Constancia de Haber Agotado la Etapa de Conciliación Prejudicial'], ['Convenio', 'No conciliación', 'Etapa agotada'], $v), 20) : \Illuminate\Support\Str::limit($v, 26)) }}</span>
+                                                <span class="ea-chip ea-chip--{{ $r['niveles'][$n] }}" title="{{ $v }}">{{ \Illuminate\Support\Str::limit($r['cortas'][$n], 26) }}</span>
                                             @endif
                                         </td>
                                     @endforeach

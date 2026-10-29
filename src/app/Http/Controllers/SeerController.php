@@ -526,23 +526,26 @@ class SeerController extends Controller
         }
 
         $carpeta = $carpetas[$tipo];
-        $rutaS3 = $carpeta . '/' . $id . '/' . $archivo;
+        $nombres = array_unique([$archivo, str_replace('"', '_', $archivo)]);
 
-        if (!Storage::disk('s3')->exists($rutaS3)) {
-            // Compatibilidad con documentos antiguos guardados sin subcarpeta de id
-            $rutaSinId = $carpeta . '/' . $archivo;
-            if (Storage::disk('s3')->exists($rutaSinId)) {
-                $rutaS3 = $rutaSinId;
-            } elseif (preg_match('/^(\d+)_/', $archivo, $m) && $m[1] !== (string) $id && Storage::disk('s3')->exists($carpeta . '/' . $m[1] . '/' . $archivo)) {
-                // Folios de "Agregar representante" que copiaron el nombre del
-                // documento del folio anterior: el archivo sigue en esa carpeta.
-                $rutaS3 = $carpeta . '/' . $m[1] . '/' . $archivo;
-            } else {
-                abort(404, 'El documento solicitado no existe.');
+        foreach ($nombres as $nombre) {
+            $candidatas = [
+                $carpeta . '/' . $id . '/' . $nombre,
+                $carpeta . '/' . $nombre,
+            ];
+    
+            if (preg_match('/^(\d+)_/', $nombre, $m) && $m[1] !== (string) $id) {
+                $candidatas[] = $carpeta . '/' . $m[1] . '/' . $nombre;
+            }
+
+            foreach ($candidatas as $rutaS3) {
+                if (Storage::disk('s3')->exists($rutaS3)) {
+                    return Storage::disk('s3')->response($rutaS3);
+                }
             }
         }
 
-        return Storage::disk('s3')->response($rutaS3);
+        abort(404, 'El documento solicitado no existe.');
     }
 
     public function index(Request $request)
@@ -4059,7 +4062,9 @@ class SeerController extends Controller
         $imagen_domicilio1 = "Sin documento";
         $imagen_domicilio2 = "Sin documento";
 
-        $draftId = $data['draft_id'] ?? $this->resolveSolicitudDraftId(null);
+        // Si el draft_id no viene (recargó la página o volvió de un error de validación) se usa
+        // el borrador activo; antes se creaba uno nuevo y los citados anteriores se perdían.
+        $draftId = ($data['draft_id'] ?? null) ?: (session('active_draft_id') ?: $this->resolveSolicitudDraftId(null));
 
         // Usar ID temporal si es sesión
         $tempId = ($data['id'] == 'session') ? uniqid('session_') : $data['id'];
@@ -4260,7 +4265,8 @@ class SeerController extends Controller
     public function vista_citado($id){
         $estados = Estados::all();
         $municipios = Municipios::all();
-        $draftId = request('draft_id');
+        // Sin ?draft_id (recarga, error de validación) se sigue con el borrador activo.
+        $draftId = request('draft_id') ?: session('active_draft_id');
         $session_notificacion = $draftId
             ? session($this->draftSessionKey('citados_data', $draftId) . '.0.notificacion')
             : session('citados_data.0.notificacion');
@@ -7398,7 +7404,7 @@ class SeerController extends Controller
             ->first();
         $citados = SeerCitados::where("id_solicitud",$id)
         ->where('tipo_notificacion', '!=', 'Multa')
-        ->select('nombre','primer_apellido','segundo_apellido')
+        ->select('nombre','primer_apellido','segundo_apellido','fecha')
         ->get();
         $motivos = SeerMotivo::join('catalogo_motivos','catalogo_motivos.id','seer_motivos.id_motivo')
         ->where('id_solicitud',$id)
@@ -15703,9 +15709,15 @@ class SeerController extends Controller
         // "Super Usuario" y "Administrador" pasan sin filtros adicionales (ven todo)
 
         // Día de la cita (Y-m-d). Va antes del conteo para que los apartados lo respeten.
-        // Sin parámetro se abre en Hoy; "Todos los días" manda fecha=todos.
-        $fecha = $request->has('fecha') ? $request->input('fecha') : now()->toDateString();
-        if (is_string($fecha) && preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $fecha, $p) && checkdate((int) $p[2], (int) $p[3], (int) $p[1])) {
+        // "Últimas ratificaciones" (fecha=ultimas): las que registró quien entra, de
+        // cualquier día. Es la vista con que abre (sin parámetro). "Todos los días"
+        // manda fecha=todos.
+        $ultimasPorOmision = true;
+        $ultimas = $request->input('fecha') === 'ultimas' || ! $request->has('fecha');
+        $fecha = $ultimas ? null : ($request->has('fecha') ? $request->input('fecha') : now()->toDateString());
+        if ($ultimas) {
+            $query->where('user_id', $user->id);
+        } elseif (is_string($fecha) && preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $fecha, $p) && checkdate((int) $p[2], (int) $p[3], (int) $p[1])) {
             $query->where('fecha', $fecha);
         } else {
             $fecha = null;
@@ -15753,7 +15765,10 @@ class SeerController extends Controller
             return $audiencia;
         });
 
-        return view('ratificaciones.ratificaciones_todas', compact('solicitudes', 'userRole', 'conteo', 'estatus', 'orden', 'fecha'));
+        // "Atender de todos modos": las de esta página cuya cita expiró hoy (llegaron tarde).
+        $tardes = \App\Http\Controllers\RatificacionTardeController::expiradasHoy($solicitudes->getCollection(), $user);
+
+        return view('ratificaciones.ratificaciones_todas', compact('solicitudes', 'userRole', 'conteo', 'estatus', 'orden', 'fecha', 'ultimas', 'ultimasPorOmision', 'tardes'));
     }
 
     public function todas_solicitudes(Request $request) {
@@ -21170,6 +21185,16 @@ class SeerController extends Controller
             $solicitanteData = session($this->draftSessionKey('solicitante_data', $draftId));
             $citadosData     = session($this->draftSessionKey('citados_data', $draftId), []);
             $motivosData     = session($this->draftSessionKey('motivos_data', $draftId), []);
+
+            // Si el draft recibido no tiene datos, primero el borrador activo (el de esta captura).
+            $activo = session('active_draft_id');
+            if (!$solicitudData && $activo && $activo !== $draftId && session($this->draftSessionKey('solicitud_data', $activo))) {
+                $draftId         = $activo;
+                $solicitudData   = session($this->draftSessionKey('solicitud_data', $draftId));
+                $solicitanteData = session($this->draftSessionKey('solicitante_data', $draftId));
+                $citadosData     = session($this->draftSessionKey('citados_data', $draftId), []);
+                $motivosData     = session($this->draftSessionKey('motivos_data', $draftId), []);
+            }
 
             // FALLBACK: Si no encuentra la solicitud con el draftId recibido
             if (!$solicitudData) {
