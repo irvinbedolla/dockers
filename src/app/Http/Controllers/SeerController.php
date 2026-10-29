@@ -4062,7 +4062,9 @@ class SeerController extends Controller
         $imagen_domicilio1 = "Sin documento";
         $imagen_domicilio2 = "Sin documento";
 
-        $draftId = $data['draft_id'] ?? $this->resolveSolicitudDraftId(null);
+        // Si el draft_id no viene (recargó la página o volvió de un error de validación) se usa
+        // el borrador activo; antes se creaba uno nuevo y los citados anteriores se perdían.
+        $draftId = ($data['draft_id'] ?? null) ?: (session('active_draft_id') ?: $this->resolveSolicitudDraftId(null));
 
         // Usar ID temporal si es sesión
         $tempId = ($data['id'] == 'session') ? uniqid('session_') : $data['id'];
@@ -4263,7 +4265,8 @@ class SeerController extends Controller
     public function vista_citado($id){
         $estados = Estados::all();
         $municipios = Municipios::all();
-        $draftId = request('draft_id');
+        // Sin ?draft_id (recarga, error de validación) se sigue con el borrador activo.
+        $draftId = request('draft_id') ?: session('active_draft_id');
         $session_notificacion = $draftId
             ? session($this->draftSessionKey('citados_data', $draftId) . '.0.notificacion')
             : session('citados_data.0.notificacion');
@@ -21173,6 +21176,16 @@ class SeerController extends Controller
             $solicitanteData = session($this->draftSessionKey('solicitante_data', $draftId));
             $citadosData     = session($this->draftSessionKey('citados_data', $draftId), []);
             $motivosData     = session($this->draftSessionKey('motivos_data', $draftId), []);
+
+            // Si el draft recibido no tiene datos, primero el borrador activo (el de esta captura).
+            $activo = session('active_draft_id');
+            if (!$solicitudData && $activo && $activo !== $draftId && session($this->draftSessionKey('solicitud_data', $activo))) {
+                $draftId         = $activo;
+                $solicitudData   = session($this->draftSessionKey('solicitud_data', $draftId));
+                $solicitanteData = session($this->draftSessionKey('solicitante_data', $draftId));
+                $citadosData     = session($this->draftSessionKey('citados_data', $draftId), []);
+                $motivosData     = session($this->draftSessionKey('motivos_data', $draftId), []);
+            }
 
             // FALLBACK: Si no encuentra la solicitud con el draftId recibido
             if (!$solicitudData) {
