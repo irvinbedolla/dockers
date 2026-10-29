@@ -26,6 +26,9 @@
         'archivadas'     => ['Archivadas', 'bi-archive', 'rt-i-archivada'],
     ];
     $hoy = now()->toDateString();
+    // Vista con que abre la pantalla: "Últimas ratificaciones" si quien entra ha registrado alguna; si no, Hoy.
+    $ultimas = $ultimas ?? false;
+    $enVistaInicial = ($ultimasPorOmision ?? false) ? $ultimas : (! $ultimas && $fecha === $hoy);
     $ayer = now()->subDay()->toDateString();
     $manana = now()->addDay()->toDateString();
     $base = $fecha ? \Illuminate\Support\Carbon::parse($fecha) : now();
@@ -175,6 +178,10 @@
                                     <i class="bi bi-chevron-left"></i>
                                 </a>
                                 <input type="date" id="rtFecha" name="fecha" class="form-control" value="{{ $fecha }}">
+                                @if ($ultimas)
+                                    {{-- Sin día elegido, "Filtrar" se queda en Últimas ratificaciones (el JS lo apaga si eligen un día). --}}
+                                    <input type="hidden" id="rtUltimas" name="fecha" value="ultimas">
+                                @endif
                                 <a class="btn btn-outline-secondary" href="{{ $urlCon(['fecha' => $base->copy()->addDay()->toDateString()]) }}" title="Día siguiente" aria-label="Día siguiente">
                                     <i class="bi bi-chevron-right"></i>
                                 </a>
@@ -200,14 +207,18 @@
 
                         <div class="d-flex gap-2">
                             <button type="submit" class="btn tn-boton-dorado"><i class="bi bi-funnel me-1"></i> Filtrar</button>
-                            @if (request('buscar') || $estatus || $fecha !== $hoy || $orden !== 'recientes')
+                            @if (request('buscar') || $estatus || ! $enVistaInicial || $orden !== 'recientes')
                                 <a href="{{ url()->current() }}" class="btn btn-outline-secondary" title="Quitar filtros">Limpiar</a>
                             @endif
                         </div>
                     </div>
 
                     <div class="rt-atajos">
-                        <a class="rt-atajo {{ $fecha === null ? 'is-activo' : '' }}" href="{{ $urlCon(['fecha' => 'todos']) }}">Todos los días</a>
+                        <a class="rt-atajo {{ $ultimas ? 'is-activo' : '' }}" href="{{ $urlCon(['fecha' => 'ultimas']) }}"
+                           title="Las ratificaciones que registraste, de cualquier día, las más recientes primero" @if ($ultimas) aria-current="true" @endif>
+                            <i class="bi bi-clock-history me-1" aria-hidden="true"></i>Últimas ratificaciones
+                        </a>
+                        <a class="rt-atajo {{ $fecha === null && ! $ultimas ? 'is-activo' : '' }}" href="{{ $urlCon(['fecha' => 'todos']) }}">Todos los días</a>
                         <a class="rt-atajo {{ $fecha === $hoy ? 'is-activo' : '' }}" href="{{ $urlCon(['fecha' => $hoy]) }}">Hoy</a>
                         <a class="rt-atajo {{ $fecha === $manana ? 'is-activo' : '' }}" href="{{ $urlCon(['fecha' => $manana]) }}">Mañana</a>
                         <a class="rt-atajo {{ $fecha === $ayer ? 'is-activo' : '' }}" href="{{ $urlCon(['fecha' => $ayer]) }}">Ayer</a>
@@ -217,7 +228,7 @@
 
             <div class="tn-tarjeta mt-3">
                 <div class="rt-encabezado-dia" aria-live="polite">
-                    <h4>{{ $fecha ? $fechaLarga($fecha) : 'Todos los días' }}</h4>
+                    <h4>{{ $ultimas ? 'Últimas ratificaciones que registraste' : ($fecha ? $fechaLarga($fecha) : 'Todos los días') }}</h4>
                     <span>
                         {{ number_format($solicitudes->total()) }} {{ $solicitudes->total() === 1 ? 'ratificación' : 'ratificaciones' }}@if($estatus) en {{ $apartadosVista[$estatus][0] }}@endif @if(request('buscar')) que coinciden con "{{ request('buscar') }}"@endif
                     </span>
@@ -465,9 +476,16 @@
     <script src="{{ asset('assets/js/poderes/general.js') }}"></script>
     <script>
         // Elegir un día o un orden ya filtra; no hace falta el botón.
+        // En "Últimas ratificaciones" el día va vacío: si eligen uno, manda ese día y no "ultimas".
+        function cuidarUltimas() {
+            var ultimas = document.getElementById('rtUltimas'), dia = document.getElementById('rtFecha');
+            if (ultimas) ultimas.disabled = !!(dia && dia.value);
+        }
+        var rtFiltros = document.getElementById('rtFiltros');
+        if (rtFiltros) rtFiltros.addEventListener('submit', cuidarUltimas);
         ['rtFecha', 'rtOrden'].forEach(function (id) {
             var el = document.getElementById(id);
-            if (el) el.addEventListener('change', function () { el.form.submit(); });
+            if (el) el.addEventListener('change', function () { cuidarUltimas(); el.form.submit(); });
         });
 
         $(document).ready(function() {

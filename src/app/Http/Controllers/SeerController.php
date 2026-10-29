@@ -15709,9 +15709,15 @@ class SeerController extends Controller
         // "Super Usuario" y "Administrador" pasan sin filtros adicionales (ven todo)
 
         // Día de la cita (Y-m-d). Va antes del conteo para que los apartados lo respeten.
-        // Sin parámetro se abre en Hoy; "Todos los días" manda fecha=todos.
-        $fecha = $request->has('fecha') ? $request->input('fecha') : now()->toDateString();
-        if (is_string($fecha) && preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $fecha, $p) && checkdate((int) $p[2], (int) $p[3], (int) $p[1])) {
+        // "Últimas ratificaciones" (fecha=ultimas): las que registró quien entra, de
+        // cualquier día. Sin parámetro se abre ahí si ha registrado alguna; si no, en
+        // Hoy. "Todos los días" manda fecha=todos.
+        $ultimasPorOmision = Turnos::where('tipo', 'Ratificación')->where('user_id', $user->id)->exists();
+        $ultimas = $request->input('fecha') === 'ultimas' || (! $request->has('fecha') && $ultimasPorOmision);
+        $fecha = $ultimas ? null : ($request->has('fecha') ? $request->input('fecha') : now()->toDateString());
+        if ($ultimas) {
+            $query->where('user_id', $user->id);
+        } elseif (is_string($fecha) && preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $fecha, $p) && checkdate((int) $p[2], (int) $p[3], (int) $p[1])) {
             $query->where('fecha', $fecha);
         } else {
             $fecha = null;
@@ -15759,7 +15765,7 @@ class SeerController extends Controller
             return $audiencia;
         });
 
-        return view('ratificaciones.ratificaciones_todas', compact('solicitudes', 'userRole', 'conteo', 'estatus', 'orden', 'fecha'));
+        return view('ratificaciones.ratificaciones_todas', compact('solicitudes', 'userRole', 'conteo', 'estatus', 'orden', 'fecha', 'ultimas', 'ultimasPorOmision'));
     }
 
     public function todas_solicitudes(Request $request) {
