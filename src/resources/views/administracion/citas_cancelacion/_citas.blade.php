@@ -90,6 +90,12 @@
                                     data-fecha="{{ $cita->fecha->format('Y-m-d') }}"
                                     data-hora="{{ substr($cita->getRawOriginal('hora'), 0, 5) }}"
                                     data-confirmada="{{ $cita->estatus === 'confirmada' ? 'Si' : 'No' }}"
+                                    @if (isset($ratificaciones[$cita->id]))
+                                        data-ratif-nue="{{ $ratificaciones[$cita->id]['nue'] }}"
+                                        data-ratif-cuando="{{ $ratificaciones[$cita->id]['cuando'] }}"
+                                        data-ratif-estatus="{{ $ratificaciones[$cita->id]['estatus'] }}"
+                                        data-ratif-abierta="{{ $ratificaciones[$cita->id]['abierta'] ? 'Si' : 'No' }}"
+                                    @endif
                                     data-sede-catalogo="{{ CC::sede($cita->delegacion) }}"
                                     data-tramite="{{ CC::tramite($cita->tipo) }}">{{ CancelacionCitasController::puedeCambiarTodo(auth()->user()) ? 'Cambiar' : 'Reagendar' }}</button>
                             <button type="button" class="btn btn-sm btn-outline-danger"

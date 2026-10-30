@@ -8,6 +8,7 @@ use App\Mail\CitaReagendadaMail;
 use App\Models\Recepcion;
 use App\Models\Sedes;
 use App\Services\BitacoraAdministracionRecorder;
+use App\Services\HistorialRatificacionRecorder;
 use App\Support\AsignadorModulos;
 use App\Support\CitasCancelacion;
 use App\Support\FolioCita;
@@ -38,6 +39,9 @@ use Maatwebsite\Excel\Facades\Excel;
 class CancelacionCitasController extends Controller
 {
     public const TIPO_BITACORA = 'cancelacion_reagenda_cita';
+
+    /** Estatus de una ratificación que ya no se mueve de fecha aunque se mueva su cita. */
+    public const RATIFICACION_CERRADA = ['Concluida', 'Concluida Pagos', 'Archivada', 'Incumplimiento'];
 
     /** Quién puede cambiar también la sede y el trámite de una cita. */
     public const PUEDE_CAMBIAR_TODO = 'Super Usuario';
@@ -96,6 +100,8 @@ class CancelacionCitasController extends Controller
                 'resumen'   => CitasCancelacion::resumenCitas($consulta),
                 'citas'     => $citas,
                 'historial' => CitasCancelacion::historialDe($citas->getCollection()->pluck('id')),
+                // Ratificación ligada a cada cita (para "actualizar también su fecha y hora").
+                'ratificaciones' => self::ratificacionesDe($citas->getCollection()->pluck('id')),
             ];
         }
 
@@ -154,6 +160,8 @@ class CancelacionCitasController extends Controller
             'fecha'  => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
             'hora'   => ['required', 'date_format:H:i'],
             'motivo' => ['required', 'string', 'min:10', 'max:500'],
+            // Sólo si se marca: mover también la ratificación ligada a la cita.
+            'actualizar_ratificacion' => ['nullable', 'boolean'],
             'sede'   => ['nullable', Rule::in(array_keys(FolioCita::SEDES))],
             'tipo'   => ['nullable', Rule::in(array_keys(CitasCancelacion::TRAMITES))],
         ]);
@@ -244,6 +252,30 @@ class CancelacionCitasController extends Controller
         BitacoraAdministracionRecorder::actualizar(self::TIPO_BITACORA, $cita, $cambios,
             "Reagenda (antes {$antes}".($confirmada ? ', ya confirmada' : '')."): ".$datos['motivo'], $cita->codigo, $sedeAntes);
 
+        // Si se eligió: la ratificación ligada se mueve a la misma fecha y hora
+        // (queda en su historial de ediciones). Una ya concluida o archivada no se toca.
+        $notaRatificacion = '';
+        if ($request->boolean('actualizar_ratificacion') && ($turno = self::ratificacionDe($cita->id))) {
+            if (in_array($turno->estatus, self::RATIFICACION_CERRADA, true)) {
+                $notaRatificacion = " La ratificación {$turno->NUE} está {$turno->estatus}: se dejó con su fecha.";
+            } else {
+                // hora_fin: en las ratificaciones suele ir igual a la hora; si traía duración, se recalcula.
+                $conDuracion = $turno->hora_fin && substr((string) $turno->hora_fin, 0, 5) !== substr((string) $turno->hora, 0, 5);
+                try {
+                    HistorialRatificacionRecorder::actualizar($turno, [
+                        'fecha'    => $datos['fecha'],
+                        'hora'     => $hora,
+                        'hora_fin' => $conDuracion ? $cambios['hora_fin'] : $hora,
+                    ], "Cita {$cita->folio_cita} reagendada en Administración (antes {$antes}): ".$datos['motivo']);
+                    $notaRatificacion = " La ratificación {$turno->NUE} también quedó para esa fecha y hora.";
+                } catch (\Throwable $e) {
+                    // La cita ya se movió: sólo se avisa que la ratificación quedó igual.
+                    report($e);
+                    $notaRatificacion = " No se pudo mover la ratificación {$turno->NUE}: cámbiala desde Ratificaciones.";
+                }
+            }
+        }
+
         // La pantalla de espera y Mi módulo se recalculan con el cambio (en las dos sedes si cambió).
         PantallaEspera::olvidar($sedeEspera);
         if ((string) $cita->delegacion !== $sedeEspera) {
@@ -276,7 +308,37 @@ class CancelacionCitasController extends Controller
             .($confirmada ? ($otroDia
                 ? ' Ya había llegado: como cambió de día, quedó pendiente y tendrá que validar su QR en recepción al llegar.'
                 : ' Sigue confirmada: su módulo la llamará a la nueva hora.') : '')
+            .$notaRatificacion
             .$aviso);
+    }
+
+    /** La ratificación (turnos) que se agendó con esta cita, si hay. */
+    private static function ratificacionDe(int $citaId): ?\App\Models\Turnos
+    {
+        if (! \Illuminate\Support\Facades\Schema::hasColumn('turnos', 'recepcion_id')) {
+            return null;
+        }
+
+        return \App\Models\Turnos::where('recepcion_id', $citaId)->where('tipo', 'Ratificación')->latest('id')->first();
+    }
+
+    /** [cita id => ['nue', 'cuando', 'estatus', 'abierta']] de las ratificaciones ligadas a esas citas. */
+    public static function ratificacionesDe(\Illuminate\Support\Collection $ids): array
+    {
+        if ($ids->isEmpty() || ! \Illuminate\Support\Facades\Schema::hasColumn('turnos', 'recepcion_id')) {
+            return [];
+        }
+
+        return DB::table('turnos')->where('tipo', 'Ratificación')->whereIn('recepcion_id', $ids->all())
+            ->orderBy('id')->get(['recepcion_id', 'NUE', 'fecha', 'hora', 'estatus'])
+            ->keyBy('recepcion_id')
+            ->map(fn ($t) => [
+                'nue'     => (string) $t->NUE ?: 'sin NUE',
+                'cuando'  => Carbon::parse($t->fecha)->format('d/m/Y').' '.substr((string) $t->hora, 0, 5),
+                'estatus' => (string) $t->estatus,
+                'abierta' => ! in_array($t->estatus, self::RATIFICACION_CERRADA, true),
+            ])
+            ->all();
     }
 
     private function hayLugar(Recepcion $cita, string $sede, string $tipo, string $fecha, string $hora): bool
