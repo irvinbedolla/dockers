@@ -9,6 +9,7 @@ use League\Flysystem\Filesystem;
 use Google\Client;
 use Google\Service\Drive;
 use Masbug\Flysystem\GoogleDriveAdapter;
+use Illuminate\Support\Facades\URL;
 
 class AppServiceProvider extends ServiceProvider
 {
