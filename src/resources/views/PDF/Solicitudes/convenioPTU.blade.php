@@ -12,12 +12,14 @@
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
         <style>
             @page {
-                /* dompdf solo repite el margen definido aquí en TODAS las páginas;
-                   un padding/margin en body/main solo aplica una vez al inicio/fin
-                   del flujo completo, por eso el texto invadía las franjas verdes
-                   del membrete en las páginas intermedias. */
-                margin: 145px 0 80px 0;
+                margin: 0px 0px;
                 size: A4 portrait;
+            }
+            body{
+                padding-top: 15%;
+                padding-bottom: 10%;
+                padding-left: 5%;
+                padding-right: 5%
             }
             header {
                 position: fixed;
@@ -48,12 +50,12 @@
             }
             .fondo-membrete {
                 position: fixed;
-                top: -145;
+                top: 0;
                 left: 0;
                 width: 100%;
-                height: calc(100% + 225px);
+                height: 100%;
                 z-index: -1;
-            }
+            } 
             .sangria {
                 margin-left: 20px;
                 text-indent: -15px; 
