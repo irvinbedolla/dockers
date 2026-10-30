@@ -15656,11 +15656,8 @@ class SeerController extends Controller
         $jerarquiaRoles = ['Delegado', 'Enlace', 'Conciliador', 'Excepcion', 'Auxiliar'];
         $userRole = collect($jerarquiaRoles)->first(fn($rol) => $roles->contains($rol)) ?? $roles->first();
         // 1. Iniciamos la consulta base seleccionando columnas específicas si es posible
+        // Las marcadas como incidencia solo se ven en su propio apartado (más abajo).
         $query = Turnos::where('tipo', 'Ratificación')
-            ->where(function($q) {
-                // Agrupamos esto para que el OR no interfiera con los otros WHERE
-                $q->whereNull('incidencia')->orWhere('incidencia', 0);
-            })
             ->withExists(['pagos as tiene_pendientes' => function($q) {
                 $q->where('estatus', 'Pendiente')
                 ->where('tipo_pago', 'Ratificacion');
@@ -15731,16 +15728,26 @@ class SeerController extends Controller
             'archivadas'     => ['Archivada'],
         ];
 
+        // Agrupado para que el OR no interfiera con los otros WHERE.
+        $sinIncidencia = fn ($q) => $q->where(fn ($w) => $w->whereNull('incidencia')->orWhere('incidencia', 0));
+
         // Conteo por apartado con los mismos filtros de búsqueda y rol, sin el de estatus.
-        $porEstatus = (clone $query)->reorder()->toBase()
+        $porEstatus = (clone $query)->where($sinIncidencia)->reorder()->toBase()
             ->select('estatus')->selectRaw('COUNT(*) as total')
             ->groupBy('estatus')
             ->pluck('total', 'estatus');
         $conteo = collect($apartados)->map(fn ($valores) => (int) $porEstatus->only($valores)->sum())->all();
+        // "Marcadas como incidencia" (IncidenciasBusquedaController): sin importar su estatus.
+        $conteo['incidencias'] = (clone $query)->where('incidencia', '!=', 0)->count();
 
-        $estatus = in_array($request->input('estatus'), array_keys($apartados), true) ? $request->input('estatus') : null;
-        if ($estatus) {
-            $query->whereIn('estatus', $apartados[$estatus]);
+        $estatus = in_array($request->input('estatus'), array_keys($conteo), true) ? $request->input('estatus') : null;
+        if ($estatus === 'incidencias') {
+            $query->where('incidencia', '!=', 0);
+        } else {
+            $query->where($sinIncidencia);
+            if ($estatus) {
+                $query->whereIn('estatus', $apartados[$estatus]);
+            }
         }
 
         $ordenes = [

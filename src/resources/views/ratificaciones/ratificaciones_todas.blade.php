@@ -24,6 +24,7 @@
         'confirmadas'    => ['Confirmadas', 'bi-calendar-check', 'rt-i-confirmada'],
         'incumplimiento' => ['Incumplimiento', 'bi-exclamation-octagon', 'rt-i-incumplimiento'],
         'archivadas'     => ['Archivadas', 'bi-archive', 'rt-i-archivada'],
+        'incidencias'    => ['Marcadas como incidencia', 'bi-flag', 'rt-i-incidencia'],
     ];
     $hoy = now()->toDateString();
     // Vista con que abre la pantalla: "Últimas ratificaciones".
@@ -45,7 +46,7 @@
 @section('page_css')
     @include('turnos._estilos')
     <style>
-        .rt-cifras { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+        .rt-cifras { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
         .rt-cifra {
             display: flex; align-items: center; gap: 12px; padding: 14px 16px; text-decoration: none;
             background: #fff; border: 1px solid var(--tn-borde); border-radius: 12px;
@@ -60,6 +61,8 @@
         .rt-i-confirmada { background: #E3EFF3; color: #1D5F73; }
         .rt-i-incumplimiento { background: #F6E4EA; color: #8C1D40; }
         .rt-i-archivada { background: #EEF0F0; color: #5B6667; }
+        .rt-i-incidencia { background: #FBEFD9; color: #8A5A0B; }
+        @media (max-width: 1200px) { .rt-cifras { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
         @media (max-width: 860px) { .rt-cifras { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
         /* Filtros con la misma disposición que Todos los turnos. */
@@ -281,6 +284,11 @@
                                     <td>{{ $solicitud->delegacion }}</td>
                                     <td class="text-center">
                                         <span class="tn-estatus {{ $claseEstatus($solicitud->estatus) }}">{{ $solicitud->estatus }}</span>
+                                        @if ($solicitud->incidencia)
+                                            <span class="rt-secundario mt-1" title="{{ $solicitud->motivo_incidencia }}">
+                                                <i class="bi bi-flag me-1" aria-hidden="true"></i>Incidencia: {{ \Illuminate\Support\Str::limit($solicitud->motivo_incidencia, 60) }}
+                                            </span>
+                                        @endif
                                     </td>
                                     @can('ratificaciones_consultar')
                                         <td class="text-center">
