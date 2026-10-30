@@ -4,7 +4,7 @@
     muestran las preguntas (App\Support\AtencionTramite); si no, cuándo es.
 --}}
 @extends('atencion.layout')
-@section('titulo', 'Formulario de atención del trámite')
+@section('titulo', 'Encuesta de atención del trámite')
 
 @php
     use App\Support\AtencionTramite as AT;
@@ -70,7 +70,7 @@
 @section('contenido')
 <div class="at-tarjeta">
     <div class="at-cabeza">
-        <h1><i class="bi bi-chat-square-heart me-2" aria-hidden="true"></i>Formulario de atención del trámite de conciliación</h1>
+        <h1><i class="bi bi-chat-square-heart me-2" aria-hidden="true"></i>Encuesta de atención del trámite del procedimiento de conciliación laboral</h1>
         <p>Cuéntanos cómo te atendimos. Tu opinión es importante para mejorar el servicio del Centro. Son 7 preguntas y te toma unos 3 minutos.</p>
     </div>
     <div class="at-cuerpo">

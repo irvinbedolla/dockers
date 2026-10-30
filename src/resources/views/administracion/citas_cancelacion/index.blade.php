@@ -100,6 +100,9 @@
         .rg-pie-tabla { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
         .rg-pie-tabla .pagination { margin: 0; }
         .rg-otro { color: #5A5446; }
+        .rg-ratif { margin-top: 12px; padding: 10px 12px; border: 1px dashed #D5DDDD; border-radius: 8px; background: #F7F9F9; font-size: 13.5px; }
+        .rg-ratif__actual { color: #6C7A7B; font-size: 12.5px; }
+        .rg-ratif__cerrada { color: #6C7A7B; font-size: 12.5px; }
 
         /* Diálogo: sede y trámite (sólo Super Usuario) */
         .rg-cambiar { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; padding-bottom: 14px; margin-bottom: 14px; border-bottom: 1px solid #E3E8E8; }
@@ -321,6 +324,10 @@
 
         <div class="modal-body hc-cuerpo">
             <div class="rg-actual" data-actual></div>
+            <p class="rg-cambiar__nota mb-3" data-aviso-confirmada hidden>
+                <i class="bi bi-person-check" aria-hidden="true"></i> Esta persona <b>ya validó su cita</b>. Si la pasas a otro día, quedará pendiente
+                y tendrá que validar su QR al llegar; si eliges otra hora de hoy, sigue confirmada y su módulo la llamará a la nueva hora.
+            </p>
 
             @if (\App\Http\Controllers\CancelacionCitasController::puedeCambiarTodo(auth()->user()))
                 {{-- Sólo el Super Usuario: también la sede y el trámite; los horarios se buscan en el calendario nuevo. --}}
@@ -355,6 +362,20 @@
             <div class="rg-motivo">
                 <label class="form-label" for="rgMotivo">{{ \App\Http\Controllers\CancelacionCitasController::puedeCambiarTodo(auth()->user()) ? 'Motivo del cambio' : 'Motivo de la reagenda' }}</label>
                 <textarea id="rgMotivo" name="motivo" class="form-control" rows="2" minlength="10" maxlength="500" required></textarea>
+
+                {{-- Cita de una ratificación: su fecha y hora sólo se mueven si se marca. --}}
+                <div class="rg-ratif" data-ratif hidden>
+                    <div class="form-check" data-ratif-opcion>
+                        <input class="form-check-input" type="checkbox" name="actualizar_ratificacion" value="1" id="rgActRatif">
+                        <label class="form-check-label" for="rgActRatif">
+                            Actualizar también la fecha y hora de la ratificación <b data-ratif-nue></b>
+                            <span class="rg-ratif__actual">(hoy: <span data-ratif-cuando></span>)</span>
+                        </label>
+                    </div>
+                    <p class="rg-ratif__cerrada mb-0" data-ratif-cerrada hidden>
+                        <i class="bi bi-lock" aria-hidden="true"></i> La ratificación <b data-ratif-nue2></b> está <span data-ratif-estatus></span>: su fecha no se mueve.
+                    </p>
+                </div>
             </div>
         </div>
 
@@ -586,6 +607,22 @@
             el.elegido.textContent = 'Toca un horario para elegirlo.';
             contexto();
             el.actual.textContent = '';
+            const avisoConfirmada = modal.querySelector('[data-aviso-confirmada]');
+            if (avisoConfirmada) avisoConfirmada.hidden = b.confirmada !== 'Si';
+            // Ratificación ligada: la casilla sólo aparece si sigue abierta (y empieza sin marcar).
+            const ratif = modal.querySelector('[data-ratif]');
+            if (ratif) {
+                const hay = !!b.ratifNue, abierta = b.ratifAbierta === 'Si';
+                ratif.hidden = !hay;
+                ratif.querySelector('[data-ratif-opcion]').hidden = !abierta;
+                ratif.querySelector('[data-ratif-cerrada]').hidden = !hay || abierta;
+                ratif.querySelector('#rgActRatif').checked = false;
+                ratif.querySelector('#rgActRatif').disabled = !abierta;
+                ratif.querySelector('[data-ratif-nue]').textContent = b.ratifNue || '';
+                ratif.querySelector('[data-ratif-nue2]').textContent = b.ratifNue || '';
+                ratif.querySelector('[data-ratif-cuando]').textContent = b.ratifCuando || '';
+                ratif.querySelector('[data-ratif-estatus]').textContent = b.ratifEstatus || '';
+            }
             el.actual.appendChild(document.createTextNode('Cita actual: '));
             el.actual.appendChild(nodo('strong', null, largo(cita.fecha) + ' · ' + cita.hora + ' h'));
 
