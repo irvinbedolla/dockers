@@ -57,7 +57,7 @@ class LigarSolicitudesCitas extends Command
                 ->where('curp', strtoupper(trim($sol->curp)))
                 ->where('tipo', 'Solicitud')
                 ->whereBetween('fecha', [now()->parse($fecha)->subDays(self::VENTANA)->toDateString(), now()->parse($fecha)->addDays(self::VENTANA)->toDateString()])
-                ->where('estatus', '!=', 'expirada')
+                ->whereNotIn('estatus', ['expirada', 'cancelada'])
                 ->orderByRaw('ABS(DATEDIFF(fecha, ?))', [$fecha])->orderByDesc('hora')
                 ->get(['id'])
                 ->first(fn ($c) => ! isset($usadas[$c->id]));

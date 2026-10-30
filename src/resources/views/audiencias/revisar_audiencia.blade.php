@@ -1724,6 +1724,7 @@
                                                             @if($isAudiencia == 'No' && $general->estatus == 'Pendiente')
                                                                 <button type="submit" class="btn btn-primary" name="toquen" value="1">Guardar Edición</button>
                                                             @elseif($fecha_actual->isSameDay($general->fecha_confirmacion) && auth()->user()->hasAnyRole(['Auxiliar', 'Orientador']))
+                                                            
                                                                 @hasanyrole('Auxiliar|Orientador')
                                                                     <button type="submit" class="btn btn-primary" name="toquen" value="1">Guardar Edición</button>
                                                                 @endhasanyrole
@@ -1731,7 +1732,7 @@
                                                                 <button type="submit" class="btn btn-primary" name="toquen" value="1">Guardar Edición</button>
                                                             @else
                                                                 @auth
-                                                                    @hasanyrole('Enlace|Super Usuario')
+                                                                    @hasanyrole('Enlace|Super Usuario|Orientador')
                                                                         <button type="submit" class="btn btn-primary" name="toquen" value="1">Guardar Edición</button>
                                                                         {{--@if(in_array($general->estatus, ["No conciliacion", "Conciliacion", "Reinstalacion"])
                                                                             && $isAudiencia != 'Si')

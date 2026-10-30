@@ -15,6 +15,31 @@ class SeerPerGeneral extends Model
     'user_id','delegacion','conciliador_id', 'curp','tipo','tipo_solicitud','validado_conciliador','estatus','observaciones','fecha_terminacion','documentoExpediente',
     'documentoCitatoriosT','pendiente_firma','caso_excepcion','tipo_generacion','consecutivo','año', 'incidencia', 'motivo_incidencia','delegado_id', 'poder_id', 'confirmacion_id', 'numero_guia'];
 
+    /**
+     * Respaldo de Audiencias::booted: al resolverse la audiencia la solicitud
+     * cambia a su resolución (convenio, no conciliación, archivo…) y se manda
+     * por correo el folio y la liga del formulario de atención del trámite
+     * (App\Support\AtencionTramite), por si ese camino actualizó la audiencia
+     * sin pasar por el modelo. No se repite si ya se mandó. Se manda después de
+     * responder, para no hacer esperar, y nunca tumba el guardado.
+     */
+    protected static function booted(): void
+    {
+        static::updated(function (SeerPerGeneral $general) {
+            if (! $general->wasChanged('estatus') || ! in_array($general->estatus, \App\Support\AtencionTramite::RESUELTOS_SOLICITUD, true)) {
+                return;
+            }
+            $id = (int) $general->id;
+            dispatch(function () use ($id) {
+                try {
+                    \App\Support\AtencionTramite::enviar($id);
+                } catch (\Throwable $e) {
+                    report($e);
+                }
+            })->afterResponse();
+        });
+    }
+
     // Genera un número de guía único de 10 dígitos: AAAA + 6 dígitos aleatorios.
     public static function generarNumeroGuia(): string
     {

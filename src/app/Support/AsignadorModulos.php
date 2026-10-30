@@ -72,7 +72,7 @@ class AsignadorModulos
         return DB::table('recepcion')
             ->where('fecha', $fecha)
             ->where('hora', strlen($hora) === 5 ? $hora.':00' : $hora)
-            ->where('estatus', '<>', 'expirada')
+            ->whereNotIn('estatus', ['expirada','cancelada'])
             ->when($excepto, fn ($q) => $q->where('id', '<>', $excepto))
             ->where(function ($q) use ($modulo) {
                 $q->where('modulo_id', $modulo->id);

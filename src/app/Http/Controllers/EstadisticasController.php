@@ -10,7 +10,11 @@ use App\Support\CasosExcepcion;
 use App\Support\DesempenoNotificadores;
 use App\Support\EmbudoCasos;
 use App\Support\BitacoraIncidencias;
+use App\Exports\EstadisticasTurnosExport;
 use App\Support\EstadisticasExcepcion;
+use App\Support\EstadisticasTurnos;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Maatwebsite\Excel\Facades\Excel;
 use App\Support\ResumenSedes;
 use App\Support\TasaConciliacion;
 use Illuminate\Http\Request;
@@ -57,8 +61,12 @@ class EstadisticasController extends Controller
             'excepcionesMes' => EstadisticasExcepcion::resumen(
                 EstadisticasExcepcion::rango(now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()), null
             ),
+            // Tarjeta de turnos y citas: cifras del mes.
+            'turnosMes' => EstadisticasTurnos::resumen(now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()),
             // Tarjeta de incidencias: hoy, este mes y este año.
             'incidenciasMes' => BitacoraIncidencias::cifras(),
+            // Tarjeta del formulario de atención del trámite: respuestas e índice del mes.
+            'atencionMes' => \App\Support\EstadisticasAtencion::resumen(),
             // Tarjeta de la sección de notificaciones: cifras del mes.
             'notificacionesMes' => DesempenoNotificadores::resumen(
                 DesempenoNotificadores::base(),
@@ -198,6 +206,38 @@ class EstadisticasController extends Controller
         ]);
     }
 
+    /**
+     * /estadisticas/turnos: citas y turnos de recepción por sede y por día,
+     * semana o mes: atendidas, no acudieron, sin cerrar, atenciones largas y
+     * lo mismo de los casos de excepción (App\Support\EstadisticasTurnos).
+     */
+    public function turnos(Request $request)
+    {
+        $f = EstadisticasTurnos::filtros($request);
+
+        return view('estadisticas.turnos.index', EstadisticasTurnos::armar($f, $request->user()->name)
+            + ['ag' => \App\Support\AgendadoresCitas::armar($f)]);
+    }
+
+    /** Lo mismo de /estadisticas/turnos en PDF, Excel o imagen (PNG). */
+    public function turnosDescargar(Request $request)
+    {
+        $formato = $request->validate(['formato' => ['required', Rule::in(EstadisticasTurnos::FORMATOS)]])['formato'];
+        $f       = EstadisticasTurnos::filtros($request);
+        // En el Excel van completas las tablas de quién agenda y todas las citas en línea.
+        $datos   = EstadisticasTurnos::armar($f, $request->user()->name)
+            + ['ag' => \App\Support\AgendadoresCitas::armar($f, $formato === 'xlsx')];
+
+        return match ($formato) {
+            'xlsx' => Excel::download(new EstadisticasTurnosExport($datos), $datos['archivo'].'.xlsx'),
+            'pdf'  => Pdf::loadView('estadisticas.turnos.pdf', $datos)
+                ->setPaper('letter', 'landscape')
+                ->setOption('isPhpEnabled', true)
+                ->download($datos['archivo'].'.pdf'),
+            'png'  => view('estadisticas.turnos.imagen', $datos),
+        };
+    }
+
     /** Casos por motivo y por mes, para abrir en Excel (CSV con BOM). */
     public function excepcionesMotivosCsv(Request $request)
     {
@@ -267,6 +307,10 @@ class EstadisticasController extends Controller
             'porUsuario' => BitacoraIncidencias::porUsuario($desde, $hasta, $f),
             'porSede'    => $f['sede'] ? [] : BitacoraIncidencias::porSede($desde, $hasta, $f),
             'registro'   => BitacoraIncidencias::registro($desde, $hasta, $f),
+            // Sección Poderes: sólo los cambios a poderes, con su propia paginación.
+            'poderes'    => in_array($f['area'], ['', 'poder'], true) && \App\Support\HistorialPoderes::conAccion()
+                ? BitacoraIncidencias::registro($desde, $hasta, array_merge($f, ['area' => 'poder']), 15, 'pp')
+                : null,
             'marcadas'   => BitacoraIncidencias::marcadas(),
         ]);
     }
@@ -285,7 +329,7 @@ class EstadisticasController extends Controller
             fputcsv($out, ['Fecha', 'Área', 'Movimiento', 'Expediente', 'Sede', 'Estatus antes', 'Estatus después', 'Cambios', 'Motivo', 'Lo hizo']);
             foreach ($filas as $r) {
                 fputcsv($out, [
-                    Carbon::parse($r->created_at)->format('Y-m-d H:i'),
+                    Carbon::parse($r->created_at)->format('Y-m-d H:i:s'),
                     BitacoraIncidencias::AREAS[$r->area] ?? $r->area,
                     BitacoraIncidencias::ACCIONES[$r->accion] ?? $r->accion,
                     $r->NUE,

@@ -17,7 +17,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // \PDF corrige caracteres raros antes de imprimir (ver App\Support\PdfSeguro).
+        $this->app->bind('dompdf.wrapper', function ($app) {
+            return new \App\Support\PdfSeguro($app['dompdf'], $app['config'], $app['files'], $app['view']);
+        });
     }
 
     /**
@@ -25,6 +28,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Detrás de CloudFront la app recibe HTTP; sin esto los enlaces,
+        // formularios y URLs firmadas saldrían con http://.
+        if (config('app.env') !== 'local' || request()->server('HTTP_X_FORWARDED_PROTO') === 'https') {
+            URL::forceScheme('https');
+        }
         // Aquí le enseñamos a Laravel qué significa el driver 'google'
         Storage::extend('google', function($app, $config) {
             $client = new Client();

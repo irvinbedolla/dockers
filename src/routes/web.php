@@ -44,6 +44,8 @@ use App\Http\Controllers\RecepcionController;
 use App\Http\Controllers\CitaDireccionController;
 use App\Http\Controllers\CorreosController;
 use App\Http\Controllers\AdministracionController;
+use App\Http\Controllers\CancelacionCitasController;
+
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use App\Models\SeerPerGeneral;
@@ -127,6 +129,14 @@ Route::get('/generar-cita/exito',                   [HomeController::class, 'cit
 Route::permanentRedirect('/generarCita',            '/generar-cita');
 Route::permanentRedirect('/generarCitaExito',       '/generar-cita');
 Route::post('/turnos_guardar',                      [HomeController::class, 'turnos_publico']);
+// Formulario de atención del trámite de conciliación (público, con el folio de
+// la solicitud; App\Support\AtencionTramite). Con límite de intentos para que
+// no se puedan probar folios en masa.
+Route::get('/atencion-tramite-conciliacion',        [App\Http\Controllers\AtencionTramiteController::class, 'formulario'])->name('atencion.formulario')
+    ->middleware('throttle:40,1');
+Route::post('/atencion-tramite-conciliacion',       [App\Http\Controllers\AtencionTramiteController::class, 'guardar'])->name('atencion.guardar')
+    ->middleware('throttle:10,1');
+Route::get('/atencion-tramite-conciliacion/gracias', [App\Http\Controllers\AtencionTramiteController::class, 'gracias'])->name('atencion.gracias');
 Route::get('citas/{origen}',                                 [TurnosController::class, 'create_publico'])->name('create_cita');
 Route::post('/citas/store_publico',                 [TurnosController::class, 'store_publico'])->name('turnos.publico');
 Route::get('/validar_folio_abogado/{folio}',        [TurnosController::class, 'validarFolio'])->name('validar_folio_abogado');
@@ -251,6 +261,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('role:Super Usuario|Estadistica|Directivo');
     Route::get('/estadisticas/incidencias.csv',         [EstadisticasController::class, 'incidenciasCsv'])->name('estadisticas.incidencias.csv')
         ->middleware('role:Super Usuario|Estadistica|Directivo');
+    // Turnos y citas de recepción: atendidas, no acudieron, sin cerrar y tiempos (App\Support\EstadisticasTurnos).
+    Route::get('/estadisticas/turnos',                  [EstadisticasController::class, 'turnos'])->name('estadisticas.turnos')
+        ->middleware('role:Super Usuario|Estadistica|Directivo');
+    Route::get('/estadisticas/turnos/descargar',        [EstadisticasController::class, 'turnosDescargar'])->name('estadisticas.turnos.descargar')
+        ->middleware('role:Super Usuario|Estadistica|Directivo');
+    // Formulario de atención del trámite: resultados, Excel y seguimiento de alertas (App\Support\EstadisticasAtencion).
+    Route::get('/estadisticas/atencion',                [App\Http\Controllers\EstadisticasAtencionController::class, 'index'])->name('estadisticas.atencion')
+        ->middleware('role:Super Usuario|Estadistica|Directivo');
+    Route::get('/estadisticas/atencion/descargar',      [App\Http\Controllers\EstadisticasAtencionController::class, 'descargar'])->name('estadisticas.atencion.descargar')
+        ->middleware('role:Super Usuario|Estadistica|Directivo');
+    Route::post('/estadisticas/atencion/{id}/atender',  [App\Http\Controllers\EstadisticasAtencionController::class, 'atender'])->name('estadisticas.atencion.atender')
+        ->whereNumber('id')->middleware('role:Super Usuario|Estadistica|Directivo');
     // Casos de excepción (art. 685 Ter): también los ve Conciliación, Género e Igualdad.
     Route::get('/estadisticas/excepciones',             [EstadisticasController::class, 'excepciones'])->name('estadisticas.excepciones')
         ->middleware(CasosExcepcionAcceso::class.':estadisticas');
@@ -282,7 +304,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
     Route::permanentRedirect('/recepcion/audiencias-hoy',   '/recepcion/llegadas-hoy');
     Route::get('/llegadas/avisos',                      [App\Http\Controllers\LlegadasHoyController::class, 'avisos'])->name('llegadas.avisos')
-        ->middleware('role:Super Usuario|'.implode('|', \App\Support\LlegadasHoy::CONSULTAN));
+        ->middleware('role:Super Usuario|'.implode('|', \App\Support\LlegadasHoy::RECIBEN));
 
     // Escáner de QR de citas. La cámara sólo se permite en esta pantalla
     // (ver ContentSecurityPolicy). Super Usuario y las tres recepciones.
@@ -333,13 +355,27 @@ Route::middleware(['auth', 'verified'])->group(function () {
      |-- (Gestión de Roles, Usuarios y Configuraciones Globales de SiConcilio)
      |*/
 
+    // Fuera del grupo de abajo: Directivo no está en él y, dentro, tendría
+    // que cumplir los dos filtros de rol.
+    
     Route::middleware(['role:Super Usuario|Administrador|Delegado|Enlace'])->group(function () {
-        // Configuración Avanzada de Sedes y Retrocesos de Estatus
-        Route::get('administracion/configuracion',          [AdministracionController::class, 'configuracion'])->name('configuracion');
-        // Módulos de atención: catálogo, citas del día por módulo y reasignación.
+        Route::get('administracion/configuracion', [AdministracionController::class, 'configuracion'])
+            ->name('configuracion')
+            ->middleware('role:Super Usuario|Administrador|Delegado|Enlace|Directivo');
+        // Cancelación/Reagenda de citas. Delegado y Enlace, sólo su sede y su oficina de apoyo.
+        Route::middleware(['role:Super Usuario|Delegado|Enlace|Directivo'])->group(function () {
+            Route::get('administracion/citas-cancelacion',                 [CancelacionCitasController::class, 'index'])->name('citas_cancelacion.index');
+            Route::get('administracion/citas-cancelacion/descargar',       [CancelacionCitasController::class, 'descargar'])->name('citas_cancelacion.descargar');
+            Route::post('administracion/citas-cancelacion/{id}/cancelar',  [CancelacionCitasController::class, 'cancelar'])->name('citas_cancelacion.cancelar')->whereNumber('id');
+            Route::post('administracion/citas-cancelacion/{id}/reagendar', [CancelacionCitasController::class, 'reagendar'])->name('citas_cancelacion.reagendar')->whereNumber('id');
+        });
+
+    // Módulos de atención: catálogo, citas del día por módulo y reasignación.
         Route::middleware('role:Super Usuario')->group(function () {
             Route::get('administracion/modulos',                         [ModulosController::class, 'index'])->name('modulos.index');
             Route::post('administracion/modulos',                        [ModulosController::class, 'guardar'])->name('modulos.crear');
+            // Tope de citas en línea por IP, correo y teléfono (antes que {modulo}, que la atraparía).
+            Route::put('administracion/modulos/limite-citas',            [ModulosController::class, 'limite'])->name('modulos.limite');
             Route::put('administracion/modulos/{modulo}',                [ModulosController::class, 'guardar'])->name('modulos.actualizar');
             Route::post('administracion/modulos/citas/{id}/reasignar',   [ModulosController::class, 'reasignar'])->name('modulos.reasignar')->whereNumber('id');
             Route::get('administracion/horarios',                        [HorariosCitasController::class, 'index'])->name('horarios.index');
@@ -373,7 +409,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         // Historiales de borrado de cumplimientos y cambios de fecha: solo Super Usuario
         Route::get('/administracion/historial/{tipo}',      [BitacoraAdministracionController::class, 'index'])->name('administracion_historial')
-            ->where('tipo', 'borrar_cumplimiento|cambio_fecha_audiencia|cambio_fecha_cumplimiento')
+            ->where('tipo', 'borrar_cumplimiento|cambio_fecha_audiencia|cambio_fecha_cumplimiento|cancelacion_reagenda_cita')
             ->middleware('role:Super Usuario');
 
         // Historial de ediciones guardadas desde "Revisar audiencia": solo Super Usuario
@@ -628,6 +664,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/revisar/indexAudiencia',                               [SeerController::class, 'todas_audiencias'])->name('todas_audiencias');
     Route::get('/revisar/indexSolictudes',                              [SeerController::class, 'todas_solicitudes'])->name('todas_solicitudes');
     Route::get('/revisar/indexRatificaciones',                          [SeerController::class, 'todas_ratificaciones'])->name('todas_ratificaciones');
+    // La cita de la ratificación expiró hoy (llegó tarde) y la persona sí está: vuelve a la fila.
+    Route::post('/revisar/ratificaciones/{id}/atender-tarde',           App\Http\Controllers\RatificacionTardeController::class)->name('ratificacion.atender_tarde')->whereNumber('id');
     Route::get('/revisar/indexCumplimientos',                           [SeerController::class, 'todos_complimientos'])->name('todos_complimientos');
     Route::get('/seer/estadistica',                                     [SeerController::class, 'estadistica'])->name('seer.estadistica');
     Route::get('/solicitudes/home',                                     [SeerController::class, 'solicitudes'])->name('solicitudes_index')->middleware('especialidad:solicitudes_revisar');
@@ -717,11 +755,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/poderes/edit/{id}',                                [PoderController::class, 'edit'])->name('poderes.edit');
         Route::get('/poderes/history/{id}',                             [PoderController::class, 'history'])->name('poderes.history');
         Route::get('/poderes/history/detail/{id}',                      [PoderController::class, 'historyDetail'])->name('poderes.historyDetail');
+        Route::get('/poderes/history/resumen/{id}',                     [PoderController::class, 'historialResumen'])->whereNumber('id')->name('poderes.historial.resumen');
         Route::post('/poderes/store',                                   [PoderController::class, 'store'])->name('poderes.store');
         Route::patch('/poderes/update/{post}',                          [PoderController::class, 'update'])->name('poderes.update');
         Route::delete('/poderes/destroy/{id}',                          [PoderController::class, 'destroy'])->name('poderes.destroy');
         Route::post('/poderes/agregar_representante',                   [PoderController::class, 'agregarRepresentante'])->name('poderes.agregar_representante');
         Route::get('/poderes/data-ajax',                                [PoderController::class, 'buscar_poderes_ajax'])->name('poderes.index.ajax');
+        Route::get('/poderes/listado/{vigencia}',                       [PoderController::class, 'listado'])->whereIn('vigencia', ['vigentes', 'sin-vigencia'])->name('poderes.listado');
     //PDF Solicitudes    
         Route::get('/Verpdfincompetencias/{id}',                        [SeerController::class, 'VerPDFIncompetencia'])->name('PDFincompetencia');
         Route::get('/Verpdfcs/{id}',                                    [SeerController::class, 'VerPDFConvenioSol'])->name('PDFconveniosolicitud');
@@ -837,5 +877,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::get('/VerDcocumentos/{id}',                          [SeerController::class, 'VerDocumentosAudiencia'])->name('VerDocumentosAudiencia')->middleware('signed');
             Route::get('/documentos/solicitud/{id_solicitud}/{filename}', [SeerController::class, 'verImagenDocumento'])->name('documentos.ver_imagen')->middleware('signed');
             Route::get('/documento/identificacion-solicitante/{id}',    [SeerController::class, 'documento_identificacion_solicitante_ver'])->name('documento_identificacion_solicitante_ver')->middleware('signed');
-            Route::get('/documentos_ver/{tipo}/{id}/{archivo}',             [SeerController::class, 'verPDF'])->name('documentos.ver')->middleware('signed');
+            Route::get('/documentos_ver/{tipo}/{id}/{archivo}',             [SeerController::class, 'verPDF'])->name('documentos.ver')->middleware('signed')
+                ->where('archivo', '.+'); // hay nombres viejos con "/" (razón social con "Y/O")
 });

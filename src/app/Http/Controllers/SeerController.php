@@ -519,20 +519,33 @@ class SeerController extends Controller
             abort(404, 'Tipo de documento no válido.');
         }
 
-        $carpeta = $carpetas[$tipo];
-        $rutaS3 = $carpeta . '/' . $id . '/' . $archivo;
+        // El nombre puede traer "/" (documentos viejos con "Y/O" en la razón
+        // social), pero nunca debe salirse de su carpeta.
+        if (str_contains($archivo, '..') || str_contains($id, '/') || str_contains($id, '..')) {
+            abort(404, 'El documento solicitado no existe.');
+        }
 
-        if (!Storage::disk('s3')->exists($rutaS3)) {
-            // Compatibilidad con documentos antiguos guardados sin subcarpeta de id
-            $rutaSinId = $carpeta . '/' . $archivo;
-            if (Storage::disk('s3')->exists($rutaSinId)) {
-                $rutaS3 = $rutaSinId;
-            } else {
-                abort(404, 'El documento solicitado no existe.');
+        $carpeta = $carpetas[$tipo];
+        $nombres = array_unique([$archivo, str_replace('"', '_', $archivo)]);
+
+        foreach ($nombres as $nombre) {
+            $candidatas = [
+                $carpeta . '/' . $id . '/' . $nombre,
+                $carpeta . '/' . $nombre,
+            ];
+    
+            if (preg_match('/^(\d+)_/', $nombre, $m) && $m[1] !== (string) $id) {
+                $candidatas[] = $carpeta . '/' . $m[1] . '/' . $nombre;
+            }
+
+            foreach ($candidatas as $rutaS3) {
+                if (Storage::disk('s3')->exists($rutaS3)) {
+                    return Storage::disk('s3')->response($rutaS3);
+                }
             }
         }
 
-        return Storage::disk('s3')->response($rutaS3);
+        abort(404, 'El documento solicitado no existe.');
     }
 
     public function index(Request $request)
@@ -4049,7 +4062,9 @@ class SeerController extends Controller
         $imagen_domicilio1 = "Sin documento";
         $imagen_domicilio2 = "Sin documento";
 
-        $draftId = $data['draft_id'] ?? $this->resolveSolicitudDraftId(null);
+        // Si el draft_id no viene (recargó la página o volvió de un error de validación) se usa
+        // el borrador activo; antes se creaba uno nuevo y los citados anteriores se perdían.
+        $draftId = ($data['draft_id'] ?? null) ?: (session('active_draft_id') ?: $this->resolveSolicitudDraftId(null));
 
         // Usar ID temporal si es sesión
         $tempId = ($data['id'] == 'session') ? uniqid('session_') : $data['id'];
@@ -4250,7 +4265,8 @@ class SeerController extends Controller
     public function vista_citado($id){
         $estados = Estados::all();
         $municipios = Municipios::all();
-        $draftId = request('draft_id');
+        // Sin ?draft_id (recarga, error de validación) se sigue con el borrador activo.
+        $draftId = request('draft_id') ?: session('active_draft_id');
         $session_notificacion = $draftId
             ? session($this->draftSessionKey('citados_data', $draftId) . '.0.notificacion')
             : session('citados_data.0.notificacion');
@@ -7388,7 +7404,7 @@ class SeerController extends Controller
             ->first();
         $citados = SeerCitados::where("id_solicitud",$id)
         ->where('tipo_notificacion', '!=', 'Multa')
-        ->select('nombre','primer_apellido','segundo_apellido')
+        ->select('nombre','primer_apellido','segundo_apellido','fecha')
         ->get();
         $motivos = SeerMotivo::join('catalogo_motivos','catalogo_motivos.id','seer_motivos.id_motivo')
         ->where('id_solicitud',$id)
@@ -10003,23 +10019,64 @@ class SeerController extends Controller
             ELSE pago_solicitud.NUE 
         END";
 
-        $buscar = request('buscar');
+        $buscar = trim((string) request('buscar'));
+        $fecha = request('fecha');
+        $fecha = $fecha && preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha) ? $fecha : null;
+        // Apartado Pendiente / Pagado y ratificaciones y solicitudes
+        $estatus = in_array(request('estatus'), ['Pendiente', 'Pagado'], true) ? request('estatus') : 'Pendiente';
+        $tipo = request('tipo') === 'SOL' ? 'SOL' : 'RAT';
 
-        $cumplimientos = Pagos::whereIn('pago_solicitud.tipo_pago', ["Ratificacion", "Audiencia", "Conciliador"])
+        $pendientesSql = "SUM(CASE WHEN pago_solicitud.estatus = 'Pendiente' THEN 1 ELSE 0 END)";
+        $tipoSql = "CASE WHEN pago_solicitud.tipo_pago = 'Ratificacion' THEN 'RAT' ELSE 'SOL' END";
+
+        // Consulta agrupada por expediente con la búsqueda y la fecha ya aplicadas;
+        // el apartado y la pestaña se filtran después para poder contar cada uno.
+        $base = Pagos::whereIn('pago_solicitud.tipo_pago', ["Ratificacion", "Audiencia", "Conciliador"])
             ->whereIn('pago_solicitud.delegacion', $delegaciones)
             ->leftJoin('turnos', 'turnos.id', '=', 'pago_solicitud.id_solicitud')
             ->leftJoin('seer_general', 'seer_general.id', '=', 'pago_solicitud.id_solicitud')
             ->leftJoin('users', 'users.id', '=', 'pago_solicitud.id_conciliador')
-            
-            // MODIFICACIÓN CRÍTICA:
-            // Si hay una búsqueda activa, quita el filtro de 'Pendiente' para buscar en todo.
-            // Si NO hay búsqueda, aplica el filtro 'Pendiente' por defecto para mantener el rendimiento.
-            ->when($buscar, function ($query) use ($buscar, $caseNueFinal) {
+            ->when($buscar !== '', function ($query) use ($buscar, $caseNueFinal) {
                 return $query->where(DB::raw($caseNueFinal), 'LIKE', "%{$buscar}%");
-            }, function ($query) {
-                return $query->where('pago_solicitud.estatus', 'Pendiente');
             })
-            
+            ->groupBy(
+                DB::raw($caseNueFinal),
+                'pago_solicitud.id_solicitud',
+                'pago_solicitud.tipo_pago',
+                'pago_solicitud.NUE',
+                'turnos.NUE',
+                'seer_general.NUE',
+                'users.name'
+            )
+            ->when($fecha, function ($query) use ($fecha) {
+                return $query->havingRaw('DATE(MAX(pago_solicitud.fecha)) = ?', [$fecha]);
+            });
+
+        $porGrupo = DB::query()
+            ->fromSub((clone $base)->toBase()->select(
+                DB::raw("CASE WHEN {$pendientesSql} > 0 THEN 'Pendiente' ELSE 'Pagado' END as estatus"),
+                DB::raw("{$tipoSql} as tipo")
+            ), 'c')
+            ->select('estatus', 'tipo')->selectRaw('COUNT(*) as total')
+            ->groupBy('estatus', 'tipo')
+            ->get();
+        $contar = fn ($campo, $valor) => (int) $porGrupo->where($campo, $valor)->sum('total');
+        $conteo = [
+            'Pendiente' => $contar('estatus', 'Pendiente'),
+            'Pagado'    => $contar('estatus', 'Pagado'),
+        ];
+        $conteoTipo = [
+            'RAT' => (int) $porGrupo->where('estatus', $estatus)->where('tipo', 'RAT')->sum('total'),
+            'SOL' => (int) $porGrupo->where('estatus', $estatus)->where('tipo', 'SOL')->sum('total'),
+        ];
+
+        $cumplimientos = $base
+            ->havingRaw("{$pendientesSql} " . ($estatus === 'Pendiente' ? '> 0' : '= 0'))
+            ->when($tipo === 'RAT', function ($query) {
+                return $query->where('pago_solicitud.tipo_pago', 'Ratificacion');
+            }, function ($query) {
+                return $query->whereIn('pago_solicitud.tipo_pago', ['Audiencia', 'Conciliador']);
+            })
             ->select(
                 DB::raw("{$caseNueFinal} as NUE_FINAL"),
                 DB::raw('MAX(pago_solicitud.id) as id'),
@@ -10036,19 +10093,11 @@ class SeerController extends Controller
                 DB::raw("SUM(CASE WHEN pago_solicitud.estatus = 'Pendiente' THEN 1 ELSE 0 END) as pagos_pendientes"),
                 DB::raw("CASE WHEN SUM(CASE WHEN pago_solicitud.estatus = 'Pendiente' THEN 1 ELSE 0 END) > 0 THEN 'Pendiente' ELSE 'Pagado' END as estatus")
             )
-            ->groupBy(
-                DB::raw($caseNueFinal),
-                'pago_solicitud.id_solicitud',
-                'pago_solicitud.tipo_pago',
-                'pago_solicitud.NUE',
-                'turnos.NUE',
-                'seer_general.NUE',
-                'users.name'
-            )
-            ->orderBy(DB::raw("MAX(pago_solicitud.fecha)"), 'desc') // Cambiado a DESC para que si buscas veas lo más reciente primero
-            ->paginate(500);
+            ->orderBy(DB::raw("MAX(pago_solicitud.fecha)"), 'desc') // Lo más reciente primero
+            ->paginate(25)
+            ->appends(request()->only(['buscar', 'fecha', 'estatus', 'tipo']));
 
-        return view('/cumplimientos/index', compact('cumplimientos'));
+        return view('/cumplimientos/index', compact('cumplimientos', 'conteo', 'conteoTipo', 'estatus', 'tipo', 'fecha'));
     }
 
     public function solicitud_audiencia_revisar($id, Request $request) {
@@ -15660,9 +15709,15 @@ class SeerController extends Controller
         // "Super Usuario" y "Administrador" pasan sin filtros adicionales (ven todo)
 
         // Día de la cita (Y-m-d). Va antes del conteo para que los apartados lo respeten.
-        // Sin parámetro se abre en Hoy; "Todos los días" manda fecha=todos.
-        $fecha = $request->has('fecha') ? $request->input('fecha') : now()->toDateString();
-        if (is_string($fecha) && preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $fecha, $p) && checkdate((int) $p[2], (int) $p[3], (int) $p[1])) {
+        // "Últimas ratificaciones" (fecha=ultimas): las que registró quien entra, de
+        // cualquier día. Es la vista con que abre (sin parámetro). "Todos los días"
+        // manda fecha=todos.
+        $ultimasPorOmision = true;
+        $ultimas = $request->input('fecha') === 'ultimas' || ! $request->has('fecha');
+        $fecha = $ultimas ? null : ($request->has('fecha') ? $request->input('fecha') : now()->toDateString());
+        if ($ultimas) {
+            $query->where('user_id', $user->id);
+        } elseif (is_string($fecha) && preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $fecha, $p) && checkdate((int) $p[2], (int) $p[3], (int) $p[1])) {
             $query->where('fecha', $fecha);
         } else {
             $fecha = null;
@@ -15710,7 +15765,10 @@ class SeerController extends Controller
             return $audiencia;
         });
 
-        return view('ratificaciones.ratificaciones_todas', compact('solicitudes', 'userRole', 'conteo', 'estatus', 'orden', 'fecha'));
+        // "Atender de todos modos": las de esta página cuya cita expiró hoy (llegaron tarde).
+        $tardes = \App\Http\Controllers\RatificacionTardeController::expiradasHoy($solicitudes->getCollection(), $user);
+
+        return view('ratificaciones.ratificaciones_todas', compact('solicitudes', 'userRole', 'conteo', 'estatus', 'orden', 'fecha', 'ultimas', 'ultimasPorOmision', 'tardes'));
     }
 
     public function todas_solicitudes(Request $request) {
@@ -21127,6 +21185,16 @@ class SeerController extends Controller
             $solicitanteData = session($this->draftSessionKey('solicitante_data', $draftId));
             $citadosData     = session($this->draftSessionKey('citados_data', $draftId), []);
             $motivosData     = session($this->draftSessionKey('motivos_data', $draftId), []);
+
+            // Si el draft recibido no tiene datos, primero el borrador activo (el de esta captura).
+            $activo = session('active_draft_id');
+            if (!$solicitudData && $activo && $activo !== $draftId && session($this->draftSessionKey('solicitud_data', $activo))) {
+                $draftId         = $activo;
+                $solicitudData   = session($this->draftSessionKey('solicitud_data', $draftId));
+                $solicitanteData = session($this->draftSessionKey('solicitante_data', $draftId));
+                $citadosData     = session($this->draftSessionKey('citados_data', $draftId), []);
+                $motivosData     = session($this->draftSessionKey('motivos_data', $draftId), []);
+            }
 
             // FALLBACK: Si no encuentra la solicitud con el draftId recibido
             if (!$solicitudData) {
