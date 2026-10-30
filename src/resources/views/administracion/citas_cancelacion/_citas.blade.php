@@ -89,16 +89,19 @@
                                     data-excepcion="{{ $cita->exepcion === 'Si' ? 'Si' : 'No' }}"
                                     data-fecha="{{ $cita->fecha->format('Y-m-d') }}"
                                     data-hora="{{ substr($cita->getRawOriginal('hora'), 0, 5) }}"
+                                    data-confirmada="{{ $cita->estatus === 'confirmada' ? 'Si' : 'No' }}"
                                     data-sede-catalogo="{{ CC::sede($cita->delegacion) }}"
                                     data-tramite="{{ CC::tramite($cita->tipo) }}">{{ CancelacionCitasController::puedeCambiarTodo(auth()->user()) ? 'Cambiar' : 'Reagendar' }}</button>
                             <button type="button" class="btn btn-sm btn-outline-danger"
                                     data-bs-toggle="modal" data-bs-target="#modalCancelar"
                                     data-folio="{{ $cita->folio_cita }}"
                                     data-accion="{{ route('citas_cancelacion.cancelar', $cita->id) }}">Cancelar</button>
-                        @elseif ($cita->estatus === 'pendiente')
+                        @elseif (CancelacionCitasController::enAtencion($cita))
+                            <span class="rg-sin-accion">En atención</span>
+                        @elseif (in_array($cita->estatus, ['pendiente', 'confirmada'], true))
                             <span class="rg-sin-accion">Ya pasó</span>
                         @else
-                            <span class="rg-sin-accion">Sólo pendientes</span>
+                            <span class="rg-sin-accion">Sólo pendientes o confirmadas</span>
                         @endif
                     </td>
                 </tr>

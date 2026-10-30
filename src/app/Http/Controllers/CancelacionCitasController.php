@@ -11,7 +11,9 @@ use App\Services\BitacoraAdministracionRecorder;
 use App\Support\AsignadorModulos;
 use App\Support\CitasCancelacion;
 use App\Support\FolioCita;
+use App\Support\FlujoCita;
 use App\Support\HorarioCitas;
+use App\Support\PantallaEspera;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -46,13 +48,21 @@ class CancelacionCitasController extends Controller
     }
 
     /**
-     * Sólo las pendientes, de hoy en adelante: si ya llegó (confirmada), ya
-     * se atendió o ya expiró, no tiene sentido cancelarla ni moverla.
+     * Pendientes y confirmadas (ya validó su QR), de hoy en adelante. No se
+     * mueve la que ya está en atención en su módulo, ni la atendida, expirada
+     * o cancelada.
      */
     public static function movible(Recepcion $cita, string $hoy): bool
     {
-        return $cita->estatus === 'pendiente'
-            && $cita->fecha->format('Y-m-d') >= $hoy;
+        return in_array($cita->estatus, ['pendiente', 'confirmada'], true)
+            && $cita->fecha->format('Y-m-d') >= $hoy
+            && ! self::enAtencion($cita);
+    }
+
+    /** La confirmada que su módulo ya empezó a atender. */
+    public static function enAtencion(Recepcion $cita): bool
+    {
+        return $cita->estatus === 'confirmada' && FlujoCita::migrado() && ! empty($cita->atencion_inicio_at);
     }
 
     /**
@@ -208,6 +218,19 @@ class CancelacionCitasController extends Controller
             'lugar_auxiliar' => $modulo?->nombre ?? ($conservaModulo ? $cita->lugar_auxiliar : null),
             'auxiliar'       => $modulo?->user_id ?? ($conservaModulo ? $cita->auxiliar : null),
         ];
+        // Ya había llegado (confirmada): a otro día vuelve a "pendiente" y tendrá que
+        // validar su QR al llegar; el mismo día sigue confirmada (ya está aquí) y su
+        // módulo la vuelve a llamar a la hora nueva.
+        $confirmada  = $cita->estatus === 'confirmada';
+        $otroDia     = $datos['fecha'] !== $cita->fecha->format('Y-m-d');
+        if ($confirmada) {
+            $cambios += FlujoCita::migrado() ? ['llamado_at' => null] : [];
+            if ($otroDia) {
+                $cambios += ['estatus' => 'pendiente']
+                    + (FlujoCita::conSeguimiento() ? ['confirmada_at' => null] : [])
+                    + (FlujoCita::conTardias() ? ['llego_tarde' => false, 'llego_tarde_por' => null] : []);
+            }
+        }
         if ($cambiaSede || $cambiaTipo) {
             // El folio lleva la sede y el trámite (MOR-S26-0142): se le da uno nuevo.
             $cambios += [
@@ -217,8 +240,15 @@ class CancelacionCitasController extends Controller
             ];
         }
 
+        $sedeEspera = (string) $cita->delegacion;
         BitacoraAdministracionRecorder::actualizar(self::TIPO_BITACORA, $cita, $cambios,
-            "Reagenda (antes {$antes}): ".$datos['motivo'], $cita->codigo, $sedeAntes);
+            "Reagenda (antes {$antes}".($confirmada ? ', ya confirmada' : '')."): ".$datos['motivo'], $cita->codigo, $sedeAntes);
+
+        // La pantalla de espera y Mi módulo se recalculan con el cambio (en las dos sedes si cambió).
+        PantallaEspera::olvidar($sedeEspera);
+        if ((string) $cita->delegacion !== $sedeEspera) {
+            PantallaEspera::olvidar((string) $cita->delegacion);
+        }
 
         // Lo que cambió además de la fecha, para el correo: [etiqueta => [antes, ahora]].
         $otros = array_filter([
@@ -243,6 +273,9 @@ class CancelacionCitasController extends Controller
         return back()->with('success', $mensaje
             .Carbon::parse($datos['fecha'])->format('d/m/Y')." a las {$datos['hora']}."
             .(! $excepcion && ! $cita->modulo_id ? ' No había módulo libre a esa hora: queda sin módulo asignado.' : '')
+            .($confirmada ? ($otroDia
+                ? ' Ya había llegado: como cambió de día, quedó pendiente y tendrá que validar su QR en recepción al llegar.'
+                : ' Sigue confirmada: su módulo la llamará a la nueva hora.') : '')
             .$aviso);
     }
 
@@ -273,7 +306,7 @@ class CancelacionCitasController extends Controller
     private function citaMovible(Request $request, int $id): Recepcion
     {
         $cita = $this->delAlcance($request)->findOrFail($id);
-        abort_unless(self::movible($cita, Carbon::today()->toDateString()), 422, 'Sólo se pueden cancelar o reagendar citas pendientes de hoy en adelante.');
+        abort_unless(self::movible($cita, Carbon::today()->toDateString()), 422, 'Sólo se pueden cancelar o reagendar citas pendientes o confirmadas, de hoy en adelante, que no estén en atención.');
 
         return $cita;
     }

@@ -321,6 +321,10 @@
 
         <div class="modal-body hc-cuerpo">
             <div class="rg-actual" data-actual></div>
+            <p class="rg-cambiar__nota mb-3" data-aviso-confirmada hidden>
+                <i class="bi bi-person-check" aria-hidden="true"></i> Esta persona <b>ya validó su cita</b>. Si la pasas a otro día, quedará pendiente
+                y tendrá que validar su QR al llegar; si eliges otra hora de hoy, sigue confirmada y su módulo la llamará a la nueva hora.
+            </p>
 
             @if (\App\Http\Controllers\CancelacionCitasController::puedeCambiarTodo(auth()->user()))
                 {{-- Sólo el Super Usuario: también la sede y el trámite; los horarios se buscan en el calendario nuevo. --}}
@@ -586,6 +590,8 @@
             el.elegido.textContent = 'Toca un horario para elegirlo.';
             contexto();
             el.actual.textContent = '';
+            const avisoConfirmada = modal.querySelector('[data-aviso-confirmada]');
+            if (avisoConfirmada) avisoConfirmada.hidden = b.confirmada !== 'Si';
             el.actual.appendChild(document.createTextNode('Cita actual: '));
             el.actual.appendChild(nodo('strong', null, largo(cita.fecha) + ' · ' + cita.hora + ' h'));
 
