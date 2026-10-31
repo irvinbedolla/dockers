@@ -204,6 +204,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Pantalla de Inicio: deslindada del resto para poder colgarle después
     // datos y notificaciones por rol.
     Route::get('/inicio',                               [InicioController::class, 'index'])->name('inicio');
+    // "Ver como" (sólo Super Usuario, lo revisa el controlador con el usuario real): App\Support\VerComo.
+    Route::get('/administracion/ver-como',              [App\Http\Controllers\VerComoController::class, 'index'])->name('ver_como.index');
+    Route::post('/administracion/ver-como',             [App\Http\Controllers\VerComoController::class, 'iniciar'])->name('ver_como.iniciar');
+    Route::post('/administracion/ver-como/salir',       [App\Http\Controllers\VerComoController::class, 'salir'])->name('ver_como.salir');
+    Route::get('/administracion/ver-como/buscar',       [App\Http\Controllers\VerComoController::class, 'buscar'])->name('ver_como.buscar');
     // Flujo nuevo cita → solicitud (fase 1): lo que tiene hoy mi módulo. Lo cuida App\Support\FlujoCita.
     Route::get('/mi-modulo',                            [App\Http\Controllers\MiModuloController::class, 'index'])->name('mi_modulo');
     Route::get('/mi-modulo/datos',                      [App\Http\Controllers\MiModuloController::class, 'datos'])->name('mi_modulo.datos');
