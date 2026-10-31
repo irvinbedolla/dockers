@@ -638,6 +638,11 @@
 
     @stack('modals')
 
+    {{-- "Ver como": aviso de a quién se está viendo, sólo lectura, cambiar y salir. --}}
+    @if (\App\Support\VerComo::activo())
+        @include('layouts._ver_como')
+    @endif
+
     <!-- 3. JS de Bootstrap 5.3 Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 

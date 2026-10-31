@@ -56,6 +56,9 @@ $app->booted(function () use ($app) {
     
     // 3. Forzar la inyección global del Middleware CSP al grupo de rutas 'web'
     $router->pushMiddlewareToGroup('web', \App\Http\Middleware\ContentSecurityPolicy::class);
+
+    // "Ver como" (sólo Super Usuario): ver el sistema como otra persona o un rol, en sólo lectura.
+    $router->pushMiddlewareToGroup('web', \App\Http\Middleware\VerComoMiddleware::class);
     
     $router->aliasMiddleware('api.key', \App\Http\Middleware\VerifyApiKey::class);
 });
