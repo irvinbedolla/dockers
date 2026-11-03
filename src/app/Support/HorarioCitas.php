@@ -154,7 +154,7 @@ class HorarioCitas
      */
     public static function citasQueOcupan(string $sede, ?string $tipo, bool $excepcion): Builder
     {
-        $consulta = Recepcion::query()->where('estatus', '!=', 'expirada');
+        $consulta = Recepcion::query()->whereNotIn('estatus', ['expirada','cancelada']);
 
         if ($excepcion) {
             return $consulta->where('exepcion', 'Si');

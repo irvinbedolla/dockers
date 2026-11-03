@@ -410,6 +410,7 @@
             </div>
         </section>
     <script>
+        
         // Función genérica para convertir todo el texto a mayúsculas
         function convertirAMayusculas() {
             const elementos = document.querySelectorAll('input[type="text"], textarea');
@@ -453,6 +454,13 @@
         });
     </script>
     <script>
+        //bloquear el boton de agrgar citados
+        document.getElementById("form_concluir").addEventListener("submit", function (e) {
+            const btn = document.getElementById('btn-add-citado');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Agregando citado...';
+          
+        });
         // Deshabilitar/activar el botón "Concluir solicitud" si hay inputs con datos sin guardar
         document.addEventListener('DOMContentLoaded', function () {
             const form = document.querySelector('form.needs-validation');

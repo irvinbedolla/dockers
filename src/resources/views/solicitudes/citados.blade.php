@@ -567,14 +567,8 @@
     <script src="{{ asset('assets/js/validaciones.js') }}"></script>
 
     <script>
-        // Limpieza automática del parámetro ?draft_id= en la barra de direcciones
-        document.addEventListener('DOMContentLoaded', function () {
-            const url = new URL(window.location.href);
-            if (url.searchParams.has('draft_id')) {
-                url.searchParams.delete('draft_id');
-                window.history.replaceState({}, document.title, url.pathname + url.search);
-            }
-        });
+        // ?draft_id= se queda en la dirección a propósito: si se quita, al recargar
+        // (o al regresar de un error de validación) se pierde el borrador y sus citados.
 
         // Mayúsculas automáticas
         function convertirAMayusculas() {

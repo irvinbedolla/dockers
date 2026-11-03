@@ -42,4 +42,6 @@ return [
         'client_secret' => env('FACEBOOK_CLIENT_SECRET'),
         'redirect'      => '/auth/redirect/facebook',
     ],
+
+    'api_key' => env('API_SECRET_KEY'),
 ];

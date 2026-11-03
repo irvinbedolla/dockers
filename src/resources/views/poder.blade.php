@@ -95,7 +95,7 @@
                                             &nbsp;&nbsp;&nbsp;&nbsp;3)Identificación Oficial Vigente del representante legal (INE, pasaporte, cédula profesional).<span style="color:red;">* </span><br>
                                             &nbsp;&nbsp;&nbsp;&nbsp;4)Datos de la Empresa como: Registro Federal de Contribuyentes (RFC) de la empresa o patrón, razón social y domicilio.<br>
                                             &nbsp;&nbsp;&nbsp;&nbsp;5)Datos de Contacto: Correo electrónico y número telefónico.<br>
-                                            Será indispensable, que los requisitos con <span style="color:red;">*</span>, se tengan en documento PDF, no mayor a 10 MB.
+                                            Será indispensable, que los requisitos con <span style="color:red;">*</span>, se tengan en documento PDF, no mayor a 10 MB cada uno (y máximo 40 MB entre todos).
                                         <br><br>
                                     </div>
                                 </div>
@@ -985,7 +985,7 @@
                                                         <label><span style="color:red;">*</span>Acta Constitutiva</label><br>
                                                         <input type="file" name="documentoIne_Moral" id="documentoIne_Moral" class="form-control" accept=".pdf" >
                                                         <div class="invalid-feedback">
-                                                            La Identificación es obligatoria.
+                                                            El acta constitutiva es obligatoria.
                                                         </div>
                                                     </div>
                                                 </div>
@@ -1048,6 +1048,7 @@
     <script src="{{ asset('assets/js/popper.min.js') }}"></script>
     <script src="{{ asset('assets/js/bootstrap.min.js') }}"></script>
     <script src="{{ asset('assets/js/sweetalert.min.js') }}"></script>
+    <script src="{{ asset('assets/js/poderes/limite_archivos.js') }}"></script>
     <script src="{{ asset('assets/js/select2.min.js') }}"></script>
     <script src="{{ asset('assets/js/jquery.nicescroll.js') }}"></script>
 

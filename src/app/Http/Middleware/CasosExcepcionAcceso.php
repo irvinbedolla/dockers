@@ -25,7 +25,7 @@ class CasosExcepcionAcceso
         $puede = match ($nivel) {
             'atender'      => CasosExcepcion::atiende($usuario),
             // Estadísticas: el rol y quien ve el Panel estadístico.
-            'estadisticas' => $usuario !== null && $usuario->hasAnyRole(['Super Usuario', 'Estadistica', 'Directivo', CasosExcepcion::ROL]),
+            'estadisticas' => CasosExcepcion::estadisticas($usuario),
             default        => CasosExcepcion::consulta($usuario),
         };
 

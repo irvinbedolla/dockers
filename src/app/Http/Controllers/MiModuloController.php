@@ -6,6 +6,7 @@ use App\Models\Modulo;
 use App\Models\User;
 use App\Support\FlujoCita;
 use App\Support\FolioCita;
+use App\Support\MotivoTermino;
 use App\Support\HorarioCitas;
 use App\Support\PantallaEspera;
 use App\Support\SigueEnModulo;
@@ -34,6 +35,9 @@ class MiModuloController extends Controller
     public const ACCIONES = ['llamar', 'atender', 'terminar', 'ausente'];
 
     private const VIGENTES = ['pendiente', 'confirmada'];
+
+    /** Estatus de turnos que "Terminar" no debe regresar a Confirmado. */
+    private const RATIFICACION_RESUELTA = ['Concluida', 'Concluida Pagos', 'Archivada', 'Incumplimiento'];
 
     public static function puedeVer(?User $usuario): bool
     {
@@ -80,7 +84,12 @@ class MiModuloController extends Controller
 
         abort_unless($this->esDeSusModulos($request->user(), $cita), 403);
         abort_unless(FlujoCita::aplicaA($cita), 403, 'El flujo nuevo no aplica a esta cita.');
-        abort_unless($cita->tipo === 'Solicitud', 422, 'Sólo las citas de solicitud se prellenan.');
+        // Una asesoría en atención puede seguir como solicitud ("Continuar como
+        // Solicitud") si al final la persona decide levantarla.
+        $continuaAsesoria = self::esAsesoria($cita);
+        abort_unless($cita->tipo === 'Solicitud' || $continuaAsesoria, 422, 'Sólo las citas de solicitud o asesoría se prellenan.');
+        abort_if($continuaAsesoria && ! (in_array($cita->estatus, self::VIGENTES, true) && $cita->atencion_inicio_at), 422,
+            'Primero inicia la atención de la asesoría en Mi módulo.');
 
         if (FlujoCita::aplicaA($cita) && ! $cita->llamado_at && ($abierta = $this->abiertaEnModulo($cita))) {
             return back()->with('error', 'Primero termina o marca como "no se presentó" el folio '.FolioCita::mostrar($abierta).'.');
@@ -108,7 +117,8 @@ class MiModuloController extends Controller
      *   llamar   → la pantalla muestra el folio en su módulo y lo anuncia
      *              (otra vez, si ya estaba llamada);
      *   atender  → empezó la atención (si no la había llamado, la llama);
-     *   terminar → estatus "atendido";
+     *   terminar → estatus "atendido"; en solicitudes y asesorías pide por
+     *              qué terminó (MotivoTermino);
      *   ausente  → no se presentó: estatus "expirada", como cuando no llega
      *              a escanear su QR a tiempo (ValidadorCita).
      *
@@ -121,7 +131,13 @@ class MiModuloController extends Controller
         abort_unless(self::puedeVer($usuario), 403);
         abort_unless(in_array($accion, self::ACCIONES, true), 404);
 
-        $cita = DB::transaction(function () use ($usuario, $id, $accion) {
+        // Terminar una solicitud o asesoría pide la razón (App\Support\MotivoTermino).
+        $motivo = null;
+        if ($accion === 'terminar' && MotivoTermino::aplicaTipo(DB::table('recepcion')->where('id', $id)->value('tipo'))) {
+            $motivo = validator($request->all(), MotivoTermino::reglas(), MotivoTermino::mensajes())->validate();
+        }
+
+        $cita = DB::transaction(function () use ($usuario, $id, $accion, $motivo) {
             $cita = \App\Models\Recepcion::lockForUpdate()->findOrFail($id);
 
             abort_unless($this->esDeSusModulos($usuario, $cita), 403, 'La cita no es de tu módulo.');
@@ -154,6 +170,10 @@ class MiModuloController extends Controller
                     if (FlujoCita::conFinAtencion()) {
                         $cita->atencion_fin_at = $ahora;
                     }
+                    if ($motivo) {
+                        $cita->motivo_termino       = $motivo['motivo_termino'];
+                        $cita->motivo_termino_texto = trim((string) ($motivo['motivo_termino_texto'] ?? '')) ?: null;
+                    }
                     break;
 
                 case 'ausente':
@@ -169,12 +189,27 @@ class MiModuloController extends Controller
 
         PantallaEspera::olvidar((string) $cita->delegacion);
 
+        // Ratificaciones: al iniciar se abre el formulario de la cita con los
+        // datos de su turno; al terminar, la ratificación queda confirmada.
+        $turno = self::esRatificacion($cita) && in_array($accion, ['atender', 'terminar'], true)
+            ? $this->turnoDeCita($cita)
+            : null;
+        // Si la ratificación ya se concluyó (o archivó) antes de "Terminar", no se
+        // regresa a Confirmado: eso reabría el botón Concluir y duplicaba conceptos.
+        $confirmarTurno = $turno && $accion === 'terminar'
+            && ! in_array($turno->estatus, self::RATIFICACION_RESUELTA, true);
+        if ($confirmarTurno) {
+            \App\Services\HistorialRatificacionRecorder::actualizar($turno, ['estatus' => 'Confirmado'],
+                'Atención terminada en Mi módulo (folio '.FolioCita::mostrar($cita).')');
+        }
+
         \Illuminate\Support\Facades\Log::info('flujo_cita.'.$accion, [
             'cita'    => $cita->id,
             'folio'   => FolioCita::mostrar($cita),
             'modulo'  => $cita->modulo_id,
             'usuario' => $usuario->id,
             'prueba'  => (bool) $cita->es_prueba,
+            'motivo'  => $motivo['motivo_termino'] ?? null,
         ]);
 
         $folio = FolioCita::mostrar($cita);
@@ -185,7 +220,126 @@ class MiModuloController extends Controller
             'ausente'  => 'Folio '.$folio.' marcado como no presentado.',
         ];
 
+        if (self::esRatificacion($cita) && $accion === 'atender') {
+            return response()->json($turno
+                ? ['ok' => true, 'mensaje' => $mensajes[$accion], 'ir' => route('mi_modulo.ratificacion', ['id' => $cita->id])]
+                : ['ok' => true, 'mensaje' => $mensajes[$accion], 'aviso' => $this->avisoSinRatificacion($cita)]);
+        }
+        if ($confirmarTurno) {
+            $mensajes['terminar'] .=' La ratificación quedó confirmada: revísala en Ratificaciones → Confirmadas.';
+        }
+
         return response()->json(['ok' => true, 'mensaje' => $mensajes[$accion]]);
+    }
+
+    /**
+     * Ratificación en atención: el formulario de citas/{origen} con los datos
+     * de su turno (turnos.recepcion_id) para revisarlos y corregirlos.
+     */
+    public function ratificacion(Request $request, int $id)
+    {
+        [$cita, $turno] = $this->ratificacionEnAtencion($request, $id);
+
+        return view('citas', [
+            'estados'    => \App\Models\Estados::all(),
+            'municipios' => \App\Models\Municipios::all(),
+            'origen'     => 'modulo',
+            'turno'      => $turno,
+            'cita'       => $cita,
+        ]);
+    }
+
+    /** "Finalizar" del formulario: guarda los cambios y regresa a Mi módulo para terminar. */
+    public function guardarRatificacion(Request $request, int $id)
+    {
+        [$cita, $turno] = $this->ratificacionEnAtencion($request, $id);
+
+        $request->validate([
+            'primero_trabajador'      => 'required',
+            'trabajador'              => 'required',
+            'trabajador_edad'         => 'required',
+            'trabajador_sexo'         => 'required',
+            'trabajador_curp'         => 'required',
+            'tipo_identificacion'     => 'required',
+            'num_identificacion'      => 'required',
+            'documentoidentificacion' => 'nullable|file|mimes:pdf|max:10240',
+            'cuantificacion'          => 'nullable|file|mimes:pdf|max:10240',
+            'fecha_inicio'            => 'required',
+            'categoria'               => 'required',
+            'monto'                   => 'required',
+            'frecuencia'              => 'required',
+            'tipo_pago'               => 'required',
+            'dias'                    => 'required',
+            'JLCA'                    => 'required',
+            'motivo'                  => 'required',
+            'salario'                 => 'required',
+            'municipio_rat'           => 'required',
+            'estado_rat'              => 'required',
+            'tipo_vialidad'           => 'required',
+            'vialidad_calle'          => 'required',
+            'colonia'                 => 'required',
+            'N_Ext'                   => 'required',
+            'cp'                      => 'required',
+        ]);
+
+        $mayus = fn (?string $v) => $v === null ? null : mb_strtoupper($v);
+        $prestacion = fn (string $campo) => $request->has($campo) && $request->input('motivo') === 'Pago de prestaciones' ? 1 : null;
+
+        $cambios = [
+            'primero_trabajador'  => $mayus($request->input('primero_trabajador')),
+            'segundo_trabajador'  => $mayus($request->input('segundo_trabajador')),
+            'trabajador'          => $mayus($request->input('trabajador')),
+            'nacionalidad'        => $request->input('nacionalidad'),
+            'edad'                => $request->input('trabajador_edad'),
+            'sexo'                => $request->input('trabajador_sexo'),
+            'trabajador_curp'     => $mayus($request->input('trabajador_curp')),
+            'tipo_identificacion' => $request->input('tipo_identificacion'),
+            'tipo_otros'          => $request->input('tipo_identificacion') === 'Otro' ? $request->input('tipo_otros') : null,
+            'num_identificacion'  => $mayus($request->input('num_identificacion')),
+            'estado_rat'          => $request->input('estado_rat'),
+            'municipio_rat'       => $request->input('municipio_rat'),
+            'tipo_vialidad'       => $request->input('tipo_vialidad'),
+            'calle'               => $request->input('vialidad_calle'),
+            'colonia'             => $request->input('colonia'),
+            'num_ext'             => $request->input('N_Ext'),
+            'num_int'             => $request->input('N_Int'),
+            'codigo_postal'       => $request->input('cp'),
+            'JLCA'                => $request->input('JLCA'),
+            'fecha_inicio'        => $request->input('fecha_inicio'),
+            'fecha_termino'       => $request->input('fecha_termino') ?: null,
+            'categoria'           => $mayus($request->input('categoria')),
+            'frecuencia'          => $request->input('frecuencia'),
+            'salario'             => $request->input('salario'),
+            'dias'                => $request->input('dias'),
+            'motivo'              => $request->input('motivo'),
+            'monto'               => $request->input('monto'),
+            'tipo_pago'           => $request->input('tipo_pago'),
+            'Aguinaldo'           => $prestacion('Aguinaldo'),
+            'Vacaciones'          => $prestacion('Vacaciones'),
+            'PrimaVacacional'     => $prestacion('PrimaVacacional'),
+            'PagoPTU'             => $prestacion('PagoPTU'),
+            'Gratificación'       => $prestacion('Gratificación'),
+            'PrimaAntigüedad'     => $prestacion('PrimaAntigüedad'),
+            'Otras'               => $prestacion('Otras'),
+            'Especifique'         => $prestacion('Otras') ? $request->input('Especifique') : null,
+        ];
+
+        // Los documentos sólo se reemplazan si suben uno nuevo (mismos nombres que store_publico).
+        $curp = $cambios['trabajador_curp'];
+        if ($request->hasFile('documentoidentificacion')) {
+            $cambios['documentoidentificacion'] = $curp.'_IDENTIFICACION.pdf';
+            \Illuminate\Support\Facades\Storage::disk('s3')->putFileAs('documentos_ratificacion/'.$turno->id, $request->file('documentoidentificacion'), $cambios['documentoidentificacion']);
+        }
+        if ($request->hasFile('cuantificacion')) {
+            $cambios['documentoCuanti'] = $curp.'_CUANTIFICACION.pdf';
+            \Illuminate\Support\Facades\Storage::disk('s3')->putFileAs('documentos_ratificacion/'.$turno->id, $request->file('cuantificacion'), $cambios['documentoCuanti']);
+        }
+
+        \App\Services\HistorialRatificacionRecorder::actualizar($turno, $cambios,
+            'Revisión de datos en Mi módulo (folio '.FolioCita::mostrar($cita).')');
+
+        return redirect()->route('mi_modulo', ['modulo' => $cita->modulo_id])
+            ->with('success', 'Datos de la ratificación del folio '.FolioCita::mostrar($cita).' guardados. Da clic en "Terminar" para confirmarla.');
     }
 
     public function descartar(Request $request)
@@ -236,6 +390,63 @@ class MiModuloController extends Controller
             'generado' => $ahora->toIso8601String(),
             'modulos'  => $resumen,
         ])->header('Cache-Control', 'no-store');
+    }
+
+    private static function esRatificacion(object $cita): bool
+    {
+        return in_array($cita->tipo, ['Ratificación', 'Ratificacion'], true);
+    }
+
+    private static function esAsesoria(object $cita): bool
+    {
+        return in_array($cita->tipo, ['Asesoría', 'Asesoria'], true);
+    }
+
+    /** El turno (ratificación) que se agendó con esta cita. */
+    private function turnoDeCita(\App\Models\Recepcion $cita): ?\App\Models\Turnos
+    {
+        return \App\Models\Turnos::where('recepcion_id', $cita->id)->latest('id')->first();
+    }
+
+    /**
+     * La cita de ratificación de su módulo, vigente y ya en atención, con su
+     * turno; si no hay turno ligado, regresa a Mi módulo.
+     *
+     * @return array{0: \App\Models\Recepcion, 1: \App\Models\Turnos}
+     */
+    private function ratificacionEnAtencion(Request $request, int $id): array
+    {
+        abort_unless(self::puedeVer($request->user()), 403);
+
+        $cita = \App\Models\Recepcion::findOrFail($id);
+
+        abort_unless($this->esDeSusModulos($request->user(), $cita), 403, 'La cita no es de tu módulo.');
+        abort_unless(self::esRatificacion($cita), 422, 'La cita no es de ratificación.');
+        abort_unless(in_array($cita->estatus, self::VIGENTES, true) && $cita->atencion_inicio_at, 422,
+            'Primero inicia la atención de la cita en Mi módulo.');
+
+        $turno = $this->turnoDeCita($cita);
+        if (! $turno) {
+            abort(redirect()->route('mi_modulo', ['modulo' => $cita->modulo_id])
+                ->with('aviso_ratificacion', $this->avisoSinRatificacion($cita)));
+        }
+
+        return [$cita, $turno];
+    }
+
+    /**
+     * Aviso de Mi módulo cuando la cita de ratificación no tiene turno ligado:
+     * se agendó sin el formulario (p. ej. desde recepción), así que no hay
+     * datos que revisar y hay que capturarla en Ratificaciones → Nueva Ratificación.
+     */
+    private function avisoSinRatificacion(\App\Models\Recepcion $cita): array
+    {
+        return [
+            'folio'    => FolioCita::mostrar($cita),
+            'urlNueva' => request()->user()?->can('ratificaciones_crear')
+                ? route('create_cita', ['origen' => 'interno'])
+                : null,
+        ];
     }
 
     /** Otra cita del mismo módulo ya llamada y sin terminar (se atiende de una en una). */
@@ -318,6 +529,7 @@ class MiModuloController extends Controller
                 ...(FlujoCita::conFinAtencion() ? ['r.atencion_fin_at'] : []),
                 ...(FlujoCita::conSeguimiento() ? ['r.confirmada_at'] : []),
                 ...(FlujoCita::conTardias() ? ['r.llego_tarde'] : []),
+                ...(MotivoTermino::migrado() ? ['r.motivo_termino', 'r.motivo_termino_texto'] : []),
                 'mu.nombre as municipio',
             ])
             ->map(function ($c) use ($ahora, $hoy, $aviso, $actualId, $sigueId) {
@@ -353,6 +565,9 @@ class MiModuloController extends Controller
                     'llamado'     => $c->llamado_at ? substr((string) $c->llamado_at, 11, 5) : null,
                     'enAtencion'  => (bool) $c->atencion_inicio_at,
                     'llegoTarde'  => (bool) ($c->llego_tarde ?? false),
+                    // Por qué terminó (solicitud y asesoría) y si "Terminar" lo pide.
+                    'termino'     => MotivoTermino::etiqueta($c->motivo_termino ?? null, $c->motivo_termino_texto ?? null),
+                    'pideMotivo'  => MotivoTermino::aplicaTipo($c->tipo),
                     // Minutos en sala sin que la llamen (aviso si pasa de SigueEnModulo::ESPERA_ALERTA).
                     'esperando'   => SigueEnModulo::esperando($c, $ahora),
                     // Minutos, para los promedios del día.

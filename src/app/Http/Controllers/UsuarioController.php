@@ -70,6 +70,7 @@ class UsuarioController extends Controller
             'rolesActuales' => [],
             'agenda'        => PermisosConciliador::resumen(null),
             'supervisaSinotifico' => false,
+            'enlaceExcepcion' => false,
             'soyYo'     => false,
             'sedes'    => self::SEDES,
             'sistemas' => self::SISTEMAS,
@@ -96,6 +97,7 @@ class UsuarioController extends Controller
             'password'    => ['required', 'string', 'min:8', 'max:72', 'same:confirm-password'],
             'foto_perfil' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:8192', 'dimensions:min_width=200,min_height=200'],
             'sinotifico_supervisa' => ['nullable', 'boolean'],
+            'excepcion_enlace' => ['nullable', 'boolean'],
         ] + $this->reglasAgenda($request), $this->mensajes());
 
         $foto = null;
@@ -124,6 +126,7 @@ class UsuarioController extends Controller
             $user->syncRoles($this->conRolBase($datos['roles']));
             $this->guardarAgenda($user, $datos);
             Acceso::elegirSupervisor($user, $request->boolean('sinotifico_supervisa'));
+            \App\Support\CasosExcepcion::elegirEnlace($user, $request->boolean('excepcion_enlace'));
 
             return $user;
         });
@@ -170,6 +173,7 @@ class UsuarioController extends Controller
             'rolesActuales' => $rolesActuales,
             'agenda'        => PermisosConciliador::resumen($user->id),
             'supervisaSinotifico' => Acceso::supervisaPorEleccion($user),
+            'enlaceExcepcion' => \App\Support\CasosExcepcion::enlace($user),
             'sedes'     => self::SEDES,
             'sistemas'  => self::SISTEMAS,
             'soyYo'     => (int) $user->id === (int) auth()->id(),
@@ -202,6 +206,7 @@ class UsuarioController extends Controller
             'password'    => ['nullable', 'string', 'min:8', 'max:72', 'same:confirm-password'],
             'foto_perfil' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:8192', 'dimensions:min_width=200,min_height=200'],
             'sinotifico_supervisa' => ['nullable', 'boolean'],
+            'excepcion_enlace' => ['nullable', 'boolean'],
         ] + $this->reglasAgenda($request), $this->mensajes());
 
         // Uno mismo no se quita el acceso ni el rol de Super Usuario: no habría
@@ -261,6 +266,8 @@ class UsuarioController extends Controller
             $this->guardarAgenda($user, $datos);
             // Supervisión en SíNotifico: sólo para Enlaces elegidos a mano.
             Acceso::elegirSupervisor($user, $request->boolean('sinotifico_supervisa'));
+            // Enlace de Género e Igualdad: distintivo a la persona (CasosExcepcion::elegirEnlace).
+            \App\Support\CasosExcepcion::elegirEnlace($user, $request->boolean('excepcion_enlace'));
         });
 
         TablaPosiciones::olvidar();

@@ -193,6 +193,7 @@ class EscanerCitasController extends Controller
             'expirada'      => 'Cita expirada',
             'otro_dia'      => 'Su cita es otro día',
             'pasada'        => 'Cita de un día anterior',
+            'cancelada'     => 'La cita fue cancelada',
         ][$resultado] ?? 'Resultado';
     }
 
@@ -210,6 +211,7 @@ class EscanerCitasController extends Controller
             'expirada'      => "Era el {$dia} a las {$hora}.",
             'otro_dia'      => "Está agendada para el {$dia} a las {$hora}. No se modificó.",
             'pasada'        => "Era el {$dia}. No se modificó.",
+            'cancelada'     => "Era para el {$dia} a las {$hora}. Debe agendar una cita nueva.",
             default         => '',
         };
     }

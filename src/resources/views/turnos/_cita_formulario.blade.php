@@ -269,6 +269,20 @@
                                 </fieldset>
 
 
+                                @unless ($ventanilla)
+                                    {{-- Aviso de privacidad: obligatorio para agendar en línea (HomeController::turnos_publico lo revisa). --}}
+                                    <div class="gc-privacidad">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="gcPrivacidad" name="acepta_privacidad" value="1" required @checked(old('acepta_privacidad'))>
+                                            <label class="form-check-label" for="gcPrivacidad">
+                                                He leído el <a href="#" data-bs-toggle="modal" data-bs-target="#seguridadModal">Aviso de privacidad</a> y acepto que mis datos,
+                                                incluida la dirección IP desde la que me conecto, se usen para agendar y dar seguimiento a mi cita.
+                                            </label>
+                                            <div class="invalid-feedback">Para agendar tu cita, lee y acepta el Aviso de privacidad.</div>
+                                        </div>
+                                    </div>
+                                @endunless
+
                                 <div class="gc-enviar">
                                     <button id="btnGuardar" type="submit" class="btn btn-oro btn-lg gc-enviar__boton">
                                         <i class="bi bi-check2-circle me-1" aria-hidden="true"></i> {{ $ventanilla ? 'Agendar cita' : 'Agendar mi cita' }}

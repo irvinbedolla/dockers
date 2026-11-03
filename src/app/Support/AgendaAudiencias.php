@@ -36,7 +36,8 @@ class AgendaAudiencias
 
     /** Una audiencia en estos estatus ya no ocupa su horario: se movió a otro. */
     // "Canalizada": caso de excepción que no siguió con la conciliación (FormatoExcepcion).
-    public const LIBERAN = ['Reagendada', 'Canalizada'];
+    // "Incompetencia": también la deja así un caso de excepción en el que el Centro no es competente.
+    public const LIBERAN = ['Reagendada', 'Canalizada', 'Incompetencia'];
 
     /** Segundos que se espera el candado antes de rendirse. */
     private const ESPERA = 20;

@@ -26,6 +26,9 @@ class RatificacionesFromViewExport implements FromView
     public function view(): View
     {
         $user = Auth::user();
+        $roles = $user->roles->pluck('name');
+        $jerarquiaRoles = ['Delegado', 'Enlace', 'Conciliador', 'Excepcion', 'Auxiliar', 'Orientador'];
+        $userRole = collect($jerarquiaRoles)->first(fn($rol) => $roles->contains($rol)) ?? $roles->first();
         $sedeUsuario = $user->delegacion ?? '';
         
         
@@ -58,7 +61,7 @@ class RatificacionesFromViewExport implements FromView
                 // Usamos whereIn aprovechando el arreglo que creamos arriba
                 return $query->whereIn('turnos.delegacion', $delegacionesFiltro);
             })
-            ->when($user->hasRole('Auxiliar'), function ($query) use ($user) {
+           ->when(in_array($userRole, ['Auxiliar', 'Orientador']), function ($query) use ($user) {
                 return $query->where('turnos.user_id', $user->id);
             })
             ->join('users', 'users.id', '=', 'turnos.id_conciliador')
@@ -88,7 +91,7 @@ class RatificacionesFromViewExport implements FromView
             ->when($this->sede !== "Todos", function ($q) use ($delegacionesFiltro) {
                 return $q->whereIn('pago_solicitud.delegacion', $delegacionesFiltro);
             })
-            ->when($user->hasRole('Auxiliar'), function ($q) use ($user) {
+            ->when(in_array($userRole, ['Auxiliar', 'Orientador']), function ($q) use ($user) {
                 return $q->join('turnos', 'turnos.id', '=', 'pago_solicitud.id_solicitud')
                     ->where('turnos.user_id', $user->id);
             })

@@ -226,7 +226,7 @@
                             prestaciones ordinarias y extraordinarias y en especie que conforme a derecho le corresponden, así mismo como cualquier riesgo o accidente de trabajo que haya sufrido. Por lo anterior, 
                             la parte <b>EMPLEADORA</b> no adeuda pago de concepto alguno.<br><br>
 
-                        <b>QUINTA</b>. La parte <b>TRABAJADORA</b> recibirá de la parte <b>EMPLEADORA</b> la cantidad de <b>${{ number_format($solicitud->monto, 2) }} {{ $montoTexto }}</b>, 
+                        <b>QUINTA</b>. La parte <b>TRABAJADORA</b> recibirá de la parte <b>EMPLEADORA</b> la cantidad de <b>${{ number_format($montoConvenio, 2) }} {{ $montoTexto }}</b>, 
                             conforme a los siguientes conceptos:</p>
 
                         <b>Prestaciones</b>
@@ -288,7 +288,7 @@
                     @if($pagosDif->C_pagos>'1')            
                         <p><b>SEXTA</b>. La <b>EMPLEADORA</b> manifiesta en fecha <b>{{ \Carbon\Carbon::parse($solicitud->fecha)->translatedFormat('d \d\e F \d\e\l Y') }}</b> que pagará en <b>{{ $pagosDif->C_pagos}}</b> 
                             exhibiciones, hasta culminar la cantidad de 
-                            <b>${{ number_format($solicitud->monto, 2) }} {{ $montoTexto }}</b>, tal como se muestra:
+                            <b>${{ number_format($montoConvenio, 2) }} {{ $montoTexto }}</b>, tal como se muestra:
                         </p>
                         <div class="table-responsive">
                             <table id="pagos" class="table-striped" style="width:100%;">
@@ -325,7 +325,7 @@
                     @elseif($pagosDif->C_pagos=='1')            
                     <p><b>SEXTA</b>. La <b>EMPLEADORA</b> manifiesta en fecha <b>{{ \Carbon\Carbon::parse($solicitud->fecha)->translatedFormat('d \d\e F \d\e\l Y') }}</b> que pagará en <b>{{ $pagosDif->C_pagos}}</b> 
                         exhibición, la cantidad de 
-                        <b>${{ number_format($solicitud->monto, 2) }} {{ $montoTexto }} M.N</b>, tal como se muestra:
+                        <b>${{ number_format($montoConvenio, 2) }} {{ $montoTexto }}</b>, tal como se muestra:
                     </p>
                     <div class="table-responsive">
                         <table id="pagos" class="table-striped" style="width:100%;">

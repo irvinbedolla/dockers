@@ -35,6 +35,7 @@ class EmbudoCasos
         // ── Desde la cita ──────────────────────────────────────────────
         $citas = DB::table('recepcion as r')
             ->where('r.tipo', 'Solicitud')
+            ->where('r.estatus', '!=', 'cancelada')
             ->whereBetween('r.fecha', [$desde, $hasta])
             ->when(FlujoCita::migrado(), fn ($q) => $q->where('r.es_prueba', 0))
             ->when($variantes, fn ($q) => $q->whereIn('r.delegacion', $variantes))

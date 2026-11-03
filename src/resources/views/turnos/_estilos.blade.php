@@ -56,6 +56,7 @@
     .tn-estatus--confirmada { background: #E3F4E8; color: #1E7B3C; }
     .tn-estatus--atendido   { background: #E7ECEC; color: #496163; }
     .tn-estatus--expirada   { background: #FDEBDD; color: #B4530F; }
+    .tn-estatus--cancelada  { background: #FBE4E6; color: #A3162E; }
 
     .tn-origen {
         display: inline-block;

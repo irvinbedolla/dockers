@@ -30,6 +30,8 @@
             return match ($f->resultado ?? null) {
                 'continua' => ['cx-caso--hecho', 'bi-check2-circle', 'Continúa conciliación'],
                 'canaliza' => ['cx-caso--canal', 'bi-signpost-split', 'Canalizada'],
+                'incompetente' => ['cx-caso--incomp', 'bi-x-octagon', 'No competentes'],
+                'no_excepcion' => ['cx-caso--borrador', 'bi-slash-circle', 'No era excepción'],
                 default    => ['cx-caso--hecho', 'bi-check2-circle', 'Atendido'],
             };
         }
@@ -52,6 +54,7 @@
         .cx-pestana.is-activa { border-color: var(--tn-verde); box-shadow: inset 0 0 0 1px var(--tn-verde); color: var(--tn-tinta); }
         .cx-pestana b { min-width: 24px; padding: 1px 8px; border-radius: 999px; background: var(--tn-fondo); font-size: 12px; text-align: center; }
         .cx-pestana--alerta b { background: #F6E4EA; color: #8C1D40; }
+        .cx-enlace { display: inline-flex; align-items: center; gap: 5px; margin-left: 8px; padding: 2px 10px; border-radius: 999px; background: #F3E8F7; color: #6B2F86; font-size: 11.5px; font-weight: 700; white-space: nowrap; }
 
         .cx-filtros { display: flex; flex-wrap: wrap; align-items: end; gap: 12px 14px; }
         .cx-filtros label, .cx-etq { display: block; font-size: 11.5px; font-weight: 700; letter-spacing: .03em; color: var(--tn-suave); margin-bottom: 5px; }
@@ -75,6 +78,7 @@
         .cx-caso--pend { background: #FBF4E1; color: #7A5D10; }
         .cx-caso--hecho { background: #E5F3EA; color: #1E7B3C; }
         .cx-caso--canal { background: #F6E4EA; color: #8C1D40; }
+        .cx-caso--incomp { background: #ECEAF4; color: #4B3F7A; }
         .cx-caso--borrador { background: #EEF2F2; color: #5E6E6F; }
         .cx-acciones { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
         .cx-vacio { padding: 30px 10px; text-align: center; color: var(--tn-tenue); }
@@ -104,6 +108,9 @@
             <div>
                 <h3 class="page__heading mb-0">Casos de excepción</h3>
                 <span class="small" style="color: var(--tn-tenue);">Art. 685 Ter LFT · Departamento de Conciliación, Género e Igualdad · todas las sedes</span>
+                @if (\App\Support\CasosExcepcion::enlace(auth()->user()))
+                    <span class="cx-enlace" title="Apoyas al departamento desde {{ auth()->user()->delegacion }}"><i class="bi bi-person-badge"></i> {{ \App\Support\CasosExcepcion::DISTINTIVO }} · {{ auth()->user()->delegacion }}</span>
+                @endif
             </div>
             <div class="d-flex flex-wrap gap-2">
             @if ($atiende)
@@ -111,7 +118,7 @@
                     <a class="btn btn-primary btn-sm" href="{{ route('nueva_cita', ['tipo' => $t]) }}"><i class="bi bi-calendar-plus"></i> Turno de {{ mb_strtolower($t) }}</a>
                 @endforeach
             @endif
-            @if (\Illuminate\Support\Facades\Route::has('estadisticas.excepciones') && auth()->user()->hasAnyRole(['Super Usuario', 'Estadistica', 'Directivo', \App\Support\CasosExcepcion::ROL]))
+            @if (\Illuminate\Support\Facades\Route::has('estadisticas.excepciones') && \App\Support\CasosExcepcion::estadisticas(auth()->user()))
                 <a class="btn btn-outline-secondary btn-sm" href="{{ route('estadisticas.excepciones') }}"><i class="bi bi-bar-chart-line"></i> Estadísticas</a>
             @endif
             </div>
@@ -138,7 +145,11 @@
                    @if ($conteos['solicitudes']) title="Hay {{ $conteos['solicitudes'] }} {{ $conteos['solicitudes'] === 1 ? 'solicitud' : 'solicitudes' }} con caso de excepción" @endif>
                     <i class="bi bi-folder2-open" aria-hidden="true"></i> Solicitudes <b>{{ number_format($conteos['solicitudes']) }}</b>
                 </a>
+                <button type="button" class="cx-pestana" data-bs-toggle="modal" data-bs-target="#cxExpModal" title="Buscar entre todos los expedientes de solicitudes">
+                    <i class="bi bi-search" aria-hidden="true"></i> Buscar expedientes
+                </button>
             </nav>
+            @include('excepciones._buscar_expedientes')
 
             <form method="GET" action="{{ route('excepcion') }}" class="tn-tarjeta mb-3" id="cxFiltros">
                 <input type="hidden" name="vista" value="{{ $vista }}">
@@ -284,6 +295,13 @@
                                                 @endif
                                                 @if ($f->formato_id)
                                                     <a class="btn btn-sm btn-outline-secondary" href="{{ route('excepciones.formato.pdf', ['tipo' => 'cita', 'id' => $f->id]) }}" target="_blank" rel="noopener" title="Formato en PDF"><i class="bi bi-file-earmark-pdf"></i></a>
+                                                @endif
+                                                @if ($cierraRapido && $estatus === 'pendiente' && ! $f->formato_id && substr((string) $f->fecha, 0, 10) <= $hoy)
+                                                    <form method="POST" action="{{ route('excepciones.no_llego', $f->id) }}" class="d-inline"
+                                                          onsubmit="return confirm('¿Marcar el folio {{ \App\Support\FolioCita::mostrar($f) }} como «No llegó» y cerrar el caso?');">
+                                                        @csrf
+                                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="La persona no llegó: se cierra el caso y sale de Por atender"><i class="bi bi-person-x"></i> No llegó</button>
+                                                    </form>
                                                 @endif
                                                 @if ($f->solicitud_id)
                                                     <a class="btn btn-sm btn-outline-success cx-pulso" href="{{ route('excepciones.solicitud', $f->solicitud_id) }}" title="Ya tiene solicitud: {{ $f->nue ?: 'sin expediente' }}"><i class="bi bi-folder2-open"></i> Solicitud</a>

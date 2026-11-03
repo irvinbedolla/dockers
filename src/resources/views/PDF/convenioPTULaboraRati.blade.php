@@ -235,7 +235,7 @@
                     <p>
                         <b>PRIMERA</b>. El presente convenio tiene por objeto fijar la forma y términos en que la parte <b>EMPLEADORA</b> cubrirá a la parte <b>TRABAJADORA</b> el pago correspondiente por concepto de Participación de los Trabajadores en las Utilidades (PTU) del ejercicio fiscal <b>{{ $ratificacion->year_ptu }}</b>.<br><br>
 
-                        <b>SEGUNDA</b>. La parte <b>EMPLEADORA</b> reconoce adeudar a favor de la parte <b>TRABAJADORA</b> la cantidad de {{ number_format($pagoTotal, 2) }} {{ $montoTexto }} M.N. por concepto de Participación de los Trabajadores en el Reparto de Utilidades.<br><br>
+                        <b>SEGUNDA</b>. La parte <b>EMPLEADORA</b> reconoce adeudar a favor de la parte <b>TRABAJADORA</b> la cantidad de ${{ number_format($montoConvenio, 2) }} {{ $montoTexto }} por concepto de Participación de los Trabajadores en el Reparto de Utilidades.<br><br>
                                     
                         <b>TERCERA</b>. La parte <b>EMPLEADORA</b> manifiesta bajo protesta de decir verdad, que la cantidad pactada en el presente convenio corresponde al monto determinado conforme al proyecto de reparto aprobado por la Comisión Mixta para la Participación de los Trabajadores en las Utilidades de la empresa,
                          correspondiente al ejercicio fiscal <b>{{ $ratificacion->year_ptu }}</b>. <br><br> Asimismo, manifiesta que dicho monto fue calculado conforme a la información fiscal y laboral aplicable, asumiendo plena responsabilidad respecto de su determinación, procedencia y exactitud. <br><br>
@@ -244,7 +244,7 @@
                          comparecientes, sin que dicho Centro cuente con facultades materiales, técnicas o medios de verificación y cercioramiento respecto del cálculo, integración o determinación del monto correspondiente al reparto de utilidades.<br><br>
                         En consecuencia, cualquier responsabilidad derivada de la veracidad, suficiencia o exactitud del monto pactado recaerá exclusivamente en la parte <b>EMPLEADORA</b>, quedando a salvo los derechos de la parte <b>TRABAJADORA</b> conforme a la legislación aplicable.<br><br>
 
-                        <b>QUINTA.</b> La parte <b>TRABAJADORA</b> recibirá de la <b>EMPLEADORA</b> la cantidad de <b>${{ number_format($ratificacion->monto, 2) }} {{ $montoTexto }}</b>, conforme a los siguientes conceptos:<br><br>
+                        <b>QUINTA.</b> La parte <b>TRABAJADORA</b> recibirá de la <b>EMPLEADORA</b> la cantidad de <b>${{ number_format($montoConvenio, 2) }} {{ $montoTexto }}</b>, conforme a los siguientes conceptos:<br><br>
                         
                         <b>Prestaciones</b>
                         <table class="table table-bordered table-compacta">
@@ -306,7 +306,7 @@
                         <!-- CON PAGOS DIFERIDOS-->       
                         @if($pagosDif->C_pagos>'1')            
                             <p><b>SEXTA</b>. La <b>EMPLEADORA</b> manifiesta que pagará en <b>{{ $pagosDif->C_pagos}}</b> exhibiciones, hasta culminar la cantidad de 
-                                <b>${{ number_format($ratificacion->monto, 2) }} {{ $montoTexto }}</b>, tal como se muestra:
+                                <b>${{ number_format($montoConvenio, 2) }} {{ $montoTexto }}</b>, tal como se muestra:
                             </p>
                             <div class="table-responsive">
                                 <table id="pagos" class="table-striped" style="width:100%;">
@@ -334,7 +334,7 @@
                         <!-- CONDICIONAL 1 SOLO PAGO(EN UNA SOLA EXIBICIÓN)--> 
                         @elseif($pagosDif->C_pagos=='1')            
                         <p><b>SEXTA</b>. La <b>EMPLEADORA</b> manifiesta que pagará en <b>{{ $pagosDif->C_pagos}}</b> exhibición, la cantidad de 
-                            <b>${{ number_format($ratificacion->monto, 2) }} {{ $montoTexto }} M.N</b>, tal como se muestra:
+                            <b>${{ number_format($montoConvenio, 2) }} {{ $montoTexto }}</b>, tal como se muestra:
                         </p>
                         <div class="table-responsive">
                             <table id="pagos" class="table-striped" style="width:100%;">

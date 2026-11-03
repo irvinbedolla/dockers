@@ -19,7 +19,10 @@ use Illuminate\Support\Str;
  *                             cumplimientos borrados y expedientes marcados como
  *                             incidencia (App\Services\BitacoraAdministracionRecorder);
  *   historial_ratificaciones  ediciones de ratificaciones con su motivo
- *                             (App\Services\HistorialRatificacionRecorder).
+ *                             (App\Services\HistorialRatificacionRecorder);
+ *   historial_abogados        ediciones, validaciones, representantes agregados
+ *                             y borrados de poderes (App\Support\HistorialPoderes;
+ *                             las altas no cuentan como incidencia).
  *
  * Sólo lectura. Lo que se registre después en esas tablas aparece solo.
  */
@@ -30,6 +33,7 @@ class BitacoraIncidencias
         'solicitud'    => 'Solicitudes',
         'audiencia'    => 'Audiencias',
         'cumplimiento' => 'Cumplimientos',
+        'poder'        => 'Poderes',
     ];
 
     public const COLORES = [
@@ -37,6 +41,7 @@ class BitacoraIncidencias
         'solicitud'    => '#CEA845',
         'audiencia'    => '#5B7DB1',
         'cumplimiento' => '#B4532A',
+        'poder'        => '#7B5EA7',
     ];
 
     public const ACCIONES = [
@@ -47,6 +52,10 @@ class BitacoraIncidencias
         'borrar_cumplimiento'       => 'Cumplimiento borrado',
         'marcar_incidencia'         => 'Marcado como incidencia',
         'desmarcar_incidencia'      => 'Se quitó la incidencia',
+        'poder_edicion'             => 'Edición de poder',
+        'poder_validacion'          => 'Validación de poder',
+        'poder_representante'       => 'Representante agregado a un poder',
+        'poder_baja'                => 'Poder borrado',
     ];
 
     public const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
@@ -77,7 +86,35 @@ class BitacoraIncidencias
              user_id, user_nombre, created_at, 'turnos', ratificacion_id, NULL, NULL"
         );
 
-        return DB::query()->fromSub($retrocesos->unionAll($bitacora)->unionAll($ediciones), 'i');
+        $union = $retrocesos->unionAll($bitacora)->unionAll($ediciones);
+        if (HistorialPoderes::conAccion()) {
+            $union->unionAll(self::poderes());
+        }
+
+        return DB::query()->fromSub($union, 'i');
+    }
+
+    /**
+     * Cambios a poderes (historial_abogados): cada foto ya sabe qué fue
+     * (accion) y cuál es la anterior del mismo folio (previo_id, "p"). Las
+     * altas no son incidencia y no entran; sí el folio nuevo de "Agregar
+     * representante". La sede es la de quien hizo el cambio (el poder no
+     * tiene sede).
+     */
+    private static function poderes(): Builder
+    {
+        return DB::table('historial_abogados as h')
+            ->leftJoin('historial_abogados as p', 'p.id', '=', 'h.previo_id')
+            ->leftJoin('users as u', 'u.id', '=', 'h.id_user')
+            ->whereIn('h.accion', ['edicion', 'validacion', 'representante', 'baja'])
+            ->selectRaw(
+                "'poder', h.id, 'poder', CONCAT('poder_', h.accion),
+                 CONCAT('Folio ', h.id_abogado), u.delegacion,
+                 CASE WHEN p.estatus <> h.estatus THEN p.estatus END,
+                 CASE WHEN p.estatus <> h.estatus THEN h.estatus END,
+                 NULL, h.id_user, u.name, h.created_at,
+                 'abogados', h.id_abogado, NULL, NULL"
+            );
     }
 
     /** Filtros que no son de fecha: área, acción, usuario, sede y búsqueda. */
@@ -229,9 +266,9 @@ class BitacoraIncidencias
     }
 
     /** La bitácora del periodo, de la más reciente a la más antigua. */
-    public static function registro(Carbon $desde, Carbon $hasta, array $f, int $porPagina = 25): LengthAwarePaginator
+    public static function registro(Carbon $desde, Carbon $hasta, array $f, int $porPagina = 25, string $pagina = 'page'): LengthAwarePaginator
     {
-        return self::consultaRegistro($desde, $hasta, $f)->paginate($porPagina)->withQueryString();
+        return self::consultaRegistro($desde, $hasta, $f)->paginate($porPagina, ['*'], $pagina)->withQueryString();
     }
 
     public static function consultaRegistro(Carbon $desde, Carbon $hasta, array $f): Builder
@@ -267,6 +304,11 @@ class BitacoraIncidencias
     /** Qué cambió, para los movimientos de la bitácora de administración. */
     public static function cambios(object $fila): array
     {
+        // Poderes: se compara la foto con la anterior (el estatus ya va aparte).
+        if (($fila->origen ?? null) === 'poder') {
+            return HistorialPoderes::cambiosDe((int) $fila->origen_id, false);
+        }
+
         $antes   = is_string($fila->datos_antes ?? null) ? json_decode($fila->datos_antes, true) : null;
         $despues = is_string($fila->datos_despues ?? null) ? json_decode($fila->datos_despues, true) : null;
         if (! is_array($despues)) {

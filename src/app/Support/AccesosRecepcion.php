@@ -21,7 +21,9 @@ use Illuminate\Support\Str;
  *   - Morelia 02: recibe a quien llega a audiencias, ratificaciones y
  *     cumplimientos (audiencias y cumplimientos salen de su agenda, no de
  *     recepcion: no se crean como turno);
- *   - General: todo lo de su sede (atiende sola las sedes regionales).
+ *   - General: todo lo de su sede (atiende sola las sedes regionales),
+ *     incluida la gente que llega a audiencias y cumplimientos, igual que
+ *     Morelia 02.
  *
  * Las citas de prueba del flujo nuevo (FlujoCita) no se cuentan.
  */
@@ -34,8 +36,11 @@ class AccesosRecepcion
         Recepcion::REGIONAL   => ['Solicitud', 'Asesoría', 'Ratificación', 'Cumplimiento'],
     ];
 
-    /** Además de los turnos, Morelia 02 recibe las audiencias y cumplimientos de su agenda. */
-    private const AGENDA = [Recepcion::MORELIA_02];
+    /**
+     * Además de los turnos, reciben las audiencias y cumplimientos de su
+     * agenda y marcan quién llegó (LlegadasHoy::MARCAN): Morelia 02 y la General.
+     */
+    private const AGENDA = [Recepcion::MORELIA_02, Recepcion::REGIONAL];
 
     private const PLURAL = [
         'Solicitud'    => 'Solicitudes',

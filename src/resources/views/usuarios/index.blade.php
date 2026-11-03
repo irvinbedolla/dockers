@@ -74,6 +74,7 @@
         .us-roles { display: flex; flex-wrap: wrap; gap: 4px; }
         .us-rol { padding: 2px 8px; border-radius: 6px; background: #EEF2F2; color: var(--tn-verde); font-size: 12px; font-weight: 700; white-space: nowrap; }
         .us-rol--sinotifico { background: #FBF3DC; color: #8A6A12; }
+        .us-rol--enlace { background: #F3E8F7; color: #6B2F86; }
 
         .us-acceso { display: flex; gap: 8px; align-items: flex-start; }
         .us-punto { width: 8px; height: 8px; border-radius: 50%; margin-top: 6px; flex: 0 0 auto; }
@@ -236,6 +237,9 @@
                                             @foreach ($roles as $rol)<span class="us-rol">{{ $rol }}</span>@endforeach
                                             @if ($u->permissions->contains('name', \App\Support\Sinotifico\Acceso::SUPERVISAR_SEDE))
                                                 <span class="us-rol us-rol--sinotifico" title="Supervisa a los notificadores de su sede en SíNotifico">SíNotifico · Supervisa</span>
+                                            @endif
+                                            @if ($u->permissions->contains('name', \App\Support\CasosExcepcion::PERMISO_ENLACE))
+                                                <span class="us-rol us-rol--enlace" title="Apoya al Departamento de Conciliación, Género e Igualdad desde su delegación">{{ \App\Support\CasosExcepcion::DISTINTIVO }}</span>
                                             @endif
                                         </div>
                                     </td>

@@ -67,6 +67,11 @@
                 page-break-inside: avoid;
             }
 
+            /* Último texto + firma: se mantienen juntos en la misma página */
+            .cierre-con-firma {
+                page-break-inside: avoid;
+            }
+
             /* Pie fijo: código de delegación + elaboró */
             .etiqueta-iniciales-pie {
                 position: fixed;
@@ -159,10 +164,6 @@
                     a efecto de llevar el registro correspondiente de ingreso de este Centro de Conciliación y dar inicio de manera puntual a la audiencia prejudicial; De igual manera, podrá comparecer asistido por abogado(a) o persona de su confianza, 
                     pero no se reconocerá a ésta como apoderado, por tratarse de un Procedimiento de Conciliación y no de un juicio.
                 </p>
-
-                <p>
-                    Por lo que respecta al empleador, éste podrá comparecer presencialmente o a través de su representative, siempre y cuando cuente con las facultades suficientes para obligarse en su nombre y lo acredite ante esta instancia.
-                </p>
             @endif
 
             @if ($solicitud->tipo_solicitud == 1)
@@ -179,7 +180,29 @@
                 <p >En cualquiera de los casos, será necesario presentar la documentación física y en formato pdf no mayor a 5 megabytes.</p>
 
                 <!--div style="page-break-after: always;"></div-->
-                
+            @endif
+
+            @if ($solicitud->tipo_solicitud == 2)
+                @php
+                    $longitud = mb_strlen($citado->nombre);
+                    $forzarSalto = $longitud > 200;
+                @endphp
+
+                @if($forzarSalto)
+                    <div style="page-break-before: always;"></div>
+                @endif
+            @endif
+
+            {{-- El cierre del texto y la firma van juntos: si no caben en la página,
+                 pasan completos a la siguiente y la firma nunca queda sola. --}}
+            <div class="cierre-con-firma">
+            @if ($solicitud->tipo_solicitud == 2)
+                <p>
+                    Por lo que respecta al empleador, éste podrá comparecer presencialmente o a través de su representative, siempre y cuando cuente con las facultades suficientes para obligarse en su nombre y lo acredite ante esta instancia.
+                </p>
+            @endif
+
+            @if ($solicitud->tipo_solicitud == 1)
                 <p>
                     Se sugiere llegar con 15 minutos de anticipación de la hora señalada para el desahogo de la audiencia y llevar los registros de ingreso correspondientes, con la finalidad de dar inicio de manera puntual con su procedimiento de conciliación.
                 </p>
@@ -202,23 +225,15 @@
                 </p>
             @endif
             
-            @if ($solicitud->tipo_solicitud == 2)
-                @php
-                    $longitud = mb_strlen($citado->nombre);
-                    $forzarSalto = $longitud > 200;
-                @endphp
-
-                @if($forzarSalto)
-                    <div style="page-break-before: always;"></div>
-                @else
-                    <br><br>
-                @endif
+            @if ($solicitud->tipo_solicitud == 2 && !$forzarSalto)
+                <br><br>
             @endif
-            
+
             <div class="bloque-firma text-center">
                 <br><br>
                 <p style="text-align: center;">___________________________________<br> {{ mb_strtoupper($conciliador->name, 'UTF-8') }} <br> FUNCIONARIO/A CONCILIADOR/A<br>
                 DEL CENTRO DE CONCILIACIÓN LABORAL<br>DEL ESTADO DE MICHOACÁN DE OCAMPO</p>
+            </div>
             </div>
 
             @if(!empty($esPrimeraAudiencia) && !empty($etiquetaIniciales) && !empty($inicialesConcluye) && (($citado->estatus ?? null) !== 'Notificada en Audiencia') && !empty($solicitud->fecha_confirmacion) && $solicitud->fecha_confirmacion > \Carbon\Carbon::parse('2026-06-03'))

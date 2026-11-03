@@ -52,7 +52,7 @@ class ReasignacionCita
     {
         $ocupacion = [];
         foreach ($delDia as $c) {
-            if ($c->estatus === 'expirada') {
+            if (in_array($c->estatus, ['expirada', 'cancelada'], true)) {
                 continue;
             }
             $h = substr($c->hora, 0, 5);

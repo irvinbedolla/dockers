@@ -160,6 +160,17 @@
         }
         .md-nuevo:hover { border-color: var(--tn-verde-claro); color: var(--tn-verde); }
         .md-nuevo i { font-size: 24px; }
+
+        /* Límite de citas en línea (_limite_citas) */
+        .md-limite__cab { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px 16px; }
+        .md-limite__titulo { margin: 0 0 4px; font-size: 16px; font-weight: 700; color: var(--tn-tinta); display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+        .md-limite__titulo .bi { color: var(--tn-verde); }
+        .md-limite__texto { font-size: 13.5px; color: var(--tn-suave); }
+        .md-limite__acciones { display: flex; flex-wrap: wrap; gap: 6px; }
+        .md-limite__hoy { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--tn-borde); font-size: 13px; color: var(--tn-suave); }
+        .md-limite__hoy b { color: var(--tn-tinta); }
+        .md-limite__alerta, .md-limite__alerta b { color: #9A3A22 !important; }
+        .md-limite__nota { font-size: 12.5px; color: #7A5D10; background: #FBF4E1; border-radius: 8px; padding: 8px 10px; }
     </style>
 @endsection
 
@@ -193,6 +204,8 @@
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
                 </div>
             @endif
+
+            @include('administracion.modulos._limite_citas')
 
             <div class="tn-tarjeta md-barra">
                 <nav class="md-sedes" aria-label="Sede">

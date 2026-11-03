@@ -1066,13 +1066,16 @@ class TurnosController extends Controller
             })
             ->get();
         $maxEmpalme = $sede === 'Morelia' ?  2 : 1;
-        $ocupadosQuery = Recepcion::whereBetween('fecha', [$fecha_inicio, $fecha_fin])->where('tipo', 'Ratificación')->where('delegacion', $sede)->get(['fecha', 'hora']);
+        if($origen === 'externo')
+            $ocupadosQuery = Recepcion::whereBetween('fecha', [$fecha_inicio, $fecha_fin])->where('tipo', 'Ratificación')->where('delegacion', $sede)->get(['fecha', 'hora']);
+        else
+            $ocupadosQuery = Turnos::whereBetween('fecha', [$fecha_inicio, $fecha_fin])->where('tipo', 'Ratificación')->where('delegacion', $sede)->get(['fecha', 'hora']);
         $ocupadosCount = [];
         foreach ($ocupadosQuery as $turno) {
             $fechaTurno = \Carbon\Carbon::parse($turno->fecha)->format('Y-m-d');
             $horaTurno = \Carbon\Carbon::parse($turno->hora)->format('H:i');
 
-            $key = $turno->fecha->format('Y-m-d') . 'T' . $turno->hora->format('H:i');
+            $key = $fechaTurno . 'T' . $horaTurno;
             $ocupadosCount[$key] = ($ocupadosCount[$key] ?? 0) + 1;
         }
 
@@ -1083,17 +1086,14 @@ class TurnosController extends Controller
         while ($fecha <= $fin) {
             if ($fecha->format('N') < 6) { 
                 
-                if($fecha->format('Y-m-d') >= '2026-10-19'){
+                if($fecha->format('Y-m-d') >= '2026-10-22'){
                     $slotEndDt = new \DateTime($fecha->format('Y-m-d') . ' 15:00:00');
                     $slotDt = new \DateTime($fecha->format('Y-m-d') . ' 08:30:00');
-                    $slotComida = $sede === 'Morelia' ? new \DateTime($fecha->format('Y-m-d') . ' 13:30:00') : new \DateTime($fecha->format('Y-m-d') . ' 17:40:00');
+                    $slotComida =  new \DateTime($fecha->format('Y-m-d') . ' 13:30:00');
+                    if($sede === 'Zamora' && $fecha->format('Y-m-d') <= '2026-10-23'){
+                        $slotComida = new \DateTime($fecha->format('Y-m-d') . ' 17:40:00');
+                    }
                 }
-                else{
-                    $slotEndDt = new \DateTime($fecha->format('Y-m-d') . ' 15:30:00');
-                    $slotDt = new \DateTime($fecha->format('Y-m-d') . ' 09:00:00');
-                    $slotComida = new \DateTime($fecha->format('Y-m-d') . ' 13:00:00');
-                }
-                
 
                 while ($slotDt <= $slotEndDt) {
                         $hora_str = $slotDt->format('H:i:s');
@@ -1283,9 +1283,8 @@ class TurnosController extends Controller
             $deduccionesTexto[$deduccion->id] = $this->convertirNumerosALetras($deduccion->monto);
         }
 
-        $totalPrestaciones = $prestaciones->sum('monto');
-        $totalDeducciones = $deducciones->sum('monto');
-        $pagoTotal = $totalPrestaciones - $totalDeducciones;
+        // Neto a pagar y monto de las cláusulas QUINTA y SEXTA (ver montoConvenio()).
+        [$pagoTotal, $montoConvenio] = $this->montoConvenio($prestaciones, $deducciones, $solicitud->monto);
 
         $dias_descanso = $solicitud->dias !== null ? 7 - $solicitud->dias : null;
         $salario_diario = $this->calcularSalarioDiario($solicitud->salario, $solicitud->frecuencia);
@@ -1293,7 +1292,7 @@ class TurnosController extends Controller
 
         $diarioTexto = $this->convertirNumerosALetras($salario_diario);
         $mensualTexto = $this->convertirNumerosALetras($salario_mensual);
-        $montoTexto = $this->convertirNumerosALetras($solicitud->monto);
+        $montoTexto = $this->convertirNumerosALetras($montoConvenio);
 
         // Obtener el número de pagos
         $pagosDif = Pagos::join("turnos", "turnos.id", "=", "pago_solicitud.id_solicitud")
@@ -1321,7 +1320,7 @@ class TurnosController extends Controller
                 'diarioTexto', 'mensualTexto', 'montoTexto', 'conceptosTexto', 'deduccionesTexto', 
                 'pagosDif', 'conciliador', 'abogado', 'municipioEmpresa', 'estadoEmpresa', 'pagoTotal', 
                 'descripcionIdentificacionS', 'descripcionIdentificacionP','prestaciones','deducciones','delegado',
-                'inicialesConcluye', 'etiquetaIniciales'
+                'inicialesConcluye', 'etiquetaIniciales', 'montoConvenio'
             )
         )->render();
 
@@ -1346,6 +1345,25 @@ class TurnosController extends Controller
             default:
                 return 0;
         }
+    }
+
+    /**
+     * Monto del convenio de una ratificación: el neto de lo que se capturó al
+     * concluir (prestaciones menos deducciones), redondeado a centavos. Es lo
+     * mismo que la tabla "Neto a pagar", así que las cláusulas, la letra y la
+     * tabla siempre dicen la misma cantidad.
+     *
+     * turnos.monto es el "monto total del convenio" que se capturó en la
+     * solicitud y no se actualiza si al concluir cambian los conceptos o se
+     * agregan deducciones; sólo se usa si la ratificación no tiene conceptos.
+     *
+     * @return array{0: float, 1: float} [neto a pagar, monto del convenio]
+     */
+    private function montoConvenio($prestaciones, $deducciones, $montoCapturado): array
+    {
+        $neto = round((float) $prestaciones->sum('monto') - (float) $deducciones->sum('monto'), 2);
+
+        return [$neto, $prestaciones->isNotEmpty() ? $neto : round((float) $montoCapturado, 2)];
     }
 
     private function convertirNumerosALetras($valor) {
@@ -1932,8 +1950,23 @@ class TurnosController extends Controller
         $user = User::find($id_usuario);
         $sede = $user->delegacion;
 
-        //Revisar si existe
-        if(isset($data["dias_pagos"])){
+        //Regresar error si faltan fechas de pago o conceptos (antes de guardar nada)
+        if(!isset($data["dias_pagos"])){
+            return back()->withErrors('Debes agregar por lo menos una fecha de pago.');
+        }
+        if(!isset($data["tipo_pago"])){
+            return back()->withErrors('Debes agregar por lo menos un concepto de pago.');
+        }
+
+        // Todo va en una transacción: si algo falla no quedan pagos/conceptos sueltos
+        // con la ratificación aún en "Confirmado". El lockForUpdate + la revisión del
+        // estatus evitan que un doble envío (doble clic, otra pestaña) duplique registros.
+        $concluida = DB::transaction(function () use ($data, $sede, $id_usuario) {
+            $turno = Turnos::lockForUpdate()->find($data["id"]);
+            if(!$turno || $turno->estatus !== "Confirmado"){
+                return false;
+            }
+
             $conteo = count($data["dias_pagos"]);
             for($i = 0; $i < $conteo; $i++) {
                 $data_citado = [
@@ -1948,12 +1981,7 @@ class TurnosController extends Controller
                 ];
                 Pagos::create($data_citado);
             }
-        }
-        //Regresar error
-        else{
-            return back()->withErrors('Debes agregar por lo menos una fecha de pago.');
-        }
-        if(isset($data["tipo_pago"])){
+
             $tiposPago = $data["tipo_pago"];
             $cont = count($data["monto_pago"]);
             $otrasPrestaciones = $data["otra_prestacion"] ?? [];
@@ -1970,62 +1998,64 @@ class TurnosController extends Controller
                     'descripcion'   => $descripcion,
                     'tipo_pago'     => "Ratificacion"
                 ];
-                //dd($data_citado);
                 Concepto::create($data_citado);
             }
-        }
-        //Regresar error
-        else{
-            return back()->withErrors('Debes agregar por lo menos un concepto de pago.');
-        }
-        if(isset($data["descripcion_deduccion"])){
-            $cont = count($data["descripcion_deduccion"]);
-            for($i = 0; $i < $cont; $i++) {
-                $data_deduccion = [
-                    'id_solicitud'  => $data["id"], 
-                    'monto'         => $data["monto_deduccion"][$i], 
-                    'descripcion'   => $data["descripcion_deduccion"][$i],
-                    'tipo_pago'     => "Ratificacion"
-                ];
-                Deducciones::create($data_deduccion);
+
+            if(isset($data["descripcion_deduccion"])){
+                $cont = count($data["descripcion_deduccion"]);
+                for($i = 0; $i < $cont; $i++) {
+                    $data_deduccion = [
+                        'id_solicitud'  => $data["id"], 
+                        'monto'         => $data["monto_deduccion"][$i], 
+                        'descripcion'   => $data["descripcion_deduccion"][$i],
+                        'tipo_pago'     => "Ratificacion"
+                    ];
+                    Deducciones::create($data_deduccion);
+                }
             }
+
+            if($conteo >= 2){
+                $estatus = "Concluida Pagos";
+            }
+            else{
+                $estatus = "Concluida";
+            }
+
+            //Generar numero de expediente
+            $expediente = $this->GeneraExpediente($turno["consecutivo"],$turno["delegacion"]);
+
+            $updateData = [
+                'resolucion_primera'        => $data["primera"],
+                //'resolucion_trabajadores' => $data["trabajadores"],
+                'resolucion_justificacion'  => $data["justificacion"],
+                'resolucion_segunda'        => $data["segunda"],
+                'vacaciones_dias'           => $data["vacaciones"],
+                'aguinaldo_dias'            => $data["aguinaldo"],
+                'otros_dias'                => $data["otros"],
+                'horario'                   => $data["horario"],
+                'comida'                    => $data["comida"],
+                /*'domicilio'               => $data["domicilio"],*/
+                'NUE'                       => $expediente,
+                'id_conciliador'            => $data["conciliador_id"],
+                'user_id'                   => $id_usuario,
+                'estatus'                   => $estatus,
+                'conclucion_id'             => $id_usuario,
+                'fecha_conclucion'          => \Carbon\Carbon::now()->format('Y-m-d'),
+            ];
+
+            if (!empty($data["year_ptu"])) {
+                $updateData['year_ptu'] = (int) $data["year_ptu"][array_key_first($data["year_ptu"])];
+            }
+
+            $turno->update($updateData);
+
+            return true;
+        });
+
+        if(!$concluida){
+            return redirect()->route('todas_ratificaciones')
+                ->withErrors('Esta ratificación ya fue concluida o ya no está en estatus Confirmado; no se guardó de nuevo.');
         }
-
-        if($conteo >= 2){
-            $estatus = "Concluida Pagos";
-        }
-        else{
-            $estatus = "Concluida";
-        }
-
-        //Generar numero de expediente
-        $delegacion = Turnos::find($data["id"]);
-        $expediente = $this->GeneraExpediente($delegacion["consecutivo"],$delegacion["delegacion"]);
-
-        $updateData = [
-            'resolucion_primera'        => $data["primera"],
-            //'resolucion_trabajadores' => $data["trabajadores"],
-            'resolucion_justificacion'  => $data["justificacion"],
-            'resolucion_segunda'        => $data["segunda"],
-            'vacaciones_dias'           => $data["vacaciones"],
-            'aguinaldo_dias'            => $data["aguinaldo"],
-            'otros_dias'                => $data["otros"],
-            'horario'                   => $data["horario"],
-            'comida'                    => $data["comida"],
-            /*'domicilio'               => $data["domicilio"],*/
-            'NUE'                       => $expediente,
-            'id_conciliador'            => $data["conciliador_id"],
-            'user_id'                   => $id_usuario,
-            'estatus'                   => $estatus,
-            'conclucion_id'             => $id_usuario,
-            'fecha_conclucion'          => \Carbon\Carbon::now()->format('Y-m-d'),
-        ];
-
-        if (!empty($data["year_ptu"])) {
-            $updateData['year_ptu'] = (int) $data["year_ptu"][array_key_first($data["year_ptu"])];
-        }
-
-        $rechazar = Turnos::find($data["id"])->update($updateData);
         
         $id_solicitud =  $data["id"];
         if($data["valor"] == 1){
@@ -3045,10 +3075,8 @@ class TurnosController extends Controller
             $deduccionesTexto[$deduccion->id] = $this->convertirNumerosALetras($deduccion->monto);
         }
 
-        $totalPrestaciones = $prestaciones->sum('monto');
-        $totalDeducciones = $deducciones->sum('monto');
-        //Total a pagar
-        $pagoTotal= $totalPrestaciones-$totalDeducciones;
+        // Neto a pagar y monto de las cláusulas (ver montoConvenio()).
+        [$pagoTotal, $montoConvenio] = $this->montoConvenio($prestaciones, $deducciones, $ratificacion->monto);
         $conciliador  = User::join("turnos","turnos.id_conciliador","=","users.id");
         $conciliador = $conciliador->where("turnos.id", "=", $id)
         ->select('users.name')
@@ -3066,7 +3094,7 @@ class TurnosController extends Controller
         $salario_mensual = $salario_diario * 30;
         $diarioTexto = $this->convertirNumerosALetras($salario_diario);
         $mensualTexto = $this->convertirNumerosALetras($salario_mensual);
-        $montoTexto = $this->convertirNumerosALetras($ratificacion->monto);
+        $montoTexto = $this->convertirNumerosALetras($montoConvenio);
         
         $pagosDif  = Pagos::join("turnos","turnos.id","=","pago_solicitud.id_solicitud");
         $pagosDif = $pagosDif->where("pago_solicitud.id_solicitud", "=", $id)
@@ -3085,10 +3113,10 @@ class TurnosController extends Controller
 
         if($ratificacion->fecha_termino){
             $html = view('PDF/convenioPTUNoLaboraRati', compact('id','ratificacion','conciliador','prestaciones','deducciones','deduccionesTexto','pagoTotal','descripcionIdentificacionS','salario_mensual','mensualTexto',
-            'descripcionIdentificacionP','abogado','conceptosTexto','municipioEmpresa','estadoEmpresa','montoTexto','pagosDif','pagos','delegado', 'inicialesConcluye','etiquetaIniciales'))->render();
+            'descripcionIdentificacionP','abogado','conceptosTexto','municipioEmpresa','estadoEmpresa','montoTexto','pagosDif','pagos','delegado', 'inicialesConcluye','etiquetaIniciales','montoConvenio'))->render();
         } else {
             $html = view('PDF/convenioPTULaboraRati', compact('id','ratificacion','conciliador','prestaciones','deducciones','deduccionesTexto','pagoTotal','descripcionIdentificacionS','salario_mensual','mensualTexto',
-            'descripcionIdentificacionP','abogado','conceptosTexto','municipioEmpresa','estadoEmpresa','montoTexto','pagosDif','pagos','delegado', 'inicialesConcluye','etiquetaIniciales'))->render();
+            'descripcionIdentificacionP','abogado','conceptosTexto','municipioEmpresa','estadoEmpresa','montoTexto','pagosDif','pagos','delegado', 'inicialesConcluye','etiquetaIniciales','montoConvenio'))->render();
         }
 
         $pdf = \PDF::loadHTML($html)
@@ -3105,6 +3133,10 @@ class TurnosController extends Controller
         $id_usuario     = auth()->user()->id;
         $user           = User::find($id_usuario);           
         $solicitud      = Turnos::find($id);
+        if (!$solicitud->puedeEditarse()) {
+            return redirect()->route('todas_ratificaciones')
+                ->withErrors('Esta ratificación ya fue concluida y solo podía editarse hasta un día después de su conclusión.');
+        }
         $sede           = $user->delegacion;
         $representantes = Poder::find($solicitud["idAbogado"]);
         $abogados       = Poder::all();
@@ -3150,6 +3182,11 @@ class TurnosController extends Controller
 
         $solicitud = Turnos::find($data['id']);
 
+        if (!$solicitud->puedeEditarse()) {
+            return redirect()->route('todas_ratificaciones')
+                ->withErrors('Esta ratificación ya fue concluida y solo podía editarse hasta un día después de su conclusión.');
+        }
+
         if (in_array($solicitud->estatus, ['Concluida', 'Concluida Pagos', 'Incumplimiento'])) {
             $request->validate(
                 ['conciliador_id' => 'required'],
@@ -3170,49 +3207,49 @@ class TurnosController extends Controller
             $Aguinaldo =  1;
         }
         else{
-            $Aguinaldo =  0;
+            $Aguinaldo =  null;
         }
         if(isset($data["Vacaciones"]) && $data["motivo"] == "Pago de prestaciones"){
             $Vacaciones =  1;
         }
         else{
-            $Vacaciones =  0;
+            $Vacaciones = null;
         }
         if(isset($data["PrimaVacacional"]) && $data["motivo"] == "Pago de prestaciones"){
             $PrimaVacacional = 1;
         }
         else{
-            $PrimaVacacional = 0;
+            $PrimaVacacional = null;
         }
         if(isset($data["PagoPTU"]) && $data["motivo"] == "Pago de prestaciones"){
             $PagoPTU =  1;
         }
         else{
-            $PagoPTU = 0;
+            $PagoPTU = null;
         }
         if(isset($data["Gratificación"]) && $data["motivo"] == "Pago de prestaciones"){
             $Gratificación =  1;
         }
         else{
-            $Gratificación = 0;
+            $Gratificación = null;
         }
         if(isset($data["PrimaAntigüedad"]) && $data["motivo"] == "Pago de prestaciones"){
             $PrimaAntigüedad =  1;
         }
         else{
-            $PrimaAntigüedad = 0;
+            $PrimaAntigüedad = null;
         }
         if(isset($data["Otras"]) && $data["motivo"] == "Pago de prestaciones"){
             $Otras =  1;
         }
         else{
-            $Otras =  0;
+            $Otras =  null;
         }
         if(isset($data["Especifique"]) && $data["motivo"] == "Pago de prestaciones"){
             $Especifique =  $data["Especifique"];
         }
         else{
-            $Especifique = 0;
+            $Especifique = null;
         }
         //Obtener el abogado actual y obtener el historial mas reciente 
         $ultimoRegistro = HistorialAbogado::where('id_abogado', $data["folio"])->latest()->first();

@@ -24,6 +24,12 @@
         .mm-chip--activo { background: #E5F3EA; color: #1E7B3C; }
         .mm-chip--prueba { background: #FBF4E1; color: #7A5D10; }
         .mm-chip--linea { background: #EEF2F2; color: var(--tn-verde); }
+        .mm-chip--termino {
+            background: #F3F1EC; color: #5A5446; font-weight: 600; max-width: 230px;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; vertical-align: middle;
+        }
+        .mm-razones .form-check { margin: 0 0 7px; }
+        .mm-razones .form-check-label { cursor: pointer; }
 
         .mm-par { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 14px; margin-bottom: 14px; }
         .mm-turno { position: relative; }
@@ -74,6 +80,12 @@
         .mm-tabla tr.is-espera td { background: #FFF6F5; }
         .mm-mensaje { font-size: 13px; font-weight: 600; padding: 8px 12px; border-radius: 10px; margin-bottom: 12px; background: #E5F3EA; color: #1E7B3C; }
         .mm-mensaje.is-error { background: #FBE9E7; color: #9A2B1C; }
+        /* Aviso "cita sin datos de ratificación" (SweetAlert). */
+        .sweet-alert .mm-aviso { text-align: left; font-size: 15px; line-height: 1.5; color: #3F4A4B; }
+        .sweet-alert .mm-aviso p { margin: 0 0 10px; }
+        .sweet-alert .mm-aviso ol { margin: 0 0 4px; padding-left: 22px; }
+        .sweet-alert .mm-aviso li { margin-bottom: 6px; }
+        .sweet-alert .mm-aviso a { font-weight: 700; }
         @media (max-width: 900px) { .mm-par { grid-template-columns: 1fr; } }
     </style>
 @endsection
@@ -109,7 +121,7 @@
             @if (! $modulo)
                 <div class="tn-tarjeta mm-vacio">No tienes un módulo activo asignado. Pídelo en Administración → Módulos.</div>
             @else
-                <div class="mm-mensaje" id="mmMensaje" role="status" hidden></div>
+                <div class="mm-mensaje" id="mmMensaje" role="status" @if (! session('success')) hidden @endif>{{ session('success') }}</div>
                 <div class="mm-alerta" id="mmAlerta" role="alert" hidden></div>
                 <div class="mm-par">
                     <div class="tn-tarjeta mm-turno" id="mmActual"></div>
@@ -137,6 +149,41 @@
     </section>
 @endsection
 
+{{-- Razón al terminar una solicitud o asesoría. Va en el stack del layout (fuera de #app) para que no quede debajo del fondo oscuro. --}}
+@if ($modulo && \App\Support\MotivoTermino::migrado())
+    @push('modals')
+        <div class="modal fade" id="mmModalTermino" tabindex="-1" aria-labelledby="mmModalTerminoTitulo" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <form class="modal-content" id="mmFormTermino" novalidate>
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="mmModalTerminoTitulo"><i class="bi bi-check2-circle me-1" aria-hidden="true"></i> Terminar la atención</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="mb-3">El folio <b id="mmTerminoFolio"></b> quedará como atendido. ¿Por qué terminó la atención?</p>
+                        <fieldset class="mm-razones">
+                            <legend class="visually-hidden">Razón</legend>
+                            @foreach (\App\Support\MotivoTermino::OPCIONES as $clave => $texto)
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="motivo_termino" id="mmTermino_{{ $clave }}" value="{{ $clave }}">
+                                    <label class="form-check-label" for="mmTermino_{{ $clave }}">{{ $texto }}</label>
+                                </div>
+                            @endforeach
+                        </fieldset>
+                        <label for="mmTerminoTexto" class="form-label mt-2 mb-1" id="mmTerminoTextoEtiqueta">Comentario (opcional)</label>
+                        <textarea id="mmTerminoTexto" name="motivo_termino_texto" class="form-control" rows="2" maxlength="255"></textarea>
+                        <div class="text-danger small mt-2" id="mmTerminoError" role="alert" hidden></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-success"><i class="bi bi-check2-circle me-1" aria-hidden="true"></i> Terminar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endpush
+@endif
+
 @section('scripts')
 @if ($modulo)
 <script>
@@ -144,6 +191,7 @@
     var URL = @json($urlDatos);
     var URL_PRELLENAR = @json(route('mi_modulo.prellenar', ['id' => '__ID__']));
     var URL_ACCION = @json(route('mi_modulo.accion', ['id' => '__ID__', 'accion' => '__ACCION__']));
+    var URL_RATIFICACION = @json(route('mi_modulo.ratificacion', ['id' => '__ID__']));
     var TOKEN = @json(csrf_token());
     var datos = @json($datos);
 
@@ -159,6 +207,7 @@
             (vigente(c) && c.enAtencion ? ' <span class="mm-chip mm-chip--atencion">En atención</span>'
                 : (vigente(c) && c.llamado ? ' <span class="mm-chip mm-chip--llamado">Llamado ' + esc(c.llamado) + '</span>' : '')) +
             (c.llegoTarde ? ' <span class="mm-chip mm-chip--tarde" title="Recepción la reactivó: va después de quienes llegaron a tiempo">Llegó tarde</span>' : '') +
+            (c.termino ? ' <span class="mm-chip mm-chip--termino" title="Por qué terminó: ' + esc(c.termino) + '">' + esc(c.termino) + '</span>' : '') +
             (c.esperando !== null && c.esperando !== undefined
                 ? ' <span class="mm-chip ' + (c.esperando >= datos.esperaAlerta ? 'mm-chip--espera' : 'mm-chip--sala') + '">En sala' + (c.esperando > 0 ? ' ' + esc(c.esperando) + ' min' : '') + '</span>' : '');
     }
@@ -173,6 +222,8 @@
         caja.hidden = false;
     }
     function vigente(c) { return c.estatus === 'pendiente' || c.estatus === 'confirmada'; }
+    function esRatificacion(c) { return c.tipo === 'Ratificación' || c.tipo === 'Ratificacion'; }
+    function esAsesoria(c) { return c.tipo === 'Asesoría' || c.tipo === 'Asesoria'; }
     function faltan(c) {
         if (c.estatus === 'atendido' || c.estatus === 'expirada') { return '—'; }
         if (c.minutos > 0) { return c.minutos + ' min'; }
@@ -181,6 +232,16 @@
     }
     // Fase 2: abre la captura de siempre con los datos de la cita.
     function iniciar(c) {
+        // Ratificación en atención: volver al formulario con los datos de su turno.
+        if (c.flujoNuevo && esRatificacion(c) && vigente(c) && c.enAtencion) {
+            return '<a href="' + esc(URL_RATIFICACION.replace('__ID__', c.id)) + '" class="btn tn-boton-dorado"><i class="bi bi-pencil-square me-1"></i> Revisar datos de la ratificación</a>';
+        }
+        // Asesoría en atención: si al final la persona quiere levantar solicitud, se captura con sus datos.
+        if (c.flujoNuevo && esAsesoria(c) && vigente(c) && c.enAtencion) {
+            return '<form method="POST" action="' + esc(URL_PRELLENAR.replace('__ID__', c.id)) + '" data-continuar="' + esc(c.folio) + '">' +
+                '<input type="hidden" name="_token" value="' + esc(TOKEN) + '">' +
+                '<button type="submit" class="btn tn-boton-dorado"><i class="bi bi-file-earmark-plus me-1"></i> Continuar como Solicitud</button></form>';
+        }
         if (!c.flujoNuevo || c.tipo !== 'Solicitud' || !vigente(c)) { return ''; }
         return '<form method="POST" action="' + esc(URL_PRELLENAR.replace('__ID__', c.id)) + '">' +
             '<input type="hidden" name="_token" value="' + esc(TOKEN) + '">' +
@@ -276,13 +337,32 @@
             .then(function (j) { datos = j; pintar(); })
             .catch(function () { document.getElementById('mmActualizado').textContent = 'Sin conexión, reintentando…'; });
     }
-    function mensaje(texto, error) {
+    function mensaje(texto, error, largo) {
         var m = document.getElementById('mmMensaje');
         m.textContent = texto;
         m.classList.toggle('is-error', !!error);
         m.hidden = false;
         clearTimeout(mensaje.t);
-        mensaje.t = setTimeout(function () { m.hidden = true; }, error ? 9000 : 5000);
+        mensaje.t = setTimeout(function () { m.hidden = true; }, error || largo ? 12000 : 5000);
+    }
+    if (!document.getElementById('mmMensaje').hidden) {
+        mensaje.t = setTimeout(function () { document.getElementById('mmMensaje').hidden = true; }, 12000);
+    }
+    // La cita de ratificación se agendó sin el formulario (p. ej. desde recepción): no hay datos que revisar.
+    function avisoSinRatificacion(a) {
+        var titulo = 'Sin datos de ratificación';
+        var paso1 = a.urlNueva
+            ? 'Captúrala en <a href="' + esc(a.urlNueva) + '" target="_blank" rel="noopener">Ratificaciones → Nueva Ratificación</a>.'
+            : 'Captúrala en <b>Ratificaciones → Nueva Ratificación</b>.';
+        var html = '<div class="mm-aviso">' +
+            '<p>La cita <b>' + esc(a.folio) + '</b> se agendó sin llenar el formulario de ratificación (por ejemplo, desde recepción), por eso no hay información que mostrar.</p>' +
+            '<p><b>Qué hacer:</b></p><ol><li>' + paso1 + '</li><li>Busca la ratificación en el apartado de <b>Confirmadas</b> y concluye.</li><li>Regresa a Mi módulo y da clic en <b>Terminar</b>.</li></ol></div>';
+        if (typeof swal === 'function') {
+            swal({ title: titulo, text: html, html: true, type: 'warning', confirmButtonText: 'Entendido' });
+        } else {
+            window.alert(titulo + '\n\nLa cita ' + a.folio + ' se agendó sin llenar el formulario de ratificación (por ejemplo, desde recepción).\n' +
+                '1. Captúrala en Ratificaciones → Nueva Ratificación.\n2. Busca la ratificación en el apartado de Confirmadas y concluye.\n3. Regresa a Mi módulo y da clic en Terminar.');
+        }
     }
     function confirmar(titulo, texto, si) {
         if (typeof swal === 'function') {
@@ -292,21 +372,71 @@
             si();
         }
     }
-    function ejecutar(boton) {
+    // cuerpo: datos que acompañan la acción (la razón al terminar). Regresa la respuesta.
+    function ejecutar(boton, cuerpo) {
         var accion = boton.getAttribute('data-accion');
+        var cabeceras = { 'Accept': 'application/json', 'X-CSRF-TOKEN': TOKEN, 'X-Requested-With': 'XMLHttpRequest' };
+        if (cuerpo) { cabeceras['Content-Type'] = 'application/json'; }
         boton.disabled = true;
-        fetch(URL_ACCION.replace('__ID__', boton.getAttribute('data-id')).replace('__ACCION__', accion), {
+        return fetch(URL_ACCION.replace('__ID__', boton.getAttribute('data-id')).replace('__ACCION__', accion), {
             method: 'POST',
-            headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': TOKEN, 'X-Requested-With': 'XMLHttpRequest' }
+            headers: cabeceras,
+            body: cuerpo ? JSON.stringify(cuerpo) : undefined
         })
             .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { ok: r.ok, j: j, status: r.status }; }); })
             .then(function (res) {
-                if (res.ok) { mensaje(res.j.mensaje || 'Listo.'); }
+                // Ratificación con turno ligado: se abre su formulario para revisarlo.
+                if (res.ok && res.j.ir) { window.location.href = res.j.ir; return; }
+                if (res.ok && res.j.aviso) { avisoSinRatificacion(res.j.aviso); }
+                if (res.ok) { mensaje(res.j.mensaje || 'Listo.', false, accion === 'terminar' && /Confirmadas/.test(res.j.mensaje || '')); }
                 else if (res.status === 419) { mensaje('La sesión expiró; recarga la página.', true); }
                 else { mensaje(res.j.message || 'No se pudo completar la acción.', true); }
                 actualizar();
+                return res;
             })
-            .catch(function () { mensaje('Sin conexión; intenta de nuevo.', true); boton.disabled = false; });
+            .catch(function () { mensaje('Sin conexión; intenta de nuevo.', true); boton.disabled = false; return null; });
+    }
+
+    // Terminar una solicitud o asesoría: se pide por qué terminó (App\Support\MotivoTermino).
+    var formTermino = document.getElementById('mmFormTermino');
+    var modalTermino = formTermino && window.bootstrap ? bootstrap.Modal.getOrCreateInstance(document.getElementById('mmModalTermino')) : null;
+    var botonTermino = null;
+    function terminoOtra() {
+        var sel = formTermino.querySelector('input[name="motivo_termino"]:checked');
+        var otra = !!sel && sel.value === 'otra';
+        document.getElementById('mmTerminoTexto').required = otra;
+        document.getElementById('mmTerminoTextoEtiqueta').textContent = otra ? '¿Cuál fue la razón? (obligatorio)' : 'Comentario (opcional)';
+    }
+    function terminoError(texto) {
+        var e = document.getElementById('mmTerminoError');
+        e.textContent = texto || '';
+        e.hidden = !texto;
+    }
+    function pedirMotivo(boton, folio) {
+        botonTermino = boton;
+        formTermino.reset();
+        terminoOtra();
+        terminoError('');
+        formTermino.querySelector('button[type="submit"]').disabled = false;
+        document.getElementById('mmTerminoFolio').textContent = folio;
+        modalTermino.show();
+    }
+    if (modalTermino) {
+        formTermino.addEventListener('change', function () { terminoOtra(); terminoError(''); });
+        formTermino.addEventListener('submit', function (e) {
+            e.preventDefault();
+            var sel = formTermino.querySelector('input[name="motivo_termino"]:checked');
+            var texto = document.getElementById('mmTerminoTexto');
+            if (!sel) { terminoError('Elige por qué terminó la atención.'); return; }
+            if (sel.value === 'otra' && !texto.value.trim()) { terminoError('Escribe cuál fue la razón.'); texto.focus(); return; }
+            var enviar = formTermino.querySelector('button[type="submit"]');
+            enviar.disabled = true;
+            ejecutar(botonTermino, { motivo_termino: sel.value, motivo_termino_texto: texto.value.trim() }).then(function (res) {
+                enviar.disabled = false;
+                if (res && res.ok) { modalTermino.hide(); }
+                else if (res) { terminoError((res.j && res.j.message) || 'No se pudo terminar la atención.'); }
+            });
+        });
     }
     // Un solo escuchador: los botones se repintan en cada actualización.
     document.querySelector('.tn .section-body').addEventListener('click', function (e) {
@@ -317,14 +447,35 @@
         if (accion === 'ausente') {
             confirmar('¿No se presentó?', 'El folio ' + folio + ' quedará como expirado y saldrá de la pantalla.', function () { ejecutar(boton); });
         } else if (accion === 'terminar') {
-            confirmar('¿Terminar la atención?', 'El folio ' + folio + ' quedará como atendido.', function () { ejecutar(boton); });
+            var cita = (datos.citas || []).filter(function (x) { return String(x.id) === boton.getAttribute('data-id'); })[0];
+            if (cita && cita.pideMotivo && modalTermino) {
+                pedirMotivo(boton, folio);
+            } else {
+                confirmar('¿Terminar la atención?', 'El folio ' + folio + ' quedará como atendido.', function () { ejecutar(boton); });
+            }
         } else {
             ejecutar(boton);
         }
     });
 
+    // "Continuar como Solicitud" (asesoría): confirma antes de ir a la captura.
+    document.querySelector('.tn .section-body').addEventListener('submit', function (e) {
+        var form = e.target.closest('form[data-continuar]');
+        if (!form || form.dataset.confirmado) { return; }
+        e.preventDefault();
+        confirmar('¿Continuar como solicitud?', 'Se abrirá la captura de la solicitud con los datos de la asesoría ' + form.getAttribute('data-continuar') + '. Al guardarla, la cita quedará como atendida.', function () {
+            form.dataset.confirmado = '1';
+            // La lista se repinta cada 20 s: si ya no está en la página, se vuelve a poner para enviarlo.
+            if (!form.isConnected) { form.hidden = true; document.body.appendChild(form); }
+            form.submit();
+        });
+    });
+
     pintar();
     setInterval(actualizar, 20000);
+    @if (session('aviso_ratificacion'))
+        avisoSinRatificacion(@json(session('aviso_ratificacion')));
+    @endif
 
     // Fase 3: las notificaciones del sistema operativo piden permiso con un clic.
     var permiso = document.getElementById('mmPermiso');

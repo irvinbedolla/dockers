@@ -277,6 +277,7 @@
             pasada:        { clase: 'aviso', icono: 'bi-calendar-x-fill',         chip: '#B4530F' },
             tarde:         { clase: 'error', icono: 'bi-alarm-fill',              chip: '#A3162E' },
             expirada:      { clase: 'error', icono: 'bi-x-octagon-fill',          chip: '#A3162E' },
+            cancelada:     { clase: 'error', icono: 'bi-calendar2-x-fill',        chip: '#A3162E' },
             otra_sede:     { clase: 'error', icono: 'bi-geo-alt-fill',            chip: '#A3162E' },
             no_encontrada: { clase: 'error', icono: 'bi-question-octagon-fill',   chip: '#A3162E' },
             error:         { clase: 'error', icono: 'bi-exclamation-triangle-fill', chip: '#A3162E' }

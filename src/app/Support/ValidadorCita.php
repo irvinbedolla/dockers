@@ -30,13 +30,18 @@ class ValidadorCita
 
     /**
      * @return array{resultado: string, cambio: bool}
-     *   resultado: confirmada | ya_confirmada | atendida | tarde | expirada | otro_dia | pasada
+     *   resultado: confirmada | ya_confirmada | atendida | tarde | expirada | otro_dia | pasada | cancelada
      */
     public static function validar(Recepcion $cita, ?Carbon $ahora = null): array
     {
         $ahora = $ahora ?? now();
         $fecha = $cita->fecha->copy()->startOfDay();
         $hoy   = $ahora->copy()->startOfDay();
+
+        // Cancelada desde Administración: nunca se revive al escanear el QR.
+        if ($cita->estatus === 'cancelada') {
+            return ['resultado' => 'cancelada', 'cambio' => false];
+        }
 
         if ($cita->estatus === 'expirada') {
             return ['resultado' => 'expirada', 'cambio' => false];

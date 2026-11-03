@@ -7,6 +7,7 @@ use App\Models\Recepcion;
 use App\Models\User;
 use App\Support\AsignadorModulos;
 use App\Support\Especialidades;
+use App\Support\LimiteCitas;
 use App\Support\ReasignacionCita;
 use App\Support\Recepcion as RecepcionRoles;
 use Illuminate\Http\Request;
@@ -107,7 +108,57 @@ class ModulosController extends Controller
             'opciones'  => $opciones,
             'personal'  => $personal,
             'tramites'  => AsignadorModulos::TRAMITES,
+            'limite'    => LimiteCitas::config(),
+            'limiteHoy' => LimiteCitas::hoy(),
         ]);
+    }
+
+    /**
+     * Tope de citas en línea por conexión (IP), correo y teléfono, para todas
+     * las sedes (App\Support\LimiteCitas). 0 = sin límite.
+     */
+    public function limite(Request $request)
+    {
+        abort_unless(LimiteCitas::migrado(), 404);
+
+        $numero = ['required', 'integer', 'min:0', 'max:'.LimiteCitas::MAXIMO];
+        $datos = $request->validate([
+            'por_ip'       => $numero,
+            'por_correo'   => $numero,
+            'por_telefono' => $numero,
+            'periodo'      => ['required', Rule::in(array_keys(LimiteCitas::PERIODOS))],
+            'exentas'      => ['nullable', 'string', 'max:2000'],
+        ], [], [
+            'por_ip'       => 'límite por conexión (IP)',
+            'por_correo'   => 'límite por correo',
+            'por_telefono' => 'límite por teléfono',
+            'periodo'      => 'periodo',
+            'exentas'      => 'conexiones sin límite',
+        ]);
+
+        $escritas = preg_split('/[\s,;]+/', trim((string) ($datos['exentas'] ?? '')), -1, PREG_SPLIT_NO_EMPTY);
+        $invalidas = array_values(array_diff($escritas, LimiteCitas::listaExentas((string) ($datos['exentas'] ?? ''))));
+        if ($invalidas) {
+            return back()->withInput()->withErrors(['exentas' => 'Estas no son direcciones IP válidas: '.implode(', ', $invalidas).'.']);
+        }
+
+        $antes = LimiteCitas::config();
+        LimiteCitas::guardar($datos, $request->user());
+        $ahora = LimiteCitas::config();
+
+        Log::info('Límite de citas en línea actualizado', [
+            'por'   => $request->user()->id,
+            'antes' => [$antes->por_ip, $antes->por_correo, $antes->por_telefono, $antes->periodo],
+            'ahora' => [$ahora->por_ip, $ahora->por_correo, $ahora->por_telefono, $ahora->periodo],
+        ]);
+
+        return redirect()->route('modulos.index', array_filter([
+            'sede'   => $request->input('sede_vista'),
+            'fecha'  => $request->input('fecha_vista'),
+            'origen' => $request->input('origen_vista'),
+        ]))->with('success', LimiteCitas::activo($ahora)
+            ? 'Se guardó el límite de citas en línea; aplica desde ahora en todas las sedes.'
+            : 'Se quitó el límite: las citas en línea ya no tienen tope.');
     }
 
     public function guardar(Request $request, ?Modulo $modulo = null)

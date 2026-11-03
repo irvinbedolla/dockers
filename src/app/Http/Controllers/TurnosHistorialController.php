@@ -21,7 +21,7 @@ use Illuminate\Validation\Rule;
 class TurnosHistorialController extends Controller
 {
     public const TIPOS    = ['Solicitud', 'Ratificación', 'Asesoría', 'Cumplimiento'];
-    public const ESTATUS  = ['pendiente', 'confirmada', 'atendido', 'expirada'];
+    public const ESTATUS  = ['pendiente', 'confirmada', 'atendido', 'expirada', 'cancelada'];
     private const POR_PAGINA = 25;
 
     public function __invoke(Request $request)

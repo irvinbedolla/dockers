@@ -42,7 +42,7 @@ class OcupacionTurnos
             ->whereBetween('fecha', [$desde, $hasta])
             ->whereIn('delegacion', self::variantes($sedes))
             ->whereIn('tipo', $tipos)
-            ->where('estatus', '!=', 'expirada')
+            ->whereNotIn('estatus', ['expirada', 'cancelada'])
             ->when(FlujoCita::migrado(), fn ($q) => $q->where(fn ($w) => $w->where('es_prueba', 0)->orWhereNull('es_prueba')))
             ->get(['fecha', 'hora', 'tipo', 'origen', 'exepcion', 'estatus']);
 
