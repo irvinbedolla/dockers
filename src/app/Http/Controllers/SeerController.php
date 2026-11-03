@@ -4974,7 +4974,7 @@ class SeerController extends Controller
         // --- NUEVO: Obtener la fecha exacta de hace 7 días ---
         // subDays(7) resta una semana a la fecha de hoy.
         // toDateString() lo deja en formato 'YYYY-MM-DD' listo para SQL.
-        $haceUnaSemana = Carbon::now()->subDays(7)->toDateString();
+        $haceUnaSemana = Carbon::now()->subDays(15)->toDateString();
 
         // 2. Iniciamos la consulta base
         $query = SeerPerGeneral::join('catalogo_rama', 'catalogo_rama.id', '=', 'seer_general.id_rama')
