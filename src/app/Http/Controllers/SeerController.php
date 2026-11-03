@@ -3421,31 +3421,8 @@ class SeerController extends Controller
         ]);
         
         $año_actual = date('Y');
-        $numero_consecutivo = 0;
-        $consecutivo  = SeerPerGeneral::latest('consecutivo')
-        ->where('delegacion',$data["delegacion"])
-        ->where('año',$año_actual)->
-        first();
 
-        if(empty($consecutivo)){
-            $numero_consecutivo = 1;
-        }
-        else{
-            $numero_consecutivo = $consecutivo["consecutivo"];
-            $numero_consecutivo++;
-        }
-
-        $data_insert=array(
-            'id_rama'         =>  $data["ramaIndustrial"],
-            'actividad'       =>  $data["actividad_economica"],
-            'delegacion'      =>  $data["delegacion"],
-            'tipo_solicitud'  =>  $data["tipo_solicitud"],
-            'tipo_generacion' => auth()->check() ? auth()->id() :0,
-            'consecutivo'    => $numero_consecutivo,    
-            'año'            => $año_actual,
-        );
-       
-        /*SeerPerGeneral::create($data_insert); 
+        /*SeerPerGeneral::create($data_insert);
         $id_general  = SeerPerGeneral::latest('id')->first();
         $id=$id_general["id"];
         $tipo_generacion=$id_general->tipo_generacion;
@@ -3455,23 +3432,24 @@ class SeerController extends Controller
                 SeerMotivo::create([
                     'id_solicitud'    => $id_general["id"],
                     'id_motivo'       => $motivoId,
-                    
+
                 ]);
             }
         }*/
 
-        // Guardar en sesión
+        // Guardar en sesión. El consecutivo queda vacío: se asigna al confirmar
+        // la solicitud (siguienteConsecutivoSolicitud), así no se apartan números.
         $solicitud_data = array(
             'id_rama'         =>  $data["ramaIndustrial"],
             'actividad'       =>  $data["actividad_economica"],
             'delegacion'      =>  $data["delegacion"],
             'tipo_solicitud'  =>  $data["tipo_solicitud"],
             'tipo_generacion' => auth()->check() ? auth()->id() : 0,
-            'consecutivo'     => $numero_consecutivo,
+            'consecutivo'     => null,
             'año'             => $año_actual,
             'motivo_solicitud' => $data["motivo_solicitud"] ?? []
         );
-       
+
         session(['solicitud_trabajador_data' => $solicitud_data]);
         
         // Limpiar sesiones anteriores
@@ -4321,7 +4299,7 @@ class SeerController extends Controller
                     'delegacion'      =>  $solicitud_data["delegacion"],
                     'tipo_solicitud'  =>  $solicitud_data["tipo_solicitud"],
                     'tipo_generacion' =>  1000,
-                    'consecutivo'     =>  $solicitud_data["consecutivo"],
+                    'consecutivo'     =>  null, // se asigna al confirmar la solicitud
                     'año'             =>  $solicitud_data["año"],
                     'caso_excepcion'  =>  $solicitante_data['excepcion']
                  ];
@@ -4672,7 +4650,7 @@ class SeerController extends Controller
                     'delegacion'      =>  $solicitud_data["delegacion"],
                     'tipo_solicitud'  =>  $solicitud_data["tipo_solicitud"],
                     'tipo_generacion' =>  $solicitud_data["tipo_generacion"],
-                    'consecutivo'     =>  $solicitud_data["consecutivo"],
+                    'consecutivo'     =>  null, // se asigna al confirmar la solicitud
                     'año'             =>  $solicitud_data["año"],
                     'caso_excepcion'  =>  $solicitante_data['excepcion'] ?? 'No' // En caso de que no venga el campo, se asume "No"
                 ];
@@ -5518,19 +5496,18 @@ class SeerController extends Controller
         try {
             // 2. Carga del modelo principal (Lanza 404 si no existe)
             $delegacion = SeerPerGeneral::findOrFail($id_solicitud);
-            $consecutivo = $delegacion->consecutivo;
             $delegacionUser = $delegacion->delegacion;
 
-            // Generar NUE sin bucles directos en BD
-            $NUE = $this->GeneraExpediente($consecutivo, $delegacionUser);
-            
-            if (SeerPerGeneral::where('NUE', $NUE)->exists()) {
-                $ultimoConsecutivo = SeerPerGeneral::where('delegacion', $delegacionUser)
-                    ->whereYear('created_at', Carbon::now()->year)
-                    ->max('consecutivo');
-                    
-                $consecutivo = $ultimoConsecutivo ? $ultimoConsecutivo + 1 : $consecutivo + 1;
-                $NUE = $this->GeneraExpediente($consecutivo, $delegacionUser);
+            // El consecutivo y el NUE se asignan aquí, al confirmar, no al
+            // capturar: así no quedan números apartados por solicitudes que
+            // nunca se confirman. Si ya tenía NUE (se confirmó antes), lo conserva.
+            if ($delegacion->NUE) {
+                $consecutivo = $delegacion->consecutivo;
+                $NUE         = $delegacion->NUE;
+                $año_nue     = $delegacion->año;
+            } else {
+                $año_nue = (int) date('Y');
+                [$consecutivo, $NUE] = $this->siguienteConsecutivoSolicitud($delegacionUser);
             }
 
             // 3. Eliminación de motivos en bloque (Bulk Delete)
@@ -5545,6 +5522,7 @@ class SeerController extends Controller
             $delegacion->update([
                 'user_id'            => $userToSet,
                 'consecutivo'        => $consecutivo,
+                'año'                => $año_nue, // el del NUE, para buscarla por delegación/año/consecutivo
                 'NUE'                => $NUE,
                 'actividad'          => $request->input('actividad_economica'),
                 'id_rama'            => $request->input('ramaIndustrial'),
@@ -5857,8 +5835,30 @@ class SeerController extends Controller
         //contar el numero de ceros
         $numeroConCeros = str_pad($id, 5, "0", STR_PAD_LEFT);
         $folio = $del."/SOL"."/".$año_actual."/".$numeroConCeros;
-    
+
         return $folio;
+    }
+
+    /**
+     * Consecutivo y NUE para una solicitud que se está confirmando: el último
+     * NUE de la misma sede y año + 1 (sólo cuentan las ya confirmadas).
+     * Debe llamarse dentro del candado por sede de solicitud_confirmar
+     * (AgendaAudiencias::conBloqueo), para que dos confirmaciones al mismo
+     * tiempo no tomen el mismo número.
+     *
+     * @return array{0: int, 1: string} [consecutivo, NUE]
+     */
+    private function siguienteConsecutivoSolicitud(string $delegacion): array
+    {
+        // Serie del NUE, p. ej. "MOR/SOL/2026/".
+        $prefijo = substr($this->GeneraExpediente(0, $delegacion), 0, -5);
+
+        $ultimo = (int) SeerPerGeneral::where('NUE', 'like', $prefijo.'%')
+            ->max(DB::raw("CAST(SUBSTRING_INDEX(NUE, '/', -1) AS UNSIGNED)"));
+
+        $consecutivo = $ultimo + 1;
+
+        return [$consecutivo, $this->GeneraExpediente($consecutivo, $delegacion)];
     }
 
     public function cancelar_edicion(Request $request){
@@ -17591,27 +17591,16 @@ class SeerController extends Controller
 
         $año_actual = date('Y');
         $fecha_actual = date('y-m-d');
-        $numero_consecutivo = 0;
-        $consecutivo  = SeerPerGeneral::latest('consecutivo')
-        ->where('delegacion',$data["delegacion"])
-        ->where('año',$año_actual)->
-        first();
 
-        if(empty($consecutivo)){
-            $numero_consecutivo = 1;
-        }
-        else{
-            $numero_consecutivo = $consecutivo["consecutivo"];
-            $numero_consecutivo++;
-        }
-
+        // El consecutivo queda vacío: se asigna al confirmar la solicitud
+        // (siguienteConsecutivoSolicitud), así no se apartan números.
         $data_insert=array(
             'id_rama'         =>  $data["ramaIndustrial"],
             'actividad'       =>  $data["actividad_economica"],
             'delegacion'      =>  $data["delegacion"],
             'tipo_solicitud'  =>  $data["tipo_solicitud"],
             'tipo_generacion' => auth()->check() ? auth()->id() :0,
-            'consecutivo'    => $numero_consecutivo,
+            'consecutivo'    => null,
             'año'            => $año_actual,
             'fecha'             => $fecha_actual,
         );
@@ -17674,27 +17663,15 @@ class SeerController extends Controller
 
         $año_actual = date('Y');
         $fecha_actual = date('Y-m-d');
-        $numero_consecutivo = 0;
-        $consecutivo  = SeerPerGeneral::latest('consecutivo')
-        ->where('delegacion',$data["delegacion"])
-        ->where('año',$año_actual)->
-        first();
-        
-        if(empty($consecutivo)){
-            $numero_consecutivo = 1;
-        }
-        else{
-            $numero_consecutivo = $consecutivo["consecutivo"];
-            $numero_consecutivo++;
-        }
 
+        // El consecutivo se asigna al confirmar la solicitud.
         $data_insert=array(
             'id_rama'         =>  $data["ramaIndustrial"],
             'actividad'       =>  $data["actividad_economica"],
             'delegacion'      =>  $data["delegacion"],
             'tipo_solicitud'  =>  $data["tipo_solicitud"],
             'tipo_generacion' => auth()->check() ? auth()->id() :0,
-            'consecutivo'    => $numero_consecutivo,    
+            'consecutivo'    => null,
             'año'            => $año_actual,
             'fecha'          => $fecha_actual,
         );
@@ -19138,31 +19115,8 @@ class SeerController extends Controller
         ]);
         
         $año_actual = date('Y');
-        $numero_consecutivo = 0;
-        $consecutivo  = SeerPerGeneral::latest('consecutivo')
-        ->where('delegacion',$data["delegacion"])
-        ->where('año',$año_actual)->
-        first();
 
-        if(empty($consecutivo)){
-            $numero_consecutivo = 1;
-        }
-        else{
-            $numero_consecutivo = $consecutivo["consecutivo"];
-            $numero_consecutivo++;
-        }
-
-        $data_insert=array(
-            'id_rama'         =>  $data["ramaIndustrial"],
-            'actividad'       =>  $data["actividad_economica"],
-            'delegacion'      =>  $data["delegacion"],
-            'tipo_solicitud'  =>  $data["tipo_solicitud"],
-            'tipo_generacion' => auth()->check() ? auth()->id() :0,
-            'consecutivo'    => $numero_consecutivo,    
-            'año'            => $año_actual,
-        );
-       
-        /*SeerPerGeneral::create($data_insert); 
+        /*SeerPerGeneral::create($data_insert);
         $id_general  = SeerPerGeneral::latest('id')->first();
         $id=$id_general["id"];
         $tipo_generacion=$id_general->tipo_generacion;
@@ -19172,19 +19126,19 @@ class SeerController extends Controller
                 SeerMotivo::create([
                     'id_solicitud'    => $id_general["id"],
                     'id_motivo'       => $motivoId,
-                    
+
                 ]);
             }
         }*/
 
-        // Guardar en sesión
+        // Guardar en sesión. El consecutivo se asigna al confirmar la solicitud.
         $solicitud_data = array(
             'id_rama'         =>  $data["ramaIndustrial"],
             'actividad'       =>  $data["actividad_economica"],
             'delegacion'      =>  $data["delegacion"],
             'tipo_solicitud'  =>  $data["tipo_solicitud"],
             'tipo_generacion' => auth()->check() ? auth()->id() : 0,
-            'consecutivo'     => $numero_consecutivo,
+            'consecutivo'     => null,
             'año'             => $año_actual,
             'motivo_solicitud' => $data["motivo_solicitud"] ?? []
         );
@@ -20898,15 +20852,9 @@ class SeerController extends Controller
         // 2. Draft ID único por pestaña/instancia
         $draftId = $request->input('draft_id') ?? (string) Str::uuid();
 
-        // 3. Obtener el número consecutivo
+        // 3. El consecutivo queda vacío: se asigna al confirmar la solicitud
+        //    (siguienteConsecutivoSolicitud), así no se apartan números.
         $año_actual = date('Y');
-        
-        $consecutivo = SeerPerGeneral::where('delegacion', $validatedData['delegacion'])
-            ->where('año', $año_actual)
-            ->latest('consecutivo')
-            ->first();
-
-        $numero_consecutivo = $consecutivo ? ($consecutivo->consecutivo + 1) : 1;
 
         // 4. Estructurar y guardar datos de la solicitud
         $solicitud_data = [
@@ -20916,7 +20864,7 @@ class SeerController extends Controller
             'municipio_id'     => $validatedData['dSolicitud'],
             'tipo_solicitud'   => $validatedData['tipo_solicitud'],
             'tipo_generacion'  => 0,
-            'consecutivo'      => $numero_consecutivo,
+            'consecutivo'      => null,
             'año'              => $año_actual,
             'fecha'            => date('Y-m-d')
         ];
