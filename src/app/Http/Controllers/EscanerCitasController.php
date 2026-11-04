@@ -10,6 +10,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -25,6 +27,9 @@ use Illuminate\Support\Str;
  */
 class EscanerCitasController extends Controller
 {
+    //Cantidad de minutos para deshacer una confirmación de cita
+    public const MINUTOS_DESHACER = 15;
+
     public function index(Request $request)
     {
         return view('recepcion.escaner', [
@@ -74,13 +79,16 @@ class EscanerCitasController extends Controller
         }
 
         $antes = $cita->estatus;
+        $foto  = ValidadorCita::foto($cita);
         ['resultado' => $resultado, 'cambio' => $cambio] = ValidadorCita::validar($cita);
 
+        $deshacer = null;
         if ($cambio) {
             Log::info('Cita validada en recepción', [
                 'cita' => $cita->id, 'de' => $antes, 'a' => $cita->estatus,
                 'por' => $request->user()->id, 'via' => Str::contains($codigo, '/') ? 'qr' : 'folio',
             ]);
+            $deshacer = $this->guardarDeshacer($request, $cita, $foto);
         }
 
         $cita = $cita->fresh();
@@ -94,6 +102,7 @@ class EscanerCitasController extends Controller
             'atenderTarde' => ValidadorCita::puedeAtenderTarde($cita)
                 ? route('recepcion.escaner.tarde', $cita->id)
                 : null,
+            'deshacer'     => $deshacer,
         ]);
     }
 
@@ -112,6 +121,8 @@ class EscanerCitasController extends Controller
 
         $tramites = Recepcion::tramitesVisibles($request->user());
         abort_if($tramites !== null && ! in_array($cita->tipo, $tramites, true), 403);
+
+        $foto = ValidadorCita::foto($cita);
 
         if (! ValidadorCita::atenderTarde($cita, $request->user())) {
             if (! $request->expectsJson()) {
@@ -141,7 +152,68 @@ class EscanerCitasController extends Controller
             'titulo'    => 'Se atenderá aunque llegó tarde',
             'mensaje'   => $modulo.'. Va después de quienes llegaron a tiempo.',
             'cita'      => $this->resumen($cita),
+            'deshacer'  => $this->guardarDeshacer($request, $cita, $foto),
         ]);
+    }
+
+    // Método para cancelar la validación de la cita
+    public function deshacer(Request $request, int $id): JsonResponse
+    {
+        $cita = Cita::find($id);
+        abort_unless($cita && in_array($cita->delegacion, $this->sedes($request), true), 404);
+
+        $clave    = $this->claveDeshacer($id);
+        $guardado = Cache::get($clave);
+
+        $ok = $guardado && $guardado['por'] === $request->user()->id
+            && DB::transaction(function () use ($id, $guardado) {
+                $cita = Cita::lockForUpdate()->find($id);
+
+                return $cita && ValidadorCita::deshacer($cita, $guardado['antes'], $guardado['despues']);
+            });
+
+        if (! $ok) {
+            return response()->json([
+                'resultado' => 'sin_deshacer',
+                'titulo'    => 'Ya no se puede cancelar',
+                'mensaje'   => $guardado
+                    ? 'El módulo ya la llamó o la cita cambió después de validarla.'
+                    : 'Sólo se cancela una validación tuya de los últimos '.self::MINUTOS_DESHACER.' minutos.',
+                'cita'      => $this->resumen($cita->fresh()),
+            ]);
+        }
+
+        Cache::forget($clave);
+        Log::info('Validación de cita cancelada en recepción', [
+            'cita' => $id, 'de' => $guardado['despues'], 'a' => $guardado['antes']['estatus'] ?? null,
+            'por'  => $request->user()->id,
+        ]);
+
+        $cita = $cita->fresh();
+
+        return response()->json([
+            'resultado' => 'deshecha',
+            'titulo'    => 'Validación cancelada',
+            'mensaje'   => 'La cita volvió a "'.$cita->estatus.'" y no cuenta como llegada.',
+            'cita'      => $this->resumen($cita),
+        ]);
+    }
+
+    // Guarda cómo estaba la cita para poder cancelar la validación
+    private function guardarDeshacer(Request $request, Cita $cita, array $antes): string
+    {
+        Cache::put($this->claveDeshacer($cita->id), [
+            'por'     => $request->user()->id,
+            'antes'   => $antes,
+            'despues' => $cita->estatus,
+        ], now()->addMinutes(self::MINUTOS_DESHACER));
+
+        return route('recepcion.escaner.deshacer', $cita->id);
+    }
+
+    private function claveDeshacer(int $id): string
+    {
+        return 'escaner.deshacer.'.$id;
     }
 
     /** QR (URL con /citas/{id}/confirmar) o folio escrito a mano. */

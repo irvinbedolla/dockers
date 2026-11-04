@@ -155,4 +155,36 @@ class ValidadorCita
 
         return true;
     }
+
+    private const CAMPOS_DESHACER = ['estatus', 'confirmada_at', 'llego_tarde', 'llego_tarde_por', 'llamado_at'];
+
+    public static function foto(Recepcion $cita): array
+    {
+        $crudo = $cita->getRawOriginal();
+
+        return array_intersect_key($crudo, array_flip(self::CAMPOS_DESHACER));
+    }
+
+    public static function deshacer(Recepcion $cita, array $antes, string $despues): bool
+    {
+        if ($cita->estatus !== $despues || $cita->atencion_inicio_at || ($despues === 'confirmada' && $cita->llamado_at)) {
+            return false;
+        }
+
+        $confirmadaAt = $cita->confirmada_at;
+
+        $cita->update($antes);
+
+        if ($despues === 'confirmada' && $confirmadaAt) {
+            try {
+                LlegadasHoy::olvidarCita($cita, $confirmadaAt);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
+
+        PantallaEspera::olvidar((string) $cita->delegacion);
+
+        return true;
+    }
 }

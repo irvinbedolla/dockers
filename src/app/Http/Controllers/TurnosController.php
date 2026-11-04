@@ -845,18 +845,21 @@ class TurnosController extends Controller
                     'delegacion'    => $data['sede'],
                     'estatus'       => "pendiente",
                     'exepcion'      => 'No',
+                    // Columna NOT NULL sin default: sin esto el INSERT falla.
+                    'vulnerables'   => 'Ninguno',
                     'municipio'     => $data["municipio_rat"],
                     'correo'        => $email ,
                     'telefono'      => $telefono,
                 );
-        
+
                 // En transacción: si el INSERT falla, también se deshace el folio
                 // que se apartó en folios_citas y no quedan números saltados.
                 try {
                    $recepcion = DB::transaction(fn () => Recepcion::create($data_recepcion));
                 }
-                catch (\Throwable $e) { 
-                    return redirect()->back()->with('error', 'No se ha podido completar tu cita.'); 
+                catch (\Throwable $e) {
+                    report($e);
+                    return redirect()->back()->withInput()->with('error', 'No se ha podido completar tu cita.');
                 }
                 $fecha=$recepcion->fecha->format('Y-m-d');
                 $hora=$recepcion->hora->format('H:i');
