@@ -208,7 +208,9 @@ class CancelacionCitasController extends Controller
         // Como al agendar: el primer módulo libre a esa hora. Si no hay, se queda en
         // el que tenía; si cambió de sede o de trámite, ese ya no le toca: queda sin módulo.
         $modulo = $excepcion ? null : AsignadorModulos::elegir($sedeReal, $tipoReal, $datos['fecha'], $hora);
-        $conservaModulo = ! $cambiaSede && ! $cambiaTipo;
+        // Tampoco se queda en el suyo si ese módulo tiene en pausa todas sus citas.
+        $conservaModulo = ! $cambiaSede && ! $cambiaTipo
+            && ! ($cita->modulo_id && optional(\App\Models\Modulo::find($cita->modulo_id))->pausa() === 'todas');
         $antes  = $cita->fecha->format('d/m/Y').' '.substr($cita->getRawOriginal('hora'), 0, 5)
             .($cambiaSede || $cambiaTipo ? " · {$sedeAntes} · {$tipoAntes} · {$cita->folio_cita}" : '');
 

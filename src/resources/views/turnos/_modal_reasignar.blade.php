@@ -75,6 +75,7 @@
                 ocupado:     'Ocupado: ',
                 comida:      'Hora de comida',
                 inactivo:    'Módulo inactivo',
+                pausa:       'En pausa: no recibe citas nuevas',
                 sin_persona: 'Sin persona asignada'
             };
 
