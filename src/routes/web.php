@@ -622,8 +622,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/seer/updateNotificador',              [SeerController::class, 'update_notificador'])->name('seer.cambioEstatus');
         Route::get('/notificador/mihistorial',              [NotificacionesController::class, 'misNotificaciones'])->name('Historial_Notificacador');
         Route::get('/notificaciones/home',                  [NotificacionesController::class, 'inicio'])->name('index_notificaciones');
-        // Exhortos: registro y si ya se contestaron. Quienes pueden asignar notificaciones (App\Http\Controllers\ExhortosController).
-        Route::middleware('permission:por_notificar_asignar')->group(function () {
+        // Exhortos: registro y si ya se contestaron. Quienes pueden asignar notificaciones, menos
+        // los notificadores (App\Http\Controllers\ExhortosController).
+        Route::middleware(['permission:por_notificar_asignar', SinNotificador::class])->group(function () {
             Route::get('/notificaciones/exhortos',                       [App\Http\Controllers\ExhortosController::class, 'index'])->name('exhortos.index');
             Route::get('/notificaciones/exhortos/expediente',            [App\Http\Controllers\ExhortosController::class, 'expediente'])->name('exhortos.expediente');
             Route::post('/notificaciones/exhortos',                      [App\Http\Controllers\ExhortosController::class, 'guardar'])->name('exhortos.crear');

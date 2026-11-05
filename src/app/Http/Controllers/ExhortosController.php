@@ -13,7 +13,8 @@ use Illuminate\Validation\Rule;
 
 /**
  * Notificaciones → Exhortos. Lo usan quienes pueden asignar notificaciones
- * (permiso por_notificar_asignar).
+ * (permiso por_notificar_asignar), menos los notificadores: ellos no crean
+ * exhortos (las rutas llevan SinNotificador).
  *
  * Registra cada exhorto con su expediente, solicitante, citado, estado y
  * municipio, y si ya se contestó. "Por registrar" muestra a los citados que
@@ -34,6 +35,14 @@ class ExhortosController extends Controller
         static $hay = null;
 
         return $hay ??= Schema::hasTable('exhortos');
+    }
+
+    /** ¿Puede registrar exhortos? Con el permiso de asignar y sin ser sólo notificador. */
+    public static function puede(?User $usuario): bool
+    {
+        return $usuario !== null
+            && $usuario->can('por_notificar_asignar')
+            && ! \App\Support\AgendaNotificador::soloNotificador($usuario);
     }
 
     /** Super Usuario ve todas las sedes; los demás, las de su región (como en Notificaciones). */

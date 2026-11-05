@@ -80,8 +80,8 @@ class NotificacionesController extends Controller
             ];
         }
 
-        // Exhortos: para quienes pueden asignar notificaciones (ExhortosController).
-        $exhortos = $usuario->can('por_notificar_asignar') && ExhortosController::disponible()
+        // Exhortos: para quienes pueden asignar notificaciones, menos notificadores (ExhortosController).
+        $exhortos = ExhortosController::puede($usuario) && ExhortosController::disponible()
             ? ExhortosController::cifras($usuario)
             : null;
 
