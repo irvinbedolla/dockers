@@ -394,8 +394,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('administracion/usuarios',               [AdministracionController::class, 'configuracion_usuarios'])->name('configuracion_usuarios');
         Route::get('administracion/retrocesos',             [AdministracionController::class, 'genera_retroceso'])->name('genera_retroceso');       
         Route::post('/generar-retroceso',                   [AdministracionController::class, 'consultar_retroceso'])->name('generar_retroceso'); 
-        Route::get('administracion/RC/{id}',                [AdministracionController::class, 'hacer_retroceso_cumplimiento'])->name('accion_retrocesoC');    
-        Route::get('administracion/RR/{id}',                [AdministracionController::class, 'hacer_retroceso_ratificacion'])->name('accion_retrocesoR'); 
         Route::post('/bloquear_sede',                       [AdministracionController::class, 'bloqueoSede'])->name('bloqueoSede');  //Bloquear días inhabiles para toda la sede
         Route::post('/bloquear_conciliador',                [AdministracionController::class, 'bloqueoConciliador'])->name('bloqueoConciliador'); //bloquear por días u horas a conciliadores
         Route::get('administracion/sedes/{sede}/calendario', [AdministracionController::class, 'calendarioSede'])->name('sede.calendario'); //calendario de bloqueos de una sede
