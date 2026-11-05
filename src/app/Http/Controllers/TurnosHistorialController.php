@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use App\Support\FolioCita;
 use App\Support\ReasignacionCita;
 use App\Support\Recepcion;
@@ -24,11 +25,20 @@ class TurnosHistorialController extends Controller
     public const ESTATUS  = ['pendiente', 'confirmada', 'atendido', 'expirada', 'cancelada'];
     private const POR_PAGINA = 25;
 
+    /**
+     * Quién atiende cada trámite: las solicitudes las toma un orientador y
+     * las ratificaciones un auxiliar. Con los demás trámites (o sin elegir
+     * trámite) el filtro "Atiende" ofrece a los dos.
+     */
+    public const ROL_POR_TIPO = ['Solicitud' => 'Orientador', 'Ratificación' => 'Auxiliar'];
+
     public function __invoke(Request $request)
     {
         $sedesPermitidas = Recepcion::sedesVisibles($request->user());
         // Morelia 02 sólo ve ratificaciones y cumplimientos; los demás, todo.
         $tiposPermitidos = Recepcion::tramitesVisibles($request->user()) ?? self::TIPOS;
+
+        $atendientes = self::atendientes($sedesPermitidas);
 
         $filtros = $request->validate([
             'fecha'   => ['nullable', 'date_format:Y-m-d'],
@@ -37,6 +47,7 @@ class TurnosHistorialController extends Controller
             'estatus' => ['nullable', Rule::in(self::ESTATUS)],
             'origen'  => ['nullable', Rule::in(['linea', 'ventanilla'])],
             'q'       => ['nullable', 'string', 'max:100'],
+            'atiende' => ['nullable', 'integer', Rule::in($atendientes->pluck('id')->all())],
         ]);
 
         $sedes = ! empty($filtros['sede']) ? [$filtros['sede']] : $sedesPermitidas;
@@ -57,6 +68,9 @@ class TurnosHistorialController extends Controller
         }
         if (! empty($filtros['origen'])) {
             $base->where('r.origen', $filtros['origen']);
+        }
+        if (! empty($filtros['atiende'])) {
+            $base->where('r.auxiliar', (int) $filtros['atiende']);
         }
         if (! empty($filtros['q'])) {
             $texto = trim($filtros['q']);
@@ -132,8 +146,31 @@ class TurnosHistorialController extends Controller
             'diaAnterior'     => Carbon::parse($fecha ?? $hoy)->subDay()->toDateString(),
             'diaSiguiente'    => Carbon::parse($fecha ?? $hoy)->addDay()->toDateString(),
             'sedesPermitidas' => $sedesPermitidas,
+            'atendientes'     => $atendientes,
             'conteos'         => $conteos,
             'totalSinEstatus' => $conteos->sum(),
         ]);
+    }
+
+    /**
+     * Orientadores y auxiliares de las sedes que puede ver quien consulta,
+     * para el filtro "Atiende". Cada uno lleva su sede y sus roles: la vista
+     * deja sólo los que corresponden al trámite y la sede elegidos.
+     */
+    private static function atendientes(array $sedes)
+    {
+        $roles = array_values(array_unique(self::ROL_POR_TIPO));
+
+        return User::role($roles)
+            ->with('roles:id,name')
+            ->whereIn('delegacion', $sedes === [] ? ['__ninguna__'] : $sedes)
+            ->orderBy('name')
+            ->get(['id', 'name', 'delegacion'])
+            ->map(fn ($u) => (object) [
+                'id'         => $u->id,
+                'name'       => $u->name,
+                'delegacion' => $u->delegacion,
+                'roles'      => $u->roles->pluck('name')->intersect($roles)->values()->all(),
+            ]);
     }
 }
