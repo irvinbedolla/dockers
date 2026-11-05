@@ -64,26 +64,23 @@
                                             <div class="form-text gc-ayuda-tramite" id="gcAyudaTramite">Elige una opción y te explicamos de qué se trata.</div>
                                             <div class="invalid-feedback">Elige el tipo de trámite.</div>
                                         </div>
-                                        @unless ($ventanilla)
                                         <div class="col-md-6" style="display:none;" id="calidad">
-                                            <label class="form-label" for="folio_patronal">Acudes en calidad de: </label>
+                                            <label class="form-label" for="puesto">{{ $ventanilla ? 'Acude en calidad de:' : 'Acudes en calidad de:' }}</label>
                                             <select id="puesto" class="form-select">
                                                 <option value="">Elige una opción</option>
                                                 <option value="trabajador">Trabajador</option>
                                                 <option value="empleador">Empleador</option>
                                             </select>
-                                            
                                         </div>
                                         <div class="col-md-6" style="display:none;" id="si_ratificacion">
-                                            <label class="form-label" for="folio_patronal">¿Ya tienes un folio de representante patronal?</label>
+                                            <label class="form-label" for="folio_patronal">{{ $ventanilla ? '¿Ya tiene folio de representante patronal?' : '¿Ya tienes un folio de representante patronal?' }}</label>
                                             <select id="folio_patronal" class="form-select">
                                                 <option value="">Elige una opción</option>
-                                                <option value="si">Sí, ya tengo folio</option>
-                                                <option value="no">No tengo folio</option>
+                                                <option value="si">{{ $ventanilla ? 'Sí, ya tiene folio' : 'Sí, ya tengo folio' }}</option>
+                                                <option value="no">{{ $ventanilla ? 'No tiene folio' : 'No tengo folio' }}</option>
                                             </select>
-                                            <div class="form-text">Si ya tienes folio, te llevaremos al formulario para ratificar con él.</div>
+                                            <div class="form-text">{{ $ventanilla ? 'Si ya tiene folio, se abrirá el formulario para ratificar con él.' : 'Si ya tienes folio, te llevaremos al formulario para ratificar con él.' }}</div>
                                         </div>
-                                        @endunless
                                         <div class="col-md-6">
                                             <label class="form-label" for="municipio_citado">{{ $ventanilla ? 'Municipio de la fuente de empleo (o de la persona a citar)' : 'Municipio donde está tu trabajo (o la persona a la que vas a citar)' }} <span class="gc-req">*</span></label>
                                             <select id="municipio_citado" class="form-select" name="{{ $ventanilla ? 'municipio_solicitante' : 'municipio_citado' }}" required>
