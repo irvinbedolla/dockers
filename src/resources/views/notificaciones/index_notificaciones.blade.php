@@ -122,6 +122,18 @@
                         </span>
                     </a>
                 @endunless
+                @if ($exhortos)
+                    <a class="nt-acceso" href="{{ route('exhortos.index') }}">
+                        <span class="nt-acceso__icono"><i class="bi bi-envelope-paper" aria-hidden="true"></i></span>
+                        <span>
+                            <span class="nt-acceso__titulo">Exhortos</span>
+                            <span class="nt-acceso__texto">
+                                Sin contestar{{ $exhortos['por_registrar'] ? ' · '.$fmt($exhortos['por_registrar']).' por registrar' : '' }}
+                            </span>
+                        </span>
+                        <span class="nt-acceso__num" title="Exhortos sin contestar">{{ $fmt($exhortos['sin_contestar']) }}</span>
+                    </a>
+                @endif
             </div>
 
             <div class="tn-tarjeta">

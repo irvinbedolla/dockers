@@ -89,6 +89,9 @@
                                                             </td>
                                                             <td class="text-center align-middle">
                                                                 {{ $folio['fecha'] ? \Carbon\Carbon::parse($folio['fecha'])->format('d/m/Y') : 'N/A' }}
+                                                                @if (! empty($folio['fecha_audiencia']))
+                                                                    <small class="d-block text-muted">Últ. audiencia: {{ \Carbon\Carbon::parse($folio['fecha_audiencia'])->format('d/m/Y') }}</small>
+                                                                @endif
                                                             </td>
                                                             <td class="text-center align-middle">
                                                                 <span class="badge" style="background-color: #ffc107; color: black;">{{ $folio['estatus'] }}</span>
@@ -130,10 +133,14 @@
                                                                         @csrf
                                                                         <input type="hidden" name="motivo">
                                                                         @can('retroceso_audiencia_crear')
-                                                                            @if(!(\Carbon\Carbon::parse($folio['fecha'])->isToday()) && !auth()->user()->hasRole('Super Usuario'))
+                                                                            {{-- Fuera de Super Usuario, sólo lo registrado hoy (App\Support\RetrocesoDelDia). --}}
+                                                                            @if (! ($folio['permitido'] ?? true))
                                                                                 <button type="submit" class="btn btn-sm btn-danger text-white shadow-sm" disabled>
                                                                                     <i class="bi bi-arrow-counterclockwise"></i> Retroceso
                                                                                 </button>
+                                                                                <small class="d-block text-muted mt-1" style="font-size: 11px; max-width: 150px; margin: 0 auto;">
+                                                                                    Sólo se retrocede lo registrado hoy. Pídeselo a un Super Usuario.
+                                                                                </small>
                                                                             @else
                                                                                 <button type="submit" class="btn btn-sm btn-danger text-white shadow-sm">
                                                                                     <i class="bi bi-arrow-counterclockwise"></i> Retroceso

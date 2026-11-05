@@ -316,7 +316,8 @@ class HomeController extends Controller
         else{
             // Quién atiende cada módulo vive en la tabla modulos
             // (Administración → Módulos), no aquí.
-            $elegido = \App\Support\AsignadorModulos::elegir($sede, $tipo, $fecha_turno, $hora_turno);
+            // true: cita en línea, salta los módulos con las citas en línea en pausa.
+            $elegido = \App\Support\AsignadorModulos::elegir($sede, $tipo, $fecha_turno, $hora_turno, true);
             if (!$elegido) {
                 return redirect()->route('citas')->with('error', 'No se ha podido completar tu cita. No se ha encontrado auxiliar disponible.');
             }

@@ -38,7 +38,6 @@ use App\Models\SeerCitados;
 use App\Models\PermisosConciliador;
 use App\Support\AgendaAudiencias;
 use App\Support\AgendaOcupadaException;
-use App\Services\RetrocesoRecorder;
 use App\Services\BitacoraAdministracionRecorder;
 use Carbon\CarbonPeriod;
 use Illuminate\Support\Facades\DB;
@@ -243,29 +242,9 @@ class AdministracionController extends Controller{
         }
     }
 
-    public function hacer_retroceso_cumplimiento($id){
-        DB::transaction(function () use ($id) {
-            $pago = Pagos::findOrFail($id);
-            $retroceso = RetrocesoRecorder::iniciar('cumplimiento', $pago, request('motivo'));
-            $retroceso->actualizar($pago, ['estatus'  => "Concluir"]);
-            $retroceso->terminar();
-        });
-        return redirect()->back()->with('success', 'Puedes realizar tu cumplimiento nuevamente.');
-    }
-
-    public function hacer_retroceso_ratificacion($id){
-        DB::transaction(function () use ($id) {
-            $turno = Turnos::findOrFail($id);
-            $retroceso = RetrocesoRecorder::iniciar('ratificacion', $turno, request('motivo'));
-            $retroceso->actualizar($turno, ['estatus'  => "Pendiente"]);
-            $retroceso->borrar(Pagos::      where("id_solicitud",$id)->where('tipo_pago','Ratificacion'));
-            $retroceso->borrar(Concepto::   where('id_solicitud',$id)->where('tipo_pago','Ratificacion'));
-            $retroceso->borrar(Deducciones::where('id_solicitud',$id)->where('tipo_pago','Ratificacion'));
-            $retroceso->terminar();
-        });
-
-        return redirect()->back()->with('success', 'Puedes realizar tu ratificación nuevamente.');
-    }
+    // Los retrocesos por GET (administracion/RC/{id} y RR/{id}) se quitaron: no pedían
+    // motivo ni respetaban las reglas de sede y del día. Los retrocesos van por
+    // /ratificaciones/retroceso y /audiencias/retroceso (App\Support\RetrocesoDelDia).
     private function prefijosDelegacion(): array
     {
         return [

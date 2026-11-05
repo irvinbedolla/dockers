@@ -75,6 +75,8 @@
                 ocupado:     'Ocupado: ',
                 comida:      'Hora de comida',
                 inactivo:    'Módulo inactivo',
+                pausa:       'En pausa: no recibe citas nuevas',
+                sin_reasignar: 'No acepta reasignaciones para esa fecha',
                 sin_persona: 'Sin persona asignada'
             };
 

@@ -820,7 +820,8 @@ class TurnosController extends Controller
         unset($data_insertar['ine'], $data_insertar['representacion'], $data_insertar['documentoidentificacion']);
         $recepcion = null;
         if($data['origen'] === 'externo'){
-            $elegido = \App\Support\AsignadorModulos::elegir($data['sede'], 'Ratificación', $data["fecha"], $data["hora"]);
+            // true: cita en línea, salta los módulos con las citas en línea en pausa.
+            $elegido = \App\Support\AsignadorModulos::elegir($data['sede'], 'Ratificación', $data["fecha"], $data["hora"], true);
             if (!$elegido) {
                 return redirect()->back()->with('error', 'No se ha podido completar tu cita. No se ha encontrado auxiliar disponible.');
             }
@@ -2299,6 +2300,8 @@ class TurnosController extends Controller
                 'pagos'       => $pagos,
                 'pagados'     => $pagados,
                 'retrocedible' => in_array($turno->estatus, ['Concluida', 'Concluida Pagos', 'Incumplimiento']),
+                // Hoy es su fecha o hoy se le registró el resultado (App\Support\RetrocesoDelDia).
+                'permitido'    => \App\Support\RetrocesoDelDia::permitido(auth()->user(), $turno->fecha, $turno->updated_at),
             ];
         })->toArray();
 
@@ -2327,6 +2330,14 @@ class TurnosController extends Controller
             return back()->withErrors(
                 "Solo se puede retroceder una ratificación concluida. Estatus actual: {$turno->estatus}."
             );
+        }
+
+        // Mismas reglas que la pantalla: sólo su sede y, si no es Super Usuario, sólo lo de hoy.
+        if (!\App\Support\RetrocesoDelDia::enSuSede($this->nombresSedesPermitidas(auth()->user()), $turno->delegacion)) {
+            return back()->withErrors('Esa ratificación es de otra sede; no puedes retrocederla.');
+        }
+        if (!\App\Support\RetrocesoDelDia::permitido(auth()->user(), $turno->fecha, $turno->updated_at)) {
+            return back()->withErrors(\App\Support\RetrocesoDelDia::AVISO);
         }
 
         $estatusPrevio = $turno->estatus;

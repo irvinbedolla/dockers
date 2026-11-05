@@ -53,6 +53,13 @@ class ModulosController extends Controller
 
         $modulos  = AsignadorModulos::deSede($sede);
         $porNombre = $modulos->keyBy('nombre');
+        $enLineaMigrado = Modulo::enLineaMigrado();
+        if ($enLineaMigrado) {
+            $modulos->load('cambioEnLineaPor:id,name');
+        }
+        if (Modulo::reasignacionMigrada()) {
+            $modulos->load('cambioReasignacionPor:id,name');
+        }
 
         // Todas las del día, sin filtro de origen: con ellas se calcula qué
         // módulo está ocupado a qué hora, aunque en pantalla se filtre.
@@ -110,7 +117,158 @@ class ModulosController extends Controller
             'tramites'  => AsignadorModulos::TRAMITES,
             'limite'    => LimiteCitas::config(),
             'limiteHoy' => LimiteCitas::hoy(),
+            'enLineaMigrado' => $enLineaMigrado,
+            'ventanillaMigrada' => Modulo::pausaVentanillaMigrada(),
+            'reasignacionMigrada' => Modulo::reasignacionMigrada(),
+            'sinEnLinea'     => $enLineaMigrado ? self::tramitesEnPausa($sede, 'linea', $modulos) : [],
+            'sinVentanilla'  => $enLineaMigrado ? self::tramitesEnPausa($sede, 'ventanilla', $modulos) : [],
         ]);
+    }
+
+    /**
+     * Switch "Recibe citas" de cada módulo. Apagado, desde ese momento y hasta
+     * que se prenda otra vez no se le asignan citas nuevas:
+     *   linea  sólo las del formulario público; la ventanilla sí.
+     *   todas  tampoco las de ventanilla ni la reagenda automática.
+     * Las que ya tenía siguen con él y la reasignación manual no cambia.
+     */
+    public function enLinea(Request $request, Modulo $modulo)
+    {
+        if (! Modulo::enLineaMigrado()) {
+            $mensaje = 'Falta correr la migración de módulos (php artisan migrate) para poder pausar las citas en línea.';
+
+            return $request->expectsJson()
+                ? response()->json(['message' => $mensaje], 409)
+                : $this->volver($request, $modulo->delegacion)->with('error', $mensaje);
+        }
+
+        // 'pausa' (ninguna | linea | todas); 'en_linea' se acepta por si una
+        // pestaña quedó abierta con la versión anterior del switch.
+        $request->validate([
+            'pausa'    => ['required_without:en_linea', Rule::in(['ninguna', 'linea', 'todas'])],
+            'en_linea' => ['required_without:pausa', 'boolean'],
+        ]);
+        $pausa = $request->filled('pausa') ? $request->input('pausa') : ($request->boolean('en_linea') ? 'ninguna' : 'linea');
+
+        if ($pausa === 'todas' && ! Modulo::pausaVentanillaMigrada()) {
+            $mensaje = 'Falta correr la migración de módulos (php artisan migrate) para poder pausar también la ventanilla.';
+
+            return $request->expectsJson()
+                ? response()->json(['message' => $mensaje], 409)
+                : $this->volver($request, $modulo->delegacion)->with('error', $mensaje);
+        }
+
+        if (($modulo->pausa() ?? 'ninguna') !== $pausa) {
+            $antes = $modulo->pausa() ?? 'ninguna';
+            $modulo->forceFill(array_merge([
+                'en_linea'            => $pausa === 'ninguna',
+                'en_linea_cambio_at'  => now(),
+                'en_linea_cambio_por' => $request->user()->id,
+            ], Modulo::pausaVentanillaMigrada() ? ['pausa_ventanilla' => $pausa === 'todas'] : []))->save();
+
+            Log::info('Pausa de citas del módulo', [
+                'modulo' => $modulo->id, 'nombre' => $modulo->nombre, 'sede' => $modulo->delegacion,
+                'persona' => $modulo->user_id, 'antes' => $antes, 'ahora' => $pausa, 'por' => $request->user()->id,
+            ]);
+        }
+
+        $modulo->load(['persona:id,name', 'cambioEnLineaPor:id,name']);
+        $quien = $modulo->persona ? ' ('.$modulo->persona->name.')' : '';
+        $mensaje = match ($pausa) {
+            'todas' => "{$modulo->nombre}{$quien} ya no recibe citas nuevas, ni en línea ni de ventanilla, desde ahora. Las que ya tenía siguen con él.",
+            'linea' => "{$modulo->nombre}{$quien} ya no recibe citas en línea desde ahora; la ventanilla sí le sigue asignando. Las que ya tenía siguen con él.",
+            default => "{$modulo->nombre}{$quien} vuelve a recibir citas en línea y de ventanilla.",
+        };
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'pausa'         => $pausa,
+                'en_linea'      => $pausa === 'ninguna',
+                'nota'          => $modulo->notaPausa(),
+                'notaReasignacion' => Modulo::reasignacionMigrada() ? $modulo->notaReasignacion() : null,
+                'message'       => $mensaje,
+                'sinEnLinea'    => self::tramitesEnPausa($modulo->delegacion, 'linea'),
+                'sinVentanilla' => self::tramitesEnPausa($modulo->delegacion, 'ventanilla'),
+            ]);
+        }
+
+        return $this->volver($request, $modulo->delegacion)->with('success', $mensaje);
+    }
+
+    /**
+     * Switch "Acepta reasignaciones" de cada módulo, aparte de la pausa de
+     * citas. Apagado, desde ahora (hoy) o a partir de una fecha ya no se le
+     * pueden mover citas de esa fecha en adelante: ni con "Reasignar" ni al
+     * reagendar en citas-cancelación. Sí sigue recibiendo citas nuevas, si no
+     * tiene pausa.
+     */
+    public function reasignacion(Request $request, Modulo $modulo)
+    {
+        if (! Modulo::reasignacionMigrada()) {
+            $mensaje = 'Falta correr la migración de módulos (php artisan migrate) para poder bloquear las reasignaciones.';
+
+            return $request->expectsJson()
+                ? response()->json(['message' => $mensaje], 409)
+                : $this->volver($request, $modulo->delegacion)->with('error', $mensaje);
+        }
+
+        $hoy = Carbon::today()->toDateString();
+        $request->validate([
+            'bloquear' => ['required', 'boolean'],
+            'desde'    => ['nullable', 'date_format:Y-m-d', 'after_or_equal:'.$hoy],
+        ], [
+            'desde.after_or_equal' => 'La fecha no puede ser de un día que ya pasó.',
+        ]);
+        $desde = $request->boolean('bloquear') ? ($request->input('desde') ?: $hoy) : null;
+        $antes = $modulo->no_reasignar_desde?->toDateString();
+
+        if ($antes !== $desde) {
+            $modulo->forceFill([
+                'no_reasignar_desde' => $desde,
+                'no_reasignar_por'   => $request->user()->id,
+                'no_reasignar_at'    => now(),
+            ])->save();
+
+            Log::info('Reasignaciones del módulo', [
+                'modulo' => $modulo->id, 'nombre' => $modulo->nombre, 'sede' => $modulo->delegacion,
+                'persona' => $modulo->user_id, 'antes' => $antes, 'desde' => $desde, 'por' => $request->user()->id,
+            ]);
+        }
+
+        $modulo->load(['persona:id,name', 'cambioReasignacionPor:id,name']);
+        $quien = $modulo->persona ? ' ('.$modulo->persona->name.')' : '';
+        $mensaje = $desde
+            ? "A {$modulo->nombre}{$quien} ya no se le podrán mover citas "
+              .($desde === $hoy ? 'desde hoy' : 'a partir del '.Carbon::parse($desde)->locale('es')->isoFormat('dddd D [de] MMMM'))
+              .'. Sigue recibiendo citas nuevas si no tiene pausa.'
+            : "A {$modulo->nombre}{$quien} se le pueden volver a mover citas.";
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'bloqueo' => $modulo->bloqueoReasignacion(),
+                'desde'   => $desde,
+                'nota'    => $modulo->notaReasignacion(),
+                'message' => $mensaje,
+            ]);
+        }
+
+        return $this->volver($request, $modulo->delegacion)->with('success', $mensaje);
+    }
+
+    /**
+     * Trámites que en la sede nadie recibe por ese canal ('linea' o
+     * 'ventanilla') porque todos los módulos que los atienden tienen la pausa
+     * puesta: el calendario de ese canal no da horarios para ellos.
+     */
+    private static function tramitesEnPausa(string $sede, string $canal, $modulos = null): array
+    {
+        $modulos ??= AsignadorModulos::deSede($sede);
+
+        return array_values(array_filter(
+            AsignadorModulos::TRAMITES,
+            fn ($t) => ($canal === 'ventanilla' || $t !== 'Cumplimiento')
+                && AsignadorModulos::enPausa($sede, $t, $canal, $modulos->where('activo', true))
+        ));
     }
 
     /**
