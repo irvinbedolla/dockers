@@ -17,7 +17,7 @@ class Modulo extends Model
 
     protected $fillable = [
         'delegacion', 'nombre', 'user_id', 'tramites', 'respaldo', 'hora_comida', 'activo', 'orden',
-        'en_linea', 'en_linea_cambio_at', 'en_linea_cambio_por',
+        'en_linea', 'pausa_ventanilla', 'en_linea_cambio_at', 'en_linea_cambio_por',
     ];
 
     protected $casts = [
@@ -25,6 +25,7 @@ class Modulo extends Model
         'respaldo' => 'array',
         'activo'   => 'boolean',
         'en_linea' => 'boolean',
+        'pausa_ventanilla' => 'boolean',
         'en_linea_cambio_at' => 'datetime',
     ];
 
@@ -49,6 +50,31 @@ class Modulo extends Model
         return $this->en_linea ?? true;
     }
 
+    /**
+     * ¿La ventanilla (y la reagenda automática) le puede asignar citas? Se
+     * apaga con la pausa "Todas, también ventanilla".
+     */
+    public function recibeVentanilla(): bool
+    {
+        return ! ($this->pausa_ventanilla ?? false);
+    }
+
+    /** ¿Recibe citas nuevas por este canal? 'linea', 'ventanilla' o null (cualquiera). */
+    public function recibePor(?string $canal): bool
+    {
+        return match ($canal) {
+            'linea'      => $this->recibeEnLinea() && $this->recibeVentanilla(),
+            'ventanilla' => $this->recibeVentanilla(),
+            default      => true,
+        };
+    }
+
+    /** null (recibe todo), 'linea' (sólo pausa en línea) o 'todas' (también ventanilla). */
+    public function pausa(): ?string
+    {
+        return ! $this->recibeVentanilla() ? 'todas' : (! $this->recibeEnLinea() ? 'linea' : null);
+    }
+
     /** ¿Ya corrió la migración de en_linea? */
     public static function enLineaMigrado(): bool
     {
@@ -57,8 +83,16 @@ class Modulo extends Model
         return $hay ??= Schema::hasColumn('modulos', 'en_linea');
     }
 
-    /** "Recibe citas en línea" o "En pausa desde hoy 10:32 · Ana Pérez". */
-    public function notaEnLinea(): string
+    /** ¿Ya corrió la migración de pausa_ventanilla? */
+    public static function pausaVentanillaMigrada(): bool
+    {
+        static $hay = null;
+
+        return $hay ??= Schema::hasColumn('modulos', 'pausa_ventanilla');
+    }
+
+    /** "Recibe en línea y ventanilla", "En línea en pausa desde hoy 10:32 · Ana Pérez"… */
+    public function notaPausa(): string
     {
         $cuando = $this->en_linea_cambio_at;
         $quien  = $this->en_linea_cambio_por ? optional($this->cambioEnLineaPor)->name : null;
@@ -67,11 +101,13 @@ class Modulo extends Model
             ? ($cuando->isToday() ? 'hoy '.$cuando->format('H:i') : $cuando->locale('es')->isoFormat('D MMM YYYY, HH:mm'))
             : null;
 
-        if (! $this->recibeEnLinea()) {
-            return 'En pausa'.($fecha ? ' desde '.$fecha : '').$quien;
-        }
+        $desde = ($fecha ? ' desde '.$fecha : '').$quien;
 
-        return 'Recibe citas en línea'.($fecha ? ' · reactivado '.$fecha.$quien : '');
+        return match ($this->pausa()) {
+            'todas' => 'Sin citas nuevas (ni en línea ni ventanilla)'.$desde,
+            'linea' => 'En línea en pausa'.$desde.' · ventanilla sí',
+            default => 'Recibe en línea y ventanilla'.($fecha ? ' · reactivado '.$fecha.$quien : ''),
+        };
     }
 
     public function recibe(string $tramite): bool

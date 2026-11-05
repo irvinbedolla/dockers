@@ -853,10 +853,11 @@ class RecepcionController extends Controller
         // El límite diario sólo aplica al formulario público.
         $limite = ($publico && ! $esExcepcion) ? $config->limite_diario : null;
 
-        // Si todos los módulos que reciben este trámite en la sede tienen en
-        // pausa las citas en línea (Administración → Módulos), el formulario
-        // público no ofrece horarios: no habría a quién asignar la cita.
-        $enPausa = $publico && ! $esExcepcion && \App\Support\AsignadorModulos::enLineaEnPausa($sede, $tipo);
+        // Si todos los módulos que reciben este trámite en la sede lo tienen en
+        // pausa para este canal (Administración → Módulos: en línea en el
+        // formulario público; "todas" también en ventanilla), no se ofrecen
+        // horarios: no habría a quién asignar la cita.
+        $enPausa = ! $esExcepcion && \App\Support\AsignadorModulos::enPausa($sede, $tipo, $publico ? 'linea' : 'ventanilla');
 
         $ahora = now();
         $eventos = [];

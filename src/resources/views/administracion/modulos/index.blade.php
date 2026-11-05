@@ -113,7 +113,7 @@
         .md-chip--comida { background: #FBF4E1; color: #8A6A12; }
         .md-chip--inactivo { background: #F6E4EA; color: #8C1D40; }
 
-        /* Switch "Citas en línea" de cada módulo. */
+        /* Switch "Recibe citas" de cada módulo y qué se pausa. */
         .md-linea {
             display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px;
             margin: 12px 0 0; padding: 7px 10px; border-radius: 8px;
@@ -126,6 +126,11 @@
         .md-linea__nota { font-size: 12px; color: var(--tn-tenue); }
         .md-linea.is-pausa { background: #F6E4EA; border-color: #EBC3D0; }
         .md-linea.is-pausa .md-linea__nota { color: #8C1D40; font-weight: 600; }
+        .md-linea.is-pausa-todo { background: #F9D6DD; border-color: #E09AAD; }
+        .md-linea__modo { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; font-size: 12.5px; color: var(--tn-suave); }
+        .md-linea__modo b { font-weight: 700; color: var(--tn-tinta); }
+        .md-linea__op { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; margin: 0; }
+        .md-linea__op input { margin: 0; accent-color: #8C1D40; cursor: pointer; }
         .md-linea.is-error .md-linea__nota { color: #A3162E; font-weight: 600; }
         .md-linea.is-guardando { opacity: .6; }
 
@@ -252,9 +257,17 @@
             </div>
 
             @if ($enLineaMigrado)
-                <div class="alert alert-warning d-flex gap-2 align-items-start py-2 mb-3" id="mdSinEnLinea" role="status" @if (! $sinEnLinea) hidden @endif>
+                <div class="alert alert-warning d-flex gap-2 align-items-start py-2 mb-3" id="mdAvisoPausa" role="status" @if (! $sinEnLinea && ! $sinVentanilla) hidden @endif>
                     <i class="bi bi-pause-circle-fill mt-1" aria-hidden="true"></i>
-                    <span>En {{ $sede }} todos los módulos que atienden <b data-lista>{{ implode(', ', $sinEnLinea) }}</b> tienen en pausa las citas en línea: el formulario público no ofrece horarios para eso hasta que prendas al menos uno.</span>
+                    <div>
+                        <div data-canal="linea" @if (! $sinEnLinea) hidden @endif>
+                            <b>En línea:</b> en {{ $sede }} todos los módulos que atienden <b data-lista>{{ implode(', ', $sinEnLinea) }}</b> están en pausa; el formulario público no ofrece horarios para eso.
+                        </div>
+                        <div data-canal="ventanilla" @if (! $sinVentanilla) hidden @endif>
+                            <b>Ventanilla:</b> en {{ $sede }} todos los módulos que atienden <b data-lista>{{ implode(', ', $sinVentanilla) }}</b> están en pausa total; recepción no puede agendarlo.
+                        </div>
+                        <small class="d-block">Prende al menos un módulo para volver a ofrecer horarios.</small>
+                    </div>
                 </div>
             @endif
 
@@ -315,22 +328,36 @@
                             </div>
 
                             @if ($enLineaMigrado)
-                                {{-- Apagado: el formulario público deja de asignarle citas desde ese momento. --}}
+                                @php $pausa = $modulo->pausa(); @endphp
+                                {{-- Apagado: desde ese momento no se le asignan citas nuevas en línea (o tampoco de ventanilla). --}}
                                 <form method="POST" action="{{ route('modulos.en_linea', $modulo) }}"
-                                      class="md-linea js-en-linea {{ $modulo->recibeEnLinea() ? '' : 'is-pausa' }}">
+                                      class="md-linea js-pausa {{ $pausa ? 'is-pausa' : '' }} {{ $pausa === 'todas' ? 'is-pausa-todo' : '' }}">
                                     @csrf
                                     @method('PUT')
                                     <input type="hidden" name="fecha_vista" value="{{ $fecha }}">
                                     <input type="hidden" name="origen_vista" value="{{ $origen }}">
-                                    <input type="hidden" name="en_linea" value="0">
                                     <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" role="switch" name="en_linea" value="1"
-                                               id="mdLinea{{ $modulo->id }}" @checked($modulo->recibeEnLinea())
-                                               title="Apágalo para que ya no le lleguen citas del formulario en línea">
-                                        <label class="form-check-label" for="mdLinea{{ $modulo->id }}">Citas en línea</label>
+                                        <input class="form-check-input" type="checkbox" role="switch" data-switch
+                                               id="mdRecibe{{ $modulo->id }}" @checked(! $pausa)
+                                               title="Apágalo para que ya no le lleguen citas nuevas">
+                                        <label class="form-check-label" for="mdRecibe{{ $modulo->id }}">Recibe citas</label>
                                     </div>
-                                    <span class="md-linea__nota" aria-live="polite">{{ $modulo->notaEnLinea() }}</span>
-                                    <noscript><button class="btn btn-sm btn-link p-0">Guardar</button></noscript>
+                                    <span class="md-linea__nota" aria-live="polite">{{ $modulo->notaPausa() }}</span>
+                                    <div class="md-linea__modo" role="radiogroup" aria-label="Qué se pausa" @if (! $pausa) hidden @endif>
+                                        <b>Pausar:</b>
+                                        <label class="md-linea__op"><input type="radio" name="modo{{ $modulo->id }}" value="linea" @checked($pausa !== 'todas')> Sólo citas en línea</label>
+                                        @if ($ventanillaMigrada)
+                                            <label class="md-linea__op"><input type="radio" name="modo{{ $modulo->id }}" value="todas" @checked($pausa === 'todas')> Todas, también ventanilla</label>
+                                        @endif
+                                    </div>
+                                    <noscript>
+                                        <select name="pausa" class="form-select form-select-sm w-auto">
+                                            <option value="ninguna" @selected(! $pausa)>Recibe todas</option>
+                                            <option value="linea" @selected($pausa === 'linea')>Pausar sólo en línea</option>
+                                            @if ($ventanillaMigrada)<option value="todas" @selected($pausa === 'todas')>Pausar todas</option>@endif
+                                        </select>
+                                        <button class="btn btn-sm btn-link p-0">Guardar</button>
+                                    </noscript>
                                 </form>
                             @endif
                         </header>
@@ -488,14 +515,31 @@
                 form.querySelectorAll('.md-respaldo').forEach(function (c) { c.checked = !!(m && m.respaldo.indexOf(c.value) !== -1); });
             });
 
-            // --- Switch "Citas en línea": se guarda al momento, sin recargar.
-            var avisoSinLinea = document.getElementById('mdSinEnLinea');
-            document.querySelectorAll('.js-en-linea').forEach(function (f) {
-                var sw = f.querySelector('input[type="checkbox"]');
+            // --- Switch "Recibe citas" y qué se pausa: se guarda al momento, sin recargar.
+            var avisoPausa = document.getElementById('mdAvisoPausa');
+            function pintarAviso(canal, lista) {
+                if (!avisoPausa) return;
+                var linea = avisoPausa.querySelector('[data-canal="' + canal + '"]');
+                linea.hidden = !lista.length;
+                linea.querySelector('[data-lista]').textContent = lista.join(', ');
+                avisoPausa.hidden = Array.prototype.every.call(avisoPausa.querySelectorAll('[data-canal]'), function (d) { return d.hidden; });
+            }
+            document.querySelectorAll('.js-pausa').forEach(function (f) {
+                var sw = f.querySelector('[data-switch]');
                 var nota = f.querySelector('.md-linea__nota');
-                sw.addEventListener('change', function () {
-                    var prender = sw.checked;
+                var modo = f.querySelector('.md-linea__modo');
+                var radios = f.querySelectorAll('.md-linea__modo input[type="radio"]');
+                var actual = sw.checked ? 'ninguna' : ((f.querySelector('.md-linea__modo input:checked') || {}).value || 'linea');
+                function pintar(p) {
+                    sw.checked = p === 'ninguna';
+                    modo.hidden = p === 'ninguna';
+                    f.classList.toggle('is-pausa', p !== 'ninguna');
+                    f.classList.toggle('is-pausa-todo', p === 'todas');
+                    radios.forEach(function (r) { if (p !== 'ninguna') r.checked = r.value === p; });
+                }
+                function guardar(pausa) {
                     sw.disabled = true;
+                    radios.forEach(function (r) { r.disabled = true; });
                     f.classList.add('is-guardando');
                     f.classList.remove('is-error');
                     fetch(f.getAttribute('action'), {
@@ -506,7 +550,7 @@
                             'X-Requested-With': 'XMLHttpRequest',
                             'X-CSRF-TOKEN': f.querySelector('input[name="_token"]').value
                         },
-                        body: JSON.stringify({ en_linea: prender })
+                        body: JSON.stringify({ pausa: pausa })
                     })
                         .then(function (r) {
                             return r.json().catch(function () { return {}; }).then(function (j) {
@@ -515,24 +559,30 @@
                             });
                         })
                         .then(function (j) {
-                            sw.checked = !!j.en_linea;
-                            f.classList.toggle('is-pausa', !j.en_linea);
+                            actual = j.pausa;
+                            pintar(actual);
                             nota.textContent = j.nota;
-                            if (avisoSinLinea) {
-                                var lista = j.sinEnLinea || [];
-                                avisoSinLinea.hidden = !lista.length;
-                                avisoSinLinea.querySelector('[data-lista]').textContent = lista.join(', ');
-                            }
+                            pintarAviso('linea', j.sinEnLinea || []);
+                            pintarAviso('ventanilla', j.sinVentanilla || []);
                         })
                         .catch(function (e) {
-                            sw.checked = !prender;
+                            pintar(actual);
                             f.classList.add('is-error');
                             nota.textContent = e.message;
                         })
                         .finally(function () {
                             sw.disabled = false;
+                            radios.forEach(function (r) { r.disabled = false; });
                             f.classList.remove('is-guardando');
                         });
+                }
+                // Al apagar se pausa lo que esté marcado abajo (de inicio, sólo en línea).
+                sw.addEventListener('change', function () {
+                    var marcado = f.querySelector('.md-linea__modo input:checked');
+                    guardar(sw.checked ? 'ninguna' : (marcado ? marcado.value : 'linea'));
+                });
+                radios.forEach(function (r) {
+                    r.addEventListener('change', function () { if (r.checked && !sw.checked) guardar(r.value); });
                 });
             });
         })();
