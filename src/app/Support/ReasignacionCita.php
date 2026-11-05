@@ -77,7 +77,7 @@ class ReasignacionCita
                     $m->id == $c->modulo_clave                  => 'actual',
                     ! AsignadorModulos::atendible($m)           => $m->activo ? 'sin_persona' : 'inactivo',
                     // Pausa total (Administración → Módulos): no recibe citas nuevas, ni movidas a mano.
-                    ! $m->recibeVentanilla()                    => 'pausa',
+                    ! $m->recibePor('ventanilla', $c->fecha instanceof \DateTimeInterface ? $c->fecha->format('Y-m-d') : substr((string) $c->fecha, 0, 10)) => 'pausa',
                     $m->enComida($c->hora)                      => 'comida',
                     $choque !== null && $choque->id != $c->id   => 'ocupado',
                     default                                     => 'libre',
@@ -155,7 +155,7 @@ class ReasignacionCita
             $destino->delegacion !== $cita->delegacion        => 'El módulo es de otra sede.',
             $destino->id == $cita->modulo_id                  => 'La cita ya está en ese módulo.',
             ! AsignadorModulos::atendible($destino)           => "{$destino->nombre} está inactivo o no tiene persona asignada.",
-            ! $destino->recibeVentanilla()                    => "{$destino->nombre} tiene en pausa todas sus citas (también ventanilla): no recibe citas nuevas. Reactívalo en Administración → Módulos.",
+            ! $destino->recibePor('ventanilla', $fecha)       => "{$destino->nombre} tiene en pausa todas sus citas".($destino->pausa_desde ? ' a partir del '.$destino->pausa_desde->format('d/m/Y') : '').': no recibe citas nuevas ni reasignaciones. Cámbialo en Administración → Módulos.',
             $destino->enComida($hora)                         => "{$destino->nombre} está en su hora de comida a las ".substr($hora, 0, 5).'.',
             default                                           => null,
         };

@@ -210,7 +210,7 @@ class CancelacionCitasController extends Controller
         $modulo = $excepcion ? null : AsignadorModulos::elegir($sedeReal, $tipoReal, $datos['fecha'], $hora);
         // Tampoco se queda en el suyo si ese módulo tiene en pausa todas sus citas.
         $conservaModulo = ! $cambiaSede && ! $cambiaTipo
-            && ! ($cita->modulo_id && optional(\App\Models\Modulo::find($cita->modulo_id))->pausa() === 'todas');
+            && ! ($cita->modulo_id && ($suModulo = \App\Models\Modulo::find($cita->modulo_id)) && ! $suModulo->recibePor('ventanilla', $datos['fecha']));
         $antes  = $cita->fecha->format('d/m/Y').' '.substr($cita->getRawOriginal('hora'), 0, 5)
             .($cambiaSede || $cambiaTipo ? " · {$sedeAntes} · {$tipoAntes} · {$cita->folio_cita}" : '');
 

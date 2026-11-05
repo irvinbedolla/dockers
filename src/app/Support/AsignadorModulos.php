@@ -49,7 +49,7 @@ class AsignadorModulos
         $canal = $enLinea ? 'linea' : 'ventanilla';
         $modulos = self::deSede($sede, true)
             ->filter(fn (Modulo $m) => self::atendible($m))
-            ->filter(fn (Modulo $m) => $m->recibePor($canal));
+            ->filter(fn (Modulo $m) => $m->recibePor($canal, $fecha));
 
         foreach (['recibe', 'recibeDeRespaldo'] as $criterio) {
             $libres = $modulos
@@ -69,10 +69,10 @@ class AsignadorModulos
      * primera mano o de respaldo? Con $canal ('linea' o 'ventanilla'), sólo
      * los que no lo tienen en pausa para ese canal.
      */
-    public static function hayQuienReciba(Collection $modulos, string $tramite, ?string $canal = null): bool
+    public static function hayQuienReciba(Collection $modulos, string $tramite, ?string $canal = null, ?string $fecha = null): bool
     {
         return $modulos->contains(fn (Modulo $m) => self::atendible($m)
-            && $m->recibePor($canal)
+            && $m->recibePor($canal, $fecha)
             && ($m->recibe($tramite) || $m->recibeDeRespaldo($tramite)));
     }
 
@@ -80,13 +80,14 @@ class AsignadorModulos
      * ¿Todos los módulos que recibirían este trámite en la sede lo tienen en
      * pausa para ese canal ('linea' o 'ventanilla')? Si no hay ninguno que lo
      * reciba, false (eso no es una pausa, es que la sede no está configurada
-     * para él).
+     * para él). $fecha: el día de la cita (null = hoy), por las pausas
+     * programadas.
      */
-    public static function enPausa(string $sede, string $tramite, string $canal, ?Collection $modulos = null): bool
+    public static function enPausa(string $sede, string $tramite, string $canal, ?Collection $modulos = null, ?string $fecha = null): bool
     {
         $modulos ??= self::deSede($sede, true);
 
-        return self::hayQuienReciba($modulos, $tramite) && ! self::hayQuienReciba($modulos, $tramite, $canal);
+        return self::hayQuienReciba($modulos, $tramite) && ! self::hayQuienReciba($modulos, $tramite, $canal, $fecha);
     }
 
     /** Activo, con persona y persona activa. */

@@ -116,17 +116,19 @@ class ModulosController extends Controller
             'limiteHoy' => LimiteCitas::hoy(),
             'enLineaMigrado' => $enLineaMigrado,
             'ventanillaMigrada' => Modulo::pausaVentanillaMigrada(),
+            'pausaDesdeMigrada' => Modulo::pausaDesdeMigrada(),
             'sinEnLinea'     => $enLineaMigrado ? self::tramitesEnPausa($sede, 'linea', $modulos) : [],
             'sinVentanilla'  => $enLineaMigrado ? self::tramitesEnPausa($sede, 'ventanilla', $modulos) : [],
         ]);
     }
 
     /**
-     * Switch "Recibe citas" de cada módulo. Apagado, desde ese momento y hasta
-     * que se prenda otra vez no se le asignan citas nuevas:
+     * Switch "Recibe citas" de cada módulo. Apagado, y hasta que se prenda
+     * otra vez, no se le asignan citas nuevas:
      *   linea  sólo las del formulario público; la ventanilla sí.
-     *   todas  tampoco las de ventanilla ni la reagenda automática.
-     * Las que ya tenía siguen con él y la reasignación manual no cambia.
+     *   todas  tampoco las de ventanilla, la reagenda ni la reasignación manual.
+     * Desde ahora (desde = null) o a partir de una fecha: las citas de ese día
+     * en adelante. Las que ya tenía siguen con él.
      */
     public function enLinea(Request $request, Modulo $modulo)
     {
@@ -140,11 +142,25 @@ class ModulosController extends Controller
 
         // 'pausa' (ninguna | linea | todas); 'en_linea' se acepta por si una
         // pestaña quedó abierta con la versión anterior del switch.
+        $hoy = Carbon::today()->toDateString();
         $request->validate([
             'pausa'    => ['required_without:en_linea', Rule::in(['ninguna', 'linea', 'todas'])],
             'en_linea' => ['required_without:pausa', 'boolean'],
+            'desde'    => ['nullable', 'date_format:Y-m-d', 'after_or_equal:'.$hoy],
+        ], [
+            'desde.after_or_equal' => 'La fecha de la pausa no puede ser de un día que ya pasó.',
         ]);
         $pausa = $request->filled('pausa') ? $request->input('pausa') : ($request->boolean('en_linea') ? 'ninguna' : 'linea');
+        // Hoy o sin fecha = desde ahora.
+        $desde = $pausa !== 'ninguna' && $request->filled('desde') && $request->input('desde') > $hoy ? $request->input('desde') : null;
+
+        if ($desde && ! Modulo::pausaDesdeMigrada()) {
+            $mensaje = 'Falta correr la migración de módulos (php artisan migrate) para poder programar la pausa con fecha.';
+
+            return $request->expectsJson()
+                ? response()->json(['message' => $mensaje], 409)
+                : $this->volver($request, $modulo->delegacion)->with('error', $mensaje);
+        }
 
         if ($pausa === 'todas' && ! Modulo::pausaVentanillaMigrada()) {
             $mensaje = 'Falta correr la migración de módulos (php artisan migrate) para poder pausar también la ventanilla.';
@@ -154,33 +170,54 @@ class ModulosController extends Controller
                 : $this->volver($request, $modulo->delegacion)->with('error', $mensaje);
         }
 
-        if (($modulo->pausa() ?? 'ninguna') !== $pausa) {
+        $desdeAntes = $modulo->pausa_desde?->toDateString();
+        if (($modulo->pausa() ?? 'ninguna') !== $pausa || $desdeAntes !== $desde) {
             $antes = $modulo->pausa() ?? 'ninguna';
             $modulo->forceFill(array_merge([
                 'en_linea'            => $pausa === 'ninguna',
                 'en_linea_cambio_at'  => now(),
                 'en_linea_cambio_por' => $request->user()->id,
-            ], Modulo::pausaVentanillaMigrada() ? ['pausa_ventanilla' => $pausa === 'todas'] : []))->save();
+            ], Modulo::pausaVentanillaMigrada() ? ['pausa_ventanilla' => $pausa === 'todas'] : [],
+               Modulo::pausaDesdeMigrada() ? ['pausa_desde' => $desde] : []))->save();
 
             Log::info('Pausa de citas del módulo', [
                 'modulo' => $modulo->id, 'nombre' => $modulo->nombre, 'sede' => $modulo->delegacion,
-                'persona' => $modulo->user_id, 'antes' => $antes, 'ahora' => $pausa, 'por' => $request->user()->id,
+                'persona' => $modulo->user_id, 'antes' => $antes, 'ahora' => $pausa,
+                'desde_antes' => $desdeAntes, 'desde' => $desde, 'por' => $request->user()->id,
             ]);
         }
 
         $modulo->load(['persona:id,name', 'cambioEnLineaPor:id,name']);
         $quien = $modulo->persona ? ' ('.$modulo->persona->name.')' : '';
+        $cuando = $desde ? 'a partir del '.Carbon::parse($desde)->locale('es')->isoFormat('dddd D [de] MMMM') : 'desde ahora';
         $mensaje = match ($pausa) {
-            'todas' => "{$modulo->nombre}{$quien} ya no recibe citas nuevas, ni en línea ni de ventanilla, desde ahora. Las que ya tenía siguen con él.",
-            'linea' => "{$modulo->nombre}{$quien} ya no recibe citas en línea desde ahora; la ventanilla sí le sigue asignando. Las que ya tenía siguen con él.",
+            'todas' => "{$modulo->nombre}{$quien} no recibirá citas nuevas, ni en línea ni de ventanilla, {$cuando}; tampoco se le podrán reasignar.",
+            'linea' => "{$modulo->nombre}{$quien} no recibirá citas en línea {$cuando}; la ventanilla sí le sigue asignando.",
             default => "{$modulo->nombre}{$quien} vuelve a recibir citas en línea y de ventanilla.",
         };
+
+        // Las que ya tiene de esa fecha en adelante no se mueven solas: se avisa.
+        $pendientes = $pausa === 'ninguna' ? 0 : DB::table('recepcion')
+            ->where('modulo_id', $modulo->id)
+            ->where('fecha', '>=', $desde ?? $hoy)
+            ->whereIn('estatus', self::MOVIBLES)
+            ->count();
+        $aviso = $pendientes > 0
+            ? "Tiene {$pendientes} ".($pendientes === 1 ? 'cita' : 'citas').' '.($desde ? 'desde esa fecha' : 'de hoy en adelante')
+              .($pendientes === 1 ? ' que sigue' : ' que siguen').' con él; si hace falta, muévelas a otro módulo.'
+            : null;
+        if ($aviso) {
+            $mensaje .= ' '.$aviso;
+        }
 
         if ($request->expectsJson()) {
             return response()->json([
                 'pausa'         => $pausa,
+                'desde'         => $desde,
+                'programada'    => $modulo->pausaProgramada(),
                 'en_linea'      => $pausa === 'ninguna',
                 'nota'          => $modulo->notaPausa(),
+                'aviso'         => $aviso,
                 'message'       => $mensaje,
                 'sinEnLinea'    => self::tramitesEnPausa($modulo->delegacion, 'linea'),
                 'sinVentanilla' => self::tramitesEnPausa($modulo->delegacion, 'ventanilla'),

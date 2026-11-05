@@ -127,6 +127,14 @@
         .md-linea.is-pausa { background: #F6E4EA; border-color: #EBC3D0; }
         .md-linea.is-pausa .md-linea__nota { color: #8C1D40; font-weight: 600; }
         .md-linea.is-pausa-todo { background: #F9D6DD; border-color: #E09AAD; }
+        /* .d-flex lleva !important: sin esto el aviso no se oculta. */
+        #mdAvisoPausa[hidden] { display: none !important; }
+        .md-linea.is-programada { background: #FBF4E1; border-color: #EBDDB0; }
+        .md-linea.is-programada .md-linea__nota { color: #8A6A12; font-weight: 600; }
+        .md-linea__fecha { width: auto; min-width: 150px; padding: 2px 8px; font-size: 12.5px; }
+        .md-linea__acciones { flex-basis: 100%; display: flex; align-items: center; gap: 8px; }
+        .md-linea__acciones .btn { font-size: 12px; padding: 2px 10px; }
+        .md-linea__aviso { flex-basis: 100%; font-size: 12px; color: #8A6A12; }
         .md-linea__modo { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; font-size: 12.5px; color: var(--tn-suave); }
         .md-linea__modo b { font-weight: 700; color: var(--tn-tinta); }
         .md-linea__op { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; margin: 0; }
@@ -328,10 +336,15 @@
                             </div>
 
                             @if ($enLineaMigrado)
-                                @php $pausa = $modulo->pausa(); @endphp
-                                {{-- Apagado: desde ese momento no se le asignan citas nuevas en línea (o tampoco de ventanilla). --}}
+                                @php
+                                    $pausa = $modulo->pausa();
+                                    $programada = $modulo->pausaProgramada();
+                                    $pausaDesde = $pausaDesdeMigrada ? $modulo->pausa_desde?->toDateString() : null;
+                                @endphp
+                                {{-- Apagado: desde ahora o a partir de una fecha no se le asignan citas nuevas en línea (o tampoco de ventanilla ni reasignaciones). --}}
                                 <form method="POST" action="{{ route('modulos.en_linea', $modulo) }}"
-                                      class="md-linea js-pausa {{ $pausa ? 'is-pausa' : '' }} {{ $pausa === 'todas' ? 'is-pausa-todo' : '' }}">
+                                      data-pausa="{{ $pausa ?? 'ninguna' }}" data-desde="{{ $pausaDesde }}" data-programada="{{ $programada ? 1 : 0 }}"
+                                      class="md-linea js-pausa {{ $pausa && ! $programada ? 'is-pausa' : '' }} {{ $pausa === 'todas' && ! $programada ? 'is-pausa-todo' : '' }} {{ $programada ? 'is-programada' : '' }}">
                                     @csrf
                                     @method('PUT')
                                     <input type="hidden" name="fecha_vista" value="{{ $fecha }}">
@@ -347,15 +360,30 @@
                                         <b>Pausar:</b>
                                         <label class="md-linea__op"><input type="radio" name="modo{{ $modulo->id }}" value="linea" @checked($pausa !== 'todas')> Sólo citas en línea</label>
                                         @if ($ventanillaMigrada)
-                                            <label class="md-linea__op"><input type="radio" name="modo{{ $modulo->id }}" value="todas" @checked($pausa === 'todas')> Todas, también ventanilla</label>
+                                            <label class="md-linea__op"><input type="radio" name="modo{{ $modulo->id }}" value="todas" @checked($pausa === 'todas')> Todas, también ventanilla (sin reasignar)</label>
                                         @endif
                                     </div>
+                                    @if ($pausaDesdeMigrada)
+                                        <div class="md-linea__modo" data-cuando @if (! $pausa) hidden @endif>
+                                            <b>Desde:</b>
+                                            <label class="md-linea__op"><input type="radio" name="cuando{{ $modulo->id }}" value="ahora" @checked(! $pausaDesde)> Ahora</label>
+                                            <label class="md-linea__op"><input type="radio" name="cuando{{ $modulo->id }}" value="fecha" @checked($pausaDesde)> Una fecha</label>
+                                            <input type="date" class="form-control form-control-sm md-linea__fecha" data-fecha
+                                                   min="{{ $hoy }}" value="{{ $pausaDesde }}" aria-label="Fecha desde la que se pausa" @if (! $pausaDesde) hidden @endif>
+                                        </div>
+                                    @endif
+                                    <div class="md-linea__acciones" data-acciones hidden>
+                                        <button type="button" class="btn btn-sm btn-dark" data-aplicar>Aplicar pausa</button>
+                                        <button type="button" class="btn btn-sm btn-link p-0" data-cancelar>Cancelar</button>
+                                    </div>
+                                    <span class="md-linea__aviso" data-aviso hidden></span>
                                     <noscript>
                                         <select name="pausa" class="form-select form-select-sm w-auto">
                                             <option value="ninguna" @selected(! $pausa)>Recibe todas</option>
                                             <option value="linea" @selected($pausa === 'linea')>Pausar sólo en línea</option>
                                             @if ($ventanillaMigrada)<option value="todas" @selected($pausa === 'todas')>Pausar todas</option>@endif
                                         </select>
+                                        @if ($pausaDesdeMigrada)<input type="date" name="desde" min="{{ $hoy }}" value="{{ $pausaDesde }}" class="form-control form-control-sm w-auto">@endif
                                         <button class="btn btn-sm btn-link p-0">Guardar</button>
                                     </noscript>
                                 </form>
@@ -515,7 +543,8 @@
                 form.querySelectorAll('.md-respaldo').forEach(function (c) { c.checked = !!(m && m.respaldo.indexOf(c.value) !== -1); });
             });
 
-            // --- Switch "Recibe citas" y qué se pausa: se guarda al momento, sin recargar.
+            // --- Switch "Recibe citas": qué se pausa (sólo en línea o todas) y desde
+            // cuándo (ahora o una fecha). Reactivar se guarda al momento; la pausa, con "Aplicar".
             var avisoPausa = document.getElementById('mdAvisoPausa');
             function pintarAviso(canal, lista) {
                 if (!avisoPausa) return;
@@ -524,24 +553,59 @@
                 linea.querySelector('[data-lista]').textContent = lista.join(', ');
                 avisoPausa.hidden = Array.prototype.every.call(avisoPausa.querySelectorAll('[data-canal]'), function (d) { return d.hidden; });
             }
+            function marcado(lista, porDefecto) {
+                var r = Array.prototype.find.call(lista, function (x) { return x.checked; });
+                return r ? r.value : porDefecto;
+            }
             document.querySelectorAll('.js-pausa').forEach(function (f) {
                 var sw = f.querySelector('[data-switch]');
                 var nota = f.querySelector('.md-linea__nota');
-                var modo = f.querySelector('.md-linea__modo');
-                var radios = f.querySelectorAll('.md-linea__modo input[type="radio"]');
-                var actual = sw.checked ? 'ninguna' : ((f.querySelector('.md-linea__modo input:checked') || {}).value || 'linea');
-                function pintar(p) {
-                    sw.checked = p === 'ninguna';
-                    modo.hidden = p === 'ninguna';
-                    f.classList.toggle('is-pausa', p !== 'ninguna');
-                    f.classList.toggle('is-pausa-todo', p === 'todas');
-                    radios.forEach(function (r) { if (p !== 'ninguna') r.checked = r.value === p; });
+                var paneles = f.querySelectorAll('.md-linea__modo');
+                var modos = f.querySelectorAll('input[name^="modo"]');
+                var cuandos = f.querySelectorAll('input[name^="cuando"]');
+                var fecha = f.querySelector('[data-fecha]');
+                var acciones = f.querySelector('[data-acciones]');
+                var aplicar = f.querySelector('[data-aplicar]');
+                var aviso = f.querySelector('[data-aviso]');
+                var actual = { pausa: f.dataset.pausa || 'ninguna', desde: f.dataset.desde || '', programada: f.dataset.programada === '1' };
+
+                function borrador() {
+                    var porFecha = !!fecha && marcado(cuandos, 'ahora') === 'fecha';
+                    return { pausa: marcado(modos, 'linea'), desde: porFecha ? fecha.value : '', porFecha: porFecha };
                 }
-                function guardar(pausa) {
-                    sw.disabled = true;
-                    radios.forEach(function (r) { r.disabled = true; });
-                    f.classList.add('is-guardando');
+                function cambiado() {
+                    var b = borrador();
+                    return actual.pausa === 'ninguna' || b.pausa !== actual.pausa || b.desde !== actual.desde || (b.porFecha && !b.desde);
+                }
+                function mostrarFecha() { if (fecha) fecha.hidden = marcado(cuandos, 'ahora') !== 'fecha'; }
+                function pintar(estado) {
+                    var activa = estado.pausa !== 'ninguna';
+                    sw.checked = !activa;
+                    paneles.forEach(function (p) { p.hidden = !activa; });
+                    f.classList.toggle('is-programada', activa && estado.programada);
+                    f.classList.toggle('is-pausa', activa && !estado.programada);
+                    f.classList.toggle('is-pausa-todo', estado.pausa === 'todas' && !estado.programada);
+                    if (activa) {
+                        modos.forEach(function (r) { r.checked = r.value === estado.pausa; });
+                        cuandos.forEach(function (r) { r.checked = r.value === (estado.desde ? 'fecha' : 'ahora'); });
+                        if (fecha) fecha.value = estado.desde || '';
+                    }
+                    mostrarFecha();
+                    acciones.hidden = true;
+                }
+                function revisar() {
+                    mostrarFecha();
+                    acciones.hidden = !cambiado();
+                    aplicar.textContent = actual.pausa === 'ninguna' ? 'Aplicar pausa' : 'Guardar cambios';
+                }
+                function bloquear(si) {
+                    f.querySelectorAll('input:not([type="hidden"]), button').forEach(function (x) { x.disabled = si; });
+                    f.classList.toggle('is-guardando', si);
+                }
+                function guardar(datos) {
+                    bloquear(true);
                     f.classList.remove('is-error');
+                    aviso.hidden = true;
                     fetch(f.getAttribute('action'), {
                         method: 'PUT',
                         headers: {
@@ -550,7 +614,7 @@
                             'X-Requested-With': 'XMLHttpRequest',
                             'X-CSRF-TOKEN': f.querySelector('input[name="_token"]').value
                         },
-                        body: JSON.stringify({ pausa: pausa })
+                        body: JSON.stringify(datos)
                     })
                         .then(function (r) {
                             return r.json().catch(function () { return {}; }).then(function (j) {
@@ -559,9 +623,11 @@
                             });
                         })
                         .then(function (j) {
-                            actual = j.pausa;
+                            actual = { pausa: j.pausa, desde: j.desde || '', programada: !!j.programada };
                             pintar(actual);
                             nota.textContent = j.nota;
+                            aviso.textContent = j.aviso || '';
+                            aviso.hidden = !j.aviso;
                             pintarAviso('linea', j.sinEnLinea || []);
                             pintarAviso('ventanilla', j.sinVentanilla || []);
                         })
@@ -570,20 +636,34 @@
                             f.classList.add('is-error');
                             nota.textContent = e.message;
                         })
-                        .finally(function () {
-                            sw.disabled = false;
-                            radios.forEach(function (r) { r.disabled = false; });
-                            f.classList.remove('is-guardando');
-                        });
+                        .finally(function () { bloquear(false); });
                 }
-                // Al apagar se pausa lo que esté marcado abajo (de inicio, sólo en línea).
+
                 sw.addEventListener('change', function () {
-                    var marcado = f.querySelector('.md-linea__modo input:checked');
-                    guardar(sw.checked ? 'ninguna' : (marcado ? marcado.value : 'linea'));
+                    if (sw.checked) {
+                        // Prender: si ya estaba en pausa (o programada), se quita al momento.
+                        if (actual.pausa !== 'ninguna') { guardar({ pausa: 'ninguna' }); } else { pintar(actual); }
+                        return;
+                    }
+                    // Apagar: se elige qué y desde cuándo, y se aplica con el botón.
+                    paneles.forEach(function (p) { p.hidden = false; });
+                    revisar();
                 });
-                radios.forEach(function (r) {
-                    r.addEventListener('change', function () { if (r.checked && !sw.checked) guardar(r.value); });
+                f.querySelectorAll('input[type="radio"], [data-fecha]').forEach(function (x) {
+                    x.addEventListener('change', function () { if (!sw.checked) revisar(); });
                 });
+                aplicar.addEventListener('click', function () {
+                    var b = borrador();
+                    if (b.porFecha && !b.desde) {
+                        f.classList.add('is-error');
+                        nota.textContent = 'Elige en el calendario la fecha desde la que ya no recibe citas.';
+                        fecha.focus();
+                        return;
+                    }
+                    guardar({ pausa: b.pausa, desde: b.desde || null });
+                });
+                f.querySelector('[data-cancelar]').addEventListener('click', function () { f.classList.remove('is-error'); pintar(actual); });
+                pintar(actual);
             });
         })();
     </script>
