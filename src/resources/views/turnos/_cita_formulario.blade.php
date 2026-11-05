@@ -50,7 +50,7 @@
                                                      En ventanilla cada recepción ve sólo los trámites que puede agendar
                                                      (Recepcion::tramitesQuePuedeCrear); si es uno solo, ya va elegido. --}}
                                                 @php
-                                                    $etiquetasTramite = ['Asesoría' => 'Asesoría', 'Solicitud' => 'Solicitud de conciliación', 'Ratificación' => 'Ratificación de convenio'];
+                                                    $etiquetasTramite = ['Solicitud' => 'Solicitud de conciliación', 'Ratificación' => 'Ratificación de convenio'];
                                                     $tramitesForm = $ventanilla
                                                         ? array_values(array_intersect(array_keys($etiquetasTramite), \App\Support\Recepcion::tramitesQuePuedeCrear(auth()->user())))
                                                         : array_keys($etiquetasTramite);
