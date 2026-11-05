@@ -30,7 +30,7 @@
     <style>
         .tn-filtros {
             display: grid;
-            grid-template-columns: auto repeat(4, minmax(0, 1fr)) auto;
+            grid-template-columns: auto repeat(5, minmax(0, 1fr)) auto;
             gap: 12px;
             align-items: end;
         }
@@ -270,6 +270,17 @@
                             <option value="">Todos</option>
                             <option value="linea" @selected(($filtros['origen'] ?? '') === 'linea')>Cita en línea</option>
                             <option value="ventanilla" @selected(($filtros['origen'] ?? '') === 'ventanilla')>Ventanilla</option>
+                        </select>
+                    </div>
+
+                    {{-- Las opciones las arma el script de abajo según el trámite y la sede. --}}
+                    <div>
+                        <label for="tnAtiende">Atiende</label>
+                        <select id="tnAtiende" name="atiende" class="form-select" data-actual="{{ $filtros['atiende'] ?? '' }}">
+                            <option value="">Todos</option>
+                            @foreach ($atendientes as $a)
+                                <option value="{{ $a->id }}" @selected((string) ($filtros['atiende'] ?? '') === (string) $a->id)>{{ $a->name }}</option>
+                            @endforeach
                         </select>
                     </div>
 
@@ -530,6 +541,47 @@
 @section('scripts')
     <script src="{{ asset('assets/js/turnos/turnos.js') }}"></script>
     <script>
+        // Filtro "Atiende": orientadores para solicitudes, auxiliares para
+        // ratificaciones, y sólo los de la sede elegida.
+        (function () {
+            var select = document.getElementById('tnAtiende');
+            if (!select) return;
+            var tipo = document.getElementById('tnTipo');
+            var sede = document.getElementById('tnSede');
+            var personas = @json($atendientes);
+            var rolPorTipo = @json(\App\Http\Controllers\TurnosHistorialController::ROL_POR_TIPO);
+
+            function arma() {
+                var actual = select.value || select.dataset.actual || '';
+                var rol = rolPorTipo[tipo ? tipo.value : ''] || null;
+                var enSede = sede ? sede.value : '';
+                var porSede = !sede || enSede !== '' ? null : {};
+
+                select.dataset.actual = '';
+                select.innerHTML = '<option value="">Todos</option>';
+                personas.forEach(function (p) {
+                    if (rol && p.roles.indexOf(rol) === -1) return;
+                    if (enSede && p.delegacion !== enSede) return;
+                    var op = new Option(p.name, p.id, false, String(p.id) === String(actual));
+                    // Con todas las sedes, se agrupan por sede.
+                    if (porSede) {
+                        if (!porSede[p.delegacion]) {
+                            porSede[p.delegacion] = document.createElement('optgroup');
+                            porSede[p.delegacion].label = p.delegacion;
+                            select.appendChild(porSede[p.delegacion]);
+                        }
+                        porSede[p.delegacion].appendChild(op);
+                    } else {
+                        select.appendChild(op);
+                    }
+                });
+            }
+
+            arma();
+            if (tipo) tipo.addEventListener('change', arma);
+            if (sede) sede.addEventListener('change', arma);
+        })();
+
         // Descargar agenda: muestra qué semana se va a bajar.
         (function () {
             var fecha = document.getElementById('agFecha');
