@@ -853,6 +853,11 @@ class RecepcionController extends Controller
         // El límite diario sólo aplica al formulario público.
         $limite = ($publico && ! $esExcepcion) ? $config->limite_diario : null;
 
+        // Si todos los módulos que reciben este trámite en la sede tienen en
+        // pausa las citas en línea (Administración → Módulos), el formulario
+        // público no ofrece horarios: no habría a quién asignar la cita.
+        $enPausa = $publico && ! $esExcepcion && \App\Support\AsignadorModulos::enLineaEnPausa($sede, $tipo);
+
         $ahora = now();
         $eventos = [];
         $fecha = (new \DateTime($fecha_inicio_str))->setTime(0, 0, 0);
@@ -889,7 +894,7 @@ class RecepcionController extends Controller
                     $cantidadOcupados = $ocupadosCount[$slotStart] ?? 0;
                     $tolerancia = Carbon::parse($slotStart)->addMinutes(HorarioCitas::TOLERANCIA_RESERVA);
 
-                    if ($lleno || $esInhabil || $ahora > $tolerancia) {
+                    if ($enPausa || $lleno || $esInhabil || $ahora > $tolerancia) {
                         $estado = 'expirado';
                     } elseif ($cantidadOcupados >= HorarioCitas::capacidad($config, $hora)) {
                         $estado = 'ocupado';

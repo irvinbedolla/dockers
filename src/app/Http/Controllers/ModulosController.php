@@ -53,6 +53,10 @@ class ModulosController extends Controller
 
         $modulos  = AsignadorModulos::deSede($sede);
         $porNombre = $modulos->keyBy('nombre');
+        $enLineaMigrado = Modulo::enLineaMigrado();
+        if ($enLineaMigrado) {
+            $modulos->load('cambioEnLineaPor:id,name');
+        }
 
         // Todas las del día, sin filtro de origen: con ellas se calcula qué
         // módulo está ocupado a qué hora, aunque en pantalla se filtre.
@@ -110,7 +114,73 @@ class ModulosController extends Controller
             'tramites'  => AsignadorModulos::TRAMITES,
             'limite'    => LimiteCitas::config(),
             'limiteHoy' => LimiteCitas::hoy(),
+            'enLineaMigrado' => $enLineaMigrado,
+            'sinEnLinea'     => $enLineaMigrado ? self::tramitesSinEnLinea($sede, $modulos) : [],
         ]);
+    }
+
+    /**
+     * Switch "Citas en línea" de cada módulo. Apagado, el formulario público
+     * deja de asignarle citas desde ese momento y hasta que se prenda otra
+     * vez; las que ya tenía siguen con él y la ventanilla no cambia.
+     */
+    public function enLinea(Request $request, Modulo $modulo)
+    {
+        if (! Modulo::enLineaMigrado()) {
+            $mensaje = 'Falta correr la migración de módulos (php artisan migrate) para poder pausar las citas en línea.';
+
+            return $request->expectsJson()
+                ? response()->json(['message' => $mensaje], 409)
+                : $this->volver($request, $modulo->delegacion)->with('error', $mensaje);
+        }
+
+        $request->validate(['en_linea' => ['required', 'boolean']]);
+        $prender = $request->boolean('en_linea');
+
+        if ($modulo->recibeEnLinea() !== $prender) {
+            $modulo->forceFill([
+                'en_linea'            => $prender,
+                'en_linea_cambio_at'  => now(),
+                'en_linea_cambio_por' => $request->user()->id,
+            ])->save();
+
+            Log::info('Citas en línea de módulo '.($prender ? 'reactivadas' : 'en pausa'), [
+                'modulo' => $modulo->id, 'nombre' => $modulo->nombre, 'sede' => $modulo->delegacion,
+                'persona' => $modulo->user_id, 'por' => $request->user()->id,
+            ]);
+        }
+
+        $modulo->load(['persona:id,name', 'cambioEnLineaPor:id,name']);
+        $quien = $modulo->persona ? ' ('.$modulo->persona->name.')' : '';
+        $mensaje = $prender
+            ? "{$modulo->nombre}{$quien} vuelve a recibir citas en línea."
+            : "{$modulo->nombre}{$quien} ya no recibe citas en línea desde ahora. Las que ya tenía siguen con él y la ventanilla no cambia.";
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'en_linea'   => $prender,
+                'nota'       => $modulo->notaEnLinea(),
+                'message'    => $mensaje,
+                'sinEnLinea' => self::tramitesSinEnLinea($modulo->delegacion),
+            ]);
+        }
+
+        return $this->volver($request, $modulo->delegacion)->with('success', $mensaje);
+    }
+
+    /**
+     * Trámites que en la sede nadie recibe en línea porque todos los módulos
+     * que los atienden tienen la pausa puesta: el formulario público no da
+     * horarios para ellos.
+     */
+    private static function tramitesSinEnLinea(string $sede, $modulos = null): array
+    {
+        $modulos ??= AsignadorModulos::deSede($sede);
+
+        return array_values(array_filter(
+            AsignadorModulos::TRAMITES,
+            fn ($t) => $t !== 'Cumplimiento' && AsignadorModulos::enLineaEnPausa($sede, $t, $modulos->where('activo', true))
+        ));
     }
 
     /**

@@ -385,6 +385,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             // Tope de citas en línea por IP, correo y teléfono (antes que {modulo}, que la atraparía).
             Route::put('administracion/modulos/limite-citas',            [ModulosController::class, 'limite'])->name('modulos.limite');
             Route::put('administracion/modulos/{modulo}',                [ModulosController::class, 'guardar'])->name('modulos.actualizar');
+            Route::put('administracion/modulos/{modulo}/en-linea',       [ModulosController::class, 'enLinea'])->name('modulos.en_linea');
             Route::post('administracion/modulos/citas/{id}/reasignar',   [ModulosController::class, 'reasignar'])->name('modulos.reasignar')->whereNumber('id');
             Route::get('administracion/horarios',                        [HorariosCitasController::class, 'index'])->name('horarios.index');
             Route::put('administracion/horarios',                        [HorariosCitasController::class, 'actualizar'])->name('horarios.actualizar');

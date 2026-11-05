@@ -113,6 +113,22 @@
         .md-chip--comida { background: #FBF4E1; color: #8A6A12; }
         .md-chip--inactivo { background: #F6E4EA; color: #8C1D40; }
 
+        /* Switch "Citas en línea" de cada módulo. */
+        .md-linea {
+            display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px;
+            margin: 12px 0 0; padding: 7px 10px; border-radius: 8px;
+            background: #EEF6F0; border: 1px solid #CFE6D6;
+        }
+        .md-linea .form-check { display: flex; align-items: center; gap: 8px; min-height: 0; padding-left: 0; }
+        .md-linea .form-check-input { margin: 0; float: none; width: 2.3em; height: 1.2em; cursor: pointer; }
+        .md-linea .form-check-input:checked { background-color: #2E8B57; border-color: #2E8B57; }
+        .md-linea .form-check-label { font-size: 13px; font-weight: 700; color: var(--tn-tinta); cursor: pointer; }
+        .md-linea__nota { font-size: 12px; color: var(--tn-tenue); }
+        .md-linea.is-pausa { background: #F6E4EA; border-color: #EBC3D0; }
+        .md-linea.is-pausa .md-linea__nota { color: #8C1D40; font-weight: 600; }
+        .md-linea.is-error .md-linea__nota { color: #A3162E; font-weight: 600; }
+        .md-linea.is-guardando { opacity: .6; }
+
         .md-citas { list-style: none; margin: 0; padding: 0; }
         .md-cita { border-top: 1px solid var(--tn-borde); }
         .md-cita:first-child { border-top: 0; }
@@ -235,6 +251,13 @@
                 </div>
             </div>
 
+            @if ($enLineaMigrado)
+                <div class="alert alert-warning d-flex gap-2 align-items-start py-2 mb-3" id="mdSinEnLinea" role="status" @if (! $sinEnLinea) hidden @endif>
+                    <i class="bi bi-pause-circle-fill mt-1" aria-hidden="true"></i>
+                    <span>En {{ $sede }} todos los módulos que atienden <b data-lista>{{ implode(', ', $sinEnLinea) }}</b> tienen en pausa las citas en línea: el formulario público no ofrece horarios para eso hasta que prendas al menos uno.</span>
+                </div>
+            @endif
+
             <div class="md-grid">
                 @foreach ($modulos as $modulo)
                     @php
@@ -290,6 +313,26 @@
                                     </span>
                                 @endforeach
                             </div>
+
+                            @if ($enLineaMigrado)
+                                {{-- Apagado: el formulario público deja de asignarle citas desde ese momento. --}}
+                                <form method="POST" action="{{ route('modulos.en_linea', $modulo) }}"
+                                      class="md-linea js-en-linea {{ $modulo->recibeEnLinea() ? '' : 'is-pausa' }}">
+                                    @csrf
+                                    @method('PUT')
+                                    <input type="hidden" name="fecha_vista" value="{{ $fecha }}">
+                                    <input type="hidden" name="origen_vista" value="{{ $origen }}">
+                                    <input type="hidden" name="en_linea" value="0">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" role="switch" name="en_linea" value="1"
+                                               id="mdLinea{{ $modulo->id }}" @checked($modulo->recibeEnLinea())
+                                               title="Apágalo para que ya no le lleguen citas del formulario en línea">
+                                        <label class="form-check-label" for="mdLinea{{ $modulo->id }}">Citas en línea</label>
+                                    </div>
+                                    <span class="md-linea__nota" aria-live="polite">{{ $modulo->notaEnLinea() }}</span>
+                                    <noscript><button class="btn btn-sm btn-link p-0">Guardar</button></noscript>
+                                </form>
+                            @endif
                         </header>
 
                         @if ($susCitas->isEmpty())
@@ -443,6 +486,54 @@
                 document.getElementById('mdActivo').checked = m ? !!m.activo : true;
                 form.querySelectorAll('.md-tramite').forEach(function (c) { c.checked = !!(m && m.tramites.indexOf(c.value) !== -1); });
                 form.querySelectorAll('.md-respaldo').forEach(function (c) { c.checked = !!(m && m.respaldo.indexOf(c.value) !== -1); });
+            });
+
+            // --- Switch "Citas en línea": se guarda al momento, sin recargar.
+            var avisoSinLinea = document.getElementById('mdSinEnLinea');
+            document.querySelectorAll('.js-en-linea').forEach(function (f) {
+                var sw = f.querySelector('input[type="checkbox"]');
+                var nota = f.querySelector('.md-linea__nota');
+                sw.addEventListener('change', function () {
+                    var prender = sw.checked;
+                    sw.disabled = true;
+                    f.classList.add('is-guardando');
+                    f.classList.remove('is-error');
+                    fetch(f.getAttribute('action'), {
+                        method: 'PUT',
+                        headers: {
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': f.querySelector('input[name="_token"]').value
+                        },
+                        body: JSON.stringify({ en_linea: prender })
+                    })
+                        .then(function (r) {
+                            return r.json().catch(function () { return {}; }).then(function (j) {
+                                if (!r.ok) throw new Error(j.message || 'No se pudo guardar; intenta de nuevo.');
+                                return j;
+                            });
+                        })
+                        .then(function (j) {
+                            sw.checked = !!j.en_linea;
+                            f.classList.toggle('is-pausa', !j.en_linea);
+                            nota.textContent = j.nota;
+                            if (avisoSinLinea) {
+                                var lista = j.sinEnLinea || [];
+                                avisoSinLinea.hidden = !lista.length;
+                                avisoSinLinea.querySelector('[data-lista]').textContent = lista.join(', ');
+                            }
+                        })
+                        .catch(function (e) {
+                            sw.checked = !prender;
+                            f.classList.add('is-error');
+                            nota.textContent = e.message;
+                        })
+                        .finally(function () {
+                            sw.disabled = false;
+                            f.classList.remove('is-guardando');
+                        });
+                });
             });
         })();
     </script>
