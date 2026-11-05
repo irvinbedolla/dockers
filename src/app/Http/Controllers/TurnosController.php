@@ -3312,6 +3312,30 @@ class TurnosController extends Controller
             'id_conciliador'      => $data["conciliador_id"] ?? NULL,
         ];
 
+        // Si cambió el folio, los datos de la empresa y del representante
+        // tienen que ser los del nuevo abogado, igual que al dar de alta
+        // (store_publico); si no, la ratificación queda con el folio de uno y
+        // el nombre y documentos de otro.
+        if ((string) $data["folio"] !== (string) $solicitud->idAbogado) {
+            $representante = Poder::find($data["folio"]);
+            if (!$representante) {
+                return back()->withInput()->withErrors('El folio interno de registro no existe. Por favor, verifica el número.');
+            }
+
+            $fisica = $representante["tipo"] == "Fisica";
+            $updateData += [
+                'empresa'          => $representante["nombres_patronal"],
+                'primero_empresa'  => $representante["primer_apellido_patronal"],
+                'segundo_empresa'  => $representante["segundo_apellido_patronal"],
+                'nombre_empresa'   => $representante["nombres_patronal"],
+                'ine'              => $representante["ineDocumento"],
+                'representacion'   => $representante["representacionDocumento"],
+                'email'            => $fisica ? $representante["email_patronal"]    : $representante["correo_representante"],
+                'telefono'         => $fisica ? $representante["telefono_patronal"] : $representante["numero_representante"],
+                'curp_solicitante' => $fisica ? $representante["curp_patronal"]     : $representante["curp_representante"],
+            ];
+        }
+
         if ($request->hasFile('documentoidentificacion')) {
             $nombre_ine = $request->curp . "_IDENTIFICACION_" . time() . ".pdf";
             $request->file('documentoidentificacion')->storeAs('documentos_ratificacion/' . $id_solicitud, $nombre_ine);

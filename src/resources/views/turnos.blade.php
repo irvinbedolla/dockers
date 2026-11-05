@@ -477,49 +477,8 @@
 </script>
         
 
+    {{-- Incluye lo de "Empleador" / folio de representante patronal (Ratificación). --}}
     @include('turnos._cita_scripts', ['modo' => 'publico'])
-
-
-    <script>
-        $(document).ready(function() {
-            
-
-            $('#tipo').on('change', function() {
-                var tipoSeleccionado = $(this).val();
-                
-                if (tipoSeleccionado === 'Ratificación') {
-
-                    $('#calidad').fadeIn();
-                } else {
-
-                    $('#calidad').fadeOut();
-                    $('#puesto').val(''); 
-                }
-            });
-            $('#puesto').on('change', function() {
-                var tipoSeleccionado = $(this).val();
-                
-                if (tipoSeleccionado === 'empleador') {
-
-                    $('#si_ratificacion').fadeIn();
-                } else {
-
-                    $('#si_ratificacion').fadeOut();
-                    $('#folio_patronal').val(''); 
-                }
-            });
-
-            // 2. Detectar cuando cambia el select de "folio patronal"
-            $('#folio_patronal').on('change', function() {
-                var tieneFolio = $(this).val();
-                
-                if (tieneFolio === 'si') {
-                    window.location.href = '{{ route('create_cita', ['origen' => 'externo']) }}';
-                }
-            });
-
-        });
-    </script>
 @section('scripts')
     <script src="{{ asset('assets/js/validaciones-ratificacion.js') }}"></script> 
     <script src="{{ asset('assets/js/poderes/general.js') }}"></script>

@@ -6,6 +6,7 @@ use App\Models\User;
 
 use Spatie\Permission\Models\Role;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use App\Models\Municipios;
 use App\Models\Estados;
 use App\Models\SeerPerGeneral;
@@ -4921,10 +4922,53 @@ class SeerController extends Controller
         return view('solicitudes.aviso',compact('id','mensaje','delegacion'));
     }
 
-    public function solicitudes_pendientes() {
-        $solicitudes = $this->consultaPendientes()->get();
+    public function solicitudes_pendientes(Request $request) {
+        $porPagina = [25, 50, 100];
 
-        return view('solicitudes.solicitudes_pendientes', compact('solicitudes'));
+        $filtros = $request->validate([
+            'buscar' => ['nullable', 'string', 'max:100'],
+            'sede'   => ['nullable', 'string', 'max:60'],
+            'tipo'   => ['nullable', Rule::in(['1', '2', '3', '4'])],
+            'origen' => ['nullable', Rule::in(['linea', 'tablet', 'centro'])],
+            'desde'  => ['nullable', 'date_format:Y-m-d'],
+            'hasta'  => ['nullable', 'date_format:Y-m-d'],
+            'por'    => ['nullable', Rule::in($porPagina)],
+        ]);
+        // Si las pusieron al revés, se acomodan en lugar de marcar error.
+        if (! empty($filtros['desde']) && ! empty($filtros['hasta']) && $filtros['desde'] > $filtros['hasta']) {
+            [$filtros['desde'], $filtros['hasta']] = [$filtros['hasta'], $filtros['desde']];
+        }
+
+        $query = $this->consultaPendientes();
+
+        // Sedes que le tocan a quien entra (las que ya deja ver consultaPendientes).
+        // select() reemplaza las columnas del listado; con sólo pluck() el distinct
+        // se hacía sobre la fila completa y la delegación salía repetida.
+        $sedesPermitidas = (clone $query)->reorder()->toBase()
+            ->select('seer_general.delegacion')->distinct()
+            ->orderBy('seer_general.delegacion')
+            ->pluck('delegacion')->filter()->values()->all();
+
+        $query
+            ->when(! empty($filtros['buscar']), function ($q) use ($filtros) {
+                $t = '%'.trim($filtros['buscar']).'%';
+                $q->where(function ($w) use ($t) {
+                    $w->where('seer_solicitante.nombre', 'like', $t)
+                      ->orWhere('seer_general.actividad', 'like', $t)
+                      ->orWhere('catalogo_rama.rama_industrial', 'like', $t);
+                });
+            })
+            ->when(! empty($filtros['sede']) && in_array($filtros['sede'], $sedesPermitidas, true), fn ($q) => $q->where('seer_general.delegacion', $filtros['sede']))
+            ->when(! empty($filtros['tipo']), fn ($q) => $q->where('seer_general.tipo_solicitud', (int) $filtros['tipo']))
+            ->when(($filtros['origen'] ?? null) === 'linea', fn ($q) => $q->where('seer_general.tipo_generacion', 0))
+            ->when(($filtros['origen'] ?? null) === 'tablet', fn ($q) => $q->where('seer_general.tipo_generacion', 1000))
+            ->when(($filtros['origen'] ?? null) === 'centro', fn ($q) => $q->whereNotIn('seer_general.tipo_generacion', [0, 1000]))
+            ->when(! empty($filtros['desde']), fn ($q) => $q->whereDate('seer_general.fecha', '>=', $filtros['desde']))
+            ->when(! empty($filtros['hasta']), fn ($q) => $q->whereDate('seer_general.fecha', '<=', $filtros['hasta']));
+
+        $solicitudes = $query->paginate((int) ($filtros['por'] ?? 25))->withQueryString();
+
+        return view('solicitudes.solicitudes_pendientes', compact('solicitudes', 'filtros', 'porPagina', 'sedesPermitidas'));
     }
 
     /**
@@ -15778,13 +15822,10 @@ class SeerController extends Controller
         $jerarquiaRoles = ['Delegado', 'Enlace', 'Conciliador', 'Excepcion', 'Auxiliar'];
         $userRole = collect($jerarquiaRoles)->first(fn($rol) => $roles->contains($rol)) ?? $roles->first();
         // 1. Iniciamos el Query base optimizado con Eager Loading selectivo
+        // Las marcadas como incidencia también se listan: van en el apartado "Otras".
         $query = SeerPerGeneral::with('solicitante:id,id_solicitud,nombre,telefono1')
             ->where('estatus', '!=', 'Pendiente')
-            ->where(function ($q) {
-                $q->whereNull('incidencia')
-                ->orWhere('incidencia', 0);
-            })
-            ->select('id', 'consecutivo','fecha_confirmacion as fecha', 'NUE', 'actividad', 'tipo_solicitud', 'estatus', 'delegacion', 'created_at');
+            ->select('id', 'consecutivo','fecha_confirmacion as fecha', 'NUE', 'actividad', 'tipo_solicitud', 'estatus', 'delegacion', 'created_at', 'incidencia');
 
         // ========================================================
         // NUEVO: FILTRO DE BÚSQUEDA GLOBAL DESDE EL SERVIDOR
@@ -15842,11 +15883,67 @@ class SeerController extends Controller
             }
         }
 
+        // Día de confirmación (Y-m-d). Va antes del conteo para que los apartados lo respeten.
+        // Sin parámetro (o fecha=todos) se ven todos los días.
+        $fecha = $request->input('fecha');
+        if (is_string($fecha) && preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $fecha, $p) && checkdate((int) $p[2], (int) $p[3], (int) $p[1])) {
+            $query->whereDate('fecha_confirmacion', $fecha);
+        } else {
+            $fecha = null;
+        }
+
+        // Apartados de estatus: cada uno agrupa los valores reales de seer_general.estatus
+        // (aquí no entra "Pendiente": esas están en /solicitudes/pedientes).
+        $apartados = [
+            'confirmadas'     => ['Confirmado', 'Aceptado'],
+            'conciliadas'     => ['Conciliacion', 'Concluida', 'Reinstalacion'],
+            'no_conciliacion' => ['No conciliacion'],
+            'incumplimiento'  => ['Incumplimiento'],
+            'archivadas'      => ['Archivada', 'Incomparecencia'],
+            'otras'           => ['Prevencion', 'Incompetencia', 'Canalizada', 'Desistimiento', 'Rechazado'],
+        ];
+
+        // Las marcadas como incidencia cuentan en "Otras" sin importar su estatus.
+        $claveIncidencia = '__incidencia';
+
+        // Conteo por apartado con los mismos filtros de búsqueda, rol y día, sin el de estatus.
+        // select() y no selectRaw(): hay que reemplazar las columnas del listado, no sumarlas.
+        $porEstatus = (clone $query)->reorder()->toBase()
+            ->select(DB::raw("CASE WHEN incidencia = 1 THEN '{$claveIncidencia}' ELSE estatus END as clave"), DB::raw('COUNT(*) as total'))
+            ->groupBy('clave')
+            ->pluck('total', 'clave');
+        $conteo = collect($apartados)->map(fn ($valores, $clave) => (int) $porEstatus->only(
+            $clave === 'otras' ? [...$valores, $claveIncidencia] : $valores
+        )->sum())->all();
+
+        $estatus = in_array($request->input('estatus'), array_keys($apartados), true) ? $request->input('estatus') : null;
+        if ($estatus === 'otras') {
+            $query->where(function ($q) use ($apartados) {
+                $q->whereIn('estatus', $apartados['otras'])->orWhere('incidencia', 1);
+            });
+        } elseif ($estatus) {
+            $query->whereIn('estatus', $apartados[$estatus])
+                ->where(function ($q) {
+                    $q->whereNull('incidencia')->orWhere('incidencia', '!=', 1);
+                });
+        }
+
+        $ordenes = [
+            'recientes'      => ['created_at', 'desc'],
+            'antiguas'       => ['created_at', 'asc'],
+            'fecha_reciente' => ['fecha_confirmacion', 'desc'],
+            'fecha_antigua'  => ['fecha_confirmacion', 'asc'],
+            'nue'            => ['NUE', 'asc'],
+        ];
+        $orden = in_array($request->input('orden'), array_keys($ordenes), true) ? $request->input('orden') : 'recientes';
+        [$columnaOrden, $direccion] = $ordenes[$orden];
+
         // 4. LA SOLUCIÓN CLAVE: Paginación fluida inyectando el término buscado
         // Se cambia de 2500 registros simultáneos a bloques manejables de 100
-        $solicitudes = $query->orderBy('created_at', 'desc')
+        $solicitudes = $query->orderBy($columnaOrden, $direccion)
+                            ->orderBy('id', 'desc')
                             ->paginate(100)
-                            ->appends(['buscar' => $request->input('buscar')]);
+                            ->appends($request->only(['buscar', 'estatus', 'orden', 'fecha']));
 
         // 5. Mapear de forma optimizada los citados únicamente para las filas de la página actual
         $idsSolicitudes = $solicitudes->pluck('id');
@@ -15879,7 +15976,7 @@ class SeerController extends Controller
         });
         
 
-        return view('solicitudes.solicitudes_todas', compact('solicitudes', 'isAudiencia', 'userRole'));
+        return view('solicitudes.solicitudes_todas', compact('solicitudes', 'isAudiencia', 'userRole', 'apartados', 'conteo', 'estatus', 'orden', 'fecha'));
     }
 
     public function mostrar_citado(Request $request){
