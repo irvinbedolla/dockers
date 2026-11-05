@@ -10630,6 +10630,9 @@ class SeerController extends Controller
                 'deducciones_eliminar' => $deduccionesEliminar,
                 'pagos_eliminar'      => $pagosEliminar,
                 'retrocedible'        => $retrocedible,
+                // La regla del día mira la última audiencia, no la fecha de la solicitud (App\Support\RetrocesoDelDia).
+                'fecha_audiencia'     => $ultima?->fecha,
+                'permitido'           => \App\Support\RetrocesoDelDia::permitido(auth()->user(), $ultima?->fecha, $ultima?->created_at, $ultima?->updated_at),
             ];
         })->toArray();
 
@@ -10671,6 +10674,14 @@ class SeerController extends Controller
 
         if (($totalAudiencias === 1 && !$existeReagendada && $ultima->estatus ==='Pendiente')) {
             return back()->withErrors('No hay una audiencia anterior a la cual retroceder.');
+        }
+
+        // Mismas reglas que la pantalla: sólo su sede y, si no es Super Usuario, sólo lo de hoy.
+        if (!\App\Support\RetrocesoDelDia::enSuSede($this->nombresSedesPermitidas(auth()->user()), $solicitud->delegacion)) {
+            return back()->withErrors('Esa solicitud es de otra sede; no puedes retrocederla.');
+        }
+        if (!\App\Support\RetrocesoDelDia::permitido(auth()->user(), $ultima->fecha, $ultima->created_at, $ultima->updated_at)) {
+            return back()->withErrors(\App\Support\RetrocesoDelDia::AVISO);
         }
 
         $estatusPrevioS = $solicitud->estatus;
