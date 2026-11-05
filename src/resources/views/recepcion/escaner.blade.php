@@ -163,6 +163,9 @@
         .es-historial__hora { color: var(--tn-tenue); font-variant-numeric: tabular-nums; }
         .es-historial__quien { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--tn-tinta); }
         .es-chip { padding: 2px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 700; color: #fff; white-space: nowrap; }
+        .es-historial__fin { display: flex; align-items: center; gap: 6px; }
+        .es-historial__deshacer { padding: 0 4px; font-size: 12px; line-height: 1.4; }
+        .es-acciones { display: flex; flex-wrap: wrap; gap: 8px; }
     </style>
 @endsection
 
@@ -280,6 +283,8 @@
             cancelada:     { clase: 'error', icono: 'bi-calendar2-x-fill',        chip: '#A3162E' },
             otra_sede:     { clase: 'error', icono: 'bi-geo-alt-fill',            chip: '#A3162E' },
             no_encontrada: { clase: 'error', icono: 'bi-question-octagon-fill',   chip: '#A3162E' },
+            deshecha:      { clase: 'info',  icono: 'bi-arrow-counterclockwise',  chip: '#5A6B6C' },
+            sin_deshacer:  { clase: 'error', icono: 'bi-lock-fill',               chip: '#A3162E' },
             error:         { clase: 'error', icono: 'bi-exclamation-triangle-fill', chip: '#A3162E' }
         };
 
@@ -483,14 +488,59 @@
             dl.appendChild(dd);
             cuerpo.appendChild(dl);
 
+            var acciones = el('div', 'es-acciones');
             var acuse = el('a', 'btn btn-sm btn-outline-secondary');
             acuse.href = c.acuse;
             acuse.target = '_blank';
             acuse.rel = 'noopener';
             acuse.appendChild(el('i', 'bi bi-file-pdf me-1'));
             acuse.appendChild(document.createTextNode('Ver acuse'));
-            cuerpo.appendChild(acuse);
+            acciones.appendChild(acuse);
+            // Se validó por error: regresar la cita a como estaba.
+            if (d.deshacer) {
+                var bd = el('button', 'btn btn-sm btn-outline-danger');
+                bd.type = 'button';
+                bd.appendChild(el('i', 'bi bi-arrow-counterclockwise me-1'));
+                bd.appendChild(document.createTextNode('Cancelar validación'));
+                bd.addEventListener('click', function () { deshacer(d.deshacer); });
+                registrarBotonDeshacer(d.deshacer, bd);
+                acciones.appendChild(bd);
+            }
+            cuerpo.appendChild(acciones);
             resultado.appendChild(cuerpo);
+        }
+
+        // Cancelar validación
+        var botonesDeshacer = {};
+        function registrarBotonDeshacer(url, b) {
+            (botonesDeshacer[url] = botonesDeshacer[url] || []).push(b);
+        }
+        function quitarBotonesDeshacer(url) {
+            (botonesDeshacer[url] || []).forEach(function (b) { b.remove(); });
+            delete botonesDeshacer[url];
+        }
+        async function deshacer(url) {
+            (botonesDeshacer[url] || []).forEach(function (b) { b.disabled = true; });
+            var datos;
+            try {
+                var r = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': TOKEN },
+                    credentials: 'same-origin'
+                });
+                datos = r.ok ? await r.json()
+                    : { resultado: 'error', titulo: r.status === 419 ? 'La sesión expiró' : 'No se pudo cancelar', mensaje: r.status === 419 ? 'Recarga la página e inicia sesión de nuevo.' : 'Error del servidor (' + r.status + ').' };
+            } catch (e) {
+                datos = { resultado: 'error', titulo: 'Sin conexión', mensaje: 'No se pudo contactar al servidor.' };
+            }
+            if (datos.resultado === 'deshecha' || datos.resultado === 'sin_deshacer') {
+                quitarBotonesDeshacer(url);
+            } else {
+                (botonesDeshacer[url] || []).forEach(function (b) { b.disabled = false; });
+            }
+            pintar(datos);
+            agregarHistorial(datos);
+            sonar(datos.resultado === 'deshecha');
         }
 
         async function atenderTarde(url, b) {
@@ -523,9 +573,21 @@
                 String(ahora.getHours()).padStart(2, '0') + ':' + String(ahora.getMinutes()).padStart(2, '0')));
             li.appendChild(el('span', 'es-historial__quien',
                 d.cita ? (d.cita.folio + ' · ' + (d.cita.solicitante || '')) : (d.mensaje || '')));
+            var fin = el('span', 'es-historial__fin');
             var chip = el('span', 'es-chip', d.titulo || '');
             chip.style.background = s.chip;
-            li.appendChild(chip);
+            fin.appendChild(chip);
+            if (d.deshacer) {
+                var b = el('button', 'btn btn-link text-danger es-historial__deshacer');
+                b.type = 'button';
+                b.title = 'Cancelar validación';
+                b.setAttribute('aria-label', 'Cancelar validación de ' + (d.cita ? d.cita.folio : 'esta cita'));
+                b.appendChild(el('i', 'bi bi-arrow-counterclockwise'));
+                b.addEventListener('click', function () { deshacer(d.deshacer); });
+                registrarBotonDeshacer(d.deshacer, b);
+                fin.appendChild(b);
+            }
+            li.appendChild(fin);
             historial.insertBefore(li, historial.firstChild);
             while (historial.children.length > 12) historial.removeChild(historial.lastChild);
         }

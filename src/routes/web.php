@@ -320,6 +320,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Cita que expiró hoy pero la persona sí está: atenderla de todos modos.
         Route::post('/recepcion/escanear/{id}/tarde', [EscanerCitasController::class, 'atenderTarde'])->name('recepcion.escaner.tarde')
             ->whereNumber('id')->middleware('throttle:30,1');
+        // Se validó una cita por error: la cita vuelve a como estaba.
+        Route::post('/recepcion/escanear/{id}/deshacer', [EscanerCitasController::class, 'deshacer'])->name('recepcion.escaner.deshacer')
+            ->whereNumber('id')->middleware('throttle:30,1');
     });
 
     // Mi perfil: lo poco que cada quien puede cambiar de su propia cuenta.

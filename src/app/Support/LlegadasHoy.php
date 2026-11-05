@@ -366,6 +366,30 @@ class LlegadasHoy
     }
 
     /**
+     * Se deshizo la validación de una cita: se borra la llegada que había
+     * registrado (origen "cita", con la hora en que se confirmó), así el
+     * conciliador deja de verla como llegada.
+     */
+    public static function olvidarCita(object $cita, Carbon $confirmadaAt): void
+    {
+        if (! self::migrado() || ($cita->tipo ?? null) !== 'Ratificación') {
+            return;
+        }
+
+        $turnos = DB::table('turnos')->where('recepcion_id', $cita->id)->pluck('id');
+        if ($turnos->isEmpty()) {
+            return;
+        }
+
+        DB::table(self::TABLA)
+            ->where('tipo', 'ratificacion')
+            ->where('origen', 'cita')
+            ->whereIn('registro_id', $turnos)
+            ->where('llegada_at', $confirmadaAt)
+            ->delete();
+    }
+
+    /**
      * Llegadas recientes a lo de hoy que lleva esta persona: como conciliador
      * asignado, o como auxiliar u orientador (ver lleva()).
      *
