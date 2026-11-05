@@ -80,7 +80,13 @@ class NotificacionesController extends Controller
             ];
         }
 
+        // Exhortos: para quienes pueden asignar notificaciones (ExhortosController).
+        $exhortos = $usuario->can('por_notificar_asignar') && ExhortosController::disponible()
+            ? ExhortosController::cifras($usuario)
+            : null;
+
         return view('notificaciones.index_notificaciones', [
+            'exhortos'      => $exhortos,
             'esNotificador' => $esNotificador,
             'sedes'         => $sedes,
             'cifras'        => $cifras,
@@ -434,6 +440,12 @@ class NotificacionesController extends Controller
     // ------------------------------------------------------------------
 
     private function sedes(User $usuario): array
+    {
+        return self::sedesDeUsuario($usuario);
+    }
+
+    /** Las sedes que atiende la delegación del usuario (también la usa ExhortosController). */
+    public static function sedesDeUsuario(User $usuario): array
     {
         return self::REGIONES[$usuario->delegacion] ?? [$usuario->delegacion];
     }

@@ -622,6 +622,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/seer/updateNotificador',              [SeerController::class, 'update_notificador'])->name('seer.cambioEstatus');
         Route::get('/notificador/mihistorial',              [NotificacionesController::class, 'misNotificaciones'])->name('Historial_Notificacador');
         Route::get('/notificaciones/home',                  [NotificacionesController::class, 'inicio'])->name('index_notificaciones');
+        // Exhortos: registro y si ya se contestaron. Quienes pueden asignar notificaciones (App\Http\Controllers\ExhortosController).
+        Route::middleware('permission:por_notificar_asignar')->group(function () {
+            Route::get('/notificaciones/exhortos',                       [App\Http\Controllers\ExhortosController::class, 'index'])->name('exhortos.index');
+            Route::get('/notificaciones/exhortos/expediente',            [App\Http\Controllers\ExhortosController::class, 'expediente'])->name('exhortos.expediente');
+            Route::post('/notificaciones/exhortos',                      [App\Http\Controllers\ExhortosController::class, 'guardar'])->name('exhortos.crear');
+            Route::put('/notificaciones/exhortos/{exhorto}',             [App\Http\Controllers\ExhortosController::class, 'guardar'])->name('exhortos.actualizar')->whereNumber('exhorto');
+            Route::put('/notificaciones/exhortos/{exhorto}/contestado',  [App\Http\Controllers\ExhortosController::class, 'contestado'])->name('exhortos.contestado')->whereNumber('exhorto');
+            Route::delete('/notificaciones/exhortos/{exhorto}',          [App\Http\Controllers\ExhortosController::class, 'borrar'])->name('exhortos.borrar')->whereNumber('exhorto');
+        });
         // Quien escribe /notificaciones a mano llega al inicio del apartado en vez de a un 404.
         Route::redirect('/notificaciones',                  '/notificaciones/home');
         //Enlace
