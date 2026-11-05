@@ -1051,7 +1051,7 @@ function handleEventClick(info, calendarType) {
                 ] },
                 { titulo: 'Registro patronal', filas: calFilasRegistro(props) }
             ],
-            accion: { href: 'cumplimiento/consulta/' + id + '/' + tipoUrl, texto: 'Ver detalle' }
+            accion: { href: 'ratificaciones/detalle/' + id, texto: 'Ver detalle' }
         };
     }
     else if (calendarType === 'solicitudes') {
