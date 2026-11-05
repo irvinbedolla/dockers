@@ -1763,6 +1763,34 @@ class TurnosController extends Controller
         return view('/ratificaciones/verratificacion',compact('folio','ruta_abogado','tipo_doc_abogado','id_doc_abogado','userRole','representante'));
     }
 
+    public function detalle_ratificacion($id){
+        abort_if(auth()->user()->hasAnyRole(['Solicitante', 'Administrador Solicitante']), 403);
+
+        $folio = Turnos::findOrFail($id);
+        $representante = $folio->idAbogado ? Poder::find($folio->idAbogado) : null;
+        $conciliador = $folio->id_conciliador ? User::whereKey($folio->id_conciliador)->value('name') : null;
+
+        $tipo_doc_abogado = $representante ? 'poder' : 'ratificacion';
+        $id_doc_abogado   = $representante ? $folio->idAbogado : $folio->id;
+
+        $cumplimientos = Pagos::where('id_solicitud', $folio->id)
+            ->where('tipo_pago', 'Ratificacion')
+            ->orderBy('fecha')->orderBy('hora')->orderBy('id')
+            ->get();
+
+        $pagados = ['Pagado', 'Pagado con pena convencional'];
+        $resumen = [
+            'total'      => $cumplimientos->sum('monto'),
+            'pagado'     => $cumplimientos->whereIn('estatus', $pagados)->sum('monto'),
+            'pendiente'  => $cumplimientos->where('estatus', 'Pendiente')->sum('monto'),
+            'pendientes' => $cumplimientos->where('estatus', 'Pendiente')->count(),
+        ];
+
+        return view('ratificaciones.detalle', compact(
+            'folio', 'representante', 'conciliador', 'tipo_doc_abogado', 'id_doc_abogado', 'cumplimientos', 'resumen'
+        ));
+    }
+
     public function editar_ratificaciones(Request $request){
         $data = $request->all();
         $id_usuario = auth()->user()->id;
