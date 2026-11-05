@@ -386,6 +386,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::put('administracion/modulos/limite-citas',            [ModulosController::class, 'limite'])->name('modulos.limite');
             Route::put('administracion/modulos/{modulo}',                [ModulosController::class, 'guardar'])->name('modulos.actualizar');
             Route::put('administracion/modulos/{modulo}/en-linea',       [ModulosController::class, 'enLinea'])->name('modulos.en_linea');
+            Route::put('administracion/modulos/{modulo}/reasignacion',   [ModulosController::class, 'reasignacion'])->name('modulos.reasignacion');
             Route::post('administracion/modulos/citas/{id}/reasignar',   [ModulosController::class, 'reasignar'])->name('modulos.reasignar')->whereNumber('id');
             Route::get('administracion/horarios',                        [HorariosCitasController::class, 'index'])->name('horarios.index');
             Route::put('administracion/horarios',                        [HorariosCitasController::class, 'actualizar'])->name('horarios.actualizar');

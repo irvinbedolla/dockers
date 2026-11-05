@@ -17,7 +17,8 @@ class Modulo extends Model
 
     protected $fillable = [
         'delegacion', 'nombre', 'user_id', 'tramites', 'respaldo', 'hora_comida', 'activo', 'orden',
-        'en_linea', 'pausa_ventanilla', 'pausa_desde', 'en_linea_cambio_at', 'en_linea_cambio_por',
+        'en_linea', 'pausa_ventanilla', 'en_linea_cambio_at', 'en_linea_cambio_por',
+        'no_reasignar_desde', 'no_reasignar_por', 'no_reasignar_at',
     ];
 
     protected $casts = [
@@ -26,7 +27,8 @@ class Modulo extends Model
         'activo'   => 'boolean',
         'en_linea' => 'boolean',
         'pausa_ventanilla' => 'boolean',
-        'pausa_desde' => 'date',
+        'no_reasignar_desde' => 'date',
+        'no_reasignar_at' => 'datetime',
         'en_linea_cambio_at' => 'datetime',
     ];
 
@@ -60,39 +62,74 @@ class Modulo extends Model
         return ! ($this->pausa_ventanilla ?? false);
     }
 
-    /**
-     * ¿Recibe citas nuevas por este canal ('linea', 'ventanilla' o null =
-     * cualquiera) para una cita de esa fecha (Y-m-d; null = hoy)? Con la pausa
-     * programada (pausa_desde) sólo cuenta de esa fecha en adelante.
-     */
-    public function recibePor(?string $canal, ?string $fecha = null): bool
+    /** ¿Recibe citas nuevas por este canal? 'linea', 'ventanilla' o null (cualquiera). */
+    public function recibePor(?string $canal): bool
     {
-        $pausa = $this->pausaPara($fecha);
-
         return match ($canal) {
-            'linea'      => $pausa === null,
-            'ventanilla' => $pausa !== 'todas',
+            'linea'      => $this->recibeEnLinea() && $this->recibeVentanilla(),
+            'ventanilla' => $this->recibeVentanilla(),
             default      => true,
         };
     }
 
-    /** La pausa que aplica a una cita de esa fecha (null = hoy): null, 'linea' o 'todas'. */
-    public function pausaPara(?string $fecha = null): ?string
+    /** Quién bloqueó o desbloqueó por última vez las reasignaciones. */
+    public function cambioReasignacionPor(): BelongsTo
     {
-        $pausa = $this->pausa();
-        if ($pausa === null || ! $this->pausa_desde) {
-            return $pausa;
-        }
-        $dia = $fecha ? substr($fecha, 0, 10) : now()->toDateString();
-
-        return $dia >= $this->pausa_desde->toDateString() ? $pausa : null;
+        return $this->belongsTo(User::class, 'no_reasignar_por');
     }
 
-    /** ¿La pausa está puesta pero empieza en una fecha que todavía no llega? */
-    public function pausaProgramada(): bool
+    /**
+     * ¿Se le puede mover (reasignar o reagendar) una cita de esa fecha (Y-m-d;
+     * null = hoy)? No, si tiene la pausa total de citas o si desde esa fecha
+     * tiene bloqueadas las reasignaciones ("Acepta reasignaciones").
+     */
+    public function aceptaReasignacion(?string $fecha = null): bool
     {
-        return $this->pausa() !== null && $this->pausa_desde !== null
-            && $this->pausa_desde->toDateString() > now()->toDateString();
+        if (! $this->recibeVentanilla()) {
+            return false;
+        }
+        $desde = $this->no_reasignar_desde;
+        $dia   = $fecha ? substr($fecha, 0, 10) : now()->toDateString();
+
+        return ! ($desde && $dia >= $desde->toDateString());
+    }
+
+    /** null (acepta), 'vigente' (ya no acepta) o 'programado' (desde una fecha que no llega). */
+    public function bloqueoReasignacion(): ?string
+    {
+        $desde = $this->no_reasignar_desde;
+        if (! $desde) {
+            return null;
+        }
+
+        return $desde->toDateString() > now()->toDateString() ? 'programado' : 'vigente';
+    }
+
+    /** ¿Ya corrió la migración del bloqueo de reasignaciones? */
+    public static function reasignacionMigrada(): bool
+    {
+        static $hay = null;
+
+        return $hay ??= Schema::hasColumn('modulos', 'no_reasignar_desde');
+    }
+
+    /** "Acepta reasignaciones", "Sin reasignaciones a partir del lunes 20 de noviembre de 2026 · Ana Pérez"… */
+    public function notaReasignacion(): string
+    {
+        if ($this->pausa() === 'todas') {
+            return 'Tampoco se le reasigna: tiene la pausa total de citas';
+        }
+        $desde = $this->no_reasignar_desde;
+        if (! $desde) {
+            return 'Se le pueden mover citas de otros módulos';
+        }
+        $quien = $this->no_reasignar_por ? optional($this->cambioReasignacionPor)->name : null;
+        $quien = $quien ? ' · '.Str::title(mb_strtolower(preg_replace('/\s+/', ' ', trim($quien)))) : '';
+        $fecha = $desde->isToday() ? 'hoy' : 'el '.$desde->locale('es')->isoFormat('dddd D [de] MMMM [de] YYYY');
+
+        return $this->bloqueoReasignacion() === 'programado'
+            ? 'Programado: sin reasignaciones a partir del '.$desde->locale('es')->isoFormat('dddd D [de] MMMM [de] YYYY').$quien
+            : 'Sin reasignaciones de citas desde '.$fecha.$quien;
     }
 
     /** null (recibe todo), 'linea' (sólo pausa en línea) o 'todas' (también ventanilla). */
@@ -107,14 +144,6 @@ class Modulo extends Model
         static $hay = null;
 
         return $hay ??= Schema::hasColumn('modulos', 'en_linea');
-    }
-
-    /** ¿Ya corrió la migración de pausa_desde? */
-    public static function pausaDesdeMigrada(): bool
-    {
-        static $hay = null;
-
-        return $hay ??= Schema::hasColumn('modulos', 'pausa_desde');
     }
 
     /** ¿Ya corrió la migración de pausa_ventanilla? */
@@ -135,15 +164,11 @@ class Modulo extends Model
             ? ($cuando->isToday() ? 'hoy '.$cuando->format('H:i') : $cuando->locale('es')->isoFormat('D MMM YYYY, HH:mm'))
             : null;
 
-        // Con fecha: "a partir del vie 20 nov 2026"; sin ella, desde cuándo se apagó.
-        $desde = ($this->pausa_desde
-            ? ' a partir del '.$this->pausa_desde->locale('es')->isoFormat('dddd D [de] MMMM [de] YYYY')
-            : ($fecha ? ' desde '.$fecha : '')).$quien;
-        $prog = $this->pausaProgramada();
+        $desde = ($fecha ? ' desde '.$fecha : '').$quien;
 
         return match ($this->pausa()) {
-            'todas' => ($prog ? 'Programado: sin' : 'Sin').' citas nuevas ni reasignaciones (en línea y ventanilla)'.$desde,
-            'linea' => ($prog ? 'Programado: en' : 'En').' línea en pausa'.$desde.' · ventanilla sí',
+            'todas' => 'Sin citas nuevas (ni en línea ni ventanilla)'.$desde,
+            'linea' => 'En línea en pausa'.$desde.' · ventanilla sí',
             default => 'Recibe en línea y ventanilla'.($fecha ? ' · reactivado '.$fecha.$quien : ''),
         };
     }

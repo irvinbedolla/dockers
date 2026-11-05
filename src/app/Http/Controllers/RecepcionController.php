@@ -856,10 +856,8 @@ class RecepcionController extends Controller
         // Si todos los módulos que reciben este trámite en la sede lo tienen en
         // pausa para este canal (Administración → Módulos: en línea en el
         // formulario público; "todas" también en ventanilla), no se ofrecen
-        // horarios: no habría a quién asignar la cita. Se ve por día: la pausa
-        // puede empezar en una fecha.
-        $modulosPausa = $esExcepcion ? null : \App\Support\AsignadorModulos::deSede($sede, true);
-        $canalPausa   = $publico ? 'linea' : 'ventanilla';
+        // horarios: no habría a quién asignar la cita.
+        $enPausa = ! $esExcepcion && \App\Support\AsignadorModulos::enPausa($sede, $tipo, $publico ? 'linea' : 'ventanilla');
 
         $ahora = now();
         $eventos = [];
@@ -880,8 +878,6 @@ class RecepcionController extends Controller
             if ((int) $fecha->format('N') < 6) { // Saltar fines de semana
                 $dia = $fecha->format('Y-m-d');
                 $lleno = $limite !== null && ($porDia[$dia] ?? 0) >= $limite;
-                $enPausa = $modulosPausa !== null
-                    && \App\Support\AsignadorModulos::enPausa($sede, $tipo, $canalPausa, $modulosPausa, $dia);
 
                 foreach ($horarios as $hora) {
                     $slotStart = $dia . 'T' . $hora;

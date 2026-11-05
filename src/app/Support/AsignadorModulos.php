@@ -42,14 +42,17 @@ class AsignadorModulos
      * Elige al azar un módulo libre que reciba el trámite. Si no hay, prueba
      * con los que lo reciben de respaldo. Null si nadie puede.
      * $enLinea: es una cita del formulario público. Siempre se saltan los
-     * módulos en pausa para ese canal.
+     * módulos en pausa para ese canal. $reasignacion: es una cita que ya
+     * existía y se mueve (reagenda); se saltan también los que no aceptan
+     * reasignaciones para esa fecha.
      */
-    public static function elegir(string $sede, string $tramite, string $fecha, string $hora, bool $enLinea = false): ?Modulo
+    public static function elegir(string $sede, string $tramite, string $fecha, string $hora, bool $enLinea = false, bool $reasignacion = false): ?Modulo
     {
         $canal = $enLinea ? 'linea' : 'ventanilla';
         $modulos = self::deSede($sede, true)
             ->filter(fn (Modulo $m) => self::atendible($m))
-            ->filter(fn (Modulo $m) => $m->recibePor($canal, $fecha));
+            ->filter(fn (Modulo $m) => $m->recibePor($canal))
+            ->filter(fn (Modulo $m) => ! $reasignacion || $m->aceptaReasignacion($fecha));
 
         foreach (['recibe', 'recibeDeRespaldo'] as $criterio) {
             $libres = $modulos
@@ -69,10 +72,10 @@ class AsignadorModulos
      * primera mano o de respaldo? Con $canal ('linea' o 'ventanilla'), sólo
      * los que no lo tienen en pausa para ese canal.
      */
-    public static function hayQuienReciba(Collection $modulos, string $tramite, ?string $canal = null, ?string $fecha = null): bool
+    public static function hayQuienReciba(Collection $modulos, string $tramite, ?string $canal = null): bool
     {
         return $modulos->contains(fn (Modulo $m) => self::atendible($m)
-            && $m->recibePor($canal, $fecha)
+            && $m->recibePor($canal)
             && ($m->recibe($tramite) || $m->recibeDeRespaldo($tramite)));
     }
 
@@ -80,14 +83,13 @@ class AsignadorModulos
      * ¿Todos los módulos que recibirían este trámite en la sede lo tienen en
      * pausa para ese canal ('linea' o 'ventanilla')? Si no hay ninguno que lo
      * reciba, false (eso no es una pausa, es que la sede no está configurada
-     * para él). $fecha: el día de la cita (null = hoy), por las pausas
-     * programadas.
+     * para él).
      */
-    public static function enPausa(string $sede, string $tramite, string $canal, ?Collection $modulos = null, ?string $fecha = null): bool
+    public static function enPausa(string $sede, string $tramite, string $canal, ?Collection $modulos = null): bool
     {
         $modulos ??= self::deSede($sede, true);
 
-        return self::hayQuienReciba($modulos, $tramite) && ! self::hayQuienReciba($modulos, $tramite, $canal, $fecha);
+        return self::hayQuienReciba($modulos, $tramite) && ! self::hayQuienReciba($modulos, $tramite, $canal);
     }
 
     /** Activo, con persona y persona activa. */
