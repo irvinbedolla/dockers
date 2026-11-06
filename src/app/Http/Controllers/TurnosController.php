@@ -1202,6 +1202,69 @@ class TurnosController extends Controller
         return response()->json($todosLosEventos);
     }
 
+    /**
+     * Horas del selector de /citas/interno para un día: las de Administración →
+     * Horarios, con cuántas ratificaciones (tabla turnos) hay ya en cada una.
+     * Está ocupado al llenarse su cupo, y aun así se puede elegir (la vista sólo
+     * avisa); un horario se
+     * deja de ofrecer al terminar, no al empezar: el de las 8:30 sigue hasta
+     * que den las 9:20.
+     */
+    public function horasRatificacion(Request $request)
+    {
+        $request->validate([
+            'sede'  => 'required|string',
+            'fecha' => 'required|date_format:Y-m-d',
+        ]);
+
+        $sede  = $request->input('sede');
+        $fecha = $request->input('fecha');
+
+        if (\Carbon\Carbon::parse($fecha)->isWeekend()) {
+            return response()->json(['horas' => []]);
+        }
+
+        $config = HorarioCitas::config($sede, 'Ratificación');
+
+        $inhabiles = DiasInhabiles::where('centro', $sede)
+            ->whereNull('user_id')
+            ->where('fecha_inicio', '<=', $fecha)
+            ->where('fecha_final', '>=', $fecha)
+            ->get();
+
+        // Cancelar una cita no toca su turno: ese lugar ya está libre.
+        $agendadas = Turnos::where('fecha', $fecha)
+            ->where('delegacion', $sede)
+            ->where('tipo', 'Ratificación')
+            ->where('estatus', '!=', 'Archivada')
+            ->where(fn ($q) => $q->whereNull('recepcion_id')
+                ->orWhereNotIn('recepcion_id', Recepcion::whereIn('estatus', ['expirada', 'cancelada'])->select('id')))
+            ->pluck('hora');
+
+        $ahora = now();
+        $horas = [];
+
+        foreach (HorarioCitas::horarios($config) as $hora) {
+            $fin  = \Carbon\Carbon::parse($fecha.' '.$hora)->addMinutes((int) $config->duracion);
+            $slot = $fecha.'T'.$hora;
+
+            $esInhabil = $inhabiles->contains(fn ($dia) => $slot >= $dia->fecha_inicio.'T'.($dia->horario_inicio ?? '00:00:00')
+                && $slot <= $dia->fecha_final.'T'.($dia->horario_final ?? '23:59:59'));
+
+            // Por rango y no por hora exacta: las capturadas con otro horario también cuentan.
+            $ocupadas = $agendadas->filter(fn ($h) => $h >= $hora && $h < $fin->format('H:i:s'))->count();
+            $lleno = $ocupadas > 0 && $ocupadas >= HorarioCitas::capacidad($config, $hora);
+
+            $horas[] = [
+                'hora'     => substr($hora, 0, 5),
+                'estado'   => $esInhabil ? 'inhabil' : ($ahora >= $fin ? 'expirado' : ($lleno ? 'ocupado' : 'libre')),
+                'ocupadas' => $ocupadas,
+            ];
+        }
+
+        return response()->json(['horas' => $horas]);
+    }
+
     //PDF Acuse de Ratificación
     public function VerPDF($id){
         $solicitud = Turnos::find($id);
