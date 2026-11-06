@@ -422,6 +422,24 @@
                                     </noscript>
                                 </form>
                             @endif
+
+                            @if ($modulo->esDeExcepcion() && \App\Models\Modulo::turnarMigrado())
+                                {{-- Apagado: quien atiende no turna; si no es caso de excepción, levanta la solicitud. --}}
+                                <form method="POST" action="{{ route('modulos.turnar', $modulo) }}" class="md-linea js-turnar {{ $modulo->puedeTurnar() ? '' : 'is-programada' }}">
+                                    @csrf
+                                    @method('PUT')
+                                    <input type="hidden" name="fecha_vista" value="{{ $fecha }}">
+                                    <input type="hidden" name="origen_vista" value="{{ $origen }}">
+                                    <input type="hidden" name="turnar" value="0">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" role="switch" name="turnar" value="1" data-switch
+                                               id="mdTurnar{{ $modulo->id }}" @checked($modulo->puedeTurnar())>
+                                        <label class="form-check-label" for="mdTurnar{{ $modulo->id }}">Puede turnar</label>
+                                    </div>
+                                    <span class="md-linea__nota" aria-live="polite">{{ \App\Http\Controllers\ModulosController::notaTurnar($modulo->puedeTurnar()) }}</span>
+                                    <noscript><button class="btn btn-sm btn-link p-0">Guardar</button></noscript>
+                                </form>
+                            @endif
                         </header>
 
                         @if ($susCitas->isEmpty())
@@ -783,6 +801,44 @@
                     if (e.detail.todas) { f.classList.remove('is-pausa', 'is-programada'); }
                     pintar(actual);
                     nota.textContent = e.detail.nota;
+                });
+            });
+
+            // --- Switch "Puede turnar" (módulos de casos de excepción): se guarda al momento.
+            document.querySelectorAll('.js-turnar').forEach(function (f) {
+                var sw = f.querySelector('[data-switch]');
+                var nota = f.querySelector('.md-linea__nota');
+                sw.addEventListener('change', function () {
+                    var turnar = sw.checked;
+                    sw.disabled = true;
+                    f.classList.remove('is-error');
+                    fetch(f.getAttribute('action'), {
+                        method: 'PUT',
+                        headers: {
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': f.querySelector('input[name="_token"]').value
+                        },
+                        body: JSON.stringify({ turnar: turnar })
+                    })
+                        .then(function (r) {
+                            return r.json().catch(function () { return {}; }).then(function (j) {
+                                if (!r.ok) throw new Error(j.message || 'No se pudo guardar; intenta de nuevo.');
+                                return j;
+                            });
+                        })
+                        .then(function (j) {
+                            sw.checked = !!j.turnar;
+                            f.classList.toggle('is-programada', !j.turnar);
+                            nota.textContent = j.nota;
+                        })
+                        .catch(function (e) {
+                            sw.checked = !turnar;
+                            f.classList.add('is-error');
+                            nota.textContent = e.message;
+                        })
+                        .finally(function () { sw.disabled = false; });
                 });
             });
         })();

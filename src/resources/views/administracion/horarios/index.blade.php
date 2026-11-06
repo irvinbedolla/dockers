@@ -204,7 +204,11 @@
                                 </div>
                             </div>
                             @if ($grupo === 'Excepción')
-                                <p class="hc-nota mt-2 mb-0">El calendario de excepción es uno solo para todas las sedes: el cupo se cuenta entre todas.</p>
+                                <p class="hc-nota mt-2 mb-0">
+                                    Si la sede tiene módulos de casos de excepción (Administración → Módulos), este horario es el suyo: sus horas, su duración
+                                    y su cupo, que nunca pasa de cuántas de esas personas están libres. Si no tiene, sus citas van al Departamento con un
+                                    calendario compartido entre las sedes sin módulo.
+                                </p>
                             @endif
                         </div>
 

@@ -75,10 +75,12 @@ class AsignadorModulos
     }
 
     /**
-     * Cupo de un horario de excepción en la sede: cuántos de sus módulos de
-     * excepción lo pueden atender por ese canal ('linea' o 'ventanilla') a esa
-     * hora (activos, con persona, sin pausa y fuera de su comida). Null si la
-     * sede no tiene módulo de excepción (manda Horarios de citas, como antes).
+     * Cupo de un horario de excepción en la sede, como en los demás trámites:
+     * lo que dice Administración → Horarios (Caso de excepción: citas por
+     * horario), pero nunca más que las personas de sus módulos de excepción
+     * que lo pueden atender por ese canal ('linea' o 'ventanilla') a esa hora
+     * (activas, sin pausa y fuera de su comida). Null si la sede no tiene
+     * módulo de excepción (manda sólo Horarios, como antes).
      */
     public static function capacidadExcepcion(string $sede, string $canal, string $hora, ?Collection $modulos = null): ?int
     {
@@ -86,8 +88,12 @@ class AsignadorModulos
             return null;
         }
         $modulos ??= self::modulosExcepcion($sede);
+        $config   = HorarioCitas::config($sede, null, true);
+        $duracion = (int) $config->duracion;
 
-        return $modulos->filter(fn (Modulo $m) => self::atendible($m) && $m->recibePor($canal) && ! $m->enComida($hora))->count();
+        $personas = $modulos->filter(fn (Modulo $m) => self::atendible($m) && $m->recibePor($canal) && ! $m->enComida($hora, $duracion))->count();
+
+        return min($personas, HorarioCitas::capacidad($config, $hora));
     }
 
     /** Módulos de una sede, ordenados, con su persona. */
@@ -112,6 +118,8 @@ class AsignadorModulos
     public static function elegir(string $sede, string $tramite, string $fecha, string $hora, bool $enLinea = false, bool $reasignacion = false): ?Modulo
     {
         $canal = $enLinea ? 'linea' : 'ventanilla';
+        // Los de excepción usan la duración de su horario (Horarios → Caso de excepción) para la comida.
+        $duracionExc = $tramite === self::TRAMITE_EXCEPCION ? (int) HorarioCitas::config($sede, null, true)->duracion : null;
         $modulos = self::deSede($sede, true)
             ->filter(fn (Modulo $m) => self::atendible($m))
             ->filter(fn (Modulo $m) => $m->recibePor($canal))
@@ -120,7 +128,7 @@ class AsignadorModulos
         foreach (['recibe', 'recibeDeRespaldo'] as $criterio) {
             $libres = $modulos
                 ->filter(fn (Modulo $m) => $m->{$criterio}($tramite))
-                ->filter(fn (Modulo $m) => ! $m->enComida($hora) && self::choque($m, $fecha, $hora) === null);
+                ->filter(fn (Modulo $m) => ! $m->enComida($hora, $duracionExc) && self::choque($m, $fecha, $hora) === null);
 
             if ($libres->isNotEmpty()) {
                 return $libres->random();

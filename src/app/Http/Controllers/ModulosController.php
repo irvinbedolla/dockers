@@ -202,6 +202,53 @@ class ModulosController extends Controller
     }
 
     /**
+     * Switch "Puede turnar" de los módulos de casos de excepción. Apagado,
+     * quien atiende ya no puede pasar a la persona a un orientador o auxiliar
+     * (fila de hoy u otra fecha) cuando no es caso de excepción: levanta ella
+     * misma la solicitud (FormatoExcepcion::siguientesPosibles).
+     */
+    public function turnar(Request $request, Modulo $modulo)
+    {
+        abort_unless($modulo->esDeExcepcion(), 404);
+        if (! Modulo::turnarMigrado()) {
+            $mensaje = 'Falta correr la migración de módulos (php artisan migrate) para este switch.';
+
+            return $request->expectsJson()
+                ? response()->json(['message' => $mensaje], 409)
+                : $this->volver($request, $modulo->delegacion)->with('error', $mensaje);
+        }
+
+        $request->validate(['turnar' => ['required', 'boolean']]);
+        $turnar = $request->boolean('turnar');
+
+        if ($modulo->puedeTurnar() !== $turnar) {
+            $modulo->forceFill(['puede_turnar' => $turnar])->save();
+            Log::info('Módulo de excepción: puede turnar', [
+                'modulo' => $modulo->id, 'sede' => $modulo->delegacion, 'persona' => $modulo->user_id,
+                'turnar' => $turnar, 'por' => $request->user()->id,
+            ]);
+        }
+
+        $quien = $modulo->persona ? ' ('.$modulo->persona->name.')' : '';
+        $mensaje = $turnar
+            ? "{$modulo->nombre}{$quien} puede pasar a un orientador o auxiliar a quien no sea caso de excepción."
+            : "{$modulo->nombre}{$quien} ya no turna: si no es caso de excepción, levanta la solicitud ella misma.";
+
+        if ($request->expectsJson()) {
+            return response()->json(['turnar' => $turnar, 'nota' => self::notaTurnar($turnar), 'message' => $mensaje]);
+        }
+
+        return $this->volver($request, $modulo->delegacion)->with('success', $mensaje);
+    }
+
+    public static function notaTurnar(bool $turnar): string
+    {
+        return $turnar
+            ? 'Si no es caso de excepción, la pasa a un orientador o auxiliar'
+            : 'No turna: si no es caso de excepción, levanta la solicitud';
+    }
+
+    /**
      * Switch "Acepta reasignaciones" de cada módulo, aparte de la pausa de
      * citas. Apagado, desde ahora (hoy) o a partir de una fecha ya no se le
      * pueden mover citas de esa fecha en adelante: ni con "Reasignar" ni al

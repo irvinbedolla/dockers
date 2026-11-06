@@ -31,6 +31,7 @@ class FormatoExcepcion
     public const SIGUIENTE = [
         'hoy'        => 'Pasar a la fila de hoy (al siguiente horario libre)',
         'otra_fecha' => 'Agendar en otra fecha',
+        'levantar'   => 'Levantar la solicitud aquí',
         'terminar'   => 'Sólo terminar la atención',
     ];
 
@@ -106,7 +107,49 @@ class FormatoExcepcion
     /** Qué se puede hacer si no es caso de excepción: fila u otra fecha sólo con cita y sin solicitud. */
     public static function siguientesPosibles(array $origen): array
     {
-        return $origen['cita'] && ! $origen['solicitud'] ? array_keys(self::SIGUIENTE) : ['terminar'];
+        if (! $origen['cita'] || $origen['solicitud']) {
+            return ['terminar'];
+        }
+
+        // Módulo de excepción con "Puede turnar" apagado: no se pasa a un
+        // orientador o auxiliar; quien atiende levanta la solicitud.
+        return self::noTurna($origen['cita'])
+            ? ['levantar', 'terminar']
+            : ['hoy', 'otra_fecha', 'terminar'];
+    }
+
+    /** ¿La cita es de un módulo de casos de excepción con "Puede turnar" apagado? */
+    public static function noTurna(?object $cita): bool
+    {
+        if (! $cita || empty($cita->modulo_id) || ! \App\Models\Modulo::turnarMigrado()) {
+            return false;
+        }
+        $modulo = \App\Models\Modulo::find($cita->modulo_id);
+
+        return $modulo !== null && $modulo->esDeExcepcion() && ! $modulo->puedeTurnar();
+    }
+
+    /** ¿Ya existe la columna seer_casos_excepcion.siguiente? */
+    public static function conSiguiente(): bool
+    {
+        static $hay = null;
+
+        return $hay ??= Schema::hasColumn('seer_casos_excepcion', 'siguiente');
+    }
+
+    /**
+     * "Solicitudes por levantar": citas que se cerraron como "No es caso de
+     * excepción → Levantar la solicitud aquí" y todavía no tienen su
+     * solicitud ligada. Las puede retomar quien atiende excepción.
+     */
+    public static function porLevantar(): \Illuminate\Database\Query\Builder
+    {
+        return DB::table('recepcion as r')
+            ->join('seer_casos_excepcion as xl', 'xl.id_turno', '=', 'r.id')
+            ->where('xl.resultado', 'no_excepcion')
+            ->where('xl.siguiente', 'levantar')
+            ->whereNotIn('r.estatus', ['cancelada'])
+            ->whereNotExists(fn ($q) => $q->select(DB::raw(1))->from('seer_general as g2')->whereColumn('g2.recepcion_id', 'r.id'));
     }
 
     /**
@@ -141,6 +184,10 @@ class FormatoExcepcion
                 if (in_array($cita->estatus, ['pendiente', 'confirmada'], true)) {
                     $cambios['estatus'] = 'atendido';
                 }
+            } elseif ($siguiente === 'levantar') {
+                // Sigue con quien la atiende: levanta la solicitud ahora (o la retoma
+                // después quien atienda excepción). Al terminarla se liga a la cita.
+                $aviso = 'No es caso de excepción: levanta ahora la solicitud de '.FolioCita::mostrar($cita).'.';
             } else {
                 $modulo = null;
                 if ($siguiente === 'hoy') {
@@ -423,6 +470,7 @@ class FormatoExcepcion
             'observaciones'          => $datos['observaciones'] ?? null,
             'vulnerables'            => $datos['vulnerables'] ?? null,
             'resultado'              => $datos['resultado'] ?? null,
+            ...(self::conSiguiente() ? ['siguiente' => ($datos['resultado'] ?? null) === 'no_excepcion' ? ($datos['siguiente'] ?? null) : null] : []),
             'instituciones'          => json_encode($instituciones),
             // Para lo que todavía lee "dependencia".
             'dependencia'            => $instituciones ? implode(', ', array_map(fn ($k) => CasosExcepcion::INSTITUCIONES[$k], $instituciones)) : null,

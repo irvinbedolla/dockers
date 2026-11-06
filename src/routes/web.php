@@ -249,6 +249,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->whereIn('tipo', App\Support\FormatoExcepcion::TIPOS_ORIGEN)->whereNumber('id');
         Route::post('/excepciones/{tipo}/{id}/formato', [App\Http\Controllers\CasosExcepcionController::class, 'guardarFormato'])->name('excepciones.formato.guardar')
             ->whereIn('tipo', App\Support\FormatoExcepcion::TIPOS_ORIGEN)->whereNumber('id');
+        // "No es caso de excepción" sin turnar: levantar la solicitud (o retomarla) desde la cita.
+        Route::post('/excepciones/citas/{id}/levantar-solicitud', [App\Http\Controllers\CasosExcepcionController::class, 'levantar'])->name('excepciones.levantar')
+            ->whereNumber('id');
         Route::post('/excepciones/{tipo}/{id}/oficio/{institucion}', [App\Http\Controllers\CasosExcepcionController::class, 'guardarOficio'])->name('excepciones.oficio.guardar')
             ->whereIn('tipo', App\Support\FormatoExcepcion::TIPOS_ORIGEN)->whereNumber('id')->whereIn('institucion', array_keys(App\Support\CasosExcepcion::INSTITUCIONES));
     });
@@ -387,6 +390,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::put('administracion/modulos/{modulo}',                [ModulosController::class, 'guardar'])->name('modulos.actualizar');
             Route::put('administracion/modulos/{modulo}/en-linea',       [ModulosController::class, 'enLinea'])->name('modulos.en_linea');
             Route::put('administracion/modulos/{modulo}/reasignacion',   [ModulosController::class, 'reasignacion'])->name('modulos.reasignacion');
+            Route::put('administracion/modulos/{modulo}/turnar',         [ModulosController::class, 'turnar'])->name('modulos.turnar');
             Route::post('administracion/modulos/citas/{id}/reasignar',   [ModulosController::class, 'reasignar'])->name('modulos.reasignar')->whereNumber('id');
             Route::get('administracion/horarios',                        [HorariosCitasController::class, 'index'])->name('horarios.index');
             Route::put('administracion/horarios',                        [HorariosCitasController::class, 'actualizar'])->name('horarios.actualizar');
