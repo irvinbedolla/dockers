@@ -8245,59 +8245,32 @@ class SeerController extends Controller
 
         $permisos_requeridos = array_key_exists($delegacion, $mapa_sedes) ? ["Ambos", "Virtual"] : ["Ambos", "Precencial"];
 
-        // 1. Calcular días inhábiles dentro de la ventana base de 45 días en la sede destino
-        $fechaLimiteBase = $hoy->copy()->addDays(45);
-        $periodosVacacionalesSede = DiasInhabiles::where('centro', $oficina)
+        // 1. Límite legal: 45 días naturales a partir de mañana
+        $inhabilesSede = DiasInhabiles::where('centro', $oficina)
             ->whereNull('user_id')
             ->where('descripcion', 'Inhabil')
             ->whereIn('tipo', ['Todos', 'Audiencias'])
-            ->where('fecha_inicio', '<=', $fechaLimiteBase->format('Y-m-d'))
-            ->where('fecha_final', '>=', $hoy->format('Y-m-d'))
+            ->where('fecha_final', '>', $hoy->toDateString())
             ->get(['fecha_inicio', 'fecha_final']);
 
-        $diasVacacionesSede = 0;
-        $inicioVentana = $hoy->copy()->startOfDay();
-        $finVentana = $fechaLimiteBase->copy()->startOfDay();
-
-        foreach ($periodosVacacionalesSede as $periodo) {
-            $inicio = \Carbon\Carbon::parse($periodo->fecha_inicio)->max($inicioVentana);
-            $fin = \Carbon\Carbon::parse($periodo->fecha_final)->min($finVentana);
-            if ($inicio->lte($fin)) {
-                $diasVacacionesSede += $inicio->diffInDays($fin) + 1;
+        $fecha_limite_natural = $hoy->copy();
+        $diasContados = 0;
+        $maxIteracionesLimite = 400; // tope por si un registro inhábil cubre un rango enorme
+        while ($diasContados < 45 && $maxIteracionesLimite-- > 0) {
+            $fecha_limite_natural->addDay();
+            $f = $fecha_limite_natural->toDateString();
+            $esInhabil = $inhabilesSede->contains(fn ($p) => $p->fecha_inicio <= $f && $p->fecha_final >= $f);
+            if (!$esInhabil) {
+                $diasContados++;
             }
         }
 
-        // 2. El plazo de 45 días naturales parte de 'hoy' y se extiende con las vacaciones de la sede
-        $diasTotalesPlazo = 45 + $diasVacacionesSede;
-        $fecha_limite_natural = $hoy->copy()->addDays($diasTotalesPlazo);
-
-        // Margen de notificación reglamentario (también partiendo de hoy)
+        // 2. Margen de notificación reglamentario (también partiendo de hoy)
         $diasMargen = ($notificion == "Trabajador") ? 7 : 15;
         $fecha_inicio_busqueda = $hoy->copy()->addDays($diasMargen);
 
         if ($fecha_inicio_busqueda->gt($fecha_limite_natural)) {
             $fecha_inicio_busqueda = $fecha_limite_natural->copy();
-        }
-
-        // 3. Bucle para extender el límite si existen días inhábiles generales en la sede de destino
-        $revisar_limite = $fecha_inicio_busqueda->copy();
-        $maxIteracionesLimite = 200;
-        while ($revisar_limite->lte($fecha_limite_natural) && $maxIteracionesLimite-- > 0) {
-            $fecha_str = $revisar_limite->format('Y-m-d');
-
-            $dia_inhabil_centro = DiasInhabiles::where('centro', $oficina)
-                ->whereNull('user_id')
-                ->whereIn('tipo', ['Todos', 'Audiencias'])
-                ->where('descripcion', 'Inhabil')
-                ->where('fecha_inicio', '<=', $fecha_str)
-                ->where('fecha_final', '>=', $fecha_str)
-                ->exists();
-
-            if ($dia_inhabil_centro) {
-                $fecha_limite_natural->addDay(); 
-            }
-
-            $revisar_limite->addDay();
         }
 
         // 4. Obtener conciliadores aptos
