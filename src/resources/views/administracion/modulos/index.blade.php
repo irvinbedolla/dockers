@@ -283,6 +283,25 @@
                 </div>
             @endif
 
+            @if ($excepcionSinModulo)
+                {{-- Citas de excepción de antes de armar el módulo: van a sus personas sin cambiar día ni hora. --}}
+                <div class="alert alert-warning d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                    <span>
+                        <i class="bi bi-shield-heart me-1"></i>
+                        Hay <b>{{ $excepcionSinModulo }}</b> {{ $excepcionSinModulo === 1 ? 'cita' : 'citas' }} de excepción de {{ $sede }}, de hoy en adelante, que no están en un módulo de casos de excepción.
+                        Se reparten entre las personas libres a su misma hora; no cambian de día ni de hora y no se le avisa a la persona.
+                    </span>
+                    <form method="POST" action="{{ route('modulos.pasar_excepcion') }}" class="m-0"
+                          onsubmit="return confirm('¿Pasar estas citas de excepción a los módulos de casos de excepción de {{ $sede }}?');">
+                        @csrf
+                        <input type="hidden" name="sede" value="{{ $sede }}">
+                        <input type="hidden" name="fecha_vista" value="{{ $fecha }}">
+                        <input type="hidden" name="origen_vista" value="{{ $origen }}">
+                        <button type="submit" class="btn btn-sm btn-dark"><i class="bi bi-arrow-right-circle me-1"></i>Pasarlas a los módulos de excepción</button>
+                    </form>
+                </div>
+            @endif
+
             <div class="md-grid">
                 @foreach ($modulos as $modulo)
                     @php
