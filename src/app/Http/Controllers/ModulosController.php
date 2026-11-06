@@ -126,6 +126,7 @@ class ModulosController extends Controller
             'enLineaMigrado' => $enLineaMigrado,
             'ventanillaMigrada' => Modulo::pausaVentanillaMigrada(),
             'reasignacionMigrada' => Modulo::reasignacionMigrada(),
+            'excepcionSinModulo' => AsignadorModulos::hayModulosExcepcion($sede) ? self::excepcionSinModulo($sede)->count() : 0,
             'sinEnLinea'     => $enLineaMigrado ? self::tramitesEnPausa($sede, 'linea', $modulos) : [],
             'sinVentanilla'  => $enLineaMigrado ? self::tramitesEnPausa($sede, 'ventanilla', $modulos) : [],
         ]);
@@ -452,6 +453,67 @@ class ModulosController extends Controller
         }
 
         return $this->volver($request, $modulo->delegacion)->with('success', $aviso);
+    }
+
+    /**
+     * "Pasar a los módulos de casos de excepción": las citas de excepción de la
+     * sede, de hoy en adelante y aún por atender, que no están en un módulo de
+     * excepción (las del Departamento, de antes de armar el módulo). Cada una
+     * va a una persona libre a SU misma fecha y hora, con las reglas de
+     * siempre (horario, comida, pausas, choques). No cambia día ni hora, así
+     * que no se le avisa a la persona. Las que no caben se quedan y se dicen.
+     */
+    public function pasarExcepcion(Request $request)
+    {
+        $sede = $request->validate(['sede' => ['required', Rule::in(RecepcionRoles::TODAS_LAS_SEDES)]])['sede'];
+        if (! AsignadorModulos::hayModulosExcepcion($sede)) {
+            return $this->volver($request, $sede)->with('error', "{$sede} todavía no tiene un módulo de casos de excepción activo.");
+        }
+
+        $citas = self::excepcionSinModulo($sede)->orderBy('fecha')->orderBy('hora')->get();
+        $pasadas = 0;
+        $sinLugar = [];
+        foreach ($citas as $cita) {
+            $hora = $cita->getRawOriginal('hora');
+            $fecha = $cita->fecha->format('Y-m-d');
+            $modulo = AsignadorModulos::elegir($sede, AsignadorModulos::TRAMITE_EXCEPCION, $fecha, $hora, false, true, $cita->id);
+            if (! $modulo) {
+                $sinLugar[] = \App\Support\FolioCita::mostrar($cita).' ('.$cita->fecha->format('d/m').' '.substr($hora, 0, 5).')';
+                continue;
+            }
+            $antes = $cita->lugar_auxiliar;
+            $cita->update(['modulo_id' => $modulo->id, 'lugar_auxiliar' => $modulo->nombre, 'auxiliar' => $modulo->user_id]);
+            Log::info('Cita de excepción pasada al módulo de excepción', [
+                'cita' => $cita->id, 'de' => $antes, 'a' => $modulo->nombre, 'por' => $request->user()->id,
+            ]);
+            $pasadas++;
+        }
+
+        $respuesta = $this->volver($request, $sede);
+        $total = $citas->count();
+        if ($pasadas) {
+            $respuesta->with('success', "Se pasaron {$pasadas} de {$total} ".($total === 1 ? 'cita' : 'citas').' de excepción a los módulos de casos de excepción de '.$sede.'. No cambiaron de día ni de hora.');
+        }
+        if ($sinLugar) {
+            $respuesta->with('error', 'No hubo una persona libre a esa hora para: '.implode(', ', $sinLugar).'. Muévelas a mano con «Reasignar» o revisa los horarios y pausas.');
+        }
+        if (! $total) {
+            $respuesta->with('success', 'No hay citas de excepción por pasar.');
+        }
+
+        return $respuesta;
+    }
+
+    /** Citas de excepción de la sede, de hoy en adelante, por atender y fuera de un módulo de excepción. */
+    private static function excepcionSinModulo(string $sede)
+    {
+        $ids = AsignadorModulos::idsExcepcion();
+
+        return Recepcion::where('delegacion', $sede)
+            ->where('exepcion', 'Si')
+            ->where('fecha', '>=', Carbon::today()->toDateString())
+            ->whereIn('estatus', self::MOVIBLES)
+            ->where(fn ($q) => $q->whereNull('modulo_id')->when($ids, fn ($w) => $w->orWhereNotIn('modulo_id', $ids)));
     }
 
     public function reasignar(Request $request, int $id)

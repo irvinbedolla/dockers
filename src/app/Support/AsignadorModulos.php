@@ -115,7 +115,7 @@ class AsignadorModulos
      * existía y se mueve (reagenda); se saltan también los que no aceptan
      * reasignaciones para esa fecha.
      */
-    public static function elegir(string $sede, string $tramite, string $fecha, string $hora, bool $enLinea = false, bool $reasignacion = false): ?Modulo
+    public static function elegir(string $sede, string $tramite, string $fecha, string $hora, bool $enLinea = false, bool $reasignacion = false, ?int $excepto = null): ?Modulo
     {
         $canal = $enLinea ? 'linea' : 'ventanilla';
         // Los de excepción usan la duración de su horario (Horarios → Caso de excepción) para la comida.
@@ -128,7 +128,7 @@ class AsignadorModulos
         foreach (['recibe', 'recibeDeRespaldo'] as $criterio) {
             $libres = $modulos
                 ->filter(fn (Modulo $m) => $m->{$criterio}($tramite))
-                ->filter(fn (Modulo $m) => ! $m->enComida($hora, $duracionExc) && self::choque($m, $fecha, $hora) === null);
+                ->filter(fn (Modulo $m) => ! $m->enComida($hora, $duracionExc) && self::choque($m, $fecha, $hora, $excepto) === null);
 
             if ($libres->isNotEmpty()) {
                 return $libres->random();
