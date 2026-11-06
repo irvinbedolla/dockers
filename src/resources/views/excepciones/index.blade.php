@@ -3,7 +3,9 @@
 {{--
     Bandeja de casos de excepción (CasosExcepcionController::index). La ve el
     Departamento de Conciliación, Género e Igualdad (atiende y canaliza) y,
-    sólo para consulta, Directivo, Delegado y Excepcion. Todas las sedes.
+    sólo para consulta, Directivo, Delegado y Excepcion. Cada quien ve las
+    sedes de CasosExcepcion::sedesQueVe ($sedes): el departamento, Directivo y
+    Super Usuario todas; el Enlace de Género e Igualdad, sólo la suya.
 --}}
 @php
     $hoy = now()->toDateString();
@@ -107,7 +109,7 @@
         <div class="section-header d-flex justify-content-between align-items-end flex-wrap gap-2 mb-3">
             <div>
                 <h3 class="page__heading mb-0">Casos de excepción</h3>
-                <span class="small" style="color: var(--tn-tenue);">Art. 685 Ter LFT · Departamento de Conciliación, Género e Igualdad · todas las sedes</span>
+                <span class="small" style="color: var(--tn-tenue);">Art. 685 Ter LFT · Departamento de Conciliación, Género e Igualdad · {{ $veTodas ? 'todas las sedes' : (count($sedes) === 1 ? 'sede '.$sedes[0] : 'sedes '.implode(' y ', $sedes)) }}</span>
                 @if (\App\Support\CasosExcepcion::enlace(auth()->user()))
                     <span class="cx-enlace" title="Apoyas al departamento desde {{ auth()->user()->delegacion }}"><i class="bi bi-person-badge"></i> {{ \App\Support\CasosExcepcion::DISTINTIVO }} · {{ auth()->user()->delegacion }}</span>
                 @endif
@@ -181,10 +183,12 @@
                     <div>
                         <label for="cxSede">Sede</label>
                         <select id="cxSede" name="sede" class="form-select cx-auto">
-                            <option value="">Todas las sedes</option>
-                            @foreach (\App\Support\CasosExcepcion::SEDES as $s)
-                                <option value="{{ $s }}" @selected(($filtros['sede'] ?? '') === $s)>{{ $s }}</option>
-                            @endforeach
+                            <option value="">{{ $veTodas ? 'Todas las sedes' : (count($sedes) === 1 ? $sedes[0] : 'Mis sedes ('.implode(' y ', $sedes).')') }}</option>
+                            @if (count($sedes) > 1)
+                                @foreach ($sedes as $s)
+                                    <option value="{{ $s }}" @selected(($filtros['sede'] ?? '') === $s)>{{ $s }}</option>
+                                @endforeach
+                            @endif
                         </select>
                     </div>
                     @if ($vista !== 'solicitudes')

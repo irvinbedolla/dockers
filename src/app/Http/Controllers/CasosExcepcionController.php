@@ -21,6 +21,10 @@ use Illuminate\Validation\Rule;
  *
  * Además, "Buscar expedientes" (expedientes()): un modal para buscar entre
  * todas las solicitudes (App\Support\BuscadorExpedientes).
+ *
+ * Cada quien ve sólo los casos de sus sedes (CasosExcepcion::sedesQueVe): el
+ * departamento, Directivo y Super Usuario, todas; el Enlace de Género e
+ * Igualdad, la suya. Lo mismo al abrir un caso por URL (verSede()).
  */
 class CasosExcepcionController extends Controller
 {
@@ -28,13 +32,18 @@ class CasosExcepcionController extends Controller
 
     private const POR_PAGINA = 25;
 
+    /** Sedes que ve quien consulta (se fija en index()). */
+    private array $sedes = CasosExcepcion::SEDES;
+
     public function index(Request $request)
     {
+        $this->sedes = CasosExcepcion::sedesQueVe($request->user());
+
         $filtros = $request->validate([
             'vista'  => ['nullable', Rule::in(self::VISTAS)],
             'desde'  => ['nullable', 'date_format:Y-m-d'],
             'hasta'  => ['nullable', 'date_format:Y-m-d'],
-            'sede'   => ['nullable', Rule::in(CasosExcepcion::SEDES)],
+            'sede'   => ['nullable', Rule::in($this->sedes)],
             'origen' => ['nullable', Rule::in(['linea', 'ventanilla'])],
             'buscar' => ['nullable', 'string', 'max:80'],
         ]);
@@ -74,6 +83,8 @@ class CasosExcepcionController extends Controller
             'atiende' => CasosExcepcion::atiende($request->user()),
             'conFormato' => CasosExcepcion::conFormato(),
             'cierraRapido' => CasosExcepcion::cierraRapido($request->user()),
+            'sedes'   => $this->sedes,
+            'veTodas' => count($this->sedes) === count(CasosExcepcion::SEDES),
         ]);
     }
 
@@ -88,6 +99,7 @@ class CasosExcepcionController extends Controller
     {
         abort_unless(CasosExcepcion::atiende($request->user()) && FormatoExcepcion::conSiguiente(), 403);
         abort_unless(FormatoExcepcion::porLevantar()->where('r.id', $id)->exists(), 404, 'Esa cita ya tiene solicitud o no está por levantar.');
+        $this->verSede($request, DB::table('recepcion')->where('id', $id)->value('delegacion'));
 
         return $this->abrirSolicitud($request, $id, null);
     }
@@ -122,6 +134,7 @@ class CasosExcepcionController extends Controller
 
         $cita = DB::table('recepcion')->where('id', $id)->where('exepcion', 'Si')->first();
         abort_unless($cita, 404);
+        $this->verSede($request, $cita->delegacion);
 
         $folio = \App\Support\FolioCita::mostrar($cita);
         if ($cita->estatus !== 'pendiente' || substr((string) $cita->fecha, 0, 10) > now()->toDateString()
@@ -185,10 +198,11 @@ class CasosExcepcionController extends Controller
      * Solicitud en modo vista: sólo si es un caso de excepción. (No se llama
      * solicitud(): el Controller base ya tiene un método con ese nombre.)
      */
-    public function verSolicitud(int $id)
+    public function verSolicitud(Request $request, int $id)
     {
         $datos = \App\Support\VistaSolicitud::datos($id);
         abort_unless($datos && CasosExcepcion::solicitudEsCaso($datos['general']), 404);
+        $this->verSede($request, $datos['general']->delegacion ?? null);
 
         return view('excepciones.solicitud', $datos);
     }
@@ -205,7 +219,7 @@ class CasosExcepcionController extends Controller
 
     public function formato(string $tipo, int $id)
     {
-        $origen = FormatoExcepcion::origen($tipo, $id);
+        $origen = $this->origen($tipo, $id);
 
         $datos = FormatoExcepcion::datos($origen);
         $sede  = FormatoExcepcion::sede($origen);
@@ -239,7 +253,7 @@ class CasosExcepcionController extends Controller
     {
         abort_unless(CasosExcepcion::conFormato(), 503, 'Falta correr la migración del formato 685 Ter.');
 
-        $origen = FormatoExcepcion::origen($tipo, $id);
+        $origen = $this->origen($tipo, $id);
         $accion = $request->input('accion', 'borrador');
         $terminar = $accion === 'terminar';
 
@@ -397,7 +411,7 @@ class CasosExcepcionController extends Controller
 
     public function pdf(string $tipo, int $id)
     {
-        $origen = FormatoExcepcion::origen($tipo, $id);
+        $origen = $this->origen($tipo, $id);
         $datos = FormatoExcepcion::datos($origen);
         $atendio = ($origen['caso']->id_user ?? null) ? DB::table('users')->where('id', $origen['caso']->id_user)->value('name') : auth()->user()->name;
 
@@ -422,7 +436,7 @@ class CasosExcepcionController extends Controller
     public function guardarOficio(Request $request, string $tipo, int $id, string $institucion)
     {
         abort_unless(OficioCanalizacion::migrado(), 503, 'Falta correr la migración de canalización.');
-        $origen = FormatoExcepcion::origen($tipo, $id);
+        $origen = $this->origen($tipo, $id);
         abort_unless($origen['caso'] && array_key_exists($institucion, CasosExcepcion::INSTITUCIONES), 404);
 
         $datos = $request->validate([
@@ -490,7 +504,7 @@ class CasosExcepcionController extends Controller
     /** @return array{0: array, 1: object} */
     private function canalizacion(string $tipo, int $id, string $institucion): array
     {
-        $origen = FormatoExcepcion::origen($tipo, $id);
+        $origen = $this->origen($tipo, $id);
         abort_unless($origen['caso'] && OficioCanalizacion::migrado(), 404);
         $oficio = OficioCanalizacion::delCaso((int) $origen['caso']->id)[$institucion] ?? null;
         abort_unless($oficio, 404);
@@ -499,6 +513,31 @@ class CasosExcepcionController extends Controller
     }
 
     // ------------------------------------------------------------------
+
+    /** FormatoExcepcion::origen, sólo si el caso es de una sede que ve. */
+    private function origen(string $tipo, int $id): array
+    {
+        $origen = FormatoExcepcion::origen($tipo, $id);
+        $usuario = request()->user();
+
+        // La cita y su solicitud casi siempre son de la misma sede; basta con que vea una.
+        abort_unless(CasosExcepcion::veSede($usuario, $origen['cita']->delegacion ?? null)
+            || CasosExcepcion::veSede($usuario, $origen['solicitud']->delegacion ?? null), 403, 'Ese caso es de otra sede.');
+
+        return $origen;
+    }
+
+    private function verSede(Request $request, ?string $sede): void
+    {
+        abort_unless(CasosExcepcion::veSede($request->user(), $sede), 403, 'Ese caso es de otra sede.');
+    }
+
+    /** Sólo las sedes que ve (si no las ve todas). */
+    private function deSusSedes($q, string $columna)
+    {
+        return $q->when(count($this->sedes) < count(CasosExcepcion::SEDES),
+            fn ($q) => $q->whereIn($columna, CasosExcepcion::conVariantes($this->sedes)));
+    }
 
     private function citas(array $f)
     {
@@ -513,7 +552,7 @@ class CasosExcepcionController extends Controller
 
     private function filtrarCitas($q, array $f)
     {
-        return $q
+        return $this->deSusSedes($q, 'r.delegacion')
             ->when(! empty($f['sede']), fn ($q) => $q->where('r.delegacion', $f['sede']))
             ->when(! empty($f['origen']), fn ($q) => $q->where('r.origen', $f['origen']))
             ->when(! empty($f['buscar']), function ($q) use ($f) {
@@ -546,7 +585,7 @@ class CasosExcepcionController extends Controller
 
     private function solicitudes(array $f)
     {
-        return CasosExcepcion::solicitudes()
+        return $this->deSusSedes(CasosExcepcion::solicitudes(), 'g.delegacion')
             ->whereBetween('g.fecha', [$f['desde'], $f['hasta']])
             ->when(! empty($f['sede']), fn ($q) => $q->where('g.delegacion', $f['sede']))
             ->when(! empty($f['buscar']), function ($q) use ($f) {

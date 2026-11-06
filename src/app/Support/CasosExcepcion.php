@@ -6,13 +6,15 @@ use App\Models\User;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 /**
  * Casos de excepción del artículo 685 Ter de la LFT (discriminación, acoso u
  * hostigamiento sexual, riesgos de trabajo, violencia laboral...).
  *
  * El Departamento de Conciliación, Género e Igualdad (rol ROL) ve todos los
- * casos de todas las sedes:
+ * casos de todas las sedes (también Super Usuario y Directivo; los demás sólo
+ * los de su sede: ver sedesQueVe()):
  *   - citas y turnos marcados como excepción (recepcion.exepcion = 'Si');
  *   - solicitudes marcadas como excepción (seer_general.caso_excepcion = 'Si'),
  *     sólo en modo vista.
@@ -43,6 +45,9 @@ class CasosExcepcion
     public const CONSULTAN = ['Directivo', 'Delegado', 'Excepcion'];
 
     public const SEDES = ['Morelia', 'Zitácuaro', 'Uruapan', 'Lázaro Cárdenas', 'Zamora', 'Sahuayo'];
+
+    /** Ven los casos de todas las sedes (bandeja y "Buscar expedientes"). */
+    public const VEN_TODAS = ['Super Usuario', 'Directivo', self::ROL];
 
     /** Permiso directo del distintivo "Enlace de Género e Igualdad". */
     public const PERMISO_ENLACE = 'excepcion_enlace';
@@ -231,6 +236,62 @@ class CasosExcepcion
             })
             ->orderBy('name')
             ->get(['id', 'name', 'delegacion']);
+    }
+
+    /**
+     * Sedes cuyos casos ve en la bandeja de excepción y en "Buscar expedientes":
+     *   - Super Usuario, Directivo y el rol del departamento: todas;
+     *   - Enlace de Género e Igualdad: sólo la sede que tiene asignada
+     *     (users.delegacion);
+     *   - Delegado y Excepcion (consulta): su sede y su sede de apoyo
+     *     (AgendaContexto::sedesDeRegion).
+     * Si junta varias (p. ej. Delegado y Enlace), ve la suma.
+     *
+     * @return array<int, string> en el orden de SEDES
+     */
+    public static function sedesQueVe(?User $usuario): array
+    {
+        if ($usuario === null) {
+            return [];
+        }
+        if ($usuario->hasAnyRole(self::VEN_TODAS)) {
+            return self::SEDES;
+        }
+
+        $ve = [];
+        if ($usuario->hasAnyRole(self::CONSULTAN)) {
+            $ve = AgendaContexto::sedesDeRegion($usuario->delegacion);
+        }
+        if (self::enlace($usuario) && $usuario->delegacion) {
+            $ve[] = $usuario->delegacion;
+        }
+        $ve = array_map([self::class, 'claveSede'], $ve);
+
+        return array_values(array_filter(self::SEDES, fn ($s) => in_array(self::claveSede($s), $ve, true)));
+    }
+
+    /** ¿Ve los casos de todas las sedes? */
+    public static function veTodas(?User $usuario): bool
+    {
+        return count(self::sedesQueVe($usuario)) === count(self::SEDES);
+    }
+
+    /** ¿Ve los casos de esa sede (recepcion.delegacion / seer_general.delegacion)? */
+    public static function veSede(?User $usuario, ?string $sede): bool
+    {
+        return $sede !== null && $sede !== ''
+            && in_array(self::claveSede($sede), array_map([self::class, 'claveSede'], self::sedesQueVe($usuario)), true);
+    }
+
+    /** Las sedes y su forma sin acento (a veces así se guardó la delegación), para un whereIn. */
+    public static function conVariantes(array $sedes): array
+    {
+        return $sedes ? array_values(array_unique(array_merge($sedes, array_map(fn ($s) => Str::ascii($s), $sedes)))) : ['__ninguna__'];
+    }
+
+    private static function claveSede(?string $sede): string
+    {
+        return Str::lower(Str::ascii(trim((string) $sede)));
     }
 
     /** ¿Tiene el distintivo "Enlace de Género e Igualdad"? */

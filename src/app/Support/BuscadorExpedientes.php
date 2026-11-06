@@ -22,9 +22,10 @@ use Illuminate\Support\Str;
  *
  * "Ver" abre la solicitud completa, sólo consulta (excepciones.expediente).
  *
- * Super Usuario, Directivo y Conciliación, Género e Igualdad ven todas las
- * sedes; quien más tenga la pestaña (Delegado, Excepcion), sólo su sede y su
- * sede de apoyo (AgendaContexto::sedesDeRegion).
+ * Las sedes son las mismas que en la bandeja (CasosExcepcion::sedesQueVe):
+ * Super Usuario, Directivo y Conciliación, Género e Igualdad, todas; el
+ * Enlace de Género e Igualdad, sólo la suya; Delegado y Excepcion, su sede y
+ * su sede de apoyo.
  */
 class BuscadorExpedientes
 {
@@ -37,7 +38,7 @@ class BuscadorExpedientes
     ];
 
     /** Ven los expedientes de todas las sedes. */
-    public const VEN_TODAS = ['Super Usuario', 'Directivo', CasosExcepcion::ROL];
+    public const VEN_TODAS = CasosExcepcion::VEN_TODAS;
 
     /** Es caso de excepción: la solicitud marcada o su cita de origen. */
     private const ES_CASO = "(g.caso_excepcion = 'Si' OR r.exepcion = 'Si')";
@@ -45,15 +46,7 @@ class BuscadorExpedientes
     /** Sedes cuyos expedientes puede buscar y ver. */
     public static function sedes(?User $usuario): array
     {
-        if ($usuario === null) {
-            return [];
-        }
-        if ($usuario->hasAnyRole(self::VEN_TODAS)) {
-            return CasosExcepcion::SEDES;
-        }
-        $region = array_map(fn ($s) => Str::lower(Str::ascii($s)), AgendaContexto::sedesDeRegion($usuario->delegacion));
-
-        return array_values(array_filter(CasosExcepcion::SEDES, fn ($s) => in_array(Str::lower(Str::ascii($s)), $region, true)));
+        return CasosExcepcion::sedesQueVe($usuario);
     }
 
     /** ¿Ese registro (seer_general.delegacion) es de esas sedes? Se guarda a veces sin acento. */
