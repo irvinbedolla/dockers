@@ -173,6 +173,24 @@ class Modulo extends Model
         };
     }
 
+    /**
+     * ¿Es un módulo de casos de excepción? En cada sede, aparte de los
+     * normales, puede haber uno o más; sólo reciben el trámite "Excepción" y
+     * sólo los atiende quien tiene el rol de Conciliación, Género e Igualdad
+     * o el distintivo de Enlace de Género e Igualdad.
+     */
+    public function esDeExcepcion(): bool
+    {
+        return in_array(\App\Support\AsignadorModulos::TRAMITE_EXCEPCION, $this->tramites ?? [], true);
+    }
+
+    /** Los módulos normales (sin los de casos de excepción, que no van en Mi módulo). */
+    public function scopeNormales($query)
+    {
+        // tramites es JSON ("Excepci\u00f3n"): basta con "Excepci".
+        return $query->where(fn ($q) => $q->whereNull('tramites')->orWhere('tramites', 'not like', '%Excepci%'));
+    }
+
     public function recibe(string $tramite): bool
     {
         return in_array($tramite, $this->tramites ?? [], true);

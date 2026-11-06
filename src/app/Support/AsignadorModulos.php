@@ -27,6 +27,69 @@ class AsignadorModulos
 {
     public const TRAMITES = ['Solicitud', 'Asesoría', 'Ratificación', 'Cumplimiento'];
 
+    /**
+     * Trámite de los módulos de casos de excepción (Modulo::esDeExcepcion).
+     * Cada sede puede tener los suyos; la cita de excepción de esa sede se le
+     * asigna a uno libre y el cupo de cada horario es cuántos están libres
+     * (capacidadExcepcion()). Una sede sin módulo de excepción sigue como
+     * antes: al Departamento, con el calendario compartido.
+     */
+    public const TRAMITE_EXCEPCION = 'Excepción';
+
+    /** Nombres con que se guardaban las citas de excepción antes de los módulos. */
+    public const LUGARES_EXCEPCION_ANTERIORES = ['Departamento de genero e igualdad', 'Departamento de Igualdad de Género'];
+
+    private static array $excepcionPorSede = [];
+
+    private static ?array $idsExcepcion = null;
+
+    /** ¿La sede ya tiene al menos un módulo de casos de excepción activo? */
+    public static function hayModulosExcepcion(string $sede): bool
+    {
+        return self::$excepcionPorSede[$sede] ??= self::modulosExcepcion($sede)->isNotEmpty();
+    }
+
+    /** Ids de todos los módulos de casos de excepción (de todas las sedes). */
+    public static function idsExcepcion(): array
+    {
+        return self::$idsExcepcion ??= Modulo::where('tramites', 'like', '%Excepci%')->pluck('id')->all();
+    }
+
+    /** Vuelve a preguntar (al crear o editar un módulo). */
+    public static function olvidarExcepcion(): void
+    {
+        self::$excepcionPorSede = [];
+        self::$idsExcepcion = null;
+    }
+
+    /** Módulos de casos de excepción activos de la sede. */
+    public static function modulosExcepcion(string $sede): Collection
+    {
+        return self::deSede($sede, true)->filter(fn (Modulo $m) => $m->esDeExcepcion())->values();
+    }
+
+    /** A quién de la sede se le asigna una cita de excepción (en línea o de ventanilla). */
+    public static function elegirExcepcion(string $sede, string $fecha, string $hora, bool $enLinea = false): ?Modulo
+    {
+        return self::elegir($sede, self::TRAMITE_EXCEPCION, $fecha, $hora, $enLinea);
+    }
+
+    /**
+     * Cupo de un horario de excepción en la sede: cuántos de sus módulos de
+     * excepción lo pueden atender por ese canal ('linea' o 'ventanilla') a esa
+     * hora (activos, con persona, sin pausa y fuera de su comida). Null si la
+     * sede no tiene módulo de excepción (manda Horarios de citas, como antes).
+     */
+    public static function capacidadExcepcion(string $sede, string $canal, string $hora, ?Collection $modulos = null): ?int
+    {
+        if (! self::hayModulosExcepcion($sede)) {
+            return null;
+        }
+        $modulos ??= self::modulosExcepcion($sede);
+
+        return $modulos->filter(fn (Modulo $m) => self::atendible($m) && $m->recibePor($canal) && ! $m->enComida($hora))->count();
+    }
+
     /** Módulos de una sede, ordenados, con su persona. */
     public static function deSede(string $sede, bool $soloActivos = false): Collection
     {
@@ -113,6 +176,17 @@ class AsignadorModulos
             ->whereNotIn('estatus', ['expirada','cancelada'])
             ->when($excepto, fn ($q) => $q->where('id', '<>', $excepto))
             ->where(function ($q) use ($modulo) {
+                if ($modulo->esDeExcepcion()) {
+                    // Sólo sus citas que siguen siendo de excepción (la que se reclasificó
+                    // ya no le quita lugar) y lo que esa persona tenga en otro módulo.
+                    $q->where(fn ($w) => $w->where('modulo_id', $modulo->id)->where('exepcion', 'Si'));
+                    if ($modulo->user_id) {
+                        $q->orWhere(fn ($w) => $w->where('auxiliar', $modulo->user_id)
+                            ->where(fn ($m) => $m->whereNull('modulo_id')->orWhere('modulo_id', '<>', $modulo->id)));
+                    }
+
+                    return;
+                }
                 $q->where('modulo_id', $modulo->id);
                 if ($modulo->user_id) {
                     $q->orWhere('auxiliar', $modulo->user_id);

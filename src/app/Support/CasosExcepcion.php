@@ -210,6 +210,29 @@ class CasosExcepcion
         return $usuario !== null && $usuario->hasAnyRole(['Super Usuario', 'Estadistica', 'Directivo', self::ROL]);
     }
 
+    /**
+     * ¿Puede estar en el módulo de casos de excepción (Administración →
+     * Módulos)? Quien tiene el rol o el distintivo de Enlace.
+     */
+    public static function puedeModulo(?User $usuario): bool
+    {
+        return $usuario !== null && (self::es($usuario) || self::enlace($usuario));
+    }
+
+    /** Personas activas que pueden estar en el módulo de casos de excepción. */
+    public static function personalModulo(): \Illuminate\Support\Collection
+    {
+        return User::where('estatus', 'Activo')
+            ->where(function ($q) {
+                $q->whereHas('roles', fn ($r) => $r->where('name', self::ROL));
+                if (self::hayPermisoEnlace()) {
+                    $q->orWhereHas('permissions', fn ($p) => $p->where('name', self::PERMISO_ENLACE));
+                }
+            })
+            ->orderBy('name')
+            ->get(['id', 'name', 'delegacion']);
+    }
+
     /** ¿Tiene el distintivo "Enlace de Género e Igualdad"? */
     public static function enlace(?User $usuario): bool
     {

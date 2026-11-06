@@ -279,7 +279,10 @@
                                             {{ $f->tipo }}
                                             <span class="cx-sub">{{ $f->origen === 'linea' ? 'Cita en línea' : 'Ventanilla' }}</span>
                                         </td>
-                                        <td>{{ $f->delegacion }}</td>
+                                        <td>
+                                            {{ $f->delegacion }}
+                                            @if (! empty($f->atiende))<span class="cx-sub" title="A quién se le asignó"><i class="bi bi-person"></i> {{ $titulo($f->atiende) }}</span>@endif
+                                        </td>
                                         <td>
                                             {{ $f->tipo_caso ?: 'Sin especificar' }}
                                             @if ($f->vulnerables && ! in_array($f->vulnerables, ['No aplica', 'Ninguno'], true))<span class="cx-sub">{{ $f->vulnerables }}</span>@endif
