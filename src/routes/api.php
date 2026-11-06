@@ -48,6 +48,8 @@ Route::get('/obtenerAudienciasParte2', [SeerController::class, 'obtenerAudiencia
 Route::get('/obtenerAudienciasParte3', [SeerController::class, 'obtenerAudienciasParte3']);
 Route::get('/dias-inhabiles-centro',[SeerController::class, 'diasInhabilesCentro']);
 Route::get('/obtenerTurnosDisponibles', [RecepcionController::class, 'obtenerTurnosDisponibles']);
+//Horas del selector de /citas/interno, con cuántas ratificaciones hay en cada una
+Route::get('/horasRatificacion',    [TurnosController::class, 'horasRatificacion']);
 Route::get('/obtenerAudienciasConciliador', [AdministracionController::class, 'obtenerAudienciasConciliador']);
 Route::get('/obtenerCumplimientosAdmin', [AdministracionController::class, 'obtenerCumplimientosAdmin']);
 Route::middleware('api.key')->group(function () {

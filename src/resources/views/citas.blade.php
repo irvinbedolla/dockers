@@ -15,8 +15,6 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     
     <!-- Libraries CSS -->
-    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/index.global.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/locales-all.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet"/>
     <link href="public/assets/css/iziToast.min.css" rel="stylesheet">
     <link href="public/assets/css/sweetalert.css" rel="stylesheet">
@@ -25,6 +23,7 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
     
+    @include('turnos._horario_estilos')
     <style>
         :root {
             --color-guinda: #496163;
@@ -81,39 +80,11 @@
             background-color: var(--color-oro-dark);
             color: #ffffff;
         }
-        /* Styles FullCalendar Eventos */
-        #calendar {
-            width: 100%;
-            min-height: 520px;
-        }
-        .fc-event-disponible {
-            background-color: #26c03a !important;
-            border-color: #26c03a !important;
-            color: #fff !important;
-            cursor: pointer;
-        }
-        .fc-event-expirado {
-            background-color: #8a959e !important;
-            border-color: #8a959e !important;
-            color: #fff !important;
-            cursor: not-allowed;
-        }
-        .fc-event-inhabil {
-            background-color: #3B78DB !important;
-            border-color: #3B78DB !important;
-            color: #fff !important;
-            cursor: not-allowed;
-        }
-        .fc-event-ocupado {
-            background-color: #dc3545 !important;
-            border-color: #dc3545 !important;
-            color: #fff !important;
-            cursor: not-allowed;
-        }
-        .fc-event-selected {
-            border: 3px solid var(--color-oro) !important;
-            box-shadow: 0 0 10px rgba(206, 168, 69, 0.8);
-        }
+        /* Selector de hora de /citas/interno (sobre los .hc-* de turnos._horario_estilos) */
+        .hc-hora__nota { display: block; font-size: 11.5px; font-weight: 600; }
+        .hc-hora.is-ocupada { border-color: #F0D48A; background: #FBF4E1; color: #6B5310; }
+        .hc-hora.is-ocupada:hover { border-color: #B8912B; }
+        .hc-hora:disabled { border-color: #E3E8E8; background: #F5F7F7; color: #A6B1B2; cursor: not-allowed; }
         /* Loader */
         .loader {
             position: fixed;
@@ -127,7 +98,11 @@
 </head>
 <body onload="validarcheckfolio()">
     {{-- Con $turno: Mi módulo abre este formulario con los datos de la ratificación para revisarlos (MiModuloController::ratificacion). --}}
-    @php $enAtencion = isset($turno); @endphp
+    {{-- Personal (interno): elige la hora de una lista, aunque esté ocupada. Público (externo): el selector de /generar-cita. --}}
+    @php
+        $enAtencion = isset($turno);
+        $esInterno = $origen === 'interno';
+    @endphp
     <!-- Navbar Superior -->
     <nav class="navbar navbar-expand-lg navbar-light navbar-institucional fixed-top px-4">
         <div class="container-fluid">
@@ -522,12 +497,26 @@
                                         </select>
                                         <div class="invalid-feedback">Sede obligatoria.</div>
                                     </div>
-                                    <div class="col-md-3 d-flex align-items-end">
-                                        <button type="button" id="botonCalendar" class="btn btn-guinda w-100 py-2" data-bs-toggle="modal" data-bs-target="#calendarModal" disabled @if ($enAtencion) hidden @endif>
-                                            <i class="bi bi-calendar3 me-2"></i>Seleccionar Fecha/Horario
-                                        </button>
-                                    </div>
+                                    @if ($esInterno)
+                                        <div class="col-md-3">
+                                            <label for="fechaInterna" class="form-label fw-bold">Fecha de la Ratificación <span class="text-danger">*</span></label>
+                                            <input type="date" id="fechaInterna" class="form-control" value="{{ now()->toDateString() }}" min="{{ now()->toDateString() }}" max="{{ now()->addDays(60)->toDateString() }}" disabled>
+                                        </div>
+                                    @else
+                                        <div class="col-md-3 d-flex align-items-end">
+                                            <button type="button" id="botonCalendar" class="btn btn-guinda w-100 py-2" data-bs-toggle="modal" data-bs-target="#calendarModal" disabled @if ($enAtencion) hidden @endif>
+                                                <i class="bi bi-calendar3 me-2"></i>Seleccionar Fecha/Horario
+                                            </button>
+                                        </div>
+                                    @endif
                                 </div>
+
+                                @if ($esInterno)
+                                    <div id="horasInternas" class="mb-4" hidden>
+                                        <label class="form-label fw-bold">Hora de la Ratificación <span class="text-danger">*</span></label>
+                                        <div id="listaHoras" aria-live="polite"></div>
+                                    </div>
+                                @endif
                                 
                                 <!-- Entradas ocultas para fecha/hora -->
                                 <input type="hidden" name="fecha" id="fechaSeleccionada" required>
@@ -543,7 +532,7 @@
                                     </div>
                                 </div>
                                 <div id="fechaHoraWarning" class="alert alert-danger text-center mb-4" style="display: none;">
-                                    Debes seleccionar una fecha y horario en el calendario antes de guardar la cita.
+                                    Debes seleccionar una fecha y horario antes de guardar la cita.
                                 </div>
 
                                 <!-- Botones de Acción -->
@@ -560,9 +549,11 @@
                                         <button id="btnGuardar" type="submit" class="btn btn-oro btn-lg px-5 me-2">
                                             <i class="bi bi-box-arrow-down me-1"></i> Guardar Cita
                                         </button>
-                                        <a href="{{ route('publico') }}" class="btn btn-outline-secondary btn-lg px-4">
-                                            Regresar
-                                        </a>
+                                        @if($esInterno)
+                                            <a href="{{ route('todas_ratificaciones') }}" class="btn btn-outline-secondary btn-lg px-4">
+                                                Regresar
+                                            </a>
+                                        @endif
                                     @endif
                                 </div>
                             </div>
@@ -573,25 +564,30 @@
         </div>
     </main>
 
-    <!-- Modal FullCalendar -->
-    <div class="modal fade" id="calendarModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-xl">
-            <div class="modal-content">
-                <div class="modal-header card-header-guinda py-2">
-                    <h5 class="modal-title text-white fs-6"><i class="bi bi-clock me-2"></i>Seleccionar Horario Disponible</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div id="calendar"></div>
-                </div>
-                <div class="modal-footer bg-light py-2">
-                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-oro btn-sm px-4" id="confirmarSeleccion">Confirmar Horario</button>
+    @if ($esInterno)
+        <!-- Aviso de horario ocupado -->
+        <div class="modal fade" id="avisoOcupado" tabindex="-1" aria-labelledby="avisoOcupadoTitulo" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title fs-6" id="avisoOcupadoTitulo"><i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>Este horario ya está ocupado</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="mb-2" id="avisoOcupadoTexto"></p>
+                        <p class="mb-0 text-muted small">Puedes agendar en este horario de todas formas.</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Elegir otra hora</button>
+                        <button type="button" class="btn btn-oro" id="avisoOcupadoConfirmar">Agendar en este horario</button>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
-    
+    @else
+        @include('turnos._horario_modal')
+    @endif
+
     <!-- Modal Ayuda INE -->
     <div class="modal fade" id="helpModal" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
@@ -610,14 +606,14 @@
     <!-- Scripts Bootstrap y Funcionalidades de Frontend -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // Cada sede tiene sus horarios: al cambiarla se vuelve a elegir.
         function modalCalendar() {
-            const sede = document.getElementById("sede").value;
-            const btn = document.getElementById("botonCalendar");
-            if(sede !== "") {
-                btn.removeAttribute("disabled");
-            } else {
-                btn.setAttribute("disabled", "true");
-            }
+            limpiarHorario();
+            @if ($esInterno)
+                cargarHorasInternas();
+            @else
+                document.getElementById("botonCalendar").disabled = document.getElementById("sede").value === "";
+            @endif
         }
         function validarcheckfolio() {
             // Se mantiene por consistencia del body onload, pero la vista actual oculta y muestra el 
@@ -815,90 +811,6 @@
             if(inicio) inicio.addEventListener("blur", validarFechas);
             if(termino) termino.addEventListener("blur", validarFechas);
 
-            // 7. CALENDARIO FULLCALENDAR 6
-            const calendarEl = document.getElementById('calendar');
-            if (calendarEl) {
-                const calendar = new FullCalendar.Calendar(calendarEl, {
-                    initialView: 'dayGridWeek',
-                    locale: 'es',
-                    headerToolbar: {
-                        left: 'prev,next today',
-                        center: 'title',
-                        right: 'dayGridWeek,timeGridDay'
-                    },
-                    events: function(fetchInfo, successCallback, failureCallback) {
-                        const sede = document.getElementById('sede').value;
-                        const origen = document.getElementById('origen').value;
-                        $.ajax({
-                            url: "{{ url('/api/obtenerEventos') }}",
-                            method: 'GET',
-                            dataType: 'json',
-                            data: {
-                                sede: sede,
-                                start: fetchInfo.startStr,
-                                end: fetchInfo.endStr,
-                                origen: origen
-                            },
-                            success: function(data) {
-                                console.log('Eventos recibidos:', data);
-                                successCallback(data);
-                            },
-                            error: function(xhr, status, error) {
-                                console.error('Error al cargar eventos:', {
-                                    status: xhr.status,
-                                    error: error,
-                                    response: xhr.responseText
-                                });
-
-                                failureCallback(error);
-                            }
-                        });
-                    },
-                    eventClick: function(info) {
-                        const ahora = new Date();
-                        const slotDate = new Date(info.event.start);
-                        if (info.event.extendedProps.estado === 'disponible' && slotDate > ahora) {
-                            document.querySelectorAll('.fc-event-selected').forEach(el => {
-                                el.classList.remove('fc-event-selected');
-                            });
-                            info.el.classList.add('fc-event-selected');
-                            window.selectedEvent = info.event;
-                        } else {
-                            alert('Este horario no se encuentra disponible.');
-                        }
-                    },
-                    eventDidMount: function(info) {
-                        const estado = info.event.extendedProps.estado;
-                        if (estado === 'disponible') info.el.classList.add('fc-event-disponible');
-                        else if (estado === 'expirado') info.el.classList.add('fc-event-expirado');
-                        else if (estado === 'inhabil') info.el.classList.add('fc-event-inhabil');
-                        else info.el.classList.add('fc-event-ocupado');
-                    }
-                });
-                calendar.render();
-                $('#calendarModal').on('shown.bs.modal', function () {
-                    calendar.refetchEvents();
-                    calendar.updateSize();
-                });
-                document.getElementById('confirmarSeleccion').addEventListener('click', function() {
-                    if (window.selectedEvent) {
-                        const fechaHora = new Date(window.selectedEvent.start);
-                        const fecha = fechaHora.toISOString().split('T')[0];
-                        const hora = fechaHora.toTimeString().substring(0, 5);
-                        document.getElementById('fechaSeleccionada').value = fecha;
-                        document.getElementById('horaSeleccionada').value = hora;
-                        document.getElementById('fechaResumen').textContent = fecha;
-                        document.getElementById('horaResumen').textContent = hora;
-                        document.getElementById('resumenCita').style.display = 'block';
-                        document.getElementById('fechaHoraWarning').style.display = 'none';
-                        const modal = bootstrap.Modal.getInstance(document.getElementById('calendarModal'));
-                        modal.hide();
-                    } else {
-                        alert('Por favor, selecciona un horario disponible en el calendario.');
-                    }
-                });
-            }
-
             // 8. NACIONALIDAD (OBLIGATORIO SEGUNDO APELLIDO SI ES MEXICANA)
             const selectNacionalidad = document.getElementById('nacionalidad');
             const apellido = document.getElementById('segundo_apellido');
@@ -941,12 +853,12 @@
                         detieneEnvio = true;
                     }
 
-                    // Valida si seleccionó cita en calendario
+                    // Valida si seleccionó fecha y hora
                     const fecha = document.getElementById('fechaSeleccionada').value;
                     const hora = document.getElementById('horaSeleccionada').value;
                     if (!fecha || !hora) {
                         fechaHoraWarning.style.display = 'block';
-                        document.getElementById('botonCalendar').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        document.getElementById(@json($esInterno ? 'sede' : 'botonCalendar')).scrollIntoView({ behavior: 'smooth', block: 'center' });
                         detieneEnvio = true;
                     } else {
                         fechaHoraWarning.style.display = 'none';
@@ -973,6 +885,7 @@
             }
         });
     </script>
+    @include('turnos._ratificacion_horario_scripts')
     @if ($enAtencion)
     @php
         $prellenado = [
