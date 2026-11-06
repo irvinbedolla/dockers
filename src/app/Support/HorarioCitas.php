@@ -157,13 +157,27 @@ class HorarioCitas
         $consulta = Recepcion::query()->whereNotIn('estatus', ['expirada','cancelada']);
 
         if ($excepcion) {
-            return $consulta->where('exepcion', 'Si');
+            // Sede con módulo de casos de excepción: su propio calendario (sus citas
+            // de excepción). Sin él, el del Departamento, compartido entre las sedes
+            // que no tienen módulo (las citas que no están en un módulo de excepción).
+            $consulta->where('exepcion', 'Si');
+            $ids = AsignadorModulos::idsExcepcion();
+
+            return AsignadorModulos::hayModulosExcepcion($sede)
+                ? $consulta->where('delegacion', $sede)
+                : $consulta->when($ids, fn ($q) => $q->where(fn ($w) => $w->whereNull('modulo_id')->orWhereNotIn('modulo_id', $ids)));
         }
+
+        // Una que se reclasificó como "No es caso de excepción" y sólo se terminó
+        // sigue con quien la atendió en excepción: no le quita lugar a la sede.
+        $deExcepcion = AsignadorModulos::idsExcepcion();
 
         return $consulta
             ->where('delegacion', $sede)
             ->whereIn('tipo', self::TIPOS_DEL_GRUPO[self::grupo($tipo)])
-            ->where(fn ($q) => $q->whereNull('exepcion')->orWhere('exepcion', '!=', 'Si'));
+            ->where(fn ($q) => $q->whereNull('exepcion')->orWhere('exepcion', '!=', 'Si'))
+            ->where(fn ($q) => $q->whereNull('lugar_auxiliar')->orWhereNotIn('lugar_auxiliar', AsignadorModulos::LUGARES_EXCEPCION_ANTERIORES))
+            ->when($deExcepcion, fn ($q) => $q->where(fn ($w) => $w->whereNull('modulo_id')->orWhereNotIn('modulo_id', $deExcepcion)));
     }
 
     public static function normalizarHora(string $hora): string

@@ -25,6 +25,7 @@ class Modulo extends Model
         'tramites' => 'array',
         'respaldo' => 'array',
         'activo'   => 'boolean',
+        'puede_turnar' => 'boolean',
         'en_linea' => 'boolean',
         'pausa_ventanilla' => 'boolean',
         'no_reasignar_desde' => 'date',
@@ -173,6 +174,24 @@ class Modulo extends Model
         };
     }
 
+    /**
+     * ¿Es un módulo de casos de excepción? En cada sede, aparte de los
+     * normales, puede haber uno o más; sólo reciben el trámite "Excepción" y
+     * sólo los atiende quien tiene el rol de Conciliación, Género e Igualdad
+     * o el distintivo de Enlace de Género e Igualdad.
+     */
+    public function esDeExcepcion(): bool
+    {
+        return in_array(\App\Support\AsignadorModulos::TRAMITE_EXCEPCION, $this->tramites ?? [], true);
+    }
+
+    /** Los módulos normales (sin los de casos de excepción, que no van en Mi módulo). */
+    public function scopeNormales($query)
+    {
+        // tramites es JSON ("Excepci\u00f3n"): basta con "Excepci".
+        return $query->where(fn ($q) => $q->whereNull('tramites')->orWhere('tramites', 'not like', '%Excepci%'));
+    }
+
     public function recibe(string $tramite): bool
     {
         return in_array($tramite, $this->tramites ?? [], true);
@@ -183,9 +202,44 @@ class Modulo extends Model
         return in_array($tramite, $this->respaldo ?? [], true);
     }
 
-    /** ¿Esta hora cae en su media hora de comida? */
-    public function enComida(string $hora): bool
+    /**
+     * ¿Esta hora cae en su media hora de comida? Con $duracion (minutos de la
+     * cita, de Horarios) también cuenta si la cita se encima con la comida;
+     * lo usan los módulos de casos de excepción, cuyos horarios (p. ej. cada
+     * 40 min) no coinciden con la hora exacta de la comida.
+     */
+    public function enComida(string $hora, ?int $duracion = null): bool
     {
-        return $this->hora_comida !== null && substr($this->hora_comida, 0, 5) === substr($hora, 0, 5);
+        if ($this->hora_comida === null) {
+            return false;
+        }
+        if (substr($this->hora_comida, 0, 5) === substr($hora, 0, 5)) {
+            return true;
+        }
+        if (! $duracion) {
+            return false;
+        }
+        $minutos = fn (string $h) => (int) substr($h, 0, 2) * 60 + (int) substr($h, 3, 2);
+        $inicio  = $minutos($hora);
+        $comida  = $minutos($this->hora_comida);
+
+        return $inicio < $comida + 30 && $inicio + $duracion > $comida;
+    }
+
+    /**
+     * Módulos de casos de excepción: ¿quien atiende puede pasar a la persona
+     * a un orientador o auxiliar (fila de hoy u otra fecha) si resulta que no
+     * es caso de excepción? Apagado, levanta ella misma la solicitud.
+     */
+    public function puedeTurnar(): bool
+    {
+        return (bool) ($this->puede_turnar ?? true);
+    }
+
+    public static function turnarMigrado(): bool
+    {
+        static $hay = null;
+
+        return $hay ??= Schema::hasColumn('modulos', 'puede_turnar');
     }
 }

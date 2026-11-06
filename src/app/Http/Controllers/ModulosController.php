@@ -97,6 +97,11 @@ class ModulosController extends Controller
             ->get(['id', 'name', 'delegacion'])
             ->sortBy(fn ($u) => $u->delegacion === $sede ? 0 : 1, SORT_REGULAR, false)
             ->groupBy('delegacion');
+        // Para los módulos de casos de excepción: sólo el rol de Conciliación,
+        // Género e Igualdad o el distintivo de Enlace de Género e Igualdad.
+        $personalExcepcion = \App\Support\CasosExcepcion::personalModulo()
+            ->sortBy(fn ($u) => $u->delegacion === $sede ? 0 : 1, SORT_REGULAR, false)
+            ->groupBy('delegacion');
 
         return view('administracion.modulos.index', [
             'sede'      => $sede,
@@ -114,6 +119,7 @@ class ModulosController extends Controller
             ],
             'opciones'  => $opciones,
             'personal'  => $personal,
+            'personalExcepcion' => $personalExcepcion,
             'tramites'  => AsignadorModulos::TRAMITES,
             'limite'    => LimiteCitas::config(),
             'limiteHoy' => LimiteCitas::hoy(),
@@ -196,6 +202,53 @@ class ModulosController extends Controller
     }
 
     /**
+     * Switch "Puede turnar" de los módulos de casos de excepción. Apagado,
+     * quien atiende ya no puede pasar a la persona a un orientador o auxiliar
+     * (fila de hoy u otra fecha) cuando no es caso de excepción: levanta ella
+     * misma la solicitud (FormatoExcepcion::siguientesPosibles).
+     */
+    public function turnar(Request $request, Modulo $modulo)
+    {
+        abort_unless($modulo->esDeExcepcion(), 404);
+        if (! Modulo::turnarMigrado()) {
+            $mensaje = 'Falta correr la migración de módulos (php artisan migrate) para este switch.';
+
+            return $request->expectsJson()
+                ? response()->json(['message' => $mensaje], 409)
+                : $this->volver($request, $modulo->delegacion)->with('error', $mensaje);
+        }
+
+        $request->validate(['turnar' => ['required', 'boolean']]);
+        $turnar = $request->boolean('turnar');
+
+        if ($modulo->puedeTurnar() !== $turnar) {
+            $modulo->forceFill(['puede_turnar' => $turnar])->save();
+            Log::info('Módulo de excepción: puede turnar', [
+                'modulo' => $modulo->id, 'sede' => $modulo->delegacion, 'persona' => $modulo->user_id,
+                'turnar' => $turnar, 'por' => $request->user()->id,
+            ]);
+        }
+
+        $quien = $modulo->persona ? ' ('.$modulo->persona->name.')' : '';
+        $mensaje = $turnar
+            ? "{$modulo->nombre}{$quien} puede pasar a un orientador o auxiliar a quien no sea caso de excepción."
+            : "{$modulo->nombre}{$quien} ya no turna: si no es caso de excepción, levanta la solicitud ella misma.";
+
+        if ($request->expectsJson()) {
+            return response()->json(['turnar' => $turnar, 'nota' => self::notaTurnar($turnar), 'message' => $mensaje]);
+        }
+
+        return $this->volver($request, $modulo->delegacion)->with('success', $mensaje);
+    }
+
+    public static function notaTurnar(bool $turnar): string
+    {
+        return $turnar
+            ? 'Si no es caso de excepción, la pasa a un orientador o auxiliar'
+            : 'No turna: si no es caso de excepción, levanta la solicitud';
+    }
+
+    /**
      * Switch "Acepta reasignaciones" de cada módulo, aparte de la pausa de
      * citas. Apagado, desde ahora (hoy) o a partir de una fecha ya no se le
      * pueden mover citas de esa fecha en adelante: ni con "Reasignar" ni al
@@ -265,7 +318,7 @@ class ModulosController extends Controller
         $modulos ??= AsignadorModulos::deSede($sede);
 
         return array_values(array_filter(
-            AsignadorModulos::TRAMITES,
+            array_merge(AsignadorModulos::TRAMITES, [AsignadorModulos::TRAMITE_EXCEPCION]),
             fn ($t) => ($canal === 'ventanilla' || $t !== 'Cumplimiento')
                 && AsignadorModulos::enPausa($sede, $t, $canal, $modulos->where('activo', true))
         ));
@@ -322,13 +375,16 @@ class ModulosController extends Controller
     public function guardar(Request $request, ?Modulo $modulo = null)
     {
         $sede = $modulo?->delegacion ?? $request->input('delegacion');
+        // Módulo normal o de casos de excepción (en cada sede, aparte de los normales).
+        $esExcepcion = $request->input('clase') === 'excepcion';
 
         $datos = $request->validate([
+            'clase'       => ['nullable', Rule::in(['normal', 'excepcion'])],
             'delegacion'  => [$modulo ? 'nullable' : 'required', Rule::in(RecepcionRoles::TODAS_LAS_SEDES)],
             'nombre'      => ['required', 'string', 'max:60',
                 Rule::unique('modulos', 'nombre')->where('delegacion', $sede)->ignore($modulo?->id)],
             'user_id'     => ['nullable', 'integer', 'exists:users,id'],
-            'tramites'    => ['required', 'array', 'min:1'],
+            'tramites'    => [$esExcepcion ? 'nullable' : 'required', 'array'],
             'tramites.*'  => [Rule::in(AsignadorModulos::TRAMITES)],
             'respaldo'    => ['nullable', 'array'],
             'respaldo.*'  => [Rule::in(AsignadorModulos::TRAMITES)],
@@ -337,8 +393,19 @@ class ModulosController extends Controller
             'orden'       => ['nullable', 'integer', 'min:0', 'max:999'],
         ], [
             'tramites.required' => 'Marca al menos un trámite que reciba el módulo.',
+            'tramites.*.in'     => 'Ese trámite no lo recibe un módulo normal.',
             'nombre.unique'     => 'Ya hay un módulo con ese nombre en la sede.',
         ]);
+
+        if ($esExcepcion) {
+            // Sólo recibe casos de excepción de su sede, y sólo con quien puede atenderlos.
+            $datos['tramites'] = [AsignadorModulos::TRAMITE_EXCEPCION];
+            $datos['respaldo'] = [];
+            if (! empty($datos['user_id']) && ! \App\Support\CasosExcepcion::puedeModulo(User::find($datos['user_id']))) {
+                return back()->withInput()->withErrors(['user_id' => 'Un módulo de casos de excepción sólo lo puede atender quien tiene el rol de Conciliación, Género e Igualdad o el distintivo de Enlace de Género e Igualdad (Usuarios).']);
+            }
+        }
+        AsignadorModulos::olvidarExcepcion();
 
         $valores = [
             'nombre'      => trim($datos['nombre']),
@@ -420,6 +487,10 @@ class ModulosController extends Controller
     {
         if (! $modulo->persona) {
             return [];
+        }
+
+        if ($modulo->esDeExcepcion()) {
+            return \App\Support\CasosExcepcion::puedeModulo($modulo->persona) ? [] : [AsignadorModulos::TRAMITE_EXCEPCION];
         }
 
         $tramites = array_unique(array_merge($modulo->tramites ?? [], $modulo->respaldo ?? []));

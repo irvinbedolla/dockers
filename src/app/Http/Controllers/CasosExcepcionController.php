@@ -24,7 +24,7 @@ use Illuminate\Validation\Rule;
  */
 class CasosExcepcionController extends Controller
 {
-    public const VISTAS = ['citas', 'pendientes', 'solicitudes'];
+    public const VISTAS = ['citas', 'pendientes', 'por_levantar', 'solicitudes'];
 
     private const POR_PAGINA = 25;
 
@@ -56,11 +56,13 @@ class CasosExcepcionController extends Controller
             'citas'       => $this->citas($filtros)->count(),
             'pendientes'  => $this->pendientes($filtros)->count(),
             'solicitudes' => $this->solicitudes($filtros)->count(),
+            'por_levantar' => FormatoExcepcion::conSiguiente() ? $this->filtrarCitas(FormatoExcepcion::porLevantar(), $filtros)->count() : 0,
         ];
 
         $filas = match ($vista) {
             'solicitudes' => $this->listaSolicitudes($filtros),
             'pendientes'  => $this->listaCitas($this->pendientes($filtros)),
+            'por_levantar' => $this->listaCitas(FormatoExcepcion::conSiguiente() ? $this->filtrarCitas(FormatoExcepcion::porLevantar(), $filtros) : CasosExcepcion::citas()->whereRaw('1 = 0')),
             default       => $this->listaCitas($this->citas($filtros)),
         };
 
@@ -73,6 +75,40 @@ class CasosExcepcionController extends Controller
             'conFormato' => CasosExcepcion::conFormato(),
             'cierraRapido' => CasosExcepcion::cierraRapido($request->user()),
         ]);
+    }
+
+    /**
+     * "Levantar solicitud" / "Retomar": una cita que se cerró como "No es caso
+     * de excepción → Levantar la solicitud aquí" y aún no tiene solicitud. La
+     * puede levantar quien atiende excepción (rol de Conciliación, Género e
+     * Igualdad, Enlace de Género e Igualdad o Super Usuario): se prellena la
+     * captura con la cita y, al terminarla, se liga a ella (PrellenadoCita).
+     */
+    public function levantar(Request $request, int $id)
+    {
+        abort_unless(CasosExcepcion::atiende($request->user()) && FormatoExcepcion::conSiguiente(), 403);
+        abort_unless(FormatoExcepcion::porLevantar()->where('r.id', $id)->exists(), 404, 'Esa cita ya tiene solicitud o no está por levantar.');
+
+        return $this->abrirSolicitud($request, $id, null);
+    }
+
+    private function abrirSolicitud(Request $request, int $id, ?string $aviso)
+    {
+        $cita = \App\Models\Recepcion::findOrFail($id);
+        \App\Support\PrellenadoCita::preparar($cita);
+
+        // Queda como en atención (como "Iniciar solicitud" de Mi módulo).
+        $cambios = array_filter([
+            'atencion_inicio_at' => \App\Support\FlujoCita::migrado() && ! $cita->atencion_inicio_at ? now() : null,
+            'llamado_at'         => \App\Support\FlujoCita::migrado() && ! $cita->llamado_at ? now() : null,
+            'estatus'            => $cita->estatus === 'pendiente' && $cita->fecha?->isToday() ? 'confirmada' : null,
+        ]);
+        if ($cambios) {
+            $cita->forceFill($cambios)->save();
+        }
+        Log::info('Excepción: levantar solicitud', ['cita' => $cita->id, 'por' => $request->user()->id]);
+
+        return redirect()->route('solicitud')->with('success', trim(($aviso ? $aviso.' ' : '').'Captura la solicitud: ya trae los datos de la cita '.\App\Support\FolioCita::mostrar($cita).'.'));
     }
 
     /**
@@ -301,6 +337,11 @@ class CasosExcepcionController extends Controller
                     return back()->withInput()->withErrors(['siguiente' => $e->getMessage()]);
                 }
                 FormatoExcepcion::guardar($origen, $datos, true, $request->user());
+
+                // Sin turnar: se abre de una vez la captura de la solicitud.
+                if ($datos['siguiente'] === 'levantar') {
+                    return $this->abrirSolicitud($request, (int) $origen['cita']->id, $aviso);
+                }
 
                 return redirect()->route('excepcion', ['vista' => 'citas'])->with('success', $aviso);
             }

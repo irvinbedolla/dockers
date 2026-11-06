@@ -212,7 +212,7 @@
         var op = [['todas', 'Todas']].concat(Object.keys(TIPOS).map(function (k) { return [k, TIPOS[k]]; }));
         document.getElementById('llTabs').innerHTML = op.map(function (o) {
             var n = o[0] === 'todas' ? lista.length : lista.filter(function (r) { return r.tipo === o[0]; }).length;
-            return '<button type="button" role="tab" class="ll-tab' + (tab === o[0] ? ' is-activo' : '') + '" data-tab="' + o[0] + '" aria-selected="' + (tab === o[0]) + '">' + o[1] + ' <b>' + n + '</b></button>';
+            return '<button type="button" role="tab" class="ll-tab' + (tab === o[0] ? ' is-activo' : '') + '" data-ll-tab="' + o[0] + '" aria-selected="' + (tab === o[0]) + '">' + o[1] + ' <b>' + n + '</b></button>';
         }).join('');
     }
 
@@ -410,9 +410,12 @@
     }
 
     document.getElementById('llTabs').addEventListener('click', function (e) {
-        var b = e.target.closest('[data-tab]');
+        // data-ll-tab y no data-tab: scripts.js (Stisla) le pone a todo [data-tab] un
+        // click con "return false" al cargar la página, y las pestañas no respondían
+        // hasta que se volvían a dibujar (filtros, búsqueda o la actualización de 30 s).
+        var b = e.target.closest('[data-ll-tab]');
         if (!b) { return; }
-        tab = b.getAttribute('data-tab'); filtro = 'todas'; pintar();
+        tab = b.getAttribute('data-ll-tab'); filtro = 'todas'; pintar();
         try { var u = new URL(window.location.href); if (tab === 'todas') { u.searchParams.delete('tipo'); } else { u.searchParams.set('tipo', tab); } history.replaceState(null, '', u); } catch (err) {}
     });
     document.getElementById('llFiltros').addEventListener('click', function (e) {

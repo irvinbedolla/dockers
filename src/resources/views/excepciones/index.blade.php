@@ -141,6 +141,12 @@
                 <a class="cx-pestana {{ $conteos['pendientes'] ? 'cx-pestana--alerta' : '' }} {{ $vista === 'pendientes' ? 'is-activa' : '' }}" href="{{ $con(['vista' => 'pendientes', 'desde' => null, 'hasta' => null]) }}">
                     <i class="bi bi-hourglass-split" aria-hidden="true"></i> Por atender <b>{{ number_format($conteos['pendientes']) }}</b>
                 </a>
+                @if ($conteos['por_levantar'] || $vista === 'por_levantar')
+                    <a class="cx-pestana cx-pestana--alerta {{ $vista === 'por_levantar' ? 'is-activa' : '' }}" href="{{ $con(['vista' => 'por_levantar', 'desde' => null, 'hasta' => null]) }}"
+                       title="No eran casos de excepción y su módulo no turna: falta levantar su solicitud">
+                        <i class="bi bi-file-earmark-plus" aria-hidden="true"></i> Por levantar <b>{{ number_format($conteos['por_levantar']) }}</b>
+                    </a>
+                @endif
                 <a class="cx-pestana {{ $vista === 'solicitudes' ? 'is-activa' : '' }} {{ $conteos['solicitudes'] ? 'cx-pulso' : '' }}" href="{{ $con(['vista' => 'solicitudes', 'desde' => null, 'hasta' => null]) }}"
                    @if ($conteos['solicitudes']) title="Hay {{ $conteos['solicitudes'] }} {{ $conteos['solicitudes'] === 1 ? 'solicitud' : 'solicitudes' }} con caso de excepción" @endif>
                     <i class="bi bi-folder2-open" aria-hidden="true"></i> Solicitudes <b>{{ number_format($conteos['solicitudes']) }}</b>
@@ -154,7 +160,7 @@
             <form method="GET" action="{{ route('excepcion') }}" class="tn-tarjeta mb-3" id="cxFiltros">
                 <input type="hidden" name="vista" value="{{ $vista }}">
                 <div class="cx-filtros">
-                    @if ($vista !== 'pendientes')
+                    @if (! in_array($vista, ['pendientes', 'por_levantar'], true))
                         <div>
                             <span class="cx-etq">Periodo</span>
                             <div class="cx-atajos">
@@ -207,12 +213,13 @@
                     <h4>
                         @switch($vista)
                             @case('pendientes') Por atender @break
+                            @case('por_levantar') Solicitudes por levantar @break
                             @case('solicitudes') Solicitudes con caso de excepción @break
                             @default Citas y turnos con caso de excepción
                         @endswitch
                     </h4>
                     <span>
-                        {{ $vista === 'pendientes' ? 'Últimos 30 días, sin formato terminado' : $textoPeriodo }}
+                        {{ $vista === 'pendientes' ? 'Últimos 30 días, sin formato terminado' : ($vista === 'por_levantar' ? 'No eran casos de excepción y todavía no tienen solicitud' : $textoPeriodo) }}
                         · {{ number_format($filas->total()) }} {{ $filas->total() === 1 ? 'registro' : 'registros' }}
                     </span>
                 </div>
@@ -279,7 +286,10 @@
                                             {{ $f->tipo }}
                                             <span class="cx-sub">{{ $f->origen === 'linea' ? 'Cita en línea' : 'Ventanilla' }}</span>
                                         </td>
-                                        <td>{{ $f->delegacion }}</td>
+                                        <td>
+                                            {{ $f->delegacion }}
+                                            @if (! empty($f->atiende))<span class="cx-sub" title="A quién se le asignó"><i class="bi bi-person"></i> {{ $titulo($f->atiende) }}</span>@endif
+                                        </td>
                                         <td>
                                             {{ $f->tipo_caso ?: 'Sin especificar' }}
                                             @if ($f->vulnerables && ! in_array($f->vulnerables, ['No aplica', 'Ninguno'], true))<span class="cx-sub">{{ $f->vulnerables }}</span>@endif
@@ -301,6 +311,12 @@
                                                           onsubmit="return confirm('¿Marcar el folio {{ \App\Support\FolioCita::mostrar($f) }} como «No llegó» y cerrar el caso?');">
                                                         @csrf
                                                         <button type="submit" class="btn btn-sm btn-outline-danger" title="La persona no llegó: se cierra el caso y sale de Por atender"><i class="bi bi-person-x"></i> No llegó</button>
+                                                    </form>
+                                                @endif
+                                                @if ($vista === 'por_levantar' && $atiende)
+                                                    <form method="POST" action="{{ route('excepciones.levantar', $f->id) }}" class="d-inline">
+                                                        @csrf
+                                                        <button type="submit" class="btn btn-sm btn-primary" title="Abre la captura con los datos de la cita"><i class="bi bi-file-earmark-plus"></i> Levantar solicitud</button>
                                                     </form>
                                                 @endif
                                                 @if ($f->solicitud_id)

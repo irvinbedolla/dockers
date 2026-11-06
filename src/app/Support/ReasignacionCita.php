@@ -70,7 +70,8 @@ class ReasignacionCita
                 continue;
             }
             $h = substr($c->hora, 0, 5);
-            $opciones[$c->id] = $modulos->map(function (Modulo $m) use ($c, $h, $ocupacion) {
+            // Los módulos de casos de excepción no reciben citas normales.
+            $opciones[$c->id] = $modulos->reject(fn (Modulo $m) => $m->esDeExcepcion() && $m->id != $c->modulo_clave)->map(function (Modulo $m) use ($c, $h, $ocupacion) {
                 $choque = $ocupacion[$h]['m'.$m->id] ?? ($m->user_id ? ($ocupacion[$h]['u'.$m->user_id] ?? null) : null);
 
                 $estado = match (true) {
@@ -155,6 +156,7 @@ class ReasignacionCita
             ! in_array($cita->estatus, self::MOVIBLES, true)  => 'Sólo se pueden mover citas pendientes o confirmadas.',
             $fecha < $hoy                                     => 'La cita ya pasó.',
             $destino->delegacion !== $cita->delegacion        => 'El módulo es de otra sede.',
+            $destino->esDeExcepcion()                         => "{$destino->nombre} es de casos de excepción: no recibe citas normales.",
             $destino->id == $cita->modulo_id                  => 'La cita ya está en ese módulo.',
             ! AsignadorModulos::atendible($destino)           => "{$destino->nombre} está inactivo o no tiene persona asignada.",
             ! $destino->recibeVentanilla()                    => "{$destino->nombre} tiene en pausa todas sus citas (también ventanilla): no recibe citas nuevas. Reactívalo en Administración → Módulos.",

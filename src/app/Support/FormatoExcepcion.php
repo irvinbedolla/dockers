@@ -29,8 +29,9 @@ class FormatoExcepcion
 
     /** "No es caso de excepción": qué sigue para la persona (reclasificar()). */
     public const SIGUIENTE = [
-        'hoy'        => 'Pasar a la fila de hoy',
+        'hoy'        => 'Pasar a la fila de hoy (al siguiente horario libre)',
         'otra_fecha' => 'Agendar en otra fecha',
+        'levantar'   => 'Levantar la solicitud aquí',
         'terminar'   => 'Sólo terminar la atención',
     ];
 
@@ -106,7 +107,49 @@ class FormatoExcepcion
     /** Qué se puede hacer si no es caso de excepción: fila u otra fecha sólo con cita y sin solicitud. */
     public static function siguientesPosibles(array $origen): array
     {
-        return $origen['cita'] && ! $origen['solicitud'] ? array_keys(self::SIGUIENTE) : ['terminar'];
+        if (! $origen['cita'] || $origen['solicitud']) {
+            return ['terminar'];
+        }
+
+        // Módulo de excepción con "Puede turnar" apagado: no se pasa a un
+        // orientador o auxiliar; quien atiende levanta la solicitud.
+        return self::noTurna($origen['cita'])
+            ? ['levantar', 'terminar']
+            : ['hoy', 'otra_fecha', 'terminar'];
+    }
+
+    /** ¿La cita es de un módulo de casos de excepción con "Puede turnar" apagado? */
+    public static function noTurna(?object $cita): bool
+    {
+        if (! $cita || empty($cita->modulo_id) || ! \App\Models\Modulo::turnarMigrado()) {
+            return false;
+        }
+        $modulo = \App\Models\Modulo::find($cita->modulo_id);
+
+        return $modulo !== null && $modulo->esDeExcepcion() && ! $modulo->puedeTurnar();
+    }
+
+    /** ¿Ya existe la columna seer_casos_excepcion.siguiente? */
+    public static function conSiguiente(): bool
+    {
+        static $hay = null;
+
+        return $hay ??= Schema::hasColumn('seer_casos_excepcion', 'siguiente');
+    }
+
+    /**
+     * "Solicitudes por levantar": citas que se cerraron como "No es caso de
+     * excepción → Levantar la solicitud aquí" y todavía no tienen su
+     * solicitud ligada. Las puede retomar quien atiende excepción.
+     */
+    public static function porLevantar(): \Illuminate\Database\Query\Builder
+    {
+        return DB::table('recepcion as r')
+            ->join('seer_casos_excepcion as xl', 'xl.id_turno', '=', 'r.id')
+            ->where('xl.resultado', 'no_excepcion')
+            ->where('xl.siguiente', 'levantar')
+            ->whereNotIn('r.estatus', ['cancelada'])
+            ->whereNotExists(fn ($q) => $q->select(DB::raw(1))->from('seer_general as g2')->whereColumn('g2.recepcion_id', 'r.id'));
     }
 
     /**
@@ -141,10 +184,19 @@ class FormatoExcepcion
                 if (in_array($cita->estatus, ['pendiente', 'confirmada'], true)) {
                     $cambios['estatus'] = 'atendido';
                 }
+            } elseif ($siguiente === 'levantar') {
+                // Sigue con quien la atiende: levanta la solicitud ahora (o la retoma
+                // después quien atienda excepción). Al terminarla se liga a la cita.
+                $aviso = 'No es caso de excepción: levanta ahora la solicitud de '.FolioCita::mostrar($cita).'.';
             } else {
+                $modulo = null;
                 if ($siguiente === 'hoy') {
+                    // Antes entraba a la hora exacta (11:37) y quedaba encimada entre
+                    // las citas del orientador. Ahora toma el primer horario de hoy de su
+                    // trámite con cupo y un módulo libre (el que va empezando, si no
+                    // pasaron más de 10 minutos; si no, el siguiente).
                     $dia = now()->toDateString();
-                    $h   = now()->format('H:i:00');
+                    [$h, $modulo] = self::horarioDeHoy($sede, $tipo);
                 } else {
                     $dia = (string) $fecha;
                     $h   = HorarioCitas::normalizarHora((string) $hora);
@@ -156,7 +208,7 @@ class FormatoExcepcion
                     }
                 }
 
-                $modulo = AsignadorModulos::elegir($sede, $tipo, $dia, $h);
+                $modulo ??= AsignadorModulos::elegir($sede, $tipo, $dia, $h);
                 if (! $modulo) {
                     throw new \RuntimeException("No hay un módulo libre de {$tipo} en {$sede} para ese horario. Elige otro horario o sólo termina la atención.");
                 }
@@ -184,7 +236,7 @@ class FormatoExcepcion
                 $folio = FolioCita::mostrar($cita);
                 $donde = preg_replace('/^m[oó]dulo\b/i', 'Módulo', (string) $modulo->nombre);
                 $aviso = $siguiente === 'hoy'
-                    ? "No es caso de excepción: {$folio} pasó a la fila de hoy en {$donde}."
+                    ? "No es caso de excepción: {$folio} pasó a la fila de hoy en {$donde}, en el horario de las ".substr($h, 0, 5).'.'
                     : "No es caso de excepción: {$folio} quedó agendada el ".Carbon::parse($dia)->locale('es')->isoFormat('dddd D [de] MMMM').' a las '.substr($h, 0, 5)." en {$donde}.";
             }
         }
@@ -203,6 +255,35 @@ class FormatoExcepcion
         }
 
         return $aviso;
+    }
+
+    /**
+     * Primer horario de hoy (del calendario normal del trámite en la sede) que
+     * todavía se puede tomar, con cupo y con un módulo libre.
+     *
+     * @return array{0: string, 1: \App\Models\Modulo}
+     *
+     * @throws \RuntimeException si ya no queda ninguno hoy
+     */
+    private static function horarioDeHoy(string $sede, string $tipo): array
+    {
+        $ahora = now();
+        $dia   = $ahora->toDateString();
+        $recepcion = new \App\Http\Controllers\RecepcionController();
+
+        foreach (HorarioCitas::horarios(HorarioCitas::config($sede, $tipo, false)) as $h) {
+            if (Carbon::parse($dia.' '.$h)->addMinutes(HorarioCitas::TOLERANCIA_RESERVA)->lt($ahora)) {
+                continue;
+            }
+            if (! $recepcion->turnoSlotDisponible($sede, $tipo, $dia, $h, 'No')) {
+                continue;
+            }
+            if ($modulo = AsignadorModulos::elegir($sede, $tipo, $dia, $h)) {
+                return [$h, $modulo];
+            }
+        }
+
+        throw new \RuntimeException("Hoy ya no queda un horario libre de {$tipo} en {$sede}. Elige «Agendar en otra fecha» o sólo termina la atención.");
     }
 
     /** Valores del formato: lo guardado encima de lo prellenado. */
@@ -389,6 +470,7 @@ class FormatoExcepcion
             'observaciones'          => $datos['observaciones'] ?? null,
             'vulnerables'            => $datos['vulnerables'] ?? null,
             'resultado'              => $datos['resultado'] ?? null,
+            ...(self::conSiguiente() ? ['siguiente' => ($datos['resultado'] ?? null) === 'no_excepcion' ? ($datos['siguiente'] ?? null) : null] : []),
             'instituciones'          => json_encode($instituciones),
             // Para lo que todavía lee "dependencia".
             'dependencia'            => $instituciones ? implode(', ', array_map(fn ($k) => CasosExcepcion::INSTITUCIONES[$k], $instituciones)) : null,
