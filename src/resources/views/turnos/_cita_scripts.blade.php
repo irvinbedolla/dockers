@@ -464,4 +464,34 @@
 
         pintarTramite(); pintarOficina(); pintarCaso(); contar(); pintarCalendario(); actualizarPasos();
     })();
+
+    (function () {
+        'use strict';
+        var tipo   = document.getElementById('tipo');
+        var puesto = document.getElementById('puesto');
+        var folio  = document.getElementById('folio_patronal');
+        var cajaCalidad = document.getElementById('calidad');
+        var cajaFolio   = document.getElementById('si_ratificacion');
+        if (!tipo || !puesto || !folio) return;
+
+        function pintar() {
+            var esRatificacion = tipo.value === 'Ratificación';
+            if (!esRatificacion) puesto.value = '';
+            var esEmpleador = esRatificacion && puesto.value === 'empleador';
+            if (!esEmpleador) folio.value = '';
+            cajaCalidad.style.display = esRatificacion ? '' : 'none';
+            cajaFolio.style.display = esEmpleador ? '' : 'none';
+        }
+
+        tipo.addEventListener('change', pintar);
+        puesto.addEventListener('change', pintar);
+        folio.addEventListener('change', function () {
+            if (folio.value === 'si') {
+                window.location.href = @json(route('create_cita', ['origen' => 'externo']));
+            }
+        });
+
+        // Por si el trámite ya viene elegido (?tipo=Ratificación o un solo trámite).
+        pintar();
+    })();
     </script>

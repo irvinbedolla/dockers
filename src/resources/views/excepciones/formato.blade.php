@@ -240,6 +240,10 @@
                                             <div class="fx-hora-ayuda" id="fxHoraAyuda"></div></div>
                                     </div>
                                 @endif
+                                @if (in_array('levantar', $siguientes, true))
+                                    <label class="fx-opcion"><input type="radio" name="siguiente" value="levantar" @checked($sigue === 'levantar')>
+                                        <span><b>Levantar la solicitud aquí</b><small>Este módulo no turna a orientadores ni auxiliares: al terminar se abre la captura de la solicitud con los datos de la cita. Si no la terminas, queda en «Por levantar» para retomarla.</small></span></label>
+                                @endif
                                 <label class="fx-opcion"><input type="radio" name="siguiente" value="terminar" @checked($sigue === 'terminar')>
                                     <span><b>Sólo terminar la atención</b><small>{{ $sol ? 'Ya tiene solicitud: sigue su trámite normal y deja de estar marcada como excepción.' : 'No se agenda nada; si la cita seguía en espera, queda como atendida.' }}</small></span></label>
                             </div>

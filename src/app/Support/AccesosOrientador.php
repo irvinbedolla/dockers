@@ -110,7 +110,7 @@ class AccesosOrientador
     {
         static $cache = [];
 
-        return $cache[$usuario->id] ??= Modulo::where('user_id', $usuario->id)->where('activo', 1)
+        return $cache[$usuario->id] ??= Modulo::where('user_id', $usuario->id)->where('activo', 1)->normales()
             ->orderBy('delegacion')->orderBy('orden')->get();
     }
 }

@@ -310,13 +310,26 @@ class HomeController extends Controller
 
         $modulo_id = null;
         if($data["excepcion"] === "Si"){
-            $modulo = "Departamento de genero e igualdad";
-            $id_aux = 13;
+            // Casos de excepción: el módulo de excepción de la sede (Administración →
+            // Módulos). Si la sede todavía no tiene uno, al Departamento como antes.
+            if (\App\Support\AsignadorModulos::hayModulosExcepcion($sede)) {
+                $elegido = \App\Support\AsignadorModulos::elegirExcepcion($sede, $fecha_turno, $hora_turno, true);
+                if (!$elegido) {
+                    return redirect()->route('citas')->with('error', 'No se ha podido completar tu cita. No hay quien atienda casos de excepción en ese horario; elige otro.');
+                }
+                $modulo    = $elegido->nombre;
+                $modulo_id = $elegido->id;
+                $id_aux    = $elegido->user_id;
+            } else {
+                $modulo = "Departamento de genero e igualdad";
+                $id_aux = 13;
+            }
         }
         else{
             // Quién atiende cada módulo vive en la tabla modulos
             // (Administración → Módulos), no aquí.
-            $elegido = \App\Support\AsignadorModulos::elegir($sede, $tipo, $fecha_turno, $hora_turno);
+            // true: cita en línea, salta los módulos con las citas en línea en pausa.
+            $elegido = \App\Support\AsignadorModulos::elegir($sede, $tipo, $fecha_turno, $hora_turno, true);
             if (!$elegido) {
                 return redirect()->route('citas')->with('error', 'No se ha podido completar tu cita. No se ha encontrado auxiliar disponible.');
             }

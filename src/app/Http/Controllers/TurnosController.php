@@ -820,7 +820,8 @@ class TurnosController extends Controller
         unset($data_insertar['ine'], $data_insertar['representacion'], $data_insertar['documentoidentificacion']);
         $recepcion = null;
         if($data['origen'] === 'externo'){
-            $elegido = \App\Support\AsignadorModulos::elegir($data['sede'], 'Ratificación', $data["fecha"], $data["hora"]);
+            // true: cita en línea, salta los módulos con las citas en línea en pausa.
+            $elegido = \App\Support\AsignadorModulos::elegir($data['sede'], 'Ratificación', $data["fecha"], $data["hora"], true);
             if (!$elegido) {
                 return redirect()->back()->with('error', 'No se ha podido completar tu cita. No se ha encontrado auxiliar disponible.');
             }
@@ -845,18 +846,21 @@ class TurnosController extends Controller
                     'delegacion'    => $data['sede'],
                     'estatus'       => "pendiente",
                     'exepcion'      => 'No',
+                    // Columna NOT NULL sin default: sin esto el INSERT falla.
+                    'vulnerables'   => 'Ninguno',
                     'municipio'     => $data["municipio_rat"],
                     'correo'        => $email ,
                     'telefono'      => $telefono,
                 );
-        
+
                 // En transacción: si el INSERT falla, también se deshace el folio
                 // que se apartó en folios_citas y no quedan números saltados.
                 try {
                    $recepcion = DB::transaction(fn () => Recepcion::create($data_recepcion));
                 }
-                catch (\Throwable $e) { 
-                    return redirect()->back()->with('error', 'No se ha podido completar tu cita.'); 
+                catch (\Throwable $e) {
+                    report($e);
+                    return redirect()->back()->withInput()->with('error', 'No se ha podido completar tu cita.');
                 }
                 $fecha=$recepcion->fecha->format('Y-m-d');
                 $hora=$recepcion->hora->format('H:i');
@@ -1760,6 +1764,34 @@ class TurnosController extends Controller
         return view('/ratificaciones/verratificacion',compact('folio','ruta_abogado','tipo_doc_abogado','id_doc_abogado','userRole','representante'));
     }
 
+    public function detalle_ratificacion($id){
+        abort_if(auth()->user()->hasAnyRole(['Solicitante', 'Administrador Solicitante']), 403);
+
+        $folio = Turnos::findOrFail($id);
+        $representante = $folio->idAbogado ? Poder::find($folio->idAbogado) : null;
+        $conciliador = $folio->id_conciliador ? User::whereKey($folio->id_conciliador)->value('name') : null;
+
+        $tipo_doc_abogado = $representante ? 'poder' : 'ratificacion';
+        $id_doc_abogado   = $representante ? $folio->idAbogado : $folio->id;
+
+        $cumplimientos = Pagos::where('id_solicitud', $folio->id)
+            ->where('tipo_pago', 'Ratificacion')
+            ->orderBy('fecha')->orderBy('hora')->orderBy('id')
+            ->get();
+
+        $pagados = ['Pagado', 'Pagado con pena convencional'];
+        $resumen = [
+            'total'      => $cumplimientos->sum('monto'),
+            'pagado'     => $cumplimientos->whereIn('estatus', $pagados)->sum('monto'),
+            'pendiente'  => $cumplimientos->where('estatus', 'Pendiente')->sum('monto'),
+            'pendientes' => $cumplimientos->where('estatus', 'Pendiente')->count(),
+        ];
+
+        return view('ratificaciones.detalle', compact(
+            'folio', 'representante', 'conciliador', 'tipo_doc_abogado', 'id_doc_abogado', 'cumplimientos', 'resumen'
+        ));
+    }
+
     public function editar_ratificaciones(Request $request){
         $data = $request->all();
         $id_usuario = auth()->user()->id;
@@ -2250,6 +2282,8 @@ class TurnosController extends Controller
                 'pagos'       => $pagos,
                 'pagados'     => $pagados,
                 'retrocedible' => in_array($turno->estatus, ['Concluida', 'Concluida Pagos', 'Incumplimiento']),
+                // Hoy es su fecha o hoy se le registró el resultado (App\Support\RetrocesoDelDia).
+                'permitido'    => \App\Support\RetrocesoDelDia::permitido(auth()->user(), $turno->fecha, $turno->updated_at),
             ];
         })->toArray();
 
@@ -2278,6 +2312,14 @@ class TurnosController extends Controller
             return back()->withErrors(
                 "Solo se puede retroceder una ratificación concluida. Estatus actual: {$turno->estatus}."
             );
+        }
+
+        // Mismas reglas que la pantalla: sólo su sede y, si no es Super Usuario, sólo lo de hoy.
+        if (!\App\Support\RetrocesoDelDia::enSuSede($this->nombresSedesPermitidas(auth()->user()), $turno->delegacion)) {
+            return back()->withErrors('Esa ratificación es de otra sede; no puedes retrocederla.');
+        }
+        if (!\App\Support\RetrocesoDelDia::permitido(auth()->user(), $turno->fecha, $turno->updated_at)) {
+            return back()->withErrors(\App\Support\RetrocesoDelDia::AVISO);
         }
 
         $estatusPrevio = $turno->estatus;
@@ -3279,6 +3321,30 @@ class TurnosController extends Controller
             'id_historial'        => $ultimoRegistro->id ?? NULL,
             'id_conciliador'      => $data["conciliador_id"] ?? NULL,
         ];
+
+        // Si cambió el folio, los datos de la empresa y del representante
+        // tienen que ser los del nuevo abogado, igual que al dar de alta
+        // (store_publico); si no, la ratificación queda con el folio de uno y
+        // el nombre y documentos de otro.
+        if ((string) $data["folio"] !== (string) $solicitud->idAbogado) {
+            $representante = Poder::find($data["folio"]);
+            if (!$representante) {
+                return back()->withInput()->withErrors('El folio interno de registro no existe. Por favor, verifica el número.');
+            }
+
+            $fisica = $representante["tipo"] == "Fisica";
+            $updateData += [
+                'empresa'          => $representante["nombres_patronal"],
+                'primero_empresa'  => $representante["primer_apellido_patronal"],
+                'segundo_empresa'  => $representante["segundo_apellido_patronal"],
+                'nombre_empresa'   => $representante["nombres_patronal"],
+                'ine'              => $representante["ineDocumento"],
+                'representacion'   => $representante["representacionDocumento"],
+                'email'            => $fisica ? $representante["email_patronal"]    : $representante["correo_representante"],
+                'telefono'         => $fisica ? $representante["telefono_patronal"] : $representante["numero_representante"],
+                'curp_solicitante' => $fisica ? $representante["curp_patronal"]     : $representante["curp_representante"],
+            ];
+        }
 
         if ($request->hasFile('documentoidentificacion')) {
             $nombre_ine = $request->curp . "_IDENTIFICACION_" . time() . ".pdf";

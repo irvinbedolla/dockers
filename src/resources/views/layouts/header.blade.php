@@ -31,6 +31,20 @@
             $rolBarra = $rolesMostrados[$rolBarra] ?? $rolBarra;
         @endphp
 
+        {{-- "Ver como" (sólo Super Usuario; también mientras ve como otra persona): App\Support\VerComo. --}}
+        @php $vcRealBarra = \App\Support\VerComo::real() ?? $usuarioBarra; @endphp
+        @if (\App\Support\VerComo::puede($vcRealBarra))
+            <li class="nav-item me-1">
+                <a href="#" class="nav-link vc-ojo {{ \App\Support\VerComo::activo() ? 'is-activo' : '' }}" data-bs-toggle="modal" data-bs-target="#vcModal"
+                   title="{{ \App\Support\VerComo::activo() ? 'Estás viendo como otra persona: cambiar o salir' : 'Ver como otra persona o rol' }}" aria-label="Ver como">
+                    <i class="bi {{ \App\Support\VerComo::activo() ? 'bi-eye-fill' : 'bi-eye' }}" aria-hidden="true"></i>
+                </a>
+            </li>
+            @push('modals')
+                @include('ver_como._modal')
+            @endpush
+        @endif
+
         <li class="dropdown nav-item">
             <a href="#" data-bs-toggle="dropdown" class="nav-link dropdown-toggle nav-link-lg nav-link-user d-flex align-items-center text-white">
                 {{-- La máscara es el <span>: la foto que el usuario suba, con

@@ -81,8 +81,19 @@ class RecepcionController extends Controller
         
         $modulo_id = null;
         if($data["excepcion"] == "Si"){
-            $modulo = "Departamento de genero e igualdad";
-            $id_aux = 13;
+            // Casos de excepción: el módulo de excepción de la sede (Administración → Módulos).
+            if (\App\Support\AsignadorModulos::hayModulosExcepcion($sede)) {
+                $elegido = \App\Support\AsignadorModulos::elegirExcepcion($sede, $fecha_asignada_str, $hora_turno);
+                if (!$elegido) {
+                    return redirect()->back()->with('error', 'No se ha podido completar la cita. No hay quien atienda casos de excepción en ese horario; elige otro.');
+                }
+                $modulo    = $elegido->nombre;
+                $modulo_id = $elegido->id;
+                $id_aux    = $elegido->user_id;
+            } else {
+                $modulo = "Departamento de genero e igualdad";
+                $id_aux = 13;
+            }
         }
         else{
             // Catálogo de módulos: Administración → Módulos.
@@ -853,6 +864,24 @@ class RecepcionController extends Controller
         // El límite diario sólo aplica al formulario público.
         $limite = ($publico && ! $esExcepcion) ? $config->limite_diario : null;
 
+        // Si todos los módulos que reciben este trámite en la sede lo tienen en
+        // pausa para este canal (Administración → Módulos: en línea en el
+        // formulario público; "todas" también en ventanilla), no se ofrecen
+        // horarios: no habría a quién asignar la cita.
+        $enPausa = ! $esExcepcion && \App\Support\AsignadorModulos::enPausa($sede, $tipo, $publico ? 'linea' : 'ventanilla');
+
+        // Casos de excepción: si la sede tiene módulo de excepción, el cupo es
+        // cuántos de esos módulos están libres a esa hora. En ventanilla, un
+        // horario de excepción se puede tomar mientras no termine: si la cita
+        // de ese horario resultó no ser de excepción, su lugar queda libre.
+        $modulosExcepcion = $esExcepcion && \App\Support\AsignadorModulos::hayModulosExcepcion($sede)
+            ? \App\Support\AsignadorModulos::modulosExcepcion($sede)
+            : null;
+        $minutosReserva = $esExcepcion && ! $publico ? max(HorarioCitas::TOLERANCIA_RESERVA, (int) $config->duracion - 1) : HorarioCitas::TOLERANCIA_RESERVA;
+        $cupo = fn (string $hora) => $modulosExcepcion !== null
+            ? \App\Support\AsignadorModulos::capacidadExcepcion($sede, $publico ? 'linea' : 'ventanilla', $hora, $modulosExcepcion)
+            : HorarioCitas::capacidad($config, $hora);
+
         $ahora = now();
         $eventos = [];
         $fecha = (new \DateTime($fecha_inicio_str))->setTime(0, 0, 0);
@@ -887,11 +916,12 @@ class RecepcionController extends Controller
                     }
 
                     $cantidadOcupados = $ocupadosCount[$slotStart] ?? 0;
-                    $tolerancia = Carbon::parse($slotStart)->addMinutes(HorarioCitas::TOLERANCIA_RESERVA);
+                    $tolerancia = Carbon::parse($slotStart)->addMinutes($minutosReserva);
+                    $capacidad = $cupo($hora);
 
-                    if ($lleno || $esInhabil || $ahora > $tolerancia) {
+                    if ($enPausa || $lleno || $esInhabil || $ahora > $tolerancia || $capacidad === 0) {
                         $estado = 'expirado';
-                    } elseif ($cantidadOcupados >= HorarioCitas::capacidad($config, $hora)) {
+                    } elseif ($cantidadOcupados >= $capacidad) {
                         $estado = 'ocupado';
                     } elseif ($cantidadOcupados > 0) {
                         $estado = 'turnos';
@@ -929,7 +959,10 @@ class RecepcionController extends Controller
 
         $delDia = HorarioCitas::citasQueOcupan($sede, $tipo, $esExcepcion)->where('fecha', $fecha);
 
-        if ((clone $delDia)->where('hora', $hora)->count() >= HorarioCitas::capacidad($config, $hora)) {
+        $capacidad = $esExcepcion
+            ? (\App\Support\AsignadorModulos::capacidadExcepcion($sede, $publico ? 'linea' : 'ventanilla', $hora) ?? HorarioCitas::capacidad($config, $hora))
+            : HorarioCitas::capacidad($config, $hora);
+        if ((clone $delDia)->where('hora', $hora)->count() >= $capacidad) {
             return false;
         }
 

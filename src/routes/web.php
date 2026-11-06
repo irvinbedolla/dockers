@@ -204,6 +204,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Pantalla de Inicio: deslindada del resto para poder colgarle después
     // datos y notificaciones por rol.
     Route::get('/inicio',                               [InicioController::class, 'index'])->name('inicio');
+    // "Ver como" (sólo Super Usuario, lo revisa el controlador con el usuario real): App\Support\VerComo.
+    Route::get('/administracion/ver-como',              [App\Http\Controllers\VerComoController::class, 'index'])->name('ver_como.index');
+    Route::post('/administracion/ver-como',             [App\Http\Controllers\VerComoController::class, 'iniciar'])->name('ver_como.iniciar');
+    Route::post('/administracion/ver-como/salir',       [App\Http\Controllers\VerComoController::class, 'salir'])->name('ver_como.salir');
+    Route::get('/administracion/ver-como/buscar',       [App\Http\Controllers\VerComoController::class, 'buscar'])->name('ver_como.buscar');
     // Flujo nuevo cita → solicitud (fase 1): lo que tiene hoy mi módulo. Lo cuida App\Support\FlujoCita.
     Route::get('/mi-modulo',                            [App\Http\Controllers\MiModuloController::class, 'index'])->name('mi_modulo');
     Route::get('/mi-modulo/datos',                      [App\Http\Controllers\MiModuloController::class, 'datos'])->name('mi_modulo.datos');
@@ -244,6 +249,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->whereIn('tipo', App\Support\FormatoExcepcion::TIPOS_ORIGEN)->whereNumber('id');
         Route::post('/excepciones/{tipo}/{id}/formato', [App\Http\Controllers\CasosExcepcionController::class, 'guardarFormato'])->name('excepciones.formato.guardar')
             ->whereIn('tipo', App\Support\FormatoExcepcion::TIPOS_ORIGEN)->whereNumber('id');
+        // "No es caso de excepción" sin turnar: levantar la solicitud (o retomarla) desde la cita.
+        Route::post('/excepciones/citas/{id}/levantar-solicitud', [App\Http\Controllers\CasosExcepcionController::class, 'levantar'])->name('excepciones.levantar')
+            ->whereNumber('id');
         Route::post('/excepciones/{tipo}/{id}/oficio/{institucion}', [App\Http\Controllers\CasosExcepcionController::class, 'guardarOficio'])->name('excepciones.oficio.guardar')
             ->whereIn('tipo', App\Support\FormatoExcepcion::TIPOS_ORIGEN)->whereNumber('id')->whereIn('institucion', array_keys(App\Support\CasosExcepcion::INSTITUCIONES));
     });
@@ -315,6 +323,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Cita que expiró hoy pero la persona sí está: atenderla de todos modos.
         Route::post('/recepcion/escanear/{id}/tarde', [EscanerCitasController::class, 'atenderTarde'])->name('recepcion.escaner.tarde')
             ->whereNumber('id')->middleware('throttle:30,1');
+        // Se validó una cita por error: la cita vuelve a como estaba.
+        Route::post('/recepcion/escanear/{id}/deshacer', [EscanerCitasController::class, 'deshacer'])->name('recepcion.escaner.deshacer')
+            ->whereNumber('id')->middleware('throttle:30,1');
     });
 
     // Mi perfil: lo poco que cada quien puede cambiar de su propia cuenta.
@@ -377,6 +388,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
             // Tope de citas en línea por IP, correo y teléfono (antes que {modulo}, que la atraparía).
             Route::put('administracion/modulos/limite-citas',            [ModulosController::class, 'limite'])->name('modulos.limite');
             Route::put('administracion/modulos/{modulo}',                [ModulosController::class, 'guardar'])->name('modulos.actualizar');
+            Route::put('administracion/modulos/{modulo}/en-linea',       [ModulosController::class, 'enLinea'])->name('modulos.en_linea');
+            Route::put('administracion/modulos/{modulo}/reasignacion',   [ModulosController::class, 'reasignacion'])->name('modulos.reasignacion');
+            Route::put('administracion/modulos/{modulo}/turnar',         [ModulosController::class, 'turnar'])->name('modulos.turnar');
+            // Las citas de excepción que se quedaron con el Departamento pasan a los módulos de excepción de la sede.
+            Route::post('administracion/modulos/excepcion/pasar',        [ModulosController::class, 'pasarExcepcion'])->name('modulos.pasar_excepcion');
             Route::post('administracion/modulos/citas/{id}/reasignar',   [ModulosController::class, 'reasignar'])->name('modulos.reasignar')->whereNumber('id');
             Route::get('administracion/horarios',                        [HorariosCitasController::class, 'index'])->name('horarios.index');
             Route::put('administracion/horarios',                        [HorariosCitasController::class, 'actualizar'])->name('horarios.actualizar');
@@ -385,8 +401,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('administracion/usuarios',               [AdministracionController::class, 'configuracion_usuarios'])->name('configuracion_usuarios');
         Route::get('administracion/retrocesos',             [AdministracionController::class, 'genera_retroceso'])->name('genera_retroceso');       
         Route::post('/generar-retroceso',                   [AdministracionController::class, 'consultar_retroceso'])->name('generar_retroceso'); 
-        Route::get('administracion/RC/{id}',                [AdministracionController::class, 'hacer_retroceso_cumplimiento'])->name('accion_retrocesoC');    
-        Route::get('administracion/RR/{id}',                [AdministracionController::class, 'hacer_retroceso_ratificacion'])->name('accion_retrocesoR'); 
         Route::post('/bloquear_sede',                       [AdministracionController::class, 'bloqueoSede'])->name('bloqueoSede');  //Bloquear días inhabiles para toda la sede
         Route::post('/bloquear_conciliador',                [AdministracionController::class, 'bloqueoConciliador'])->name('bloqueoConciliador'); //bloquear por días u horas a conciliadores
         Route::get('administracion/sedes/{sede}/calendario', [AdministracionController::class, 'calendarioSede'])->name('sede.calendario'); //calendario de bloqueos de una sede
@@ -614,6 +628,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/seer/updateNotificador',              [SeerController::class, 'update_notificador'])->name('seer.cambioEstatus');
         Route::get('/notificador/mihistorial',              [NotificacionesController::class, 'misNotificaciones'])->name('Historial_Notificacador');
         Route::get('/notificaciones/home',                  [NotificacionesController::class, 'inicio'])->name('index_notificaciones');
+        // Exhortos: registro y si ya se contestaron. Quienes pueden asignar notificaciones, menos
+        // los notificadores (App\Http\Controllers\ExhortosController).
+        Route::middleware(['permission:por_notificar_asignar', SinNotificador::class])->group(function () {
+            Route::get('/notificaciones/exhortos',                       [App\Http\Controllers\ExhortosController::class, 'index'])->name('exhortos.index');
+            Route::get('/notificaciones/exhortos/expediente',            [App\Http\Controllers\ExhortosController::class, 'expediente'])->name('exhortos.expediente');
+            Route::post('/notificaciones/exhortos',                      [App\Http\Controllers\ExhortosController::class, 'guardar'])->name('exhortos.crear');
+            Route::put('/notificaciones/exhortos/{exhorto}',             [App\Http\Controllers\ExhortosController::class, 'guardar'])->name('exhortos.actualizar')->whereNumber('exhorto');
+            Route::put('/notificaciones/exhortos/{exhorto}/contestado',  [App\Http\Controllers\ExhortosController::class, 'contestado'])->name('exhortos.contestado')->whereNumber('exhorto');
+            Route::delete('/notificaciones/exhortos/{exhorto}',          [App\Http\Controllers\ExhortosController::class, 'borrar'])->name('exhortos.borrar')->whereNumber('exhorto');
+        });
         // Quien escribe /notificaciones a mano llega al inicio del apartado en vez de a un 404.
         Route::redirect('/notificaciones',                  '/notificaciones/home');
         //Enlace
@@ -826,6 +850,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/ratificaciones/pagoA',                [TurnosController::class, 'pagoA_ratificacion'])->name('ratificacion_pagoA');
         Route::get('/ratificaciones/pagoR/{id}',            [TurnosController::class, 'pagoR_ratificacion'])->name('ratificacion_pagoR');
         Route::get('ratificaciones/consultar/{id}',         [TurnosController::class, 'consultar_ratificaciones'])->name('consultar_ratificacion');
+        Route::get('ratificaciones/detalle/{id}',           [TurnosController::class, 'detalle_ratificacion'])->name('detalle_ratificacion')->whereNumber('id');
         Route::post('ratificaciones/editar',                [TurnosController::class, 'editar_ratificaciones'])->name('editar_ratificacion');
         Route::get('/PDF/falta_interes/{id}',               [TurnosController::class, 'VerPDFInteres'])->name('PDFfallta_interes');
         Route::get('/ratificaciones/pendientes',            [TurnosController::class, 'ratificacion_confirmadas'])->name('ratificacion_confirmadas'); 

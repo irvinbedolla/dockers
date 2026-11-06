@@ -366,7 +366,7 @@ class MiModuloController extends Controller
         $soloSU  = $modulos->isEmpty() && $usuario->hasRole('Super Usuario');
 
         if ($soloSU) {
-            $modulos = Modulo::where('activo', 1)
+            $modulos = Modulo::where('activo', 1)->normales()
                 ->whereIn('id', DB::table('recepcion')->where('fecha', $ahora->toDateString())
                     ->where('es_prueba', 1)->whereNotNull('modulo_id')->distinct()->pluck('modulo_id'))
                 ->orderBy('delegacion')->orderBy('orden')
@@ -472,8 +472,9 @@ class MiModuloController extends Controller
     {
         static $cache = [];
 
+        // Los de casos de excepción no van aquí: esos casos se atienden en su bandeja.
         return $cache[$usuario->id] ??= Modulo::where('user_id', $usuario->id)
-            ->where('activo', 1)
+            ->where('activo', 1)->normales()
             ->orderBy('delegacion')->orderBy('orden')
             ->get();
     }
@@ -488,7 +489,7 @@ class MiModuloController extends Controller
     {
         $usuario  = $request->user();
         $opciones = $usuario->hasRole('Super Usuario')
-            ? Modulo::where('activo', 1)->orderBy('delegacion')->orderBy('orden')->get()
+            ? Modulo::where('activo', 1)->normales()->orderBy('delegacion')->orderBy('orden')->get()
             : self::propios($usuario);
 
         $pedido = (int) $request->query('modulo');

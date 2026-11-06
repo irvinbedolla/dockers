@@ -112,6 +112,39 @@
         .md-chip--respaldo { background: #fff; border: 1px dashed var(--tn-verde-claro); color: var(--tn-suave); font-weight: 600; }
         .md-chip--comida { background: #FBF4E1; color: #8A6A12; }
         .md-chip--inactivo { background: #F6E4EA; color: #8C1D40; }
+        .md-chip--excepcion { background: #EDE7F6; color: #5B3F99; }
+        .md-modulo.is-excepcion { border-top: 3px solid #7B5EA7; }
+        .md-clase { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+
+        /* Switch "Recibe citas" de cada módulo y qué se pausa. */
+        .md-linea {
+            display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px;
+            margin: 12px 0 0; padding: 7px 10px; border-radius: 8px;
+            background: #EEF6F0; border: 1px solid #CFE6D6;
+        }
+        .md-linea .form-check { display: flex; align-items: center; gap: 8px; min-height: 0; padding-left: 0; }
+        .md-linea .form-check-input { margin: 0; float: none; width: 2.3em; height: 1.2em; cursor: pointer; }
+        .md-linea .form-check-input:checked { background-color: #2E8B57; border-color: #2E8B57; }
+        .md-linea .form-check-label { font-size: 13px; font-weight: 700; color: var(--tn-tinta); cursor: pointer; }
+        .md-linea__nota { font-size: 12px; color: var(--tn-tenue); }
+        .md-linea.is-pausa { background: #F6E4EA; border-color: #EBC3D0; }
+        .md-linea.is-pausa .md-linea__nota { color: #8C1D40; font-weight: 600; }
+        .md-linea.is-pausa-todo { background: #F9D6DD; border-color: #E09AAD; }
+        .md-linea + .md-linea { margin-top: 6px; }
+        .md-linea.is-programada { background: #FBF4E1; border-color: #EBDDB0; }
+        .md-linea.is-programada .md-linea__nota { color: #8A6A12; font-weight: 600; }
+        .md-linea.is-heredado { background: #F3F5F5; border-color: #E0E5E5; }
+        .md-linea__fecha { width: auto; min-width: 150px; padding: 2px 8px; font-size: 12.5px; }
+        .md-linea__acciones { flex-basis: 100%; display: flex; align-items: center; gap: 8px; }
+        .md-linea__acciones .btn { font-size: 12px; padding: 2px 10px; }
+        /* .d-flex lleva !important: sin esto el aviso no se oculta. */
+        #mdAvisoPausa[hidden] { display: none !important; }
+        .md-linea__modo { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; font-size: 12.5px; color: var(--tn-suave); }
+        .md-linea__modo b { font-weight: 700; color: var(--tn-tinta); }
+        .md-linea__op { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; margin: 0; }
+        .md-linea__op input { margin: 0; accent-color: #8C1D40; cursor: pointer; }
+        .md-linea.is-error .md-linea__nota { color: #A3162E; font-weight: 600; }
+        .md-linea.is-guardando { opacity: .6; }
 
         .md-citas { list-style: none; margin: 0; padding: 0; }
         .md-cita { border-top: 1px solid var(--tn-borde); }
@@ -235,6 +268,40 @@
                 </div>
             </div>
 
+            @if ($enLineaMigrado)
+                <div class="alert alert-warning d-flex gap-2 align-items-start py-2 mb-3" id="mdAvisoPausa" role="status" @if (! $sinEnLinea && ! $sinVentanilla) hidden @endif>
+                    <i class="bi bi-pause-circle-fill mt-1" aria-hidden="true"></i>
+                    <div>
+                        <div data-canal="linea" @if (! $sinEnLinea) hidden @endif>
+                            <b>En línea:</b> en {{ $sede }} todos los módulos que atienden <b data-lista>{{ implode(', ', $sinEnLinea) }}</b> están en pausa; el formulario público no ofrece horarios para eso.
+                        </div>
+                        <div data-canal="ventanilla" @if (! $sinVentanilla) hidden @endif>
+                            <b>Ventanilla:</b> en {{ $sede }} todos los módulos que atienden <b data-lista>{{ implode(', ', $sinVentanilla) }}</b> están en pausa total; recepción no puede agendarlo.
+                        </div>
+                        <small class="d-block">Prende al menos un módulo para volver a ofrecer horarios.</small>
+                    </div>
+                </div>
+            @endif
+
+            @if ($excepcionSinModulo)
+                {{-- Citas de excepción de antes de armar el módulo: van a sus personas sin cambiar día ni hora. --}}
+                <div class="alert alert-warning d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                    <span>
+                        <i class="bi bi-shield-heart me-1"></i>
+                        Hay <b>{{ $excepcionSinModulo }}</b> {{ $excepcionSinModulo === 1 ? 'cita' : 'citas' }} de excepción de {{ $sede }}, de hoy en adelante, que no están en un módulo de casos de excepción.
+                        Se reparten entre las personas libres a su misma hora; no cambian de día ni de hora y no se le avisa a la persona.
+                    </span>
+                    <form method="POST" action="{{ route('modulos.pasar_excepcion') }}" class="m-0"
+                          onsubmit="return confirm('¿Pasar estas citas de excepción a los módulos de casos de excepción de {{ $sede }}?');">
+                        @csrf
+                        <input type="hidden" name="sede" value="{{ $sede }}">
+                        <input type="hidden" name="fecha_vista" value="{{ $fecha }}">
+                        <input type="hidden" name="origen_vista" value="{{ $origen }}">
+                        <button type="submit" class="btn btn-sm btn-dark"><i class="bi bi-arrow-right-circle me-1"></i>Pasarlas a los módulos de excepción</button>
+                    </form>
+                </div>
+            @endif
+
             <div class="md-grid">
                 @foreach ($modulos as $modulo)
                     @php
@@ -248,7 +315,7 @@
                             'accion' => route('modulos.actualizar', $modulo),
                         ];
                     @endphp
-                    <article class="tn-tarjeta md-modulo {{ $modulo->activo ? '' : 'is-inactivo' }}">
+                    <article class="tn-tarjeta md-modulo {{ $modulo->activo ? '' : 'is-inactivo' }} {{ $modulo->esDeExcepcion() ? 'is-excepcion' : '' }}">
                         <header class="md-cabeza">
                             <div class="md-cabeza__fila">
                                 <div>
@@ -281,7 +348,13 @@
 
                             <div class="md-chips">
                                 @if (! $modulo->activo)<span class="md-chip md-chip--inactivo">Inactivo</span>@endif
-                                @foreach ($modulo->tramites ?? [] as $t)<span class="md-chip">{{ $t }}</span>@endforeach
+                                @foreach ($modulo->tramites ?? [] as $t)
+                                    @if ($t === \App\Support\AsignadorModulos::TRAMITE_EXCEPCION)
+                                        <span class="md-chip md-chip--excepcion" title="Recibe los casos de excepción de {{ $modulo->delegacion }}"><i class="bi bi-shield-heart"></i> Casos de excepción</span>
+                                    @else
+                                        <span class="md-chip">{{ $t }}</span>
+                                    @endif
+                                @endforeach
                                 @foreach ($modulo->respaldo ?? [] as $t)<span class="md-chip md-chip--respaldo" title="Sólo si los demás están ocupados">{{ $t }} · respaldo</span>@endforeach
                                 @if ($modulo->hora_comida)<span class="md-chip md-chip--comida"><i class="bi bi-cup-hot"></i> {{ substr($modulo->hora_comida, 0, 5) }}</span>@endif
                                 @foreach (\App\Http\Controllers\ModulosController::tramitesSinPermiso($modulo) as $t)
@@ -290,6 +363,102 @@
                                     </span>
                                 @endforeach
                             </div>
+
+                            @if ($enLineaMigrado)
+                                @php $pausa = $modulo->pausa(); @endphp
+                                {{-- Apagado: desde ese momento no se le asignan citas nuevas en línea (o tampoco de ventanilla). --}}
+                                <form method="POST" action="{{ route('modulos.en_linea', $modulo) }}"
+                                      class="md-linea js-pausa {{ $pausa ? 'is-pausa' : '' }} {{ $pausa === 'todas' ? 'is-pausa-todo' : '' }}">
+                                    @csrf
+                                    @method('PUT')
+                                    <input type="hidden" name="fecha_vista" value="{{ $fecha }}">
+                                    <input type="hidden" name="origen_vista" value="{{ $origen }}">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" role="switch" data-switch
+                                               id="mdRecibe{{ $modulo->id }}" @checked(! $pausa)
+                                               title="Apágalo para que ya no le lleguen citas nuevas">
+                                        <label class="form-check-label" for="mdRecibe{{ $modulo->id }}">Recibe citas</label>
+                                    </div>
+                                    <span class="md-linea__nota" aria-live="polite">{{ $modulo->notaPausa() }}</span>
+                                    <div class="md-linea__modo" role="radiogroup" aria-label="Qué se pausa" @if (! $pausa) hidden @endif>
+                                        <b>Pausar:</b>
+                                        <label class="md-linea__op"><input type="radio" name="modo{{ $modulo->id }}" value="linea" @checked($pausa !== 'todas')> Sólo citas en línea</label>
+                                        @if ($ventanillaMigrada)
+                                            <label class="md-linea__op"><input type="radio" name="modo{{ $modulo->id }}" value="todas" @checked($pausa === 'todas')> Todas, también ventanilla</label>
+                                        @endif
+                                    </div>
+                                    <noscript>
+                                        <select name="pausa" class="form-select form-select-sm w-auto">
+                                            <option value="ninguna" @selected(! $pausa)>Recibe todas</option>
+                                            <option value="linea" @selected($pausa === 'linea')>Pausar sólo en línea</option>
+                                            @if ($ventanillaMigrada)<option value="todas" @selected($pausa === 'todas')>Pausar todas</option>@endif
+                                        </select>
+                                        <button class="btn btn-sm btn-link p-0">Guardar</button>
+                                    </noscript>
+                                </form>
+                            @endif
+
+                            @if ($reasignacionMigrada)
+                                @php
+                                    $bloqueo = $modulo->bloqueoReasignacion();
+                                    $bloqueoDesde = $modulo->no_reasignar_desde?->toDateString();
+                                    $porPausa = $modulo->pausa() === 'todas';
+                                @endphp
+                                {{-- Aparte de la pausa: desde ahora o una fecha ya no se le pueden mover citas (Reasignar, reagenda). --}}
+                                <form method="POST" action="{{ route('modulos.reasignacion', $modulo) }}"
+                                      data-desde="{{ $bloqueoDesde }}" data-bloqueo="{{ $bloqueo }}"
+                                      class="md-linea js-reasig {{ $porPausa ? 'is-heredado' : ($bloqueo === 'vigente' ? 'is-pausa' : ($bloqueo === 'programado' ? 'is-programada' : '')) }}">
+                                    @csrf
+                                    @method('PUT')
+                                    <input type="hidden" name="fecha_vista" value="{{ $fecha }}">
+                                    <input type="hidden" name="origen_vista" value="{{ $origen }}">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" role="switch" data-switch
+                                               id="mdReasig{{ $modulo->id }}" @checked(! $bloqueo)
+                                               title="Apágalo para que ya no se le puedan mover citas desde una fecha">
+                                        <label class="form-check-label" for="mdReasig{{ $modulo->id }}">Acepta reasignaciones</label>
+                                    </div>
+                                    <span class="md-linea__nota" aria-live="polite">{{ $modulo->notaReasignacion() }}</span>
+                                    <div class="md-linea__modo" data-cuando @if (! $bloqueo) hidden @endif>
+                                        <b>Desde:</b>
+                                        <label class="md-linea__op"><input type="radio" name="cuando{{ $modulo->id }}" value="ahora" @checked($bloqueo !== 'programado')> Ahora</label>
+                                        <label class="md-linea__op"><input type="radio" name="cuando{{ $modulo->id }}" value="fecha" @checked($bloqueo === 'programado')> Una fecha</label>
+                                        <input type="date" class="form-control form-control-sm md-linea__fecha" data-fecha min="{{ $hoy }}"
+                                               value="{{ $bloqueo === 'programado' ? $bloqueoDesde : '' }}" aria-label="Fecha desde la que ya no se le reasigna"
+                                               @if ($bloqueo !== 'programado') hidden @endif>
+                                    </div>
+                                    <div class="md-linea__acciones" data-acciones hidden>
+                                        <button type="button" class="btn btn-sm btn-dark" data-aplicar>Bloquear reasignaciones</button>
+                                        <button type="button" class="btn btn-sm btn-link p-0" data-cancelar>Cancelar</button>
+                                    </div>
+                                    <noscript>
+                                        <select name="bloquear" class="form-select form-select-sm w-auto">
+                                            <option value="0" @selected(! $bloqueo)>Acepta reasignaciones</option>
+                                            <option value="1" @selected($bloqueo)>No acepta desde…</option>
+                                        </select>
+                                        <input type="date" name="desde" min="{{ $hoy }}" value="{{ $bloqueo === 'programado' ? $bloqueoDesde : '' }}" class="form-control form-control-sm w-auto">
+                                        <button class="btn btn-sm btn-link p-0">Guardar</button>
+                                    </noscript>
+                                </form>
+                            @endif
+
+                            @if ($modulo->esDeExcepcion() && \App\Models\Modulo::turnarMigrado())
+                                {{-- Apagado: quien atiende no turna; si no es caso de excepción, levanta la solicitud. --}}
+                                <form method="POST" action="{{ route('modulos.turnar', $modulo) }}" class="md-linea js-turnar {{ $modulo->puedeTurnar() ? '' : 'is-programada' }}">
+                                    @csrf
+                                    @method('PUT')
+                                    <input type="hidden" name="fecha_vista" value="{{ $fecha }}">
+                                    <input type="hidden" name="origen_vista" value="{{ $origen }}">
+                                    <input type="hidden" name="turnar" value="0">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" role="switch" name="turnar" value="1" data-switch
+                                               id="mdTurnar{{ $modulo->id }}" @checked($modulo->puedeTurnar())>
+                                        <label class="form-check-label" for="mdTurnar{{ $modulo->id }}">Puede turnar</label>
+                                    </div>
+                                    <span class="md-linea__nota" aria-live="polite">{{ \App\Http\Controllers\ModulosController::notaTurnar($modulo->puedeTurnar()) }}</span>
+                                    <noscript><button class="btn btn-sm btn-link p-0">Guardar</button></noscript>
+                                </form>
+                            @endif
                         </header>
 
                         @if ($susCitas->isEmpty())
@@ -353,6 +522,14 @@
                             <input type="number" class="form-control" id="mdOrden" name="orden" min="0" max="999">
                         </div>
                         <div class="col-12">
+                            <span class="form-label d-block">Tipo de módulo</span>
+                            <div class="md-clase">
+                                <label class="form-check m-0"><input class="form-check-input" type="radio" name="clase" value="normal" id="mdClaseNormal" checked> Normal (citas y turnos)</label>
+                                <label class="form-check m-0"><input class="form-check-input" type="radio" name="clase" value="excepcion" id="mdClaseExc"> <i class="bi bi-shield-heart" style="color:#7B5EA7"></i> Casos de excepción</label>
+                            </div>
+                            <div class="form-text" id="mdClaseAyuda" hidden>Recibe las citas de casos de excepción de {{ $sede }}, en línea y de ventanilla. Sólo lo puede atender quien tiene el rol de Conciliación, Género e Igualdad o el distintivo de Enlace de Género e Igualdad (Usuarios).</div>
+                        </div>
+                        <div class="col-12">
                             <label class="form-label" for="mdPersona">Quién lo atiende</label>
                             <select class="form-select" id="mdPersona" name="user_id">
                                 <option value="">Sin persona (no recibe citas)</option>
@@ -364,9 +541,21 @@
                                     </optgroup>
                                 @endforeach
                             </select>
+                            <select class="form-select" id="mdPersonaExc" name="user_id" disabled hidden>
+                                <option value="">Sin persona (no recibe citas)</option>
+                                @forelse ($personalExcepcion as $delegacion => $gente)
+                                    <optgroup label="{{ $delegacion ?: 'Sin sede' }}">
+                                        @foreach ($gente as $p)
+                                            <option value="{{ $p->id }}">{{ $nombreBonito($p->name) }}</option>
+                                        @endforeach
+                                    </optgroup>
+                                @empty
+                                    <option value="" disabled>Nadie tiene el rol ni el distintivo todavía (Usuarios)</option>
+                                @endforelse
+                            </select>
                             <div class="form-text">Al cambiar a la persona, sus citas pendientes de hoy en adelante pasan a quien elijas.</div>
                         </div>
-                        <div class="col-12 col-sm-6">
+                        <div class="col-12 col-sm-6" data-solo-normal>
                             <span class="form-label d-block">Recibe</span>
                             @foreach ($tramites as $t)
                                 <div class="form-check">
@@ -375,7 +564,7 @@
                                 </div>
                             @endforeach
                         </div>
-                        <div class="col-12 col-sm-6">
+                        <div class="col-12 col-sm-6" data-solo-normal>
                             <span class="form-label d-block">De respaldo <i class="bi bi-info-circle text-muted" title="Sólo cuando ningún módulo que lo recibe de primera mano está libre"></i></span>
                             @foreach ($tramites as $t)
                                 <div class="form-check">
@@ -428,6 +617,18 @@
             var form = document.getElementById('mdFormModulo');
             var urlCrear = form.getAttribute('action');
 
+            function ponerClase(esExc) {
+                var normal = document.getElementById('mdPersona'), exc = document.getElementById('mdPersonaExc');
+                normal.hidden = normal.disabled = esExc;
+                exc.hidden = exc.disabled = !esExc;
+                document.getElementById('mdClaseAyuda').hidden = !esExc;
+                form.querySelectorAll('[data-solo-normal]').forEach(function (d) { d.hidden = esExc; });
+                form.querySelectorAll('.md-tramite').forEach(function (c) { c.disabled = esExc; });
+            }
+            form.querySelectorAll('input[name="clase"]').forEach(function (r) {
+                r.addEventListener('change', function () { ponerClase(r.value === 'excepcion' && r.checked); });
+            });
+
             modalModulo.addEventListener('show.bs.modal', function (e) {
                 var crudo = e.relatedTarget ? e.relatedTarget.getAttribute('data-modulo') : '';
                 var m = crudo ? JSON.parse(crudo) : null;
@@ -438,11 +639,226 @@
                 document.getElementById('mdMetodo').value = m ? 'PUT' : 'POST';
                 document.getElementById('mdNombre').value = m ? m.nombre : '';
                 document.getElementById('mdOrden').value = m ? m.orden : '';
-                document.getElementById('mdPersona').value = m && m.user_id ? String(m.user_id) : '';
+                // Normal o de casos de excepción: cambia qué se pide y a quién se puede elegir.
+                var esExc = !!(m && m.tramites.indexOf('Excepción') !== -1);
+                document.getElementById(esExc ? 'mdClaseExc' : 'mdClaseNormal').checked = true;
+                ponerClase(esExc);
+                document.getElementById(esExc ? 'mdPersonaExc' : 'mdPersona').value = m && m.user_id ? String(m.user_id) : '';
                 document.getElementById('mdComida').value = m ? m.hora_comida : '';
                 document.getElementById('mdActivo').checked = m ? !!m.activo : true;
                 form.querySelectorAll('.md-tramite').forEach(function (c) { c.checked = !!(m && m.tramites.indexOf(c.value) !== -1); });
                 form.querySelectorAll('.md-respaldo').forEach(function (c) { c.checked = !!(m && m.respaldo.indexOf(c.value) !== -1); });
+            });
+
+            // --- Switch "Recibe citas" y qué se pausa: se guarda al momento, sin recargar.
+            var avisoPausa = document.getElementById('mdAvisoPausa');
+            function pintarAviso(canal, lista) {
+                if (!avisoPausa) return;
+                var linea = avisoPausa.querySelector('[data-canal="' + canal + '"]');
+                linea.hidden = !lista.length;
+                linea.querySelector('[data-lista]').textContent = lista.join(', ');
+                avisoPausa.hidden = Array.prototype.every.call(avisoPausa.querySelectorAll('[data-canal]'), function (d) { return d.hidden; });
+            }
+            document.querySelectorAll('.js-pausa').forEach(function (f) {
+                var sw = f.querySelector('[data-switch]');
+                var nota = f.querySelector('.md-linea__nota');
+                var modo = f.querySelector('.md-linea__modo');
+                var radios = f.querySelectorAll('.md-linea__modo input[type="radio"]');
+                var actual = sw.checked ? 'ninguna' : ((f.querySelector('.md-linea__modo input:checked') || {}).value || 'linea');
+                function pintar(p) {
+                    sw.checked = p === 'ninguna';
+                    modo.hidden = p === 'ninguna';
+                    f.classList.toggle('is-pausa', p !== 'ninguna');
+                    f.classList.toggle('is-pausa-todo', p === 'todas');
+                    radios.forEach(function (r) { if (p !== 'ninguna') r.checked = r.value === p; });
+                }
+                function guardar(pausa) {
+                    sw.disabled = true;
+                    radios.forEach(function (r) { r.disabled = true; });
+                    f.classList.add('is-guardando');
+                    f.classList.remove('is-error');
+                    fetch(f.getAttribute('action'), {
+                        method: 'PUT',
+                        headers: {
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': f.querySelector('input[name="_token"]').value
+                        },
+                        body: JSON.stringify({ pausa: pausa })
+                    })
+                        .then(function (r) {
+                            return r.json().catch(function () { return {}; }).then(function (j) {
+                                if (!r.ok) throw new Error(j.message || 'No se pudo guardar; intenta de nuevo.');
+                                return j;
+                            });
+                        })
+                        .then(function (j) {
+                            actual = j.pausa;
+                            pintar(actual);
+                            nota.textContent = j.nota;
+                            // La pausa total también bloquea reasignaciones: se avisa al switch de abajo.
+                            var hermano = f.parentNode.querySelector('.js-reasig');
+                            if (hermano && j.notaReasignacion) {
+                                hermano.dispatchEvent(new CustomEvent('pausa', { detail: { todas: j.pausa === 'todas', nota: j.notaReasignacion } }));
+                            }
+                            pintarAviso('linea', j.sinEnLinea || []);
+                            pintarAviso('ventanilla', j.sinVentanilla || []);
+                        })
+                        .catch(function (e) {
+                            pintar(actual);
+                            f.classList.add('is-error');
+                            nota.textContent = e.message;
+                        })
+                        .finally(function () {
+                            sw.disabled = false;
+                            radios.forEach(function (r) { r.disabled = false; });
+                            f.classList.remove('is-guardando');
+                        });
+                }
+                // Al apagar se pausa lo que esté marcado abajo (de inicio, sólo en línea).
+                sw.addEventListener('change', function () {
+                    var marcado = f.querySelector('.md-linea__modo input:checked');
+                    guardar(sw.checked ? 'ninguna' : (marcado ? marcado.value : 'linea'));
+                });
+                radios.forEach(function (r) {
+                    r.addEventListener('change', function () { if (r.checked && !sw.checked) guardar(r.value); });
+                });
+            });
+
+            // --- Switch "Acepta reasignaciones" (aparte de la pausa): desde ahora o una fecha.
+            // Volver a aceptar se guarda al momento; bloquear, con el botón.
+            document.querySelectorAll('.js-reasig').forEach(function (f) {
+                var sw = f.querySelector('[data-switch]');
+                var nota = f.querySelector('.md-linea__nota');
+                var panel = f.querySelector('[data-cuando]');
+                var cuandos = f.querySelectorAll('input[name^="cuando"]');
+                var fecha = f.querySelector('[data-fecha]');
+                var acciones = f.querySelector('[data-acciones]');
+                var aplicar = f.querySelector('[data-aplicar]');
+                var actual = { bloqueo: f.dataset.bloqueo || '', desde: f.dataset.desde || '' };
+                var porFecha = function () { var r = Array.prototype.find.call(cuandos, function (x) { return x.checked; }); return !!r && r.value === 'fecha'; };
+
+                function pintar(e) {
+                    var activo = !!e.bloqueo;
+                    sw.checked = !activo;
+                    panel.hidden = !activo;
+                    if (!f.classList.contains('is-heredado')) {
+                        f.classList.toggle('is-pausa', e.bloqueo === 'vigente');
+                        f.classList.toggle('is-programada', e.bloqueo === 'programado');
+                    }
+                    cuandos.forEach(function (r) { r.checked = r.value === (e.bloqueo === 'programado' ? 'fecha' : 'ahora'); });
+                    fecha.value = e.bloqueo === 'programado' ? e.desde : '';
+                    fecha.hidden = !porFecha();
+                    acciones.hidden = true;
+                }
+                function revisar() {
+                    fecha.hidden = !porFecha();
+                    var desde = porFecha() ? fecha.value : '';
+                    var mismo = actual.bloqueo && ((actual.bloqueo === 'programado') === porFecha()) && (!porFecha() || desde === actual.desde);
+                    acciones.hidden = !!mismo;
+                    aplicar.textContent = actual.bloqueo ? 'Guardar cambios' : 'Bloquear reasignaciones';
+                }
+                function bloquear(si) {
+                    f.querySelectorAll('input:not([type="hidden"]), button').forEach(function (x) { x.disabled = si; });
+                    f.classList.toggle('is-guardando', si);
+                }
+                function guardar(datos) {
+                    bloquear(true);
+                    f.classList.remove('is-error');
+                    fetch(f.getAttribute('action'), {
+                        method: 'PUT',
+                        headers: {
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': f.querySelector('input[name="_token"]').value
+                        },
+                        body: JSON.stringify(datos)
+                    })
+                        .then(function (r) {
+                            return r.json().catch(function () { return {}; }).then(function (j) {
+                                if (!r.ok) throw new Error(j.message || 'No se pudo guardar; intenta de nuevo.');
+                                return j;
+                            });
+                        })
+                        .then(function (j) {
+                            actual = { bloqueo: j.bloqueo || '', desde: j.desde || '' };
+                            pintar(actual);
+                            nota.textContent = j.nota;
+                        })
+                        .catch(function (e) {
+                            pintar(actual);
+                            f.classList.add('is-error');
+                            nota.textContent = e.message;
+                        })
+                        .finally(function () { bloquear(false); });
+                }
+
+                sw.addEventListener('change', function () {
+                    if (sw.checked) {
+                        if (actual.bloqueo) { guardar({ bloquear: false }); } else { pintar(actual); }
+                        return;
+                    }
+                    panel.hidden = false;
+                    revisar();
+                });
+                cuandos.forEach(function (r) { r.addEventListener('change', function () { if (!sw.checked) revisar(); }); });
+                fecha.addEventListener('change', function () { if (!sw.checked) revisar(); });
+                aplicar.addEventListener('click', function () {
+                    if (porFecha() && !fecha.value) {
+                        f.classList.add('is-error');
+                        nota.textContent = 'Elige en el calendario la fecha desde la que ya no se le reasignan citas.';
+                        fecha.focus();
+                        return;
+                    }
+                    guardar({ bloquear: true, desde: porFecha() ? fecha.value : null });
+                });
+                f.querySelector('[data-cancelar]').addEventListener('click', function () { f.classList.remove('is-error'); pintar(actual); });
+                f.addEventListener('pausa', function (e) {
+                    f.classList.toggle('is-heredado', e.detail.todas);
+                    if (e.detail.todas) { f.classList.remove('is-pausa', 'is-programada'); }
+                    pintar(actual);
+                    nota.textContent = e.detail.nota;
+                });
+            });
+
+            // --- Switch "Puede turnar" (módulos de casos de excepción): se guarda al momento.
+            document.querySelectorAll('.js-turnar').forEach(function (f) {
+                var sw = f.querySelector('[data-switch]');
+                var nota = f.querySelector('.md-linea__nota');
+                sw.addEventListener('change', function () {
+                    var turnar = sw.checked;
+                    sw.disabled = true;
+                    f.classList.remove('is-error');
+                    fetch(f.getAttribute('action'), {
+                        method: 'PUT',
+                        headers: {
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': f.querySelector('input[name="_token"]').value
+                        },
+                        body: JSON.stringify({ turnar: turnar })
+                    })
+                        .then(function (r) {
+                            return r.json().catch(function () { return {}; }).then(function (j) {
+                                if (!r.ok) throw new Error(j.message || 'No se pudo guardar; intenta de nuevo.');
+                                return j;
+                            });
+                        })
+                        .then(function (j) {
+                            sw.checked = !!j.turnar;
+                            f.classList.toggle('is-programada', !j.turnar);
+                            nota.textContent = j.nota;
+                        })
+                        .catch(function (e) {
+                            sw.checked = !turnar;
+                            f.classList.add('is-error');
+                            nota.textContent = e.message;
+                        })
+                        .finally(function () { sw.disabled = false; });
+                });
             });
         })();
     </script>

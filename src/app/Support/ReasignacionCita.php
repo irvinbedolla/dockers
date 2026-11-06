@@ -33,8 +33,8 @@ class ReasignacionCita
     {
         $fecha = $cita->fecha instanceof \DateTimeInterface ? $cita->fecha->format('Y-m-d') : (string) $cita->fecha;
 
-        return $cita->exepcion !== 'Si'
-            && in_array(strtolower((string) $cita->estatus), self::MOVIBLES, true)
+        // Las de excepción también se mueven, pero sólo entre módulos de casos de excepción.
+        return in_array(strtolower((string) $cita->estatus), self::MOVIBLES, true)
             && $fecha >= $hoy;
     }
 
@@ -70,12 +70,18 @@ class ReasignacionCita
                 continue;
             }
             $h = substr($c->hora, 0, 5);
-            $opciones[$c->id] = $modulos->map(function (Modulo $m) use ($c, $h, $ocupacion) {
+            // Una cita normal sólo va a módulos normales y una de excepción sólo a módulos de casos de excepción.
+            $esExc = ($c->exepcion ?? null) === 'Si';
+            $opciones[$c->id] = $modulos->filter(fn (Modulo $m) => $m->id == $c->modulo_clave || $m->esDeExcepcion() === $esExc)->map(function (Modulo $m) use ($c, $h, $ocupacion) {
                 $choque = $ocupacion[$h]['m'.$m->id] ?? ($m->user_id ? ($ocupacion[$h]['u'.$m->user_id] ?? null) : null);
 
                 $estado = match (true) {
                     $m->id == $c->modulo_clave                  => 'actual',
                     ! AsignadorModulos::atendible($m)           => $m->activo ? 'sin_persona' : 'inactivo',
+                    // Pausa total (Administración → Módulos): no recibe citas nuevas, ni movidas a mano.
+                    ! $m->recibeVentanilla()                    => 'pausa',
+                    // "Acepta reasignaciones" apagado desde una fecha (Administración → Módulos).
+                    ! $m->aceptaReasignacion($c->fecha instanceof \DateTimeInterface ? $c->fecha->format('Y-m-d') : substr((string) $c->fecha, 0, 10)) => 'sin_reasignar',
                     $m->enComida($c->hora)                      => 'comida',
                     $choque !== null && $choque->id != $c->id   => 'ocupado',
                     default                                     => 'libre',
@@ -147,13 +153,17 @@ class ReasignacionCita
         $hoy   = Carbon::today()->toDateString();
 
         $error = match (true) {
-            $cita->exepcion === 'Si'                          => 'Los casos de excepción no se reasignan desde aquí.',
+            $cita->exepcion === 'Si' && ! $destino->esDeExcepcion() => 'Un caso de excepción sólo pasa a un módulo de casos de excepción.',
             ! in_array($cita->estatus, self::MOVIBLES, true)  => 'Sólo se pueden mover citas pendientes o confirmadas.',
             $fecha < $hoy                                     => 'La cita ya pasó.',
             $destino->delegacion !== $cita->delegacion        => 'El módulo es de otra sede.',
+            $cita->exepcion !== 'Si' && $destino->esDeExcepcion() => "{$destino->nombre} es de casos de excepción: no recibe citas normales.",
             $destino->id == $cita->modulo_id                  => 'La cita ya está en ese módulo.',
             ! AsignadorModulos::atendible($destino)           => "{$destino->nombre} está inactivo o no tiene persona asignada.",
-            $destino->enComida($hora)                         => "{$destino->nombre} está en su hora de comida a las ".substr($hora, 0, 5).'.',
+            ! $destino->recibeVentanilla()                    => "{$destino->nombre} tiene en pausa todas sus citas (también ventanilla): no recibe citas nuevas. Reactívalo en Administración → Módulos.",
+            ! $destino->aceptaReasignacion($fecha)            => "{$destino->nombre} no acepta reasignaciones de citas a partir del ".$destino->no_reasignar_desde?->format('d/m/Y').'. Cámbialo en Administración → Módulos.',
+            $destino->enComida($hora, $destino->esDeExcepcion() ? (int) HorarioCitas::config($cita->delegacion, null, true)->duracion : null)
+                                                              => "{$destino->nombre} está en su hora de comida a las ".substr($hora, 0, 5).'.',
             default                                           => null,
         };
 
@@ -180,8 +190,9 @@ class ReasignacionCita
         $aviso = 'La cita '.$cita->folio_cita
             .' pasó de '.($antes ?: 'sin módulo')." a {$destino->nombre} ({$destino->persona->name}).";
 
-        // En línea: se le reenvía el acuse con el módulo nuevo.
-        if ($cita->origen === 'linea' && filter_var($cita->correo, FILTER_VALIDATE_EMAIL)) {
+        // En línea: se le reenvía el acuse con el módulo nuevo. A un caso de excepción
+        // no: sólo cambia quién lo atiende por dentro, no su día ni su hora.
+        if ($cita->exepcion !== 'Si' && $cita->origen === 'linea' && filter_var($cita->correo, FILTER_VALIDATE_EMAIL)) {
             try {
                 $pdf = app(HomeController::class)->verDocumentoCita($cita->id);
                 Mail::to($cita->correo)->send(new CitaReasignadaMail($pdf, $cita->fresh(), $antes));
