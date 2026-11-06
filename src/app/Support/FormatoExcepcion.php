@@ -29,7 +29,7 @@ class FormatoExcepcion
 
     /** "No es caso de excepción": qué sigue para la persona (reclasificar()). */
     public const SIGUIENTE = [
-        'hoy'        => 'Pasar a la fila de hoy',
+        'hoy'        => 'Pasar a la fila de hoy (al siguiente horario libre)',
         'otra_fecha' => 'Agendar en otra fecha',
         'terminar'   => 'Sólo terminar la atención',
     ];
@@ -142,9 +142,14 @@ class FormatoExcepcion
                     $cambios['estatus'] = 'atendido';
                 }
             } else {
+                $modulo = null;
                 if ($siguiente === 'hoy') {
+                    // Antes entraba a la hora exacta (11:37) y quedaba encimada entre
+                    // las citas del orientador. Ahora toma el primer horario de hoy de su
+                    // trámite con cupo y un módulo libre (el que va empezando, si no
+                    // pasaron más de 10 minutos; si no, el siguiente).
                     $dia = now()->toDateString();
-                    $h   = now()->format('H:i:00');
+                    [$h, $modulo] = self::horarioDeHoy($sede, $tipo);
                 } else {
                     $dia = (string) $fecha;
                     $h   = HorarioCitas::normalizarHora((string) $hora);
@@ -156,7 +161,7 @@ class FormatoExcepcion
                     }
                 }
 
-                $modulo = AsignadorModulos::elegir($sede, $tipo, $dia, $h);
+                $modulo ??= AsignadorModulos::elegir($sede, $tipo, $dia, $h);
                 if (! $modulo) {
                     throw new \RuntimeException("No hay un módulo libre de {$tipo} en {$sede} para ese horario. Elige otro horario o sólo termina la atención.");
                 }
@@ -184,7 +189,7 @@ class FormatoExcepcion
                 $folio = FolioCita::mostrar($cita);
                 $donde = preg_replace('/^m[oó]dulo\b/i', 'Módulo', (string) $modulo->nombre);
                 $aviso = $siguiente === 'hoy'
-                    ? "No es caso de excepción: {$folio} pasó a la fila de hoy en {$donde}."
+                    ? "No es caso de excepción: {$folio} pasó a la fila de hoy en {$donde}, en el horario de las ".substr($h, 0, 5).'.'
                     : "No es caso de excepción: {$folio} quedó agendada el ".Carbon::parse($dia)->locale('es')->isoFormat('dddd D [de] MMMM').' a las '.substr($h, 0, 5)." en {$donde}.";
             }
         }
@@ -203,6 +208,35 @@ class FormatoExcepcion
         }
 
         return $aviso;
+    }
+
+    /**
+     * Primer horario de hoy (del calendario normal del trámite en la sede) que
+     * todavía se puede tomar, con cupo y con un módulo libre.
+     *
+     * @return array{0: string, 1: \App\Models\Modulo}
+     *
+     * @throws \RuntimeException si ya no queda ninguno hoy
+     */
+    private static function horarioDeHoy(string $sede, string $tipo): array
+    {
+        $ahora = now();
+        $dia   = $ahora->toDateString();
+        $recepcion = new \App\Http\Controllers\RecepcionController();
+
+        foreach (HorarioCitas::horarios(HorarioCitas::config($sede, $tipo, false)) as $h) {
+            if (Carbon::parse($dia.' '.$h)->addMinutes(HorarioCitas::TOLERANCIA_RESERVA)->lt($ahora)) {
+                continue;
+            }
+            if (! $recepcion->turnoSlotDisponible($sede, $tipo, $dia, $h, 'No')) {
+                continue;
+            }
+            if ($modulo = AsignadorModulos::elegir($sede, $tipo, $dia, $h)) {
+                return [$h, $modulo];
+            }
+        }
+
+        throw new \RuntimeException("Hoy ya no queda un horario libre de {$tipo} en {$sede}. Elige «Agendar en otra fecha» o sólo termina la atención.");
     }
 
     /** Valores del formato: lo guardado encima de lo prellenado. */
