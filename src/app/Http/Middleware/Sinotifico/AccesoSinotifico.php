@@ -12,7 +12,8 @@ use Illuminate\Http\Request;
  * tiene un token vigente, el siguiente intento se rechaza.
  *
  * Con parámetro limita la ruta a una parte de la app:
- *   AccesoSinotifico::class.':notificar'  sólo quien tiene lista de campo.
+ *   AccesoSinotifico::class.':notificar'   sólo quien tiene lista de campo;
+ *   AccesoSinotifico::class.':supervisar'  sólo quien supervisa (su sede o todas).
  */
 class AccesoSinotifico
 {
@@ -42,6 +43,10 @@ class AccesoSinotifico
 
         if ($parte === 'notificar' && ! Acceso::notifica($usuario)) {
             return response()->json(['message' => 'Esta sección es sólo para notificadores.'], 403);
+        }
+
+        if ($parte === 'supervisar' && Acceso::supervisa($usuario) === null) {
+            return response()->json(['message' => 'Esta sección es sólo para supervisores.'], 403);
         }
 
         return $next($request);
