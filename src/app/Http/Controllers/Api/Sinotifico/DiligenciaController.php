@@ -26,6 +26,7 @@ class DiligenciaController extends Controller
                 'fuera_de_plazo' => $visitas->where('plazo.estado', 'fuera_de_plazo')->count(),
                 'ultimo_dia' => $visitas->where('plazo.estado', 'ultimo_dia')->count(),
                 'finalizadas_hoy' => $servicio->finalizadasHoy(),
+                'en_revision' => $servicio->enRevision(),
             ],
             'generado_en' => now()->toIso8601String(),
         ]);

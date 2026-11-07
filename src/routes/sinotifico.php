@@ -1,7 +1,10 @@
 <?php
 
 use App\Http\Controllers\Api\Sinotifico\AuthController;
+use App\Http\Controllers\Api\Sinotifico\CapturaController;
 use App\Http\Controllers\Api\Sinotifico\DiligenciaController;
+use App\Http\Controllers\Api\Sinotifico\EvidenciaController;
+use App\Http\Controllers\Api\Sinotifico\RevisionController;
 use App\Http\Middleware\Sinotifico\AccesoSinotifico;
 use Illuminate\Support\Facades\Route;
 
@@ -31,5 +34,19 @@ Route::middleware(['auth:sanctum', AccesoSinotifico::class])->group(function () 
         Route::get('/diligencias/{id}', [DiligenciaController::class, 'show'])
             ->whereNumber('id')
             ->name('diligencias.show');
+
+        // Captura en campo (Módulo 2): queda "por revisar" hasta que la valide un supervisor.
+        Route::post('/capturas', [CapturaController::class, 'store'])->name('capturas.store');
+        Route::get('/capturas', [CapturaController::class, 'index'])->name('capturas.index');
     });
+
+    // Revisión de lo capturado: Enlaces elegidos, Delegados, Directivos y Super Usuarios.
+    Route::middleware(AccesoSinotifico::class.':supervisar')->prefix('revision')->name('revision.')->group(function () {
+        Route::get('/', [RevisionController::class, 'index'])->name('index');
+        Route::get('/{id}', [RevisionController::class, 'show'])->whereNumber('id')->name('show');
+        Route::post('/{id}/validar', [RevisionController::class, 'validar'])->whereNumber('id')->name('validar');
+        Route::post('/{id}/devolver', [RevisionController::class, 'devolver'])->whereNumber('id')->name('devolver');
+    });
+
+    Route::get('/evidencias/{id}', [EvidenciaController::class, 'show'])->whereNumber('id')->name('evidencias.show');
 });
