@@ -19,6 +19,8 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
  */
 class RevisionDiligencia
 {
+    public function __construct(private readonly Geocodificador $geo) {}
+
     /** Diligencias que este supervisor puede ver: las de su sede o todas. */
     public function visibles(User $supervisor): Builder
     {
@@ -86,6 +88,21 @@ class RevisionDiligencia
                     'documento1' => $documentos[1],
                     'documento2' => $documentos[2],
                 ] + array_intersect_key($datos, array_flip(RegistroCaptura::CAMPOS)));
+            }
+
+            // El notificador estuvo en el domicilio: su GPS confirma la ubicación en el catálogo.
+            if (in_array($d->resultado, ['Finalizado exitosamente', 'Recibe pero no firma', 'No notificada'], true)) {
+                $c = $citados->first();
+                $this->geo->confirmarEnCampo([
+                    'tipo_vialidad' => $c->tipo_vialidad, 'calle' => $c->calle, 'numero_exterior' => $c->n_ext,
+                    'numero_interior' => $c->n_int, 'colonia' => $c->colonia, 'cp' => $c->cp,
+                    'municipio' => $municipios[$c->municipio_citado] ?? null,
+                    'estado' => DB::table('estados')->where('id', $c->estado_citado)->value('nombre'),
+                    'texto' => VisitasDelNotificador::textoDomicilio((object) ($c->getAttributes() + [
+                        'municipio' => $municipios[$c->municipio_citado] ?? null,
+                        'estado' => DB::table('estados')->where('id', $c->estado_citado)->value('nombre'),
+                    ])),
+                ], $d->lat, $d->lng, $d->resultado !== 'No notificada');
             }
 
             $d->forceFill([

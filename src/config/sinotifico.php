@@ -72,4 +72,36 @@ return [
         'Zitácuaro' => 'ZIT',
     ],
 
+    /*
+     | Punto de salida de las rutas: la oficina de cada sede. Son coordenadas
+     | aproximadas del centro de cada ciudad; ajústalas a la dirección real.
+     */
+    'oficinas' => [
+        'Morelia' => ['lat' => 19.7027, 'lng' => -101.1923],
+        'Uruapan' => ['lat' => 19.4116, 'lng' => -102.0517],
+        'Zamora' => ['lat' => 19.9855, 'lng' => -102.2840],
+        'Sahuayo' => ['lat' => 20.0573, 'lng' => -102.7193],
+        'Lázaro Cárdenas' => ['lat' => 17.9585, 'lng' => -102.1943],
+        'Zitácuaro' => ['lat' => 19.4359, 'lng' => -100.3576],
+    ],
+
+    /*
+     | Rutas del día (Módulo 4). Máximo de paradas que se proponen y velocidad
+     | promedio para estimar el tiempo (más 15 minutos por diligencia).
+     */
+    'ruta_max_paradas' => (int) env('SINOTIFICO_RUTA_MAX_PARADAS', 20),
+    'ruta_kmh' => 25,
+    'ruta_minutos_por_parada' => 15,
+
+    /*
+     | Ubicación de domicilios. Se usa Nominatim (OpenStreetMap), que pide no
+     | más de una consulta por segundo y un User-Agent que identifique la app.
+     | Con 'geocodificador' => 'ninguno' sólo se usan las ubicaciones ya
+     | guardadas o las que se fijan a mano en el mapa.
+     */
+    'geocodificador' => env('SINOTIFICO_GEOCODIFICADOR', 'nominatim'),
+    'nominatim_url' => env('SINOTIFICO_NOMINATIM_URL', 'https://nominatim.openstreetmap.org/search'),
+    'nominatim_agente' => env('SINOTIFICO_NOMINATIM_AGENTE', 'SiNotifico/1.0 (CCL Michoacan; sistemas)'),
+    'geocodificar_por_vez' => 15,
+
 ];
