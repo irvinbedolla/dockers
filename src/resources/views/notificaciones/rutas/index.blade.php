@@ -22,7 +22,14 @@
         .rt-estado--aprobada { background: #E6F2EA; color: #1E7B3C; }
         .rt-estado--borrador { background: #FBF4E1; color: #8A6A12; }
         .rt-estado--sin { background: var(--tn-fondo); color: var(--tn-suave); }
-        .rt-urgentes { color: #C0392B; font-weight: 700; }
+        .rt-urgentes, .rt-sub.rt-urgentes { color: #C0392B; font-weight: 700; }
+        .rt-conexion { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-size: 13px; white-space: nowrap; }
+        .rt-punto { width: 9px; height: 9px; border-radius: 50%; background: #B8C2C3; }
+        .rt-punto--linea { background: #2E8B57; box-shadow: 0 0 0 3px rgba(46,139,87,.18); }
+        .rt-sub { display: block; font-size: 11.5px; color: var(--tn-tenue); white-space: nowrap; }
+        .rt-sub--aviso { color: #8A6A12; font-weight: 600; }
+        .rt-ultima { max-width: 260px; }
+        .rt-ultima__nombre { display: block; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     </style>
 @endsection
 
@@ -75,32 +82,64 @@
                         <thead>
                             <tr>
                                 <th>Notificador</th>
-                                <th>Sede</th>
-                                <th class="text-end">Visitas pendientes</th>
-                                <th class="text-end">Urgentes</th>
+                                <th>Conexión</th>
+                                <th class="text-end">Pendientes</th>
                                 <th>Ruta del día</th>
+                                <th>Última parada</th>
                                 <th class="text-end"></th>
                             </tr>
                         </thead>
                         <tbody>
                             @forelse ($filas as $f)
-                                @php $r = $f['ruta']; @endphp
+                                @php
+                                    $r = $f['ruta'];
+                                    $c = $f['conexion'];
+                                    $u = $f['ultima'];
+                                    $hace = fn ($t) => $t->isToday() ? $t->diffForHumans() : $t->locale('es')->isoFormat('D MMM, HH:mm');
+                                @endphp
                                 <tr>
-                                    <td class="fw-semibold">{{ $f['usuario']->name }}</td>
-                                    <td>{{ $f['usuario']->delegacion }}</td>
-                                    <td class="text-end">{{ $f['visitas'] }}</td>
+                                    <td>
+                                        <span class="fw-semibold">{{ $f['usuario']->name }}</span>
+                                        <span class="rt-sub">{{ $f['usuario']->delegacion }}</span>
+                                    </td>
+                                    <td>
+                                        @if (! $c)
+                                            <span class="rt-conexion text-muted"><span class="rt-punto"></span>Sin datos</span>
+                                            <span class="rt-sub">Aún no abre la app</span>
+                                        @else
+                                            <span class="rt-conexion" title="Última señal: {{ $c['visto_at']->format('d/m/Y H:i') }}">
+                                                <span class="rt-punto {{ $c['en_linea'] ? 'rt-punto--linea' : '' }}"></span>
+                                                {{ $c['en_linea'] ? 'En línea' : $hace($c['visto_at']) }}
+                                            </span>
+                                            @if ($c['en_cola'] > 0)
+                                                <span class="rt-sub rt-sub--aviso">{{ $c['en_cola'] }} {{ $c['en_cola'] === 1 ? 'captura' : 'capturas' }} sin enviar</span>
+                                            @elseif ($c['sincronizado_at'])
+                                                <span class="rt-sub">Sincronizado {{ $hace($c['sincronizado_at']) }}</span>
+                                            @endif
+                                        @endif
+                                    </td>
                                     <td class="text-end">
-                                        @if ($f['urgentes'])<span class="rt-urgentes">{{ $f['urgentes'] }}</span>@else — @endif
+                                        {{ $f['visitas'] }}
+                                        @if ($f['urgentes'])<span class="rt-sub rt-urgentes">{{ $f['urgentes'] }} urgentes</span>@endif
                                     </td>
                                     <td>
                                         @if (! $r)
                                             <span class="rt-estado rt-estado--sin">Sin ruta</span>
                                         @elseif ($r->estatus === 'aprobada')
                                             <span class="rt-estado rt-estado--aprobada">Aprobada</span>
-                                            <span class="small text-muted ms-1">{{ $r->paradas_count }} paradas · {{ $r->distancia_km }} km</span>
+                                            <span class="rt-sub">{{ $f['hechas'] }}/{{ $r->paradas_count }} paradas hechas · {{ $r->distancia_km }} km</span>
                                         @else
                                             <span class="rt-estado rt-estado--borrador">Por aprobar</span>
-                                            <span class="small text-muted ms-1">{{ $r->paradas_count }} paradas</span>
+                                            <span class="rt-sub">{{ $r->paradas_count }} paradas</span>
+                                        @endif
+                                    </td>
+                                    <td class="rt-ultima">
+                                        @if ($u)
+                                            <span class="rt-ultima__nombre" title="{{ $u['citado'] }}">{{ $u['citado'] }}</span>
+                                            <span class="rt-sub">{{ $u['expediente'] }} · {{ $u['resultado'] }}</span>
+                                            <span class="rt-sub">{{ $hace($u['capturada_at']) }}{{ $u['estatus'] === 'por_revisar' ? ' · por revisar' : '' }}</span>
+                                        @else
+                                            <span class="text-muted small">Sin capturas desde la app</span>
                                         @endif
                                     </td>
                                     <td class="text-end">
@@ -119,4 +158,11 @@
             </div>
         </div>
     </section>
+@endsection
+
+@section('scripts')
+    @if ($fecha === $hoy)
+        {{-- Hoy: se refresca cada minuto para ver quién está en línea y su última parada. --}}
+        <script>setTimeout(function () { if (!document.hidden) location.reload(); else document.addEventListener('visibilitychange', function () { location.reload(); }, { once: true }); }, 60000);</script>
+    @endif
 @endsection

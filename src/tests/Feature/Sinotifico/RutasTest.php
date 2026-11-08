@@ -226,4 +226,33 @@ class RutasTest extends TestCase
         $this->actingAs($enlace->fresh())->get('/notificaciones/home')->assertOk()->assertSee('Rutas de notificadores');
         $this->actingAs($this->usuario('Directivo'))->get('/notificaciones/home')->assertOk()->assertSee('Rutas de notificadores');
     }
+
+    public function test_la_lista_muestra_conexion_sincronizacion_y_ultima_parada(): void
+    {
+        $id = $this->visita('MADERO');
+
+        $this->actingAs($this->delegado)->get('/notificaciones/rutas')->assertOk()->assertSee('Aún no abre la app');
+
+        Sanctum::actingAs($this->notificador, [config('sinotifico.ability')]);
+        $this->postJson('/api/v1/sinotifico/presencia', ['en_cola' => 2, 'version' => '0.1.0'])->assertNoContent();
+        $this->actingAs($this->delegado)->get('/notificaciones/rutas')->assertOk()
+            ->assertSee('En línea')->assertSee('2 capturas sin enviar');
+
+        // Envía su captura: cola vacía = sincronizado, y es su última parada.
+        Sanctum::actingAs($this->notificador, [config('sinotifico.ability')]);
+        $this->post('/api/v1/sinotifico/capturas', [
+            'captura' => json_encode([
+                'uuid' => (string) Str::uuid(), 'citados' => [$id], 'quien_atiende' => 'NADIE', 'resultado' => 'No notificada',
+                'llegada_at' => '2026-10-14T08:30:00-06:00', 'capturada_at' => '2026-10-14T08:40:00-06:00',
+                'datos' => ['medio' => ['NÚMERO VISIBLE'], 'abundar_area' => 'Centro', 'abundar_inmueble' => 'Casa azul'],
+            ]),
+            'fotos' => [UploadedFile::fake()->image('f.jpg')],
+        ], ['Accept' => 'application/json'])->assertCreated();
+        $this->postJson('/api/v1/sinotifico/presencia', ['en_cola' => 0])->assertNoContent();
+
+        $this->travel(10)->minutes();
+        $this->actingAs($this->delegado)->get('/notificaciones/rutas')->assertOk()
+            ->assertDontSee('En línea')->assertSee('Sincronizado')
+            ->assertSee('EMPRESA MADERO')->assertSee('No notificada')->assertSee('por revisar');
+    }
 }

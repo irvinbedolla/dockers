@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\Sinotifico\AuthController;
 use App\Http\Controllers\Api\Sinotifico\CapturaController;
 use App\Http\Controllers\Api\Sinotifico\DiligenciaController;
 use App\Http\Controllers\Api\Sinotifico\EvidenciaController;
+use App\Http\Controllers\Api\Sinotifico\PresenciaController;
 use App\Http\Controllers\Api\Sinotifico\RevisionController;
 use App\Http\Controllers\Api\Sinotifico\RutaController;
 use App\Http\Middleware\Sinotifico\AccesoSinotifico;
@@ -42,6 +43,9 @@ Route::middleware(['auth:sanctum', AccesoSinotifico::class])->group(function () 
 
         // Ruta del día (Módulo 4): sólo cuando un supervisor la aprobó.
         Route::get('/ruta', [RutaController::class, 'hoy'])->name('ruta.hoy');
+
+        // Señal de vida de la app (en línea, capturas sin enviar) para Rutas en SICONCILIO.
+        Route::post('/presencia', [PresenciaController::class, 'store'])->middleware('throttle:30,1')->name('presencia');
     });
 
     // Revisión de lo capturado: Enlaces elegidos, Delegados, Directivos y Super Usuarios.

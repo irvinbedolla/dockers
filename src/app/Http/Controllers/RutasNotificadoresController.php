@@ -23,6 +23,9 @@ use Illuminate\Support\Facades\DB;
  */
 class RutasNotificadoresController extends Controller
 {
+    /** La app avisa cada 2 minutos; con 5 sin noticias deja de contar como en línea. */
+    public const MINUTOS_EN_LINEA = 5;
+
     public function __construct(private readonly PlanificadorRutas $planificador) {}
 
     public static function puedeEntrar(?User $u): bool
@@ -59,14 +62,28 @@ class RutasNotificadoresController extends Controller
         $rutas = Ruta::whereDate('fecha', $fecha)->whereIn('notificador_id', $notificadores->pluck('id'))
             ->withCount('paradas')->get()->keyBy('notificador_id');
 
-        $filas = $notificadores->map(function (User $n) use ($rutas) {
+        $ids = $notificadores->pluck('id');
+        $presencia = DB::table('sinotifico_presencia')->whereIn('user_id', $ids)->get()->keyBy('user_id');
+        $ultimas = $this->ultimasCapturas($ids);
+        $avance = $this->avance($rutas);
+
+        $filas = $notificadores->map(function (User $n) use ($rutas, $presencia, $ultimas, $avance) {
             $visitas = (new VisitasDelNotificador($n))->pendientes();
+            $p = $presencia->get($n->id);
 
             return [
                 'usuario' => $n,
                 'visitas' => $visitas->count(),
                 'urgentes' => $visitas->whereIn('plazo.estado', ['fuera_de_plazo', 'ultimo_dia'])->count(),
                 'ruta' => $rutas->get($n->id),
+                'hechas' => $avance[$n->id] ?? 0,
+                'ultima' => $ultimas[$n->id] ?? null,
+                'conexion' => $p ? [
+                    'en_linea' => CarbonImmutable::parse($p->visto_at)->gt(now()->subMinutes(self::MINUTOS_EN_LINEA)),
+                    'visto_at' => CarbonImmutable::parse($p->visto_at),
+                    'sincronizado_at' => $p->sincronizado_at ? CarbonImmutable::parse($p->sincronizado_at) : null,
+                    'en_cola' => (int) $p->en_cola,
+                ] : null,
             ];
         });
 
@@ -156,6 +173,51 @@ class RutasNotificadoresController extends Controller
     }
 
     /* ---------------------------------------------------------------- */
+
+    /**
+     * Última diligencia que capturó cada notificador (su última parada).
+     *
+     * @return array<int, array{expediente: ?string, citado: ?string, resultado: string, capturada_at: CarbonImmutable, estatus: string}>
+     */
+    private function ultimasCapturas($ids): array
+    {
+        $ultimas = DB::table('sinotifico_diligencias')
+            ->whereIn('id', DB::table('sinotifico_diligencias')->selectRaw('MAX(id)')->whereIn('notificador_id', $ids)->groupBy('notificador_id'))
+            ->get();
+
+        return $ultimas->mapWithKeys(function ($d) {
+            $citado = DB::table('sinotifico_diligencia_citado as dc')->join('seer_citados as c', 'c.id', '=', 'dc.citado_id')
+                ->where('dc.diligencia_id', $d->id)->orderBy('c.id')
+                ->first(['c.nombre', 'c.primer_apellido', 'c.segundo_apellido']);
+
+            return [(int) $d->notificador_id => [
+                'expediente' => DB::table('seer_general')->where('id', $d->solicitud_id)->value('NUE'),
+                'citado' => $citado ? trim(implode(' ', array_filter([$citado->nombre, $citado->primer_apellido, $citado->segundo_apellido]))) : null,
+                'resultado' => $d->resultado ?? 'Exhorto',
+                'capturada_at' => CarbonImmutable::parse($d->capturada_at),
+                'estatus' => $d->estatus,
+            ]];
+        })->all();
+    }
+
+    /** Paradas de cada ruta ya capturadas desde el día de la ruta. @return array<int, int> */
+    private function avance($rutas): array
+    {
+        $avance = [];
+        foreach ($rutas as $r) {
+            $avance[$r->notificador_id] = DB::table('sinotifico_ruta_paradas as p')
+                ->where('p.ruta_id', $r->id)
+                ->whereExists(fn ($q) => $q->select(DB::raw(1))
+                    ->from('sinotifico_diligencia_citado as dc')
+                    ->join('sinotifico_diligencias as d', 'd.id', '=', 'dc.diligencia_id')
+                    ->whereColumn('dc.citado_id', 'p.visita_id')
+                    ->where('d.estatus', '!=', 'devuelta')
+                    ->where('d.capturada_at', '>=', $r->fecha->toDateString()))
+                ->count();
+        }
+
+        return $avance;
+    }
 
     private function datos(User $n, ?Ruta $ruta): array
     {
