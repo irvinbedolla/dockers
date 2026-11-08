@@ -111,6 +111,7 @@ class RevisionDiligencia
                 'revisada_at' => now(),
                 'comentario_revision' => null,
             ])->save();
+            HistorialRutas::registrar($d);
 
             return $d;
         });
@@ -128,6 +129,7 @@ class RevisionDiligencia
                 'revisada_at' => now(),
                 'comentario_revision' => $comentario,
             ])->save();
+            HistorialRutas::registrar($d);
 
             return $d;
         });

@@ -38,8 +38,17 @@ class PlanificadorRutas
         return Ruta::where('notificador_id', $notificador->id)->whereDate('fecha', $fecha)->first();
     }
 
+    /** Las rutas de días pasados son historial: ya no se tocan. */
+    public static function exigirEditable(string $fecha): void
+    {
+        if ($fecha < now()->toDateString()) {
+            throw new HttpException(422, 'Las rutas de días pasados forman parte del historial y no se pueden modificar.');
+        }
+    }
+
     public function proponer(User $notificador, string $fecha, User $autor): Ruta
     {
+        self::exigirEditable($fecha);
         $visitas = $this->pendientes($notificador)
             ->reject(fn ($v) => $v['domicilio']['fuera_del_estado'])
             ->sortBy('plazo.fecha_limite')
@@ -59,8 +68,16 @@ class PlanificadorRutas
             ]);
             $ruta->fill(['estatus' => Ruta::BORRADOR, 'editada_por' => $autor->id, 'aprobada_por' => null, 'aprobada_at' => null])->save();
 
-            $ordenadas = $this->porCercania($ruta, $visitas->map(fn ($v) => $this->conUbicacion($v))->all());
+            // Lo que ya se capturó hoy se queda al inicio, para no perderlo del historial.
+            $hechas = $ruta->exists
+                ? $ruta->paradas()->whereNotNull('diligencia_id')->where('revision', '!=', 'devuelta')->get()
+                    ->map(fn (Parada $p) => ['visita' => null, 'parada' => $p, 'id' => $p->visita_id, 'lat' => null, 'lng' => null])->all()
+                : [];
+            $yaHechas = array_column($hechas, 'id');
+            $nuevas = $visitas->reject(fn ($v) => in_array($v['id'], $yaHechas, true))->map(fn ($v) => $this->conUbicacion($v))->all();
+            $ordenadas = array_merge($hechas, $this->porCercania($ruta, $nuevas));
             $this->reemplazarParadas($ruta, $ordenadas);
+            HistorialRutas::evento($ruta, 'propuesta', $autor, ['paradas' => collect($ordenadas)->pluck('id')->all()]);
 
             return $ruta->refresh();
         });
@@ -72,8 +89,9 @@ class PlanificadorRutas
      *
      * @param  list<int>  $visitaIds
      */
-    public function guardar(Ruta $ruta, array $visitaIds, User $autor): Ruta
+    public function guardar(Ruta $ruta, array $visitaIds, User $autor, string $evento = 'editada'): Ruta
     {
+        self::exigirEditable($ruta->fecha->toDateString());
         $notificador = User::findOrFail($ruta->notificador_id);
         $pendientes = $this->pendientes($notificador)->keyBy('id');
         $actuales = $ruta->paradas->keyBy('visita_id');
@@ -91,9 +109,14 @@ class PlanificadorRutas
             }
         }
 
-        return DB::transaction(function () use ($ruta, $filas, $autor) {
+        return DB::transaction(function () use ($ruta, $filas, $autor, $evento, $visitaIds) {
+            $estabaAprobada = $ruta->estatus === Ruta::APROBADA;
             $ruta->fill(['estatus' => Ruta::BORRADOR, 'editada_por' => $autor->id, 'aprobada_por' => null, 'aprobada_at' => null])->save();
             $this->reemplazarParadas($ruta, $filas);
+            HistorialRutas::evento($ruta, $evento, $autor, array_filter([
+                'paradas' => array_values(array_map('intval', $visitaIds)),
+                'reabierta' => $estabaAprobada ?: null,
+            ]));
 
             return $ruta->refresh();
         });
@@ -108,15 +131,17 @@ class PlanificadorRutas
             'lng' => $this->coordenadas($p)['lng'],
         ])->all()))->pluck('id')->all();
 
-        return $this->guardar($ruta, $ids, $autor);
+        return $this->guardar($ruta, $ids, $autor, 'ordenada');
     }
 
     public function aprobar(Ruta $ruta, User $autor): Ruta
     {
+        self::exigirEditable($ruta->fecha->toDateString());
         if ($ruta->paradas()->count() === 0) {
             throw new HttpException(422, 'La ruta no tiene paradas.');
         }
         $ruta->fill(['estatus' => Ruta::APROBADA, 'aprobada_por' => $autor->id, 'aprobada_at' => now()])->save();
+        HistorialRutas::evento($ruta, 'aprobada', $autor);
 
         return $ruta;
     }
@@ -135,7 +160,11 @@ class PlanificadorRutas
             $c = $this->coordenadas($p);
 
             $estado = 'pendiente';
-            if (! $vigente) {
+            if ($p->revision === 'por_revisar') {
+                $estado = 'en_revision';
+            } elseif ($p->revision === 'validada') {
+                $estado = 'cerrada';
+            } elseif (! $vigente) {
                 $de = collect($p->citados)->map(fn ($id) => $estados[$id] ?? 'cerrada');
                 $estado = $de->contains('en_revision') ? 'en_revision' : ($de->contains('reasignada') ? 'reasignada' : 'cerrada');
             }
@@ -148,6 +177,11 @@ class PlanificadorRutas
                 'lat' => $c['lat'],
                 'lng' => $c['lng'],
                 'ubicacion' => $c['fuente'],
+                // Historial: lo que pasó en la parada.
+                'diligencia_id' => $p->diligencia_id,
+                'llegada_at' => $p->llegada_at ? CarbonImmutable::parse($p->llegada_at)->toIso8601String() : null,
+                'resultado' => $p->resultado,
+                'revision' => $p->revision,
             ] + $resumen;
         })->values();
 
@@ -245,6 +279,8 @@ class PlanificadorRutas
 
     private function reemplazarParadas(Ruta $ruta, array $filas): void
     {
+        // Lo que ya pasó en cada parada (captura, resultado) se conserva al reordenar.
+        $hecho = $ruta->paradas()->get(['visita_id', 'diligencia_id', 'llegada_at', 'resultado', 'revision'])->keyBy('visita_id');
         $ruta->paradas()->delete();
 
         $oficina = config('sinotifico.oficinas')[$ruta->sede] ?? null;
@@ -262,11 +298,11 @@ class PlanificadorRutas
                     'citados' => collect($v['citados'])->pluck('id')->all(),
                     'domicilio_id' => $f['domicilio_id'],
                     'resumen' => $this->resumen($v),
-                ]);
+                ] + ($hecho->get($v['id'])?->only(['diligencia_id', 'llegada_at', 'resultado', 'revision']) ?? []));
                 $punto = ['lat' => $f['lat'], 'lng' => $f['lng']];
             } else {
                 $p = $f['parada'];
-                Parada::create(['ruta_id' => $ruta->id, 'orden' => $i + 1] + $p->only(['visita_id', 'solicitud_id', 'citados', 'domicilio_id', 'resumen']));
+                Parada::create(['ruta_id' => $ruta->id, 'orden' => $i + 1] + $p->only(['visita_id', 'solicitud_id', 'citados', 'domicilio_id', 'resumen', 'diligencia_id', 'llegada_at', 'resultado', 'revision']));
                 $punto = $this->coordenadas($p);
             }
 

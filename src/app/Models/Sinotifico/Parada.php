@@ -14,6 +14,7 @@ class Parada extends Model
     protected $casts = [
         'citados' => 'array',
         'resumen' => 'array',
+        'llegada_at' => 'datetime',
     ];
 
     public function ruta(): BelongsTo

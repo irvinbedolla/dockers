@@ -255,4 +255,69 @@ class RutasTest extends TestCase
             ->assertDontSee('En línea')->assertSee('Sincronizado')
             ->assertSee('EMPRESA MADERO')->assertSee('No notificada')->assertSee('por revisar');
     }
+
+    private function capturar(int $citado, string $resultado = 'No notificada'): int
+    {
+        Sanctum::actingAs($this->notificador, [config('sinotifico.ability')]);
+        $this->post('/api/v1/sinotifico/capturas', [
+            'captura' => json_encode([
+                'uuid' => (string) Str::uuid(), 'citados' => [$citado], 'quien_atiende' => 'NADIE', 'resultado' => $resultado,
+                'llegada_at' => now()->toIso8601String(), 'capturada_at' => now()->toIso8601String(),
+                'datos' => ['medio' => ['NÚMERO VISIBLE'], 'abundar_area' => 'Centro', 'abundar_inmueble' => 'Casa azul'],
+            ]),
+            'fotos' => [UploadedFile::fake()->image('f.jpg')],
+        ], ['Accept' => 'application/json'])->assertCreated();
+
+        return (int) DB::table('sinotifico_diligencias')->latest('id')->value('id');
+    }
+
+    public function test_el_historial_guarda_lo_que_paso_en_cada_parada_y_la_bitacora(): void
+    {
+        $a = $this->visita('RIO LERMA');
+        $b = $this->visita('MADERO');
+        $this->actingAs($this->delegado)->postJson($this->rutaUrl('generar'))->assertOk();
+        $this->actingAs($this->delegado)->postJson($this->rutaUrl('aprobar'))->assertOk();
+
+        $d = $this->capturar($a);
+        $parada = DB::table('sinotifico_ruta_paradas')->where('visita_id', $a)->first();
+        $this->assertSame($d, (int) $parada->diligencia_id);
+        $this->assertSame('No notificada', $parada->resultado);
+        $this->assertSame('por_revisar', $parada->revision);
+
+        // Volver a proponer no pierde la parada ya hecha.
+        $r = $this->actingAs($this->delegado)->postJson($this->rutaUrl('generar'))->assertOk();
+        $r->assertJsonPath('ruta.paradas.0.visita_id', $a)->assertJsonPath('ruta.paradas.0.diligencia_id', $d)->assertJsonCount(2, 'ruta.paradas');
+        $this->actingAs($this->delegado)->postJson($this->rutaUrl('aprobar'))->assertOk();
+
+        Sanctum::actingAs($this->delegado, [config('sinotifico.ability')]);
+        $this->postJson("/api/v1/sinotifico/revision/{$d}/validar")->assertOk();
+        $this->assertSame('validada', DB::table('sinotifico_ruta_paradas')->where('visita_id', $a)->value('revision'));
+
+        $tipos = DB::table('sinotifico_ruta_eventos')->orderBy('id')->pluck('tipo')->all();
+        $this->assertSame(['propuesta', 'aprobada', 'propuesta', 'aprobada'], $tipos);
+
+        // Semana del 12 al 18 de octubre.
+        $this->actingAs($this->delegado)->get('/notificaciones/rutas/historial?semana=2026-W42')->assertOk()
+            ->assertSee($this->notificador->name)->assertSee('1/2')->assertSee('50%');
+
+        // Al día siguiente la ruta es historial: no se modifica y el editor es de sólo lectura.
+        $this->travel(1)->days();
+        $this->actingAs($this->delegado)->putJson($this->rutaUrl('paradas'), ['visitas' => [$b]])->assertStatus(422);
+        $this->actingAs($this->delegado)->postJson($this->rutaUrl('generar'))->assertStatus(422);
+        $this->actingAs($this->delegado)->get($this->rutaUrl())->assertOk()->assertSee('var SOLO = true', false)->assertSee('No se visitó', false);
+
+        $b2 = DB::table('sinotifico_ruta_paradas')->where('visita_id', $b)->first();
+        $this->assertNull($b2->diligencia_id);
+    }
+
+    public function test_una_ruta_con_todas_sus_paradas_hechas_aparece_cumplida(): void
+    {
+        $a = $this->visita('RIO LERMA');
+        $this->actingAs($this->delegado)->postJson($this->rutaUrl('generar'))->assertOk();
+        $this->actingAs($this->delegado)->postJson($this->rutaUrl('aprobar'))->assertOk();
+        $this->capturar($a, 'No notificada');
+
+        $this->actingAs($this->delegado)->get('/notificaciones/rutas/historial?semana=2026-W42')->assertOk()
+            ->assertSee('CUMPLIDA')->assertSee('1/1');
+    }
 }

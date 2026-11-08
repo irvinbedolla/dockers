@@ -61,7 +61,7 @@ class RegistroCaptura
         $guardados = [];
 
         try {
-            return DB::transaction(function () use ($notificador, $v, $citados, $fotos, $firma, $carpeta, &$guardados) {
+            $resultado = DB::transaction(function () use ($notificador, $v, $citados, $fotos, $firma, $carpeta, &$guardados) {
                 $diligencia = Diligencia::create([
                     'uuid' => $v['uuid'],
                     'notificador_id' => $notificador->id,
@@ -106,6 +106,9 @@ class RegistroCaptura
 
                 return [$diligencia, true];
             });
+            HistorialRutas::registrar($resultado[0]);
+
+            return $resultado;
         } catch (\Throwable $e) {
             Storage::disk('local')->delete($guardados);
             throw $e;
