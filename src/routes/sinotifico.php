@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\Sinotifico\EvidenciaController;
 use App\Http\Controllers\Api\Sinotifico\PresenciaController;
 use App\Http\Controllers\Api\Sinotifico\RevisionController;
 use App\Http\Controllers\Api\Sinotifico\RutaController;
+use App\Http\Controllers\Api\Sinotifico\TableroController;
 use App\Http\Middleware\Sinotifico\AccesoSinotifico;
 use Illuminate\Support\Facades\Route;
 
@@ -55,6 +56,9 @@ Route::middleware(['auth:sanctum', AccesoSinotifico::class])->group(function () 
         Route::post('/{id}/validar', [RevisionController::class, 'validar'])->whereNumber('id')->name('validar');
         Route::post('/{id}/devolver', [RevisionController::class, 'devolver'])->whereNumber('id')->name('devolver');
     });
+
+    // Tablero de supervisión (Módulo 5).
+    Route::get('/tablero', TableroController::class)->middleware(AccesoSinotifico::class.':supervisar')->name('tablero');
 
     Route::get('/evidencias/{id}', [EvidenciaController::class, 'show'])->whereNumber('id')->name('evidencias.show');
 });
