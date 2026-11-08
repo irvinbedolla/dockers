@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Sinotifico;
 
 use App\Http\Controllers\Controller;
 use App\Models\Sinotifico\Diligencia;
+use App\Services\Sinotifico\Razones;
 use App\Services\Sinotifico\RevisionDiligencia;
 use App\Services\Sinotifico\VisitasDelNotificador;
 use Illuminate\Http\JsonResponse;
@@ -116,6 +117,8 @@ class RevisionController extends Controller
 
     private function citados(Diligencia $d)
     {
+        $razones = DB::table('sinotifico_razones')->where('diligencia_id', $d->id)->get()->keyBy('citado_id');
+
         return DB::table('seer_citados as c')
             ->leftJoin('municipios as m', 'm.id', '=', 'c.municipio_citado')
             ->leftJoin('estados as e', 'e.id', '=', 'c.estado_citado')
@@ -127,6 +130,25 @@ class RevisionController extends Controller
                 'nombre' => trim(preg_replace('/\s+/', ' ', implode(' ', array_filter([$c->nombre, $c->primer_apellido, $c->segundo_apellido])))),
                 'estatus' => $c->estatus,
                 'domicilio' => VisitasDelNotificador::textoDomicilio($c),
+                'razon' => $this->razon($d, $c, $razones->get($c->id)),
             ]);
+    }
+
+    /** Qué razón le toca (o le tocará al validar) y si ya se firmó. */
+    private function razon(Diligencia $d, object $c, ?object $r): ?array
+    {
+        $estatus = $d->estatus === Diligencia::POR_REVISAR ? $d->resultado : $c->estatus;
+        $doc = $d->quien_atiende === 'EXHORTO' ? null : Razones::documento((object) ['estatus' => $estatus, 'tipo_notificacion' => $c->tipo_notificacion]);
+        if (! $doc) {
+            return null;
+        }
+
+        return [
+            'documento' => $doc[1],
+            'id' => $r ? (int) $r->id : null,
+            'estatus' => $r->estatus ?? null,
+            'modo' => $r->modo ?? null,
+            'firmada_at' => $r && $r->firmada_at ? \Carbon\Carbon::parse($r->firmada_at)->toIso8601String() : null,
+        ];
     }
 }

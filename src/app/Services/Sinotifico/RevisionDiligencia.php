@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Support\Sinotifico\Acceso;
 use App\Support\Sinotifico\Catalogos as C;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -60,35 +61,7 @@ class RevisionDiligencia
                 }
             }
 
-            $fotos = $d->evidencias->where('tipo', 'foto')->values();
-            $datos = $d->datos;
-            $exhorto = $d->quien_atiende === 'EXHORTO';
-
-            foreach ($citados as $c) {
-                $documentos = ['Sin documento', 'Sin documento', 'Sin documento'];
-                foreach ($fotos->take(3) as $i => $foto) {
-                    // Mismo lugar y nombre que usa el formulario web.
-                    $nombre = $c->id.'-foto'.($i + 1).'.jpg';
-                    Storage::disk('s3')->put(
-                        'documentos_notificacion/'.$c->id_solicitud.'/'.$nombre,
-                        Storage::disk('local')->get($foto->ruta)
-                    );
-                    $documentos[$i] = $nombre;
-                }
-
-                $c->update([
-                    'estatus' => $exhorto ? 'Exhorto' : $d->resultado,
-                    'notificacion' => $exhorto ? 'Exhorto' : $c->notificacion,
-                    'id_notificador' => $exhorto
-                        ? (C::NOTIFICADOR_EXHORTO_POR_MUNICIPIO[$municipios[$c->municipio_citado] ?? ''] ?? $d->notificador_id)
-                        : $d->notificador_id,
-                    'fecha' => $d->llegada_at,
-                    'quien_atiende' => $d->quien_atiende,
-                    'documento' => $documentos[0],
-                    'documento1' => $documentos[1],
-                    'documento2' => $documentos[2],
-                ] + array_intersect_key($datos, array_flip(RegistroCaptura::CAMPOS)));
-            }
+            $this->escribirEnCitados($d, $citados, $municipios);
 
             // El notificador estuvo en el domicilio: su GPS confirma la ubicación en el catálogo.
             if (in_array($d->resultado, ['Finalizado exitosamente', 'Recibe pero no firma', 'No notificada'], true)) {
@@ -112,9 +85,51 @@ class RevisionDiligencia
                 'comentario_revision' => null,
             ])->save();
             HistorialRutas::registrar($d);
+            Razones::alValidar($d, $citados);
 
             return $d;
         });
+    }
+
+    /**
+     * Lo que validar escribe en `seer_citados` y en las fotos de SICONCILIO.
+     * Con $prefijo las fotos van con otro nombre (vista previa de la razón,
+     * que luego se revierte y se borra) para no pisar las de una visita anterior.
+     *
+     * @return list<string> fotos escritas en el disco s3
+     */
+    public function escribirEnCitados(Diligencia $d, Collection $citados, Collection $municipios, ?string $prefijo = null): array
+    {
+        $fotos = $d->evidencias->where('tipo', 'foto')->values();
+        $exhorto = $d->quien_atiende === 'EXHORTO';
+        $escritas = [];
+
+        foreach ($citados as $c) {
+            $documentos = ['Sin documento', 'Sin documento', 'Sin documento'];
+            foreach ($fotos->take(3) as $i => $foto) {
+                // Mismo lugar y nombre que usa el formulario web.
+                $nombre = $c->id.'-'.($prefijo ? $prefijo.'-' : '').'foto'.($i + 1).'.jpg';
+                $ruta = 'documentos_notificacion/'.$c->id_solicitud.'/'.$nombre;
+                Storage::disk('s3')->put($ruta, Storage::disk('local')->get($foto->ruta));
+                $escritas[] = $ruta;
+                $documentos[$i] = $nombre;
+            }
+
+            $c->update([
+                'estatus' => $exhorto ? 'Exhorto' : $d->resultado,
+                'notificacion' => $exhorto ? 'Exhorto' : $c->notificacion,
+                'id_notificador' => $exhorto
+                    ? (C::NOTIFICADOR_EXHORTO_POR_MUNICIPIO[$municipios[$c->municipio_citado] ?? ''] ?? $d->notificador_id)
+                    : $d->notificador_id,
+                'fecha' => $d->llegada_at,
+                'quien_atiende' => $d->quien_atiende,
+                'documento' => $documentos[0],
+                'documento1' => $documentos[1],
+                'documento2' => $documentos[2],
+            ] + array_intersect_key($d->datos, array_flip(RegistroCaptura::CAMPOS)));
+        }
+
+        return $escritas;
     }
 
     public function devolver(Diligencia $d, User $revisor, string $comentario): Diligencia

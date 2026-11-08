@@ -104,4 +104,11 @@ return [
     'nominatim_agente' => env('SINOTIFICO_NOMINATIM_AGENTE', 'SiNotifico/1.0 (CCL Michoacan; sistemas)'),
     'geocodificar_por_vez' => 15,
 
+    /*
+     | Razones de notificación (Módulo 3). Mientras sea true, el notificador puede
+     | firmar la razón en la app (su firma se estampa en el PDF) o marcarla como
+     | firmada en papel. Con false sólo se firma en la app.
+     */
+    'firma_en_papel' => (bool) env('SINOTIFICO_FIRMA_EN_PAPEL', true),
+
 ];
