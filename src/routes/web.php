@@ -613,6 +613,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     });
 
+    // Tablero de notificadores (SíNotifico, Módulo 5): sólo quien supervisa; el control está en el controlador.
+    Route::get('/notificaciones/tablero', App\Http\Controllers\TableroNotificadoresController::class)->name('notificaciones.tablero');
+
     // Rutas de los notificadores (SíNotifico, Módulo 4): las ve y aprueba quien supervisa
     // notificadores (permisos sinotifico_supervisar_*); el control está en el controlador.
     Route::controller(App\Http\Controllers\RutasNotificadoresController::class)->prefix('notificaciones/rutas')->name('rutas.')->group(function () {
