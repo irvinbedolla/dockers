@@ -37,8 +37,11 @@ class AccesoSinotifico
             return response()->json(['message' => 'Este acceso no es válido para SíNotifico.'], 403);
         }
 
+        // Le quitaron el permiso con la sesión abierta: se cierra (401 = la app lo saca al login).
         if (! Acceso::puedeEntrar($usuario)) {
-            return response()->json(['message' => 'Tu cuenta no tiene acceso a SíNotifico.'], 403);
+            $usuario->currentAccessToken()?->delete();
+
+            return response()->json(['message' => Acceso::SIN_PERMISO], 401);
         }
 
         if ($parte === 'notificar' && ! Acceso::notifica($usuario)) {
