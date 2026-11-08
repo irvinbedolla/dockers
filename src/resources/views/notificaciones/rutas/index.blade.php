@@ -40,6 +40,9 @@
                 <span class="small" style="color: var(--tn-verde-claro);"><i class="bi bi-phone"></i> SíNotifico</span>
                 <h3 class="page__heading mb-0">Rutas de notificadores</h3>
             </div>
+            <a href="{{ route('rutas.historial', array_filter(['sede' => $sede, 'semana' => \Carbon\Carbon::parse($fecha)->format('o-\WW')])) }}" class="btn btn-outline-secondary">
+                <i class="bi bi-calendar-week me-1"></i> Historial
+            </a>
         </div>
 
         <div class="section-body">

@@ -617,6 +617,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // notificadores (permisos sinotifico_supervisar_*); el control está en el controlador.
     Route::controller(App\Http\Controllers\RutasNotificadoresController::class)->prefix('notificaciones/rutas')->name('rutas.')->group(function () {
         Route::get('/', 'index')->name('index');
+        Route::get('/historial', 'historial')->name('historial');
         Route::put('/domicilios/{domicilio}', 'ubicar')->whereNumber('domicilio')->name('ubicar');
         Route::get('/{notificador}/{fecha}', 'editor')->whereNumber('notificador')->name('editor');
         Route::post('/{notificador}/{fecha}/generar', 'generar')->whereNumber('notificador')->name('generar');

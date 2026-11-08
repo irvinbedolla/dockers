@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Sinotifico\Ruta;
 use App\Models\User;
 use App\Services\Sinotifico\Geocodificador;
+use App\Services\Sinotifico\HistorialRutas;
 use App\Services\Sinotifico\PlanificadorRutas;
 use App\Services\Sinotifico\VisitasDelNotificador;
 use App\Support\Sinotifico\Acceso;
@@ -100,6 +101,70 @@ class RutasNotificadoresController extends Controller
         ]);
     }
 
+    /** Historial semanal: rutas de cada notificador y cuánto se cumplió de cada una. */
+    public function historial(Request $request)
+    {
+        $yo = $this->supervisor($request);
+        $todas = Acceso::supervisa($yo) === 'todas';
+        $sedes = array_keys(config('sinotifico.sedes'));
+        $sede = $todas ? ($request->query('sede') ?: null) : $yo->delegacion;
+        if ($sede !== null && ! in_array($sede, $sedes, true)) {
+            $sede = null;
+        }
+
+        try {
+            [$anio, $num] = array_map('intval', explode('-W', (string) $request->query('semana', now()->format('o-\\WW'))));
+            $lunes = CarbonImmutable::now()->setISODate($anio, $num)->startOfWeek();
+        } catch (\Throwable) {
+            $lunes = CarbonImmutable::now()->startOfWeek();
+        }
+        $domingo = $lunes->addDays(6);
+
+        $rutas = HistorialRutas::consulta($lunes->toDateString(), $domingo->toDateString())
+            ->when($sede, fn ($q) => $q->where('r.sede', $sede))
+            ->get()
+            ->map(fn ($r) => (object) ((array) $r + HistorialRutas::cifras($r) + ['dia' => CarbonImmutable::parse($r->fecha)->toDateString()]));
+
+        $nombres = DB::table('users')->whereIn('id', $rutas->pluck('notificador_id')->unique())->pluck('name', 'id');
+        $dias = collect(range(0, 6))->map(fn ($i) => $lunes->addDays($i))
+            ->filter(fn ($d) => ! $d->isSunday() || $rutas->contains('dia', $d->toDateString()))->values();
+
+        $filas = $rutas->groupBy('notificador_id')->map(function ($suyas, $id) use ($nombres) {
+            $aprobadas = $suyas->where('estatus', 'aprobada');
+
+            return [
+                'id' => (int) $id,
+                'nombre' => $nombres[$id] ?? "Usuario {$id}",
+                'sede' => $suyas->first()->sede,
+                'por_dia' => $suyas->keyBy('dia'),
+                'rutas' => $aprobadas->count(),
+                'cumplidas' => $aprobadas->where('estado', 'cumplida')->count(),
+                'total' => $aprobadas->sum('total'),
+                'hechas' => $aprobadas->sum('hechas'),
+                'exitosas' => $aprobadas->sum('exitosas'),
+                'km' => round($aprobadas->sum('distancia_km'), 1),
+            ];
+        })->sortBy('nombre')->values();
+
+        $aprobadas = $rutas->where('estatus', 'aprobada');
+
+        return view('notificaciones.rutas.historial', [
+            'filas' => $filas,
+            'dias' => $dias,
+            'lunes' => $lunes,
+            'sede' => $sede,
+            'sedes' => $todas ? $sedes : [],
+            'totales' => [
+                'rutas' => $aprobadas->count(),
+                'cumplidas' => $aprobadas->where('estado', 'cumplida')->count(),
+                'total' => $aprobadas->sum('total'),
+                'hechas' => $aprobadas->sum('hechas'),
+                'exitosas' => $aprobadas->sum('exitosas'),
+                'km' => round($aprobadas->sum('distancia_km'), 1),
+            ],
+        ]);
+    }
+
     public function editor(Request $request, int $notificador, string $fecha)
     {
         [$n, $fecha] = $this->notificador($request, $notificador, $fecha);
@@ -108,6 +173,8 @@ class RutasNotificadoresController extends Controller
         return view('notificaciones.rutas.editor', [
             'notificador' => $n,
             'fecha' => $fecha,
+            // Días pasados: historial de sólo lectura.
+            'soloLectura' => $fecha < now()->toDateString(),
             'datos' => $this->datos($n, $ruta),
             'urls' => [
                 'generar' => route('rutas.generar', [$n->id, $fecha]),
@@ -241,7 +308,21 @@ class RutasNotificadoresController extends Controller
             ];
         }
 
-        return ['ruta' => $this->planificador->presentar($ruta), 'oficina' => $oficina, 'fuera' => $this->planificador->fuera($ruta->load('paradas'))];
+        return [
+            'ruta' => $this->planificador->presentar($ruta),
+            'oficina' => $oficina,
+            'fuera' => $ruta->fecha->toDateString() < now()->toDateString() ? [] : $this->planificador->fuera($ruta->load('paradas')),
+            'eventos' => DB::table('sinotifico_ruta_eventos as e')->leftJoin('users as u', 'u.id', '=', 'e.user_id')
+                ->where('e.ruta_id', $ruta->id)->orderBy('e.id')
+                ->get(['e.tipo', 'e.detalle', 'e.created_at', 'u.name as usuario'])
+                ->map(fn ($e) => [
+                    'tipo' => $e->tipo,
+                    'usuario' => $e->usuario,
+                    'fecha' => CarbonImmutable::parse($e->created_at)->toIso8601String(),
+                    'reabierta' => (bool) (json_decode((string) $e->detalle, true)['reabierta'] ?? false),
+                    'paradas' => count(json_decode((string) $e->detalle, true)['paradas'] ?? []),
+                ]),
+        ];
     }
 
     private function supervisor(Request $request): User

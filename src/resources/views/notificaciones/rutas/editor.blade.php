@@ -42,6 +42,13 @@
         .rt-ubicando { outline: 3px solid #D9A92B; }
         .rt-ayuda { font-size: 12px; color: var(--tn-suave); }
         .rt-leyenda { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--tn-suave); margin-top: 8px; }
+        .rt-resultado { font-size: 11.5px; font-weight: 600; color: #1E7B3C; }
+        .rt-resultado--no { color: #A93226; }
+        .rt-resultado--dev { color: #8A6A12; }
+        .rt-bitacora { list-style: none; margin: 0; padding: 0; font-size: 12.5px; }
+        .rt-bitacora li { padding: 6px 0; border-bottom: 1px solid var(--tn-borde); }
+        .rt-bitacora li:last-child { border-bottom: 0; }
+        .rt-bitacora small { color: var(--tn-tenue); }
         .rt-leyenda i { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
     </style>
 @endsection
@@ -56,6 +63,9 @@
                 <h3 class="page__heading mb-0">{{ $notificador->name }}</h3>
                 <div class="small text-muted text-capitalize">{{ $notificador->delegacion }} · {{ $fechaLegible }}</div>
             </div>
+            <a href="{{ route('rutas.historial', ['semana' => \Carbon\Carbon::parse($fecha)->format('o-\WW')]) }}" class="btn btn-outline-secondary">
+                <i class="bi bi-calendar-week me-1"></i> Historial de la semana
+            </a>
         </div>
 
         <div class="section-body">
@@ -85,7 +95,7 @@
                             <span>≈ <b id="rtTiempo">0 h</b></span>
                         </div>
                         <p id="rtExplica" class="rt-ayuda mt-2 mb-0"></p>
-                        <div class="rt-acciones mt-3">
+                        <div class="rt-acciones mt-3" id="rtAcciones">
                             <button type="button" id="rtGenerar" class="btn btn-sm btn-outline-secondary"><i class="bi bi-magic me-1"></i>Proponer ruta</button>
                             <button type="button" id="rtOrdenar" class="btn btn-sm btn-outline-secondary"><i class="bi bi-signpost-split me-1"></i>Ordenar por cercanía</button>
                             <button type="button" id="rtAprobarBtn" class="btn btn-sm tn-boton-dorado ms-auto"><i class="bi bi-check2-circle me-1"></i>Aprobar ruta</button>
@@ -94,14 +104,19 @@
 
                     <div class="tn-tarjeta mb-0">
                         <h6 class="mb-1" style="font-size: 13px; font-weight: 700;">Paradas en orden</h6>
-                        <p class="rt-ayuda mb-2">Arrastra para cambiar el orden, o usa las flechas.</p>
+                        <p class="rt-ayuda mb-2" id="rtAyudaOrden">Arrastra para cambiar el orden, o usa las flechas.</p>
                         <ol id="rtLista" class="rt-lista"></ol>
                     </div>
 
-                    <div class="tn-tarjeta mb-0">
+                    <div class="tn-tarjeta mb-0" id="rtTarjetaFuera">
                         <h6 class="mb-1" style="font-size: 13px; font-weight: 700;">Pendientes fuera de la ruta <span id="rtFueraN" class="text-muted"></span></h6>
                         <p class="rt-ayuda mb-2">Visitas asignadas a este notificador que no están en la ruta de hoy.</p>
                         <ul id="rtFuera" class="rt-lista"></ul>
+                    </div>
+
+                    <div class="tn-tarjeta mb-0">
+                        <h6 class="mb-2" style="font-size: 13px; font-weight: 700;">Bitácora de la ruta</h6>
+                        <ul id="rtBitacora" class="rt-bitacora"></ul>
                     </div>
                 </div>
             </div>
@@ -116,6 +131,8 @@
         (function () {
             var URLS = @json($urls);
             var datos = @json($datos);
+            // Días pasados: historial de sólo lectura (no se reordena, ni se aprueba, ni se mueven pines).
+            var SOLO = @json($soloLectura);
             var token = document.querySelector('meta[name="csrf-token"]').content;
             var el = {
                 mapa: document.getElementById('rtMapa'), lista: document.getElementById('rtLista'), fuera: document.getElementById('rtFuera'),
@@ -150,6 +167,18 @@
                 }).finally(function () { document.body.style.cursor = ''; });
             }
 
+            function resultadoHtml(p, reales) {
+                if (!p.llegada_at) {
+                    return SOLO ? '<span class="rt-resultado rt-resultado--no d-block">No se visitó</span>' : '';
+                }
+                var h = new Date(p.llegada_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+                var rev = { por_revisar: 'por revisar', validada: 'validada', devuelta: 'devuelta' }[p.revision] || '';
+                var real = reales.indexOf(p.visita_id);
+                return '<span class="rt-resultado d-block' + (p.revision === 'devuelta' ? ' rt-resultado--dev' : '') + '">' +
+                    'Llegó ' + h + ' · ' + esc(p.resultado) + (rev ? ' · ' + rev : '') +
+                    (real >= 0 && real + 1 !== p.orden ? ' · visitada ' + (real + 1) + 'ª' : '') + '</span>';
+            }
+
             function idsActuales() { return datos.ruta ? datos.ruta.paradas.map(function (p) { return p.visita_id; }) : []; }
 
             function guardar(ids, mensaje) {
@@ -166,7 +195,9 @@
                 el.estado.className = 'rt-estado ' + (!r ? 'rt-estado--sin' : r.estatus === 'aprobada' ? 'rt-estado--aprobada' : 'rt-estado--borrador');
                 el.estado.textContent = !r ? 'Sin ruta' : r.estatus === 'aprobada' ? 'Aprobada' : 'Por aprobar';
                 el.aprobada.textContent = r && r.aprobada_por ? 'por ' + r.aprobada_por : '';
-                el.explica.textContent = !r
+                el.explica.textContent = SOLO
+                    ? 'Ruta de un día pasado: es historial y ya no se puede modificar.'
+                    : !r
                     ? 'Propón una ruta con sus visitas pendientes (las de plazo más cercano, ordenadas por cercanía desde la oficina).'
                     : r.estatus === 'aprobada'
                         ? 'El notificador ya la ve en su app. Si la cambias, deja de verla hasta que la vuelvas a aprobar.'
@@ -178,6 +209,17 @@
                 el.aprobar.disabled = !r || !paradas.length || r.estatus === 'aprobada';
                 el.generar.innerHTML = '<i class="bi bi-magic me-1"></i>' + (r ? 'Volver a proponer' : 'Proponer ruta');
 
+                document.getElementById('rtAcciones').classList.toggle('d-none', SOLO);
+                document.getElementById('rtTarjetaFuera').classList.toggle('d-none', SOLO);
+                document.getElementById('rtAyudaOrden').textContent = SOLO
+                    ? 'Orden planeado y lo que pasó en cada parada.'
+                    : 'Arrastra para cambiar el orden, o usa las flechas.';
+
+                // Orden real: según la hora de llegada de cada captura.
+                var reales = paradas.filter(function (p) { return p.llegada_at && p.revision !== 'devuelta'; })
+                    .sort(function (a, b) { return a.llegada_at < b.llegada_at ? -1 : 1; })
+                    .map(function (p) { return p.visita_id; });
+
                 // Paradas
                 el.lista.innerHTML = '';
                 paradas.forEach(function (p, i) {
@@ -185,7 +227,8 @@
                     var color = hecha ? SiNotificoMapa.COLOR.hecha : (SiNotificoMapa.COLOR[p.plazo.estado] || '#496163');
                     var li = document.createElement('li');
                     li.className = 'rt-parada';
-                    li.draggable = true;
+                    li.draggable = !SOLO;
+                    if (SOLO) li.style.cursor = 'default';
                     li.dataset.indice = i;
                     li.innerHTML =
                         '<span class="rt-num" style="background:' + color + '">' + (hecha ? '✓' : p.orden) + '</span>' +
@@ -195,12 +238,13 @@
                             '<span class="rt-parada__dom d-block" title="' + esc(p.domicilio) + '">' + esc(p.domicilio) + '</span>' +
                             (p.lat == null ? '<span class="rt-parada__aviso d-block">Sin ubicación · <a href="#" data-ubicar="' + i + '">ubicar en el mapa</a></span>' :
                                 p.ubicacion === 'osm_aprox' ? '<span class="rt-parada__aviso d-block">Ubicación aproximada · arrastra su pin</span>' : '') +
+                            resultadoHtml(p, reales) +
                         '</span>' +
-                        '<span class="rt-botones">' +
+                        (SOLO ? '<span></span>' : '<span class="rt-botones">' +
                             '<button type="button" title="Subir" data-mover="-1" data-i="' + i + '"><i class="bi bi-arrow-up"></i></button>' +
                             '<button type="button" title="Bajar" data-mover="1" data-i="' + i + '"><i class="bi bi-arrow-down"></i></button>' +
                             '<button type="button" title="Quitar de la ruta" data-quitar="' + i + '"><i class="bi bi-x-lg"></i></button>' +
-                        '</span>';
+                        '</span>');
                     el.lista.appendChild(li);
                 });
                 if (!paradas.length) el.lista.innerHTML = '<li class="rt-ayuda">Sin paradas.</li>';
@@ -225,9 +269,21 @@
                 });
                 if (!datos.fuera.length) el.fuera.innerHTML = '<li class="rt-ayuda">Todas sus visitas pendientes están en la ruta.</li>';
 
+                // Bitácora
+                var b = document.getElementById('rtBitacora');
+                var eventos = datos.eventos || [];
+                var TIPO = { propuesta: 'Propuesta', editada: 'Editada', ordenada: 'Ordenada por cercanía', aprobada: 'Aprobada' };
+                b.innerHTML = eventos.length ? eventos.map(function (e) {
+                    var f = new Date(e.fecha);
+                    return '<li><b>' + esc(TIPO[e.tipo] || e.tipo) + '</b>' + (e.reabierta ? ' <span class="rt-resultado--dev">(estaba aprobada)</span>' : '') +
+                        (e.paradas ? ' · ' + e.paradas + ' paradas' : '') +
+                        '<br><small>' + esc(e.usuario || 'Sistema') + ' · ' + f.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }) + ' ' +
+                        f.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) + '</small></li>';
+                }).join('') : '<li class="rt-ayuda">Sin movimientos.</li>';
+
                 // Mapa: el mismo de la app
                 mapa = SiNotificoMapa.dibujar(el.mapa, datos, {
-                    editable: true,
+                    editable: !SOLO,
                     alMoverPin: function (p, lat, lng) {
                         pedir(URLS.ubicar.replace('__ID__', p.domicilio_id), 'PUT', { lat: lat, lng: lng })
                             .then(function () { return guardar(idsActuales(), 'Ubicación corregida. También servirá para futuras rutas.'); })
