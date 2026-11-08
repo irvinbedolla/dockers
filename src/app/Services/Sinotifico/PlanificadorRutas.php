@@ -26,11 +26,7 @@ class PlanificadorRutas
     /** El supervisor puede ver y editar rutas de este notificador. */
     public static function puedeSupervisar(User $supervisor, User $notificador): bool
     {
-        return match (Acceso::supervisa($supervisor)) {
-            'todas' => true,
-            'sede' => $notificador->delegacion === $supervisor->delegacion,
-            default => false,
-        };
+        return Acceso::supervisa($supervisor) !== null && Acceso::supervisaSede($supervisor, $notificador->delegacion);
     }
 
     public function ruta(User $notificador, string $fecha): ?Ruta

@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Services\Sinotifico\TableroSupervision;
-use App\Support\Sinotifico\Acceso;
 use Illuminate\Http\Request;
 
 /**
@@ -18,12 +17,11 @@ class TableroNotificadoresController extends Controller
         abort_unless(RutasNotificadoresController::puedeEntrar($request->user()), 403, 'Esta sección es para quien supervisa notificadores.');
 
         $periodo = in_array($request->query('periodo'), TableroSupervision::PERIODOS, true) ? $request->query('periodo') : 'hoy';
-        $sede = Acceso::supervisa($request->user()) === 'todas' && array_key_exists((string) $request->query('sede'), config('sinotifico.sedes'))
-            ? $request->query('sede') : null;
+        $t = (new TableroSupervision($request->user()))->datos($periodo, (string) $request->query('sede'));
 
         return view('notificaciones.tablero', [
-            't' => (new TableroSupervision($request->user()))->datos($periodo, $sede),
-            'sedes' => Acceso::supervisa($request->user()) === 'todas' ? array_keys(config('sinotifico.sedes')) : [],
+            't' => $t,
+            'sedes' => count($t['sedes_alcance']) > 1 ? $t['sedes_alcance'] : [],
         ]);
     }
 }

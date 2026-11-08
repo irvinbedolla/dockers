@@ -44,10 +44,11 @@ class TableroSupervision
         [$desde, $hasta] = self::rango($periodo);
 
         $alcance = Acceso::supervisa($this->supervisor);
-        $sede = $alcance === 'sede' ? $this->supervisor->delegacion : ($sede ?: null);
+        [$sedes, $sede] = RutasNotificadoresController::alcance($this->supervisor, $sede);
+        $aLaVista = $sede ? [$sede] : $sedes;
 
         $notificadores = User::role('Notificador')->where('estatus', 'Activo')
-            ->when($sede, fn ($q) => $q->where('delegacion', $sede))
+            ->whereIn('delegacion', $aLaVista)
             ->orderBy('name')->get(['id', 'name', 'delegacion']);
         $ids = $notificadores->pluck('id');
 
@@ -101,6 +102,7 @@ class TableroSupervision
             'hasta' => $hasta->toDateString(),
             'alcance' => $alcance,
             'sede' => $sede,
+            'sedes_alcance' => $sedes,
             'resumen' => [
                 'notificadores' => $notificadores->count(),
                 'en_linea' => $filas->where('en_linea', true)->count(),
@@ -108,7 +110,7 @@ class TableroSupervision
                 'fuera_de_plazo' => $filas->sum('fuera_de_plazo'),
                 'ultimo_dia' => $filas->sum('ultimo_dia'),
                 'capturas' => $capturas->count(),
-                'por_revisar' => $this->porRevisar($sede),
+                'por_revisar' => $this->porRevisar($aLaVista),
                 'validadas' => $validadas->count(),
                 'devueltas' => $capturas->where('estatus', 'devuelta')->count(),
                 'exitosas' => $validadas->whereIn('resultado', HistorialRutas::EXITOSAS)->count(),
@@ -123,7 +125,8 @@ class TableroSupervision
             ],
             'alertas' => $this->alertas($filas),
             'notificadores' => $filas->sortByDesc(fn ($f) => [$f['fuera_de_plazo'], $f['ultimo_dia'], $f['pendientes']])->values(),
-            'sedes' => $alcance === 'todas' && ! $sede ? $this->porSede($filas) : [],
+            // Desglose por sede si hay más de una a la vista (Directivo, o un Delegado de región).
+            'sedes' => ! $sede && $filas->pluck('sede')->unique()->count() > 1 ? $this->porSede($filas) : [],
         ];
     }
 
@@ -169,9 +172,9 @@ class TableroSupervision
     }
 
     /** Por revisar en este momento (no sólo las del periodo). */
-    private function porRevisar(?string $sede): int
+    private function porRevisar(array $sedes): int
     {
         return DB::table('sinotifico_diligencias')->where('estatus', 'por_revisar')
-            ->when($sede, fn ($q) => $q->where('sede', $sede))->count();
+            ->whereIn('sede', $sedes)->count();
     }
 }

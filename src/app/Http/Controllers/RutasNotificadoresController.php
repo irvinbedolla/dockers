@@ -39,7 +39,7 @@ class RutasNotificadoresController extends Controller
     {
         return Ruta::whereDate('fecha', now()->toDateString())
             ->where('estatus', Ruta::BORRADOR)
-            ->when(Acceso::supervisa($u) === 'sede', fn ($q) => $q->where('sede', $u->delegacion))
+            ->when(Acceso::sedes($u) !== null, fn ($q) => $q->whereIn('sede', Acceso::sedes($u)))
             ->count();
     }
 
@@ -47,16 +47,11 @@ class RutasNotificadoresController extends Controller
     {
         $yo = $this->supervisor($request);
         $fecha = $this->fecha($request->query('fecha'));
-        $todas = Acceso::supervisa($yo) === 'todas';
-        $sedes = array_keys(config('sinotifico.sedes'));
-        $sede = $todas ? ($request->query('sede') ?: null) : $yo->delegacion;
-        if ($sede !== null && ! in_array($sede, $sedes, true)) {
-            $sede = null;
-        }
+        [$sedes, $sede] = $this->alcance($yo, $request->query('sede'));
 
         $notificadores = User::role('Notificador')
             ->where('estatus', 'Activo')
-            ->when($sede, fn ($q) => $q->where('delegacion', $sede))
+            ->whereIn('delegacion', $sede ? [$sede] : $sedes)
             ->orderBy('delegacion')->orderBy('name')
             ->get(['id', 'name', 'delegacion']);
 
@@ -92,7 +87,7 @@ class RutasNotificadoresController extends Controller
             'filas' => $filas,
             'fecha' => $fecha,
             'sede' => $sede,
-            'sedes' => $todas ? $sedes : [],
+            'sedes' => count($sedes) > 1 ? $sedes : [],
             'resumen' => [
                 'aprobadas' => $rutas->where('estatus', Ruta::APROBADA)->count(),
                 'borradores' => $rutas->where('estatus', Ruta::BORRADOR)->count(),
@@ -105,12 +100,7 @@ class RutasNotificadoresController extends Controller
     public function historial(Request $request)
     {
         $yo = $this->supervisor($request);
-        $todas = Acceso::supervisa($yo) === 'todas';
-        $sedes = array_keys(config('sinotifico.sedes'));
-        $sede = $todas ? ($request->query('sede') ?: null) : $yo->delegacion;
-        if ($sede !== null && ! in_array($sede, $sedes, true)) {
-            $sede = null;
-        }
+        [$sedes, $sede] = $this->alcance($yo, $request->query('sede'));
 
         try {
             [$anio, $num] = array_map('intval', explode('-W', (string) $request->query('semana', now()->format('o-\\WW'))));
@@ -121,7 +111,7 @@ class RutasNotificadoresController extends Controller
         $domingo = $lunes->addDays(6);
 
         $rutas = HistorialRutas::consulta($lunes->toDateString(), $domingo->toDateString())
-            ->when($sede, fn ($q) => $q->where('r.sede', $sede))
+            ->whereIn('r.sede', $sede ? [$sede] : $sedes)
             ->get()
             ->map(fn ($r) => (object) ((array) $r + HistorialRutas::cifras($r) + ['dia' => CarbonImmutable::parse($r->fecha)->toDateString()]));
 
@@ -153,7 +143,7 @@ class RutasNotificadoresController extends Controller
             'dias' => $dias,
             'lunes' => $lunes,
             'sede' => $sede,
-            'sedes' => $todas ? $sedes : [],
+            'sedes' => count($sedes) > 1 ? $sedes : [],
             'totales' => [
                 'rutas' => $aprobadas->count(),
                 'cumplidas' => $aprobadas->where('estado', 'cumplida')->count(),
@@ -323,6 +313,19 @@ class RutasNotificadoresController extends Controller
                     'paradas' => count(json_decode((string) $e->detalle, true)['paradas'] ?? []),
                 ]),
         ];
+    }
+
+    /**
+     * Sedes a la vista y la elegida en el filtro (sólo si está en su alcance).
+     *
+     * @return array{0: list<string>, 1: ?string}
+     */
+    public static function alcance(User $yo, mixed $pedida): array
+    {
+        $sedes = Acceso::sedes($yo) ?? array_keys(config('sinotifico.sedes'));
+        $sede = is_string($pedida) && in_array($pedida, $sedes, true) ? $pedida : null;
+
+        return [$sedes, $sede];
     }
 
     private function supervisor(Request $request): User

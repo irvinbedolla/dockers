@@ -22,14 +22,14 @@ class RevisionDiligencia
 {
     public function __construct(private readonly Geocodificador $geo) {}
 
-    /** Diligencias que este supervisor puede ver: las de su sede o todas. */
+    /** Diligencias que este supervisor puede ver: las de su región o todas. */
     public function visibles(User $supervisor): Builder
     {
-        $alcance = Acceso::supervisa($supervisor);
-        abort_if($alcance === null, 403, 'Tu cuenta no supervisa notificadores.');
+        abort_if(Acceso::supervisa($supervisor) === null, 403, 'Tu cuenta no supervisa notificadores.');
+        $sedes = Acceso::sedes($supervisor);
 
         return Diligencia::query()
-            ->when($alcance === 'sede', fn (Builder $q) => $q->where('sede', $supervisor->delegacion));
+            ->when($sedes !== null, fn (Builder $q) => $q->whereIn('sede', $sedes));
     }
 
     public function puedeVer(User $usuario, Diligencia $d): bool
@@ -38,11 +38,7 @@ class RevisionDiligencia
             return true;
         }
 
-        return match (Acceso::supervisa($usuario)) {
-            'todas' => true,
-            'sede' => $d->sede === $usuario->delegacion,
-            default => false,
-        };
+        return Acceso::supervisa($usuario) !== null && Acceso::supervisaSede($usuario, $d->sede);
     }
 
     public function validar(Diligencia $d, User $revisor): Diligencia

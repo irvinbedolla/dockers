@@ -14,7 +14,7 @@ class TableroController extends Controller
     {
         $datos = $request->validate([
             'periodo' => ['nullable', 'in:'.implode(',', TableroSupervision::PERIODOS)],
-            'sede' => ['nullable', 'in:'.implode(',', array_keys(config('sinotifico.sedes')))],
+            'sede' => ['nullable', 'string', 'max:40'], // fuera de su alcance se ignora
         ]);
 
         return response()->json(['data' => (new TableroSupervision($request->user()))->datos($datos['periodo'] ?? 'hoy', $datos['sede'] ?? null)]);

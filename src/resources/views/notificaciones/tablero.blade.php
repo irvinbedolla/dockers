@@ -10,7 +10,7 @@
 @php
     $r = $t['resumen'];
     $etiquetaPeriodo = ['hoy' => 'Hoy', 'semana' => 'Esta semana', 'mes' => 'Este mes'];
-    $url = fn (array $c) => route('notificaciones.tablero', array_filter(array_merge(['periodo' => $t['periodo'], 'sede' => $t['alcance'] === 'todas' ? $t['sede'] : null], $c)));
+    $url = fn (array $c) => route('notificaciones.tablero', array_filter(array_merge(['periodo' => $t['periodo'], 'sede' => $t['sede']], $c)));
     $hoy = now()->toDateString();
     $pct = fn ($a, $b) => $b ? round($a / $b * 100) : 0;
 @endphp
@@ -53,7 +53,7 @@
                 </a>
                 <h3 class="page__heading mb-0">Tablero de notificadores</h3>
                 <div class="small text-muted">
-                    {{ $t['alcance'] === 'todas' ? ($t['sede'] ?: 'Todas las sedes') : 'Sede '.$t['sede'] }} ·
+                    {{ $t['sede'] ?: ($t['alcance'] === 'todas' ? 'Todas las sedes' : implode(' y ', $t['sedes_alcance'])) }} ·
                     {{ \Carbon\Carbon::parse($t['desde'])->locale('es')->isoFormat('D MMM') }}{{ $t['desde'] !== $t['hasta'] ? ' – '.\Carbon\Carbon::parse($t['hasta'])->locale('es')->isoFormat('D MMM') : '' }}
                 </div>
             </div>
@@ -62,7 +62,7 @@
                     <form method="GET" action="{{ route('notificaciones.tablero') }}">
                         <input type="hidden" name="periodo" value="{{ $t['periodo'] }}">
                         <select name="sede" class="form-select form-select-sm" onchange="this.form.submit()" aria-label="Sede">
-                            <option value="">Todas las sedes</option>
+                            <option value="">{{ $t['alcance'] === 'todas' ? 'Todas las sedes' : 'Toda mi región' }}</option>
                             @foreach ($sedes as $s)
                                 <option value="{{ $s }}" @selected($t['sede'] === $s)>{{ $s }}</option>
                             @endforeach

@@ -103,6 +103,28 @@ class TableroTest extends TestCase
             ->assertJsonPath('data.sedes', []);
     }
 
+    public function test_el_delegado_de_morelia_ve_tambien_zitacuaro_y_no_otras_regiones(): void
+    {
+        $this->visita($this->notificador, '2026-10-28');
+        $zitacuaro = $this->usuario('Notificador', 'Zitácuaro');
+        $this->visita($zitacuaro, '2026-10-28');
+        $this->visita($this->usuario('Notificador', 'Uruapan'), '2026-10-28');
+
+        Sanctum::actingAs($this->usuario('Delegado'), [config('sinotifico.ability')]);
+        $this->getJson('/api/v1/sinotifico/tablero?periodo=semana')->assertOk()
+            ->assertJsonPath('data.resumen.notificadores', 2)
+            ->assertJsonPath('data.sedes_alcance', ['Morelia', 'Zitácuaro'])
+            ->assertJsonCount(2, 'data.sedes');
+
+        // Puede filtrar dentro de su región, pero no salirse de ella.
+        $this->getJson('/api/v1/sinotifico/tablero?sede=Zitácuaro')->assertOk()
+            ->assertJsonPath('data.resumen.notificadores', 1)
+            ->assertJsonPath('data.notificadores.0.id', $zitacuaro->id);
+        $this->getJson('/api/v1/sinotifico/tablero?sede=Uruapan')->assertOk()
+            ->assertJsonPath('data.sede', null)
+            ->assertJsonPath('data.resumen.notificadores', 2);
+    }
+
     public function test_directivo_ve_todas_las_sedes_y_el_notificador_no_entra(): void
     {
         $this->visita($this->notificador, '2026-10-28');
