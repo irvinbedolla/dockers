@@ -5044,7 +5044,7 @@ class SeerController extends Controller
                 }
             }
 
-            $query->whereIn('seer_general.delegacion', $delegacionesPermitidas);
+            $query->whereIn('seer_general.delegacion', \App\Support\SedesConciliador::sumarSedes($user, $delegacionesPermitidas));
         }
         
         // 4. CORRECCIÓN CRÍTICA: Agrupamiento del OR para que no rompa el filtro de fecha ni de delegación
@@ -5697,6 +5697,8 @@ class SeerController extends Controller
             } else {
                 $sala = $salasMapeo[(int)$Audiencia[3]] ?? "Pendiente";
             }
+            // Fuera de su sede (agenda por sede) su sala de casa no existe: la de su agenda en esa sede.
+            $sala = \App\Support\SedesConciliador::sala((int) $Audiencia[3], $delegacion->delegacion) ?? $sala;
 
             // Cambiado a un formato limpio usando Carbon para evitar discrepancias de zona horaria
             $fecha_audiencia = Carbon::parse($Audiencia[0])->addDays(7)->toDateString();
@@ -8273,21 +8275,33 @@ class SeerController extends Controller
             $fecha_inicio_busqueda = $fecha_limite_natural->copy();
         }
 
-        // 4. Obtener conciliadores aptos
-        $conciliadores = User::whereHas('roles', function ($q) { $q->where('name', 'Conciliador'); })
+        // 4. Obtener conciliadores aptos. Quien tiene agenda por sede
+        // (Administración → Conciliadores, App\Support\SedesConciliador) entra
+        // sólo por su renglón de ESTA sede, con los días y el horario de esa
+        // sede, aunque sea de otra delegación; los demás, como siempre.
+        $configurados = \App\Support\SedesConciliador::idsConfigurados();
+        $generales = User::whereHas('roles', function ($q) { $q->where('name', 'Conciliador'); })
             ->where('delegacion', $oficina)
             ->whereIn('id', function ($q) use ($permisos_requeridos) {
                 $q->select('id_conciliador')->from('permisos_conciliador')->whereIn('tipo', $permisos_requeridos);
-            })->get();
+            })
+            ->when($configurados, fn ($q) => $q->whereNotIn('id', $configurados))
+            ->get();
+        $porSede = \App\Support\SedesConciliador::conciliadoresDeSedes([$delegacion]);
+        $conciliadores = $generales->concat($porSede)->unique('id')->values();
 
         if ($conciliadores->isEmpty()) {
             return response()->json(['error' => 'Sin conciliadores configurados.'], 404);
         }
 
-        $permisosConciliadores = PermisosConciliador::whereIn('id_conciliador', $conciliadores->pluck('id'))
+        $permisosConciliadores = PermisosConciliador::whereIn('id_conciliador', $generales->pluck('id'))
             ->whereIn('tipo', $permisos_requeridos)
             ->get()
-            ->groupBy('id_conciliador');
+            ->groupBy('id_conciliador')
+            ->union(\App\Models\SedeConciliador::where('sede', $delegacion)
+                ->whereIn('id_conciliador', $porSede->pluck('id'))
+                ->get()
+                ->groupBy('id_conciliador'));
 
         $dia_semana_map = [1 => 'lunes', 2 => 'martes', 3 => 'miercoles', 4 => 'jueves', 5 => 'viernes'];
 
@@ -15532,7 +15546,7 @@ class SeerController extends Controller
             
             //if ($permisos && $permisos->tipo === "Ambos") {
                 $delegaciones = $mapaDelegaciones[$user->delegacion] ?? [$user->delegacion];
-                $query->whereIn('delegacion', $delegaciones);
+                $query->whereIn('delegacion', \App\Support\SedesConciliador::sumarSedes($user, $delegaciones));
             /*} else {
                 $query->where('delegacion', $user->delegacion);
             }*/
@@ -15648,14 +15662,13 @@ class SeerController extends Controller
         elseif ($userRole === "Conciliador") {
             $permisos = PermisosConciliador::where('id_conciliador', $user->id)->select('tipo')->first();
             
-            if ($permisos && $permisos->tipo === "Ambos" && isset($mapaDelegaciones[$delegacionUsuario])) {
-                $sedes = $mapaDelegaciones[$delegacionUsuario];
-                $queryRatificacion->whereIn('turnos.delegacion', $sedes);
-                $queryAudiencia->whereIn('seer_general.delegacion', $sedes);
-            } else {
-                $queryRatificacion->where('turnos.delegacion', $delegacionUsuario);
-                $queryAudiencia->where('seer_general.delegacion', $delegacionUsuario);
-            }
+            $sedes = ($permisos && $permisos->tipo === "Ambos" && isset($mapaDelegaciones[$delegacionUsuario]))
+                ? $mapaDelegaciones[$delegacionUsuario]
+                : [$delegacionUsuario];
+            // Más las sedes de su agenda por sede, si la tiene (App\Support\SedesConciliador).
+            $sedes = \App\Support\SedesConciliador::sumarSedes($user, $sedes);
+            $queryRatificacion->whereIn('turnos.delegacion', $sedes);
+            $queryAudiencia->whereIn('seer_general.delegacion', $sedes);
         } 
         elseif (in_array($userRole, ["Delegado", "Enlace"])) {
             $sedes = $mapaDelegaciones[$delegacionUsuario] ?? [$delegacionUsuario];
@@ -15724,11 +15737,11 @@ class SeerController extends Controller
             // Optimizado trayendo solo la columna 'tipo'
             $permisos = PermisosConciliador::where('id_conciliador', $user->id)->select('tipo')->first();
             
-            if ($permisos && $permisos->tipo === "Ambos" && isset($mapaDelegaciones[$user->delegacion])) {
-                $query->whereIn('delegacion', $mapaDelegaciones[$user->delegacion]);
-            } else {
-                $query->where('delegacion', $user->delegacion);
-            }
+            $sedesConciliador = ($permisos && $permisos->tipo === "Ambos" && isset($mapaDelegaciones[$user->delegacion]))
+                ? $mapaDelegaciones[$user->delegacion]
+                : [$user->delegacion];
+            // Más las sedes de su agenda por sede, si la tiene (App\Support\SedesConciliador).
+            $query->whereIn('delegacion', \App\Support\SedesConciliador::sumarSedes($user, $sedesConciliador));
         } 
         elseif (in_array($userRole, ["Delegado", "Enlace"])) {
             $delegaciones = $mapaDelegaciones[$user->delegacion] ?? [$user->delegacion];
@@ -15853,11 +15866,11 @@ class SeerController extends Controller
         elseif ($userRole === "Conciliador") {
             $permisos = PermisosConciliador::where('id_conciliador', $user->id)->select('tipo')->first();
             
-            if ($permisos && $permisos->tipo === "Ambos" && isset($mapaDelegaciones[$user->delegacion])) {
-                $query->whereIn('delegacion', $mapaDelegaciones[$user->delegacion]);
-            } else {
-                $query->where('delegacion', $user->delegacion);
-            }
+            $sedesConciliador = ($permisos && $permisos->tipo === "Ambos" && isset($mapaDelegaciones[$user->delegacion]))
+                ? $mapaDelegaciones[$user->delegacion]
+                : [$user->delegacion];
+            // Más las sedes de su agenda por sede, si la tiene (App\Support\SedesConciliador).
+            $query->whereIn('delegacion', \App\Support\SedesConciliador::sumarSedes($user, $sedesConciliador));
         } 
         elseif (in_array($userRole, ["Delegado", "Enlace"])) {
             if (isset($mapaDelegaciones[$user->delegacion])) {

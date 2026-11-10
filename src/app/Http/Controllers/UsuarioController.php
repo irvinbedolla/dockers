@@ -207,7 +207,7 @@ class UsuarioController extends Controller
             'foto_perfil' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:8192', 'dimensions:min_width=200,min_height=200'],
             'sinotifico_supervisa' => ['nullable', 'boolean'],
             'excepcion_enlace' => ['nullable', 'boolean'],
-        ] + $this->reglasAgenda($request), $this->mensajes());
+        ] + $this->reglasAgenda($request, $user), $this->mensajes());
 
         // Uno mismo no se quita el acceso ni el rol de Super Usuario: no habría
         // quién lo deshiciera desde aquí.
@@ -344,8 +344,13 @@ class UsuarioController extends Controller
      * se le marca el rol Conciliador: sin ella el reparto automático de
      * audiencias (SeerController::ObtenerAudiencia) nunca lo toma en cuenta.
      */
-    private function reglasAgenda(Request $request): array
+    private function reglasAgenda(Request $request, ?User $user = null): array
     {
+        // Con agenda por sede, la agenda se edita en Administración → Conciliadores.
+        if ($user && \App\Support\SedesConciliador::configurado($user->id)) {
+            return [];
+        }
+
         $esConciliador = in_array('Conciliador', (array) $request->input('roles', []), true);
 
         return [
@@ -365,6 +370,10 @@ class UsuarioController extends Controller
     private function guardarAgenda(User $user, array $datos): void
     {
         if (! in_array('Conciliador', $datos['roles'], true)) {
+            return;
+        }
+        // Su agenda por sede manda (Administración → Conciliadores): aquí no se toca.
+        if (\App\Support\SedesConciliador::configurado($user->id)) {
             return;
         }
 

@@ -91,13 +91,17 @@ class AgendaContexto
         if (in_array($rol, self::ROLES_DE_REGION, true)) {
             return [
                 'sedes'         => $sedes,
-                'conciliadores' => self::conciliadores($delegacion),
+                // Más quien viene de otra delegación a atender en su región (agenda por sede).
+                'conciliadores' => self::conciliadores($delegacion)
+                    ->concat(SedesConciliador::conciliadoresDeSedes($sedes))
+                    ->unique('id')->sortBy('name')->values(),
             ];
         }
 
-        // El resto sólo se ve a sí mismo en el selector de conciliador.
+        // El resto sólo se ve a sí mismo en el selector de conciliador. Un
+        // conciliador con agenda por sede ve también esas sedes en el filtro.
         return [
-            'sedes'         => $sedes,
+            'sedes'         => SedesConciliador::sumarSedes($usuario, $sedes),
             'conciliadores' => self::conciliadores(null, $usuario->id),
         ];
     }
