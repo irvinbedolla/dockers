@@ -36,6 +36,8 @@ class AudienciasController extends Controller
 
         // Determinamos las sedes a consultar según la delegación del usuario
         $sedesAconsultar = $mapaSedes[$user->delegacion] ?? [$user->delegacion];
+        // Un conciliador con agenda por sede ve también sus audiencias de esas sedes.
+        $sedesAconsultar = \App\Support\SedesConciliador::sumarSedes($user, $sedesAconsultar);
 
         // Iniciamos la consulta base
         $query = Audiencias::with('citado')->whereBetween('audiencias.fecha', [$fecha_inicio, $fecha_final])
@@ -117,6 +119,10 @@ class AudienciasController extends Controller
                         'usuario' => $userID,
                         'tipo' => $tipo,
                         'conciliador' => $audiencia->name,
+                        // Agenda múltiple: el conciliador atiende en más de una sede (App\Support\SedesConciliador).
+                        'multisede' => \App\Support\SedesConciliador::multisede((int) $audiencia->id_conciliador),
+                        'modalidad' => \App\Support\SedesConciliador::MODALIDADES[\App\Support\SedesConciliador::modalidadEn((int) $audiencia->id_conciliador, $audiencia->delegacion) ?? ''] ?? null,
+                        'sedes_conciliador' => \App\Support\SedesConciliador::resumen((int) $audiencia->id_conciliador),
                     ]
                 ];
             }

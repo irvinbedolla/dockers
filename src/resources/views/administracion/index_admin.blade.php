@@ -22,6 +22,13 @@
             'roles'  => ['Super Usuario'],
         ],
         [
+            'ruta'   => 'conciliadores.index',
+            'icono'  => 'bi-diagram-3',
+            'titulo' => 'Conciliadores',
+            'texto'  => 'Sedes que atiende cada uno, presencial o virtual, días y horario.',
+            'roles'  => ['Super Usuario'],
+        ],
+        [
             'ruta'   => 'horarios.index',
             'icono'  => 'bi-clock-history',
             'titulo' => 'Horarios de citas',
