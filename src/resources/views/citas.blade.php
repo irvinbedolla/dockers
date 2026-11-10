@@ -102,6 +102,10 @@
     @php
         $enAtencion = isset($turno);
         $esInterno = $origen === 'interno';
+        // En Mi módulo: liga firmada al documento que subió la persona al agendar (null si no subió).
+        $docCargado = fn (?string $archivo) => $enAtencion && $archivo && $archivo !== 'Sin documento'
+            ? signedDocRoute('documentos.ver', ['tipo' => 'ratificacion', 'id' => $turno->id, 'archivo' => $archivo])
+            : null;
     @endphp
     <!-- Navbar Superior -->
     <nav class="navbar navbar-expand-lg navbar-light navbar-institucional fixed-top px-4">
@@ -278,13 +282,21 @@
                                         <label class="form-label fw-bold">Subir Identificación (PDF máx. 10MB) <span class="text-danger">*</span></label>
                                         <input type="file" id="documentoidentificacion" name="documentoidentificacion" class="form-control" accept=".pdf" @unless ($enAtencion) required @endunless>
                                         <div class="invalid-feedback">Adjunte identificación en formato PDF.</div>
-                                        @if ($enAtencion && $turno->documentoidentificacion)
-                                            <div class="form-text">Ya se cargó al agendar; sube otra sólo si quieres reemplazarla.</div>
+                                        @if ($urlIdentificacion = $docCargado($turno->documentoidentificacion ?? null))
+                                            <div class="form-text">
+                                                Ya se cargó al agendar; sube otra sólo si quieres reemplazarla.
+                                                <a href="{{ $urlIdentificacion }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary ms-1"><i class="bi bi-eye"></i> Ver identificación</a>
+                                            </div>
                                         @endif
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label fw-bold">Documento de la CURP (Opcional) (PDF máx. 10MB) </label>
                                         <input type="file" id="documentoCurp" name="documentoCurp" class="form-control" accept=".pdf" >
+                                        @if ($urlCurp = $docCargado($turno->documentoCurp ?? null))
+                                            <div class="form-text">
+                                                <a href="{{ $urlCurp }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i> Ver CURP cargada</a>
+                                            </div>
+                                        @endif
                                     </div>
                                 </div>
                                 
@@ -483,6 +495,11 @@
                                     <div class="col-md-3">
                                         <label class="form-label fw-bold">Sube tu cuantificación (Opcional)</label>
                                         <input type="file" id="cuantificacion" name="cuantificacion" class="form-control" accept=".pdf">
+                                        @if ($urlCuanti = $docCargado($turno->documentoCuanti ?? null))
+                                            <div class="form-text">
+                                                <a href="{{ $urlCuanti }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i> Ver cuantificación</a>
+                                            </div>
+                                        @endif
                                     </div>
                                     <div class="col-md-3">
                                         <label class="form-label fw-bold">Sede para el trámite <span class="text-danger">*</span></label>
