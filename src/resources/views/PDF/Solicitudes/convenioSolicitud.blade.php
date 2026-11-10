@@ -207,8 +207,12 @@
                 <b>TERCERA.</b> Declara la parte <b>TRABAJADORA</b>:
                     <p class="sangria">
                         a) Que fue contratada por la parte <b>EMPLEADORA</b> desde el <b>{{ \Carbon\Carbon::parse($solicitante->fecha_ingreso)->translatedFormat('d \d\e F \d\e\l Y') }}</b>, para prestar sus 
-                        servicios como <b>{{ $solicitante->puesto}},</b> puesto en el que se desempeñó 
+                        servicios como <b>{{ $solicitante->puesto}}, </b>
+                        @if($solicitante->fecha_salida)
+                        puesto en el que se desempeñó 
                         hasta el día <b>{{ \Carbon\Carbon::parse($solicitante->fecha_salida)->translatedFormat('d \d\e F \d\e\l Y') }}</b>.
+                        @else puesto en el que se desempeña actualmente, toda vez que sigue existiendo relación laboral.
+                        @endif
                     </p>
                     <p class="sangria">                
                         b) Que por el desempeño de sus labores contaba con las siguientes prestaciones:<br>
