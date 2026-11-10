@@ -134,6 +134,27 @@
                         <span class="nt-acceso__num" title="Exhortos sin contestar">{{ $fmt($exhortos['sin_contestar']) }}</span>
                     </a>
                 @endif
+                {{-- Rutas de SíNotifico: sólo quien supervisa notificadores (permisos sinotifico_supervisar_*). --}}
+                @if (\App\Http\Controllers\RutasNotificadoresController::puedeEntrar(auth()->user()))
+                    @php $rutasPorAprobar = \App\Http\Controllers\RutasNotificadoresController::porAprobarHoy(auth()->user()); @endphp
+                    <a class="nt-acceso" href="{{ route('rutas.index') }}">
+                        <span class="nt-acceso__icono"><i class="bi bi-map" aria-hidden="true"></i></span>
+                        <span>
+                            <span class="nt-acceso__titulo">Rutas de notificadores</span>
+                            <span class="nt-acceso__texto">Arma y aprueba la ruta del día en SíNotifico</span>
+                        </span>
+                        @if ($rutasPorAprobar)
+                            <span class="nt-acceso__num" title="Rutas de hoy por aprobar">{{ $fmt($rutasPorAprobar) }}</span>
+                        @endif
+                    </a>
+                    <a class="nt-acceso" href="{{ route('notificaciones.tablero') }}">
+                        <span class="nt-acceso__icono"><i class="bi bi-speedometer2" aria-hidden="true"></i></span>
+                        <span>
+                            <span class="nt-acceso__titulo">Tablero de notificadores</span>
+                            <span class="nt-acceso__texto">Avance, fuera de plazo y revisiones por notificador</span>
+                        </span>
+                    </a>
+                @endif
             </div>
 
             <div class="tn-tarjeta">

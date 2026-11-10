@@ -47,9 +47,7 @@ class AuthController extends Controller
         }
 
         if (! Acceso::puedeEntrar($usuario)) {
-            return response()->json([
-                'message' => 'Tu cuenta no tiene acceso a SíNotifico. Pide al administrador que te lo habilite.',
-            ], 403);
+            return response()->json(['message' => Acceso::SIN_PERMISO], 403);
         }
 
         $expira = now()->addHours(config('sinotifico.token_horas'));

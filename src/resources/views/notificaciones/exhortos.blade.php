@@ -28,9 +28,10 @@
     @include('notificaciones._estilos')
     <style>
         .ex-contestado { display: flex; align-items: center; gap: 8px; margin: 0; }
-        .ex-contestado .form-check { margin: 0; min-height: 0; }
-        .ex-contestado .form-check-input { cursor: pointer; }
-        .ex-contestado .form-check-input:checked { background-color: #1E7B3C; border-color: #1E7B3C; }
+        .ex-estado { width: auto; min-width: 150px; font-weight: 600; font-size: 12.5px; border-radius: 999px; padding-left: 12px; cursor: pointer; }
+        .ex-estado--no { background-color: #FBF4E1; color: #8A6A12; border-color: #F0DFAE; }
+        .ex-estado--si { background-color: #E3F4E8; color: #1E7B3C; border-color: #BFE3CA; }
+        .ex-estado option { background: #fff; color: #2E3C3D; }
         .ex-pestana--aviso .nt-pestana__num { background: #FBF4E1; color: #8A6A12; }
 
         .ex-citados { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
@@ -200,21 +201,21 @@
                                         </td>
                                         <td>{{ $lugar($f->municipio, $f->estado) }}</td>
                                         <td>
+                                            {{-- Select y no interruptor: cambiar el estado es un solo toque, y se guarda al elegir. --}}
                                             <form method="POST" action="{{ route('exhortos.contestado', $f->id) }}" class="ex-contestado">
                                                 @csrf
                                                 @method('PUT')
-                                                <input type="hidden" name="contestado" value="{{ $f->contestado ? 0 : 1 }}">
-                                                <div class="form-check form-switch">
-                                                    <input class="form-check-input" type="checkbox" role="switch" id="exC{{ $f->id }}"
-                                                           @checked($f->contestado) onchange="this.form.submit()"
-                                                           aria-label="Marcar como {{ $f->contestado ? 'sin contestar' : 'contestado' }}">
-                                                </div>
-                                                <label for="exC{{ $f->id }}" class="m-0">
-                                                    <span class="nt-estatus nt-estatus--{{ $f->contestado ? 'verde' : 'ambar' }}">{{ $f->contestado ? 'Contestado' : 'Sin contestar' }}</span>
+                                                <div>
+                                                    <select name="contestado" id="exC{{ $f->id }}" onchange="this.form.submit()"
+                                                            class="form-select form-select-sm ex-estado ex-estado--{{ $f->contestado ? 'si' : 'no' }}"
+                                                            aria-label="¿Contestado? Exhorto de {{ $f->NUE }}">
+                                                        <option value="0" @selected(! $f->contestado)>Sin contestar</option>
+                                                        <option value="1" @selected($f->contestado)>Contestado</option>
+                                                    </select>
                                                     @if ($f->contestado && $f->fecha_contestacion)
                                                         <span class="nt-sub mt-1">{{ \Illuminate\Support\Carbon::parse($f->fecha_contestacion)->format('d/m/Y') }}</span>
                                                     @endif
-                                                </label>
+                                                </div>
                                             </form>
                                         </td>
                                         <td>

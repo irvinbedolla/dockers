@@ -217,6 +217,7 @@
                         Anexando impresión fotográfica para constancia legal.<br>
                         <b>Doy cuenta a la autoridad conciliadora competente y lo hago constar para todos los efectos legales a que haya lugar. Doy fe.</b>
                         <div class="espaciador-firma">
+                            @include('PDF.Solicitudes._firma_notificador')
                             <center><b>___________________________________<br> LIC. {{mb_strtoupper($notificador->name,'UTF-8')}}<br> FUNCIONARIO/A NOTIFICADOR/A</b></center>
                         </div>
                     </div>
