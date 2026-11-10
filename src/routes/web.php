@@ -299,7 +299,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/agenda/citas-en-linea',                AgendaCitasController::class)->name('agenda.citas_linea')
         ->middleware(VeCitasEnLinea::class);
     // Llegadas hoy: audiencias, ratificaciones y cumplimientos del día. La
-    // recepción (Morelia 02 y la General) marca quién llegó y el conciliador
+    // recepción de audiencias (Morelia 02) marca quién llegó y el conciliador
     // asignado (y el auxiliar que la lleva) recibe el aviso; ellos ven la
     // pantalla sólo para consultar. Ver App\Support\LlegadasHoy.
     Route::middleware('role:'.implode('|', \App\Support\LlegadasHoy::roles()))->group(function () {
@@ -611,6 +611,22 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/audiencias_Revisar/{id}/{isAudiencia?}',               [SeerController::class, 'solicitud_audiencia_revisar'])->name('solicitud_audiencia');
         Route::get('/citas/{id}/confirmar',         [RecepcionController::class, 'confirmarAsistencia'])->name('citas.confirmar')->middleware('auth');
 
+    });
+
+    // Tablero de notificadores (SíNotifico, Módulo 5): sólo quien supervisa; el control está en el controlador.
+    Route::get('/notificaciones/tablero', App\Http\Controllers\TableroNotificadoresController::class)->name('notificaciones.tablero');
+
+    // Rutas de los notificadores (SíNotifico, Módulo 4): las ve y aprueba quien supervisa
+    // notificadores (permisos sinotifico_supervisar_*); el control está en el controlador.
+    Route::controller(App\Http\Controllers\RutasNotificadoresController::class)->prefix('notificaciones/rutas')->name('rutas.')->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('/historial', 'historial')->name('historial');
+        Route::put('/domicilios/{domicilio}', 'ubicar')->whereNumber('domicilio')->name('ubicar');
+        Route::get('/{notificador}/{fecha}', 'editor')->whereNumber('notificador')->name('editor');
+        Route::post('/{notificador}/{fecha}/generar', 'generar')->whereNumber('notificador')->name('generar');
+        Route::put('/{notificador}/{fecha}/paradas', 'guardar')->whereNumber('notificador')->name('guardar');
+        Route::post('/{notificador}/{fecha}/ordenar', 'ordenar')->whereNumber('notificador')->name('ordenar');
+        Route::post('/{notificador}/{fecha}/aprobar', 'aprobar')->whereNumber('notificador')->name('aprobar');
     });
 
     /*

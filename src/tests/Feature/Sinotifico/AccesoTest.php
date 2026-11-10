@@ -77,19 +77,35 @@ class AccesoTest extends TestCase
         $enlace = $this->usuario(['Enlace'], 'Zamora');
         Acceso::elegirSupervisor($enlace, true);
 
+        // Zamora atiende también Sahuayo (misma regla que Notificaciones).
         $this->login($enlace)
             ->assertOk()
             ->assertJsonPath('usuario.rol', 'Enlace')
             ->assertJsonPath('usuario.acceso.notifica', false)
             ->assertJsonPath('usuario.acceso.supervisa', 'sede')
-            ->assertJsonPath('usuario.distintivo', 'Supervisa sede Zamora');
+            ->assertJsonPath('usuario.distintivo', 'Supervisa Zamora y Sahuayo');
+        $this->assertSame(['Zamora', 'Sahuayo'], Acceso::sedes($enlace));
     }
 
-    public function test_delegado_supervisa_su_sede_por_rol(): void
+    public function test_delegado_supervisa_su_region_por_rol(): void
     {
-        $this->login($this->usuario(['Delegado']))
+        $delegado = $this->usuario(['Delegado'], 'Morelia');
+        $this->login($delegado)
             ->assertOk()
             ->assertJsonPath('usuario.acceso.supervisa', 'sede');
+
+        $this->assertSame(['Morelia', 'Zitácuaro'], Acceso::sedes($delegado));
+        $this->assertTrue(Acceso::supervisaSede($delegado, 'Zitácuaro'));
+        $this->assertFalse(Acceso::supervisaSede($delegado, 'Uruapan'));
+    }
+
+    public function test_los_demas_roles_no_entran_y_se_les_dice_por_que(): void
+    {
+        foreach (['Conciliador', 'Auxiliar', 'Administrador', 'Enlace'] as $rol) {
+            $this->login($this->usuario([$rol]))
+                ->assertForbidden()
+                ->assertJsonPath('message', Acceso::SIN_PERMISO);
+        }
     }
 
     public function test_directivo_y_super_usuario_ven_todas_las_sedes(): void
@@ -121,7 +137,11 @@ class AccesoTest extends TestCase
         app(PermissionRegistrar::class)->forgetCachedPermissions();
         $this->app['auth']->forgetGuards();
 
-        $this->withToken($token)->getJson('/api/v1/sinotifico/auth/me')->assertForbidden();
+        // Se le cierra la sesión (401: la app lo regresa al login con el motivo).
+        $this->withToken($token)->getJson('/api/v1/sinotifico/auth/me')
+            ->assertUnauthorized()
+            ->assertJsonPath('message', Acceso::SIN_PERMISO);
+        $this->assertSame(0, $enlace->tokens()->count());
     }
 
     public function test_solo_un_enlace_puede_ser_elegido(): void

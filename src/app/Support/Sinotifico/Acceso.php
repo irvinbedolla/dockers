@@ -2,6 +2,7 @@
 
 namespace App\Support\Sinotifico;
 
+use App\Http\Controllers\NotificacionesController;
 use App\Models\User;
 use Spatie\Permission\Models\Permission;
 
@@ -12,9 +13,9 @@ use Spatie\Permission\Models\Permission;
  *
  *   sinotifico_notificar         su lista de diligencias en campo
  *                                (rol Notificador);
- *   sinotifico_supervisar_sede   cómo van los notificadores de su sede
+ *   sinotifico_supervisar_sede   cómo van los notificadores de su región
  *                                (rol Delegado y, uno por uno, los Enlaces
- *                                de Archivo que se elijan en Usuarios);
+ *                                de Archivo que se elijan en Usuarios; ver sedes());
  *   sinotifico_supervisar_todas  la actividad de todas las sedes
  *                                (Super Usuario y Directivo).
  *
@@ -28,6 +29,9 @@ final class Acceso
     public const NOTIFICAR = 'sinotifico_notificar';
     public const SUPERVISAR_SEDE = 'sinotifico_supervisar_sede';
     public const SUPERVISAR_TODAS = 'sinotifico_supervisar_todas';
+
+    /** Lo que ve quien intenta entrar (o seguir dentro) sin permiso. */
+    public const SIN_PERMISO = 'No tienes permisos para usar SíNotifico. Si lo necesitas, pide al administrador que te habilite el acceso.';
 
     public const PERMISOS = [self::NOTIFICAR, self::SUPERVISAR_SEDE, self::SUPERVISAR_TODAS];
 
@@ -57,12 +61,37 @@ final class Acceso
         };
     }
 
+    /**
+     * Sedes que supervisa: null = todas; [] = ninguna. Quien supervisa "su sede"
+     * ve la región de su delegación, con la misma regla que Notificaciones
+     * (Morelia también Zitácuaro, Uruapan también Lázaro Cárdenas y Zamora
+     * también Sahuayo).
+     *
+     * @return list<string>|null
+     */
+    public static function sedes(User $usuario): ?array
+    {
+        return match (self::supervisa($usuario)) {
+            'todas' => null,
+            'sede' => array_values(array_filter(NotificacionesController::sedesDeUsuario($usuario))),
+            default => [],
+        };
+    }
+
+    /** Si la sede (de un notificador o de una diligencia) está en su alcance. */
+    public static function supervisaSede(User $usuario, ?string $sede): bool
+    {
+        $sedes = self::sedes($usuario);
+
+        return $sedes === null || in_array($sede, $sedes, true);
+    }
+
     /** Distintivo que se muestra junto al nombre en la app. */
     public static function distintivo(User $usuario): ?string
     {
         return match (self::supervisa($usuario)) {
             'todas' => 'Supervisión de todas las sedes',
-            'sede' => 'Supervisa sede '.$usuario->delegacion,
+            'sede' => 'Supervisa '.implode(' y ', self::sedes($usuario)),
             default => null,
         };
     }
