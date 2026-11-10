@@ -163,6 +163,23 @@
     font-weight: 600;
 }
 
+/* Agenda múltiple (App\Support\SedesConciliador): borde dorado discontinuo e
+   icono; se distingue sin depender sólo del color. */
+.cal-persona--multisede {
+    border-style: dashed;
+    border-color: #CEA845;
+    background: #FFFBF0;
+}
+.cal-persona--multisede i { color: #A9842A; margin-right: 2px; }
+.cal-persona--multisede.active { background: #496163; border-style: solid; border-color: #CEA845; }
+.cal-persona--multisede.active i { color: #F2DC9B; }
+.cal-multisede-nota {
+    font-size: 11.5px;
+    color: #8A6A12;
+    margin-left: 4px;
+    white-space: nowrap;
+}
+
 /* Sub-pastillas: mismo lenguaje que las padre, un escalon mas discretas y
    sangradas para que se lea la jerarquia. */
 .cal-subtabs {
@@ -742,6 +759,26 @@
 }
 
 .cal-fc .evt-agenda .evt-etiqueta { color: #98a2b3; }
+
+/* Audiencia de un conciliador con agenda múltiple: sede y modalidad de ésta. */
+.cal-fc .evt-agenda .evt-multisede {
+    display: flex;
+    width: fit-content;
+    align-items: center;
+    gap: 4px;
+    max-width: 100%;
+    margin-bottom: 3px;
+    padding: 1px 6px;
+    border: 1px dashed #CEA845;
+    border-radius: 999px;
+    background: #FFFBF0;
+    color: #8A6A12;
+    font-size: 10.5px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
 
 /* Ratificaciones: renglón "Registro patronal" (guía para Recepción 2). */
 .cal-fc .evt-agenda .evt-linea.evt-registro--si { color: #1E7B3C; font-weight: 600; }

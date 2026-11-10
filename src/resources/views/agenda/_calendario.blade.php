@@ -109,12 +109,25 @@
                                                             <input type="hidden" id="filter-conciliador" value="">
                                                         @else
                                                             <button type="button" class="cal-persona active" data-conciliador="">Todos</button>
+                                                            {{-- Agenda múltiple (atiende en más de una sede): icono y
+                                                                 las sedes en el title; data-sedes hace que también salga
+                                                                 al elegir cualquiera de sus sedes (App\Support\SedesConciliador). --}}
+                                                            @php $hayMultisede = false; @endphp
                                                             @foreach($conciliadores as $conciliador)
-                                                                <button type="button" class="cal-persona"
+                                                                @php
+                                                                    $sedesPersona = \App\Support\SedesConciliador::sedes($conciliador);
+                                                                    $esMultisede  = count($sedesPersona) > 1;
+                                                                    $hayMultisede = $hayMultisede || $esMultisede;
+                                                                @endphp
+                                                                <button type="button" class="cal-persona {{ $esMultisede ? 'cal-persona--multisede' : '' }}"
                                                                         data-conciliador="{{ $conciliador['id'] }}"
                                                                         data-delegacion="{{ $conciliador['delegacion'] }}"
-                                                                        title="{{ $conciliador['name'] }}">{{ $conciliador['name'] }}</button>
+                                                                        data-sedes="{{ implode('|', array_column($sedesPersona, 'sede')) }}"
+                                                                        title="{{ $conciliador['name'] }}{{ $esMultisede ? ' · Agenda múltiple: '.\App\Support\SedesConciliador::resumen($conciliador) : '' }}">@if ($esMultisede)<i class="bi bi-diagram-3-fill" aria-hidden="true"></i> @endif{{ $conciliador['name'] }}</button>
                                                             @endforeach
+                                                            @if ($hayMultisede)
+                                                                <span class="cal-multisede-nota"><i class="bi bi-diagram-3-fill" aria-hidden="true"></i> Agenda múltiple: atiende en más de una sede</span>
+                                                            @endif
                                                         @endif
                                                     </div>
 
