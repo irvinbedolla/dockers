@@ -396,6 +396,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::post('administracion/modulos/citas/{id}/reasignar',   [ModulosController::class, 'reasignar'])->name('modulos.reasignar')->whereNumber('id');
             Route::get('administracion/horarios',                        [HorariosCitasController::class, 'index'])->name('horarios.index');
             Route::put('administracion/horarios',                        [HorariosCitasController::class, 'actualizar'])->name('horarios.actualizar');
+            // Conciliadores: en qué sedes atiende cada uno (una presencial y las virtuales), días, horario y sala (App\Support\SedesConciliador).
+            Route::get('administracion/conciliadores',                   [App\Http\Controllers\ConciliadoresController::class, 'index'])->name('conciliadores.index');
+            Route::get('administracion/conciliadores/{id}',              [App\Http\Controllers\ConciliadoresController::class, 'editar'])->name('conciliadores.editar')->whereNumber('id');
+            Route::put('administracion/conciliadores/{id}',              [App\Http\Controllers\ConciliadoresController::class, 'guardar'])->name('conciliadores.guardar')->whereNumber('id');
+            Route::delete('administracion/conciliadores/{id}/sedes',     [App\Http\Controllers\ConciliadoresController::class, 'quitar'])->name('conciliadores.quitar')->whereNumber('id');
         });
         Route::get('administracion/sedes',                  [AdministracionController::class, 'configuracion_sedes'])->name('configuracion_sedes');
         Route::get('administracion/usuarios',               [AdministracionController::class, 'configuracion_usuarios'])->name('configuracion_usuarios');
