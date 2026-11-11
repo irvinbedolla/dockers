@@ -15231,8 +15231,9 @@ class SeerController extends Controller
             'fecha_conclucion' => \Carbon\Carbon::now()->format('Y-m-d')
         ]);
     
-        $id_solicitud = $pago->id_solicitud;
-        Pagos::find($id_solicitud)?->update(['estatus' => "Incomparecencia trabajador", 'user_id' => $user_id]);
+        // Antes aquí se hacía Pagos::find($pago->id_solicitud)->update(...): buscaba
+        // un PAGO con el id de la SOLICITUD y le cambiaba el estatus a otro pago.
+        // Quién lo registró ya lo guarda el modelo (Pagos::booted).
         
         return redirect()->route('audiencias.cumplimiento');  
     }
