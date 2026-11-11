@@ -605,8 +605,10 @@
             if (!esEmpleador) folio.value = '';
             cajaCalidad.style.display = conTramite ? '' : 'none';
             cajaFolio.style.display = esEmpleador ? '' : 'none';
-            if (ayudaFolio && conTramite) ayudaFolio.textContent = ayudas[tipo.value];
-            pintarPatronal(tipo.value === 'Solicitud' && esEmpleador && folio.value === 'si');
+            // Ratificación + Empleador: los datos y el caso que se capturan son del trabajador.
+            document.querySelectorAll('[data-etq-empleador]').forEach(function (el) {
+                el.textContent = el.getAttribute(esEmpleador ? 'data-etq-empleador' : 'data-etq-normal');
+            });
         }
 
         tipo.addEventListener('change', pintar);
