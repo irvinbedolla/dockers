@@ -33,8 +33,8 @@
 
                                 <ol class="gc-pasos" id="gcPasos" aria-label="Avance">
                                     <li data-paso="1"><span class="gc-pasos__num">1</span><span class="gc-pasos__texto">Trámite</span></li>
-                                    <li data-paso="2"><span class="gc-pasos__num">2</span><span class="gc-pasos__texto">{{ $ventanilla ? 'Datos de la persona' : 'Tus datos' }}</span></li>
-                                    <li data-paso="3"><span class="gc-pasos__num">3</span><span class="gc-pasos__texto">{{ $ventanilla ? 'El caso' : 'Tu caso' }}</span></li>
+                                    <li data-paso="2"><span class="gc-pasos__num">2</span><span class="gc-pasos__texto" data-etq-normal="{{ $ventanilla ? 'Datos de la persona' : 'Tus datos' }}" data-etq-empleador="Datos del trabajador">{{ $ventanilla ? 'Datos de la persona' : 'Tus datos' }}</span></li>
+                                    <li data-paso="3"><span class="gc-pasos__num">3</span><span class="gc-pasos__texto" data-etq-normal="{{ $ventanilla ? 'El caso' : 'Tu caso' }}" data-etq-empleador="Caso del trabajador">{{ $ventanilla ? 'El caso' : 'Tu caso' }}</span></li>
                                     <li data-paso="4"><span class="gc-pasos__num">4</span><span class="gc-pasos__texto">Día y hora</span></li>
                                 </ol>
 
@@ -105,7 +105,7 @@
 
                                 {{-- PASO 2 --}}
                                 <fieldset class="gc-seccion" data-paso="2">
-                                    <legend class="gc-titulo"><span class="gc-num">2</span> {{ $ventanilla ? 'Datos de la persona' : 'Tus datos' }}</legend>
+                                    <legend class="gc-titulo"><span class="gc-num">2</span> <span data-etq-normal="{{ $ventanilla ? 'Datos de la persona' : 'Tus datos' }}" data-etq-empleador="Datos del trabajador">{{ $ventanilla ? 'Datos de la persona' : 'Tus datos' }}</span></legend>
                                     <div class="row g-3">
                                         <div class="col-md-6">
                                             <label class="form-label" for="gcNombre">Nombre completo <span class="gc-req">*</span></label>
@@ -217,7 +217,7 @@
 
                                 {{-- PASO 3 --}}
                                 <fieldset class="gc-seccion" data-paso="3">
-                                    <legend class="gc-titulo"><span class="gc-num">3</span> {{ $ventanilla ? 'El caso' : 'Tu caso' }}</legend>
+                                    <legend class="gc-titulo"><span class="gc-num">3</span> <span data-etq-normal="{{ $ventanilla ? 'El caso' : 'Tu caso' }}" data-etq-empleador="Caso del trabajador">{{ $ventanilla ? 'El caso' : 'Tu caso' }}</span></legend>
                                     <div class="row g-3">
                                         <div class="col-12">
                                             <label class="form-label" for="gcTipoCaso">

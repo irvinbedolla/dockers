@@ -505,6 +505,10 @@
             if (!esEmpleador) folio.value = '';
             cajaCalidad.style.display = esRatificacion ? '' : 'none';
             cajaFolio.style.display = esEmpleador ? '' : 'none';
+            // Ratificación + Empleador: los datos y el caso que se capturan son del trabajador.
+            document.querySelectorAll('[data-etq-empleador]').forEach(function (el) {
+                el.textContent = el.getAttribute(esEmpleador ? 'data-etq-empleador' : 'data-etq-normal');
+            });
         }
 
         tipo.addEventListener('change', pintar);
