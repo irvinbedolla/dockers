@@ -139,6 +139,71 @@ class AsignadorModulos
     }
 
     /**
+     * Para el calendario: lo mismo que elegir() !== null, pero para todo un
+     * rango de fechas con una sola consulta. Devuelve una función
+     * (fecha 'Y-m-d', hora 'H:i:s') => bool que dice si a esa hora hay al
+     * menos un módulo que podría recibir la cita (activo, con persona activa,
+     * sin pausa para el canal, que reciba el trámite o lo tenga de respaldo,
+     * fuera de su comida y sin otra cita a esa hora, ni el módulo ni su
+     * persona). Así no se ofrece un horario en el que luego saldría
+     * "No se ha encontrado auxiliar disponible".
+     *
+     * $reasignacion y $excepto: como en elegir(), para la reagenda (sólo
+     * módulos que aceptan citas movidas a esa fecha, sin contar la cita que
+     * se está moviendo).
+     */
+    public static function disponibilidadEnRango(string $sede, string $tramite, string $desde, string $hasta, bool $enLinea = false, bool $reasignacion = false, ?int $excepto = null): \Closure
+    {
+        // Hay citas guardadas sin acento ("Lazaro Cardenas", "Asesoria"); los módulos usan los nombres del catálogo.
+        $sede    = CitasCancelacion::sede($sede);
+        $tramite = CitasCancelacion::tramite($tramite) ?? $tramite;
+        $canal = $enLinea ? 'linea' : 'ventanilla';
+        $duracionExc = $tramite === self::TRAMITE_EXCEPCION ? (int) HorarioCitas::config($sede, null, true)->duracion : null;
+        $modulos = self::deSede($sede, true)
+            ->filter(fn (Modulo $m) => self::atendible($m)
+                && $m->recibePor($canal)
+                && ($m->recibe($tramite) || $m->recibeDeRespaldo($tramite)))
+            ->values();
+
+        if ($modulos->isEmpty()) {
+            return fn (string $fecha, string $hora): bool => false;
+        }
+
+        // Las citas de esos módulos o de sus personas en el rango (las mismas que mira choque()).
+        $personas = $modulos->pluck('user_id')->filter()->unique()->values()->all();
+        $porHorario = DB::table('recepcion')
+            ->whereBetween('fecha', [$desde, $hasta])
+            ->whereNotIn('estatus', ['expirada', 'cancelada'])
+            ->when($excepto, fn ($q) => $q->where('id', '<>', $excepto))
+            ->where(fn ($q) => $q->whereIn('modulo_id', $modulos->pluck('id')->all())
+                ->when($personas, fn ($w) => $w->orWhereIn('auxiliar', $personas)))
+            ->get(['fecha', 'hora', 'modulo_id', 'auxiliar', 'exepcion'])
+            ->groupBy(fn ($c) => substr((string) $c->fecha, 0, 10).'T'.HorarioCitas::normalizarHora((string) $c->hora));
+
+        return function (string $fecha, string $hora) use ($modulos, $porHorario, $duracionExc, $reasignacion): bool {
+            $hora  = HorarioCitas::normalizarHora($hora);
+            $citas = $porHorario->get($fecha.'T'.$hora, collect());
+
+            return $modulos->contains(fn (Modulo $m) => (! $reasignacion || $m->aceptaReasignacion($fecha))
+                && ! $m->enComida($hora, $duracionExc)
+                && ! $citas->contains(fn ($c) => self::citaOcupa($m, $c)));
+        };
+    }
+
+    /** La misma regla que choque(), para una cita ya leída. */
+    private static function citaOcupa(Modulo $modulo, object $cita): bool
+    {
+        $deModulo  = $cita->modulo_id !== null && (int) $cita->modulo_id === (int) $modulo->id;
+        $dePersona = $modulo->user_id && $cita->auxiliar !== null && (int) $cita->auxiliar === (int) $modulo->user_id;
+
+        if ($modulo->esDeExcepcion()) {
+            return ($deModulo && $cita->exepcion === 'Si') || ($dePersona && ! $deModulo);
+        }
+
+        return $deModulo || $dePersona;
+    }
+
+    /**
      * ¿Algún módulo de estos (activo, con persona) recibe el trámite, de
      * primera mano o de respaldo? Con $canal ('linea' o 'ventanilla'), sólo
      * los que no lo tienen en pausa para ese canal.
