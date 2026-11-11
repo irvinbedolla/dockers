@@ -1,6 +1,6 @@
 {{--
-    Tarjeta: tabla de posiciones del mes, conciliadores, auxiliares y
-    orientadores. Va en el Inicio, debajo del saludo, a todo lo ancho (las
+    Tarjeta: tabla de posiciones del mes, conciliadores, auxiliares,
+    orientadores y cumplimientos. Va en el Inicio, debajo del saludo, a todo lo ancho (las
     tarjetas de cifras se mudaron al Panel estadístico).
 
     Los tres grupos se ven a la vez, en columnas, no en pastillas: son competencias
@@ -9,7 +9,12 @@
     los demás en renglones compactos.
 
     Los auxiliares se miden por trámites: solicitudes más ratificaciones,
-    con el desglose a la vista (la ratificación es su fuerte).
+    con el desglose a la vista (la ratificación es su fuerte). Cumplimientos
+    lleva el desglose de audiencia y ratificación. Al pie, "¿Qué cuenta?"
+    explica cada grupo con el texto 'cuenta' de TablaPosiciones.
+
+    Acomodo según el ancho de la propia tarjeta: 4 columnas desde 1280px,
+    2×2 desde 640px y una sola abajo de eso.
 
     Aquí no hay barras. Son escalas que no se comparan entre sí -convenios
     contra solicitudes- y el número es el dato; una barra sólo invitaría a
@@ -39,7 +44,12 @@
         <div class="tp-grupos">
         @foreach ($posiciones['grupos'] as $grupo)
             <section class="tp-grupo">
-                <h4 class="tp-grupo__titulo">{{ $grupo['titulo'] }}</h4>
+                <h4 class="tp-grupo__titulo">
+                    {{ $grupo['titulo'] }}
+                    @if (! empty($grupo['aviso']))
+                        <span class="tp-aviso" title="Antes de esa fecha el sistema no guardaba quién registró cada cumplimiento. El próximo mes ya cuenta completo.">{{ $grupo['aviso'] }}</span>
+                    @endif
+                </h4>
 
                 @if (empty($grupo['gente']))
                     <p class="tp-vacio">Sin registros este mes.</p>
@@ -67,10 +77,7 @@
                                     · {{ number_format($lider['valor']) }} de {{ number_format($lider['resueltas']) }} resueltas
                                 @endif
                                 @if ($lider['desglose'])
-                                    <span class="tp-desglose">
-                                        {{ number_format($lider['desglose']['solicitudes']) }} {{ $lider['desglose']['solicitudes'] === 1 ? 'solicitud' : 'solicitudes' }}
-                                        · {{ number_format($lider['desglose']['ratificaciones']) }} {{ $lider['desglose']['ratificaciones'] === 1 ? 'ratificación' : 'ratificaciones' }}
-                                    </span>
+                                    <span class="tp-desglose">{{ \App\Support\TablaPosiciones::desglose($lider['desglose']) }}</span>
                                 @endif
                             </span>
                         </span>
@@ -87,7 +94,7 @@
                             @foreach ($resto as $persona)
                                 <li class="tp-fila {{ $loop->index >= $visibles ? 'tp-fila--extra' : '' }} {{ $persona['valor'] === 0 ? 'tp-fila--cero' : '' }}"
                                     @if ($loop->index >= $visibles) hidden @endif
-                                    title="{{ $persona['nombre'] }} · {{ $persona['sede'] }} · {{ number_format($persona['valor']) }} {{ $grupo['unidad'] }}@if ($persona['desglose']) ({{ number_format($persona['desglose']['solicitudes']) }} solicitudes, {{ number_format($persona['desglose']['ratificaciones']) }} ratificaciones)@endif">
+                                    title="{{ $persona['nombre'] }} · {{ $persona['sede'] }} · {{ number_format($persona['valor']) }} {{ $grupo['unidad'] }}@if ($persona['desglose']) ({{ \App\Support\TablaPosiciones::desglose($persona['desglose']) }})@endif">
                                     <span class="tp-puesto">{{ $persona['puesto'] }}</span>
                                     <span class="tp-avatar">
                                         @if ($persona['foto'])
@@ -96,7 +103,7 @@
                                             <span class="tp-iniciales">{{ $persona['iniciales'] }}</span>
                                         @endif
                                     </span>
-                                    <span class="tp-nombre">{{ $persona['nombre'] }}@if ($persona['desglose'])<small class="tp-desglose">{{ number_format($persona['desglose']['solicitudes']) }} sol. · {{ number_format($persona['desglose']['ratificaciones']) }} rat.</small>@endif</span>
+                                    <span class="tp-nombre">{{ $persona['nombre'] }}@if ($persona['desglose'])<small class="tp-desglose">{{ \App\Support\TablaPosiciones::desglose($persona['desglose'], true) }}</small>@endif</span>
                                     <span class="tp-valor">{{ number_format($persona['valor']) }}</span>
                                 </li>
                             @endforeach
@@ -113,6 +120,19 @@
             </section>
         @endforeach
         </div>
+
+        <details class="tp-reglas">
+            <summary><i class="bi bi-question-circle" aria-hidden="true"></i> ¿Qué cuenta para el lugar?</summary>
+            <dl>
+                @foreach ($posiciones['grupos'] as $grupo)
+                    <div>
+                        <dt>{{ $grupo['titulo'] }} <span>· {{ $grupo['unidad'] }}</span></dt>
+                        <dd>{{ $grupo['cuenta'] ?? '' }}@if (! empty($grupo['aviso'])) Este mes cuenta {{ $grupo['aviso'] }}@endif</dd>
+                    </div>
+                @endforeach
+            </dl>
+            <p>Sólo el mes en curso; se actualiza cada 15 minutos. Empates comparten lugar.</p>
+        </details>
     @endif
 </div>
 
@@ -291,6 +311,45 @@
     }
     .tp-lider__pie .tp-desglose { font-size: 11px; color: #5E6E6F; margin-top: 1px; }
 
+    /* "desde el 12 nov.": junto al título, sin mover el primer lugar. */
+    .tp-aviso {
+        margin-left: 4px;
+        font-size: 10.5px;
+        font-weight: 600;
+        letter-spacing: 0;
+        text-transform: none;
+        color: #A9842A;
+        cursor: help;
+    }
+
+    .tp-reglas {
+        margin-top: 14px;
+        padding-top: 10px;
+        border-top: 1px solid #EDF1F1;
+        font-size: 12px;
+        color: #5E6E6F;
+    }
+    .tp-reglas summary {
+        cursor: pointer;
+        width: max-content;
+        max-width: 100%;
+        color: #496163;
+        font-weight: 700;
+        list-style: none;
+    }
+    .tp-reglas summary::-webkit-details-marker { display: none; }
+    .tp-reglas summary:hover { text-decoration: underline; }
+    .tp-reglas dl {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 8px 24px;
+        margin: 10px 0 6px;
+    }
+    .tp-reglas dt { font-weight: 700; color: #3C4A4B; margin: 0; }
+    .tp-reglas dt span { font-weight: 500; color: #A2AFAF; }
+    .tp-reglas dd { margin: 1px 0 0; line-height: 1.4; }
+    .tp-reglas p { margin: 4px 0 0; color: #8A9899; font-size: 11px; }
+
     .tp-vacio { font-size: 12.5px; color: #8A9899; margin: 0; }
 
     .tp-fila[hidden] { display: none; }
@@ -319,26 +378,33 @@
     .tp-mas i { transition: transform .2s; }
     .tp-mas[aria-expanded="true"] i { transform: rotate(180deg); }
 
-    /* --- tres columnas ---
-       Con espacio, los grupos van lado a lado separados por una línea
-       vertical en vez de la horizontal de cuando se apilan. */
-    @container posiciones (min-width: 760px) {
-        .tp-grupos { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-        .tp-grupo { padding: 0 20px; }
-        .tp-grupo:first-child { padding-left: 0; }
-        .tp-grupo:last-child { padding-right: 0; }
-        .tp-grupo + .tp-grupo {
-            margin-top: 0;
-            padding-top: 0;
-            border-top: 0;
-            border-left: 1px solid #EDF1F1;
-        }
+    /* --- acomodo ---
+       Se decide por el ancho de la tarjeta (el menú lateral lo cambia):
+       una columna, 2×2 desde 640px y las cuatro en fila desde 1280px
+       (abajo de eso, en cuatro columnas los nombres se cortaban). */
+    @container posiciones (min-width: 640px) {
+        .tp-grupos { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 18px; }
+        .tp-grupo { padding: 0 18px; }
+        .tp-grupo:nth-child(odd) { padding-left: 0; }
+        .tp-grupo:nth-child(even) { padding-right: 0; border-left: 1px solid #EDF1F1; }
+        .tp-grupo + .tp-grupo { margin-top: 0; padding-top: 0; border-top: 0; }
+        .tp-grupo:nth-child(n+3) { padding-top: 16px; border-top: 1px solid #EDF1F1; }
+        .tp-reglas dl { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
 
-    /* Columnas angostas (menos de ~300px): el primer lugar deja de ser una
-       línea de tres columnas, porque el nombre se partía en cuatro renglones
+    @container posiciones (min-width: 1280px) {
+        .tp-grupos { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        .tp-grupos > .tp-grupo:nth-child(n) { padding: 0 16px; border-top: 0; border-left: 1px solid #EDF1F1; }
+        .tp-grupos > .tp-grupo:first-child { padding-left: 0; border-left: 0; }
+        .tp-grupos > .tp-grupo:last-child { padding-right: 0; }
+        .tp-reglas dl { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    }
+
+    /* Columnas angostas (menos de ~380px): el primer lugar deja de ser una
+       línea de tres columnas, porque el nombre se partía en varios renglones
        y la cifra se le encimaba. Avatar y nombre arriba, la cifra abajo. */
-    @container posiciones (min-width: 760px) and (max-width: 1000px) {
+    @container posiciones (min-width: 640px) and (max-width: 819px),
+               posiciones (min-width: 1280px) and (max-width: 1559px) {
         .tp-lider {
             grid-template-columns: auto 1fr;
             grid-template-areas: "foto texto" "valor valor";
@@ -346,7 +412,7 @@
             padding: 9px 10px;
         }
         .tp-lider > .tp-avatar--grande { grid-area: foto; }
-        .tp-lider__texto { grid-area: texto; }
+        .tp-lider__texto { grid-area: texto; min-width: 0; }
         .tp-lider__valor {
             grid-area: valor;
             display: flex;
@@ -357,19 +423,18 @@
         }
         .tp-lider__valor small { margin-top: 0; }
         .tp-avatar--grande { width: 40px; height: 40px; }
-        .tp-avatar--grande .tp-iniciales { font-size: 14px; }
-        .tp-grupo { padding: 0 13px; }
+        .tp-avatar--grande .tp-iniciales { font-size: 13px; padding-bottom: 6px; }
+        .tp-avatar--grande .tp-medalla { right: -5px; bottom: -5px; min-width: 17px; height: 17px; font-size: 10px; line-height: 17px; }
         .tp-fila { gap: 7px; padding: 4px 8px; }
     }
 
-    /* Sin soporte de @container se decide por la pantalla. */
+    /* Sin soporte de @container se decide por la pantalla: 2×2. */
     @supports not (container-type: inline-size) {
         @media (min-width: 900px) {
-            .tp-grupos { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-            .tp-grupo { padding: 0 20px; }
-            .tp-grupo:first-child { padding-left: 0; }
-            .tp-grupo:last-child { padding-right: 0; }
-            .tp-grupo + .tp-grupo { margin-top: 0; padding-top: 0; border-top: 0; border-left: 1px solid #EDF1F1; }
+            .tp-grupos { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 18px; }
+            .tp-grupo + .tp-grupo { margin-top: 0; padding-top: 0; border-top: 0; }
+            .tp-grupo:nth-child(even) { padding-left: 18px; border-left: 1px solid #EDF1F1; }
+            .tp-grupo:nth-child(odd) { padding-right: 18px; }
         }
     }
 </style>
