@@ -99,7 +99,7 @@ class RecepcionController extends Controller
             // Catálogo de módulos: Administración → Módulos.
             $elegido = \App\Support\AsignadorModulos::elegir($sede, $tipoTramite, $fecha_asignada_str, $hora_turno);
             if (!$elegido) {
-                return redirect()->back()->withInput()->with('error', 'No se ha podido completar tu cita. No se ha encontrado auxiliar disponible.');
+                return redirect()->back()->withInput()->with('error', 'Ese horario se ocupó mientras llenabas el formulario: ya no hay auxiliar libre a esa hora. Vuelve a abrir los horarios y elige otro.');
             }
             $id_aux    = $elegido->user_id;
             $modulo    = $elegido->nombre;
@@ -885,6 +885,7 @@ class RecepcionController extends Controller
         // Aunque quede cupo en Horarios, la hora se bloquea si no hay ningún
         // módulo libre a quien asignar la cita (comida, pausa, persona inactiva
         // u ocupada con otra cita). Mismas reglas que AsignadorModulos::elegir.
+        // Esa hora sale como "Sin auxiliar" (gris), no como "Ocupado".
         // Las sedes sin módulo de excepción (Departamento) siguen como antes.
         $hayModuloLibre = (! $esExcepcion || $modulosExcepcion !== null)
             ? \App\Support\AsignadorModulos::disponibilidadEnRango(
@@ -907,12 +908,19 @@ class RecepcionController extends Controller
         $colores = [
             'ocupado' => '#DA0909', 'inhabil' => '#3B78DB',
             'expirado' => '#8a959e', 'disponible' => '#26c03a',
-            'turnos' => '#26c03a',
+            'turnos' => '#26c03a', 'sin_auxiliar' => '#8a959e',
         ];
         $titulos = [
             'ocupado' => 'Ocupado', 'inhabil' => 'Inhábil',
             'expirado' => 'No disponible', 'disponible' => 'Disponible',
+            'sin_auxiliar' => 'Sin auxiliar',
         ];
+        // Por qué no hay lugar, para que la ventanilla lo pueda decir (turnos._cita_scripts).
+        $motivoGeneral = match (true) {
+            $enPausa => 'pausa',
+            ! $esExcepcion && ! \App\Support\AsignadorModulos::hayQuienReciba(\App\Support\AsignadorModulos::deSede($sede, true), $tipo) => 'sin_modulo',
+            default => null,
+        };
 
         while ($fecha <= $fin) {
             if ((int) $fecha->format('N') < 6) { // Saltar fines de semana
@@ -936,10 +944,16 @@ class RecepcionController extends Controller
                     $tolerancia = Carbon::parse($slotStart)->addMinutes($minutosReserva);
                     $capacidad = $cupo($hora);
 
+                    $motivo = null;
                     if ($enPausa || $lleno || $esInhabil || $ahora > $tolerancia || $capacidad === 0) {
                         $estado = 'expirado';
-                    } elseif ($cantidadOcupados >= $capacidad || ! $hayModuloLibre($dia, $hora)) {
+                        $motivo = $motivoGeneral;
+                    } elseif ($cantidadOcupados >= $capacidad) {
                         $estado = 'ocupado';
+                    } elseif (! $hayModuloLibre($dia, $hora)) {
+                        // Hay cupo, pero ningún módulo puede recibirla: ocupados, en comida o inactivos.
+                        $estado = 'sin_auxiliar';
+                        $motivo = $motivoGeneral ?? 'ocupados';
                     } elseif ($cantidadOcupados > 0) {
                         $estado = 'turnos';
                     } else {
@@ -950,7 +964,7 @@ class RecepcionController extends Controller
                         'title' => $estado === 'turnos' ? 'Disponible' : $titulos[$estado],
                         'start' => $slotStart,
                         'color' => $colores[$estado],
-                        'extendedProps' => ['estado' => $estado],
+                        'extendedProps' => array_filter(['estado' => $estado, 'motivo' => $motivo]),
                     ];
                 }
             }

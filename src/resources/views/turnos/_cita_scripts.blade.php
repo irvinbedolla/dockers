@@ -95,6 +95,8 @@
             let porDia = {};            // 'YYYY-MM-DD' -> ['09:20', ...] (sólo libres)
             let diaActivo = null;
             let peticion = 0;           // descarta respuestas viejas si se navega rápido
+            let motivos = {};           // por qué no hubo lugar (motivo del servidor) en la búsqueda actual
+            let semanasBuscadas = 1;
 
             const ymd = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
             const lunesDe = d => { const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); const w = (x.getDay() + 6) % 7; x.setDate(x.getDate() - w); return x; };
@@ -120,6 +122,9 @@
                 for (let i = 0; i < 5; i++) dias[ymd(masDias(inicio, i))] = [];
                 eventos.forEach(function (e) {
                     const estado = e.extendedProps && e.extendedProps.estado;
+                    // Por qué no hay lugar (pausa, sin módulo, auxiliares ocupados): para el mensaje.
+                    const motivo = e.extendedProps && e.extendedProps.motivo;
+                    if (motivo) motivos[motivo] = (motivos[motivo] || 0) + 1;
                     if (estado !== 'disponible' && estado !== 'turnos') return;
                     const [f, h] = String(e.start).split('T');
                     if (dias[f]) dias[f].push(h.slice(0, 5));
@@ -171,9 +176,25 @@
                 if (activo && activo.scrollIntoView) activo.scrollIntoView({ block: 'nearest', inline: 'center' });
             }
 
+            // Sin horarios: la ventanilla ve el motivo para avisarle a la persona
+            // (y a quien administra los módulos); el formulario público, un aviso general.
+            function textoSinHorarios(semanas) {
+                const p = parametros();
+                const tramite = (document.querySelector('select[name="tipo"]').selectedOptions[0] || {}).textContent || p.tipo;
+                const periodo = semanas > 1 ? 'en las próximas ' + semanas + ' semanas' : 'esta semana';
+                @if ($ventanilla)
+                    if (motivos.sin_modulo) return 'Ningún módulo de ' + p.sede + ' recibe ' + tramite.trim() + ' (o sus auxiliares están inactivos). No se puede agendar hasta que se configure en Administración → Módulos.';
+                    if (motivos.pausa) return 'Los módulos de ' + p.sede + ' que reciben ' + tramite.trim() + ' están en pausa para ventanilla. No se puede agendar hasta que se quite la pausa en Administración → Módulos.';
+                    if (motivos.ocupados) return 'No hay auxiliar libre para ' + tramite.trim() + ' ' + periodo + ': los horarios con lugar coinciden con auxiliares ocupados o en su hora de comida. Avísale a la persona y prueba otra semana.';
+                    return 'No hay horarios libres ' + periodo + ' para ' + tramite.trim() + ' en ' + p.sede + '.';
+                @else
+                    return 'No hay horarios libres ' + periodo + '. Intenta con la semana siguiente o más tarde.';
+                @endif
+            }
+
             function pintarHoras() {
                 if (!diaActivo) {
-                    mensaje('bi-calendar-x', 'No hay horarios libres esta semana.', { texto: 'Ver la semana siguiente', fn: () => irA(masDias(lunes, 7)) });
+                    mensaje('bi-calendar-x', textoSinHorarios(semanasBuscadas), { texto: 'Ver la semana siguiente', fn: () => irA(masDias(lunes, 7)) });
                     return;
                 }
                 el.horas.textContent = '';
@@ -217,10 +238,13 @@
                 el.semana.textContent = 'Buscando horarios…';
                 mensaje('bi-hourglass-split', 'Buscando horarios disponibles…');
                 try {
+                    motivos = {};
+                    semanasBuscadas = 1;
                     let intentos = buscarHaciaAdelante ? SEMANAS_A_BUSCAR : 1;
                     let dias = await traerSemana(lunes);
                     while (--intentos > 0 && !Object.values(dias).some(h => h.length)) {
                         lunes = masDias(lunes, 7);
+                        semanasBuscadas++;
                         dias = await traerSemana(lunes);
                         if (mia !== peticion) return;
                     }

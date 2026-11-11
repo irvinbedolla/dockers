@@ -1,7 +1,8 @@
 {{--
     "¿Está lista la audiencia?": lo que el conciliador revisa antes de
     iniciar, con semáforo (App\Support\RevisionAudiencia::armar). Cada punto
-    lleva a la pestaña donde se ve o se corrige. Sólo lee.
+    lleva a la pestaña donde se ve o se corrige. Sólo lee. Abre cerrado: el
+    conciliador lo despliega con "Ver detalle" si lo necesita.
 --}}
 @php
     $rv = $revision;
@@ -14,7 +15,7 @@
     ];
     $objeto = $isAudiencia == 'Si' ? 'la audiencia' : 'la solicitud';
 @endphp
-<details class="ra-lista {{ $rv['lista'] ? 'is-lista' : '' }}" @if (! $rv['lista']) open @endif>
+<details class="ra-lista {{ $rv['lista'] ? 'is-lista' : '' }}">
     <summary>
         <span class="ra-lista__titulo">
             @if ($rv['lista'])
