@@ -531,6 +531,7 @@ class MiModuloController extends Controller
                 ...(FlujoCita::conSeguimiento() ? ['r.confirmada_at'] : []),
                 ...(FlujoCita::conTardias() ? ['r.llego_tarde'] : []),
                 ...(MotivoTermino::migrado() ? ['r.motivo_termino', 'r.motivo_termino_texto'] : []),
+                ...(\App\Support\CitaPatronal::migrado() ? ['r.poder_folio', 'r.citado'] : []),
                 'mu.nombre as municipio',
             ])
             ->map(function ($c) use ($ahora, $hoy, $aviso, $actualId, $sigueId) {
@@ -559,6 +560,9 @@ class MiModuloController extends Controller
                     'motivo'      => trim((string) ($c->conflicto ?: $c->observaciones)),
                     'caso'        => $c->tipo_caso,
                     'vulnerables' => $c->vulnerables,
+                    // Solicitud patronal (App\Support\CitaPatronal): folio de representante y a quién cita.
+                    'folioPatronal' => \App\Support\CitaPatronal::esPatronal($c) ? (string) $c->poder_folio : null,
+                    'citado'      => \App\Support\CitaPatronal::esPatronal($c) ? \App\Support\CitaPatronal::nombreCitado($c) : null,
                     'minutos'     => $minutos,
                     'porLlegar'   => $vigente && $minutos >= 0 && $minutos <= $aviso,
                     'esActual'    => $c->id === $actualId,

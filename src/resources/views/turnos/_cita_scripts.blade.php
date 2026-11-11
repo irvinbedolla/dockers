@@ -472,26 +472,135 @@
         var folio  = document.getElementById('folio_patronal');
         var cajaCalidad = document.getElementById('calidad');
         var cajaFolio   = document.getElementById('si_ratificacion');
+        var ayudaFolio  = document.getElementById('ayuda_folio_patronal');
         if (!tipo || !puesto || !folio) return;
 
+        // A dónde se manda al empleador según el trámite y su respuesta sobre el folio
+        // (si la respuesta no aparece, se queda en este formulario).
+        //  - Ratificación + ya tiene folio  -> formulario externo de ratificación.
+        //  - Solicitud    + no tiene folio  -> registro de representante patronal.
+        //  - Solicitud    + ya tiene folio  -> se queda: el formulario cambia a
+        //    solicitud patronal (folio + persona a citar; App\Support\CitaPatronal).
+        var destinos = {
+            'Ratificación': { si: @json(route('create_cita', ['origen' => 'externo'])) },
+            'Solicitud':    { no: @json(route('poder-crear')) }
+        };
+        var ayudas = {
+            'Ratificación': {{ Js::from($ventanilla ? 'Si ya tiene folio, se abrirá el formulario para ratificar con él.' : 'Si ya tienes folio, te llevaremos al formulario para ratificar con él.') }},
+            'Solicitud':    {{ Js::from($ventanilla ? 'Si ya tiene folio, se captura en el paso 2. Si no, se abrirá el registro de representante patronal.' : 'Si ya tienes folio, lo escribirás en el paso 2. Si no, te llevaremos a registrarte como representante patronal.') }}
+        };
+
+        // Solicitud patronal: bloques que aparecen y campos del trabajador que se ocultan.
+        var bloqueFolio    = document.getElementById('gcPatronalFolio');
+        var bloqueCitado   = document.getElementById('gcPatronalCitado');
+        var camposTrab     = document.getElementById('gcCamposTrabajador');
+        var poderFolio     = document.getElementById('gcPoderFolio');
+        var poderInfo      = document.getElementById('gcPoderInfo');
+        var poderError     = document.getElementById('gcPoderFolioError');
+        var nombre         = document.getElementById('gcNombre');
+        var URL_FOLIO      = @json(url('/validar_folio_abogado'));
+        var nombrePuesto   = '';   // el nombre que se puso solo desde el folio
+        var espera = null, consulta = 0;
+
+        function habilitar(caja, si) {
+            if (!caja) return;
+            caja.querySelectorAll('input, select, textarea').forEach(function (el) { el.disabled = !si; });
+        }
+
+        function esc(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+
+        function infoFolio(clase, html) {
+            poderInfo.hidden = !html;
+            poderInfo.className = 'gc-poder' + (clase ? ' gc-poder--' + clase : '');
+            poderInfo.innerHTML = html || '';
+        }
+
+        // Mismo servicio que "Datos del Solicitante Patronal": sólo un folio elegible deja continuar.
+        function validarFolio() {
+            clearTimeout(espera);
+            var valor = poderFolio.value.trim();
+            if (!valor) {
+                poderFolio.setCustomValidity('Escribe tu folio de representante patronal.');
+                poderError.textContent = 'Escribe el folio.';
+                infoFolio('', '');
+                return;
+            }
+            poderFolio.setCustomValidity('Validando el folio…');
+            poderError.textContent = 'Validando el folio…';
+            infoFolio('', '<span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span> Buscando el folio…');
+            var esta = ++consulta;
+            espera = setTimeout(function () {
+                fetch(URL_FOLIO + '/' + encodeURIComponent(valor), { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+                    .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+                    .then(function (d) {
+                        if (esta !== consulta) return;
+                        if (!d || d.success === false) { return Promise.reject(404); }
+                        var rep = [d.nombre_representante, d.primer_apellido_representante, d.segundo_apellido_representante].filter(Boolean).join(' ').trim();
+                        var ok = d.status === 'elegible';
+                        var msg = ok ? '' : (d.message || 'El folio no es elegible.');
+                        poderFolio.setCustomValidity(msg);
+                        poderError.textContent = msg || 'Escribe un folio válido.';
+                        infoFolio(ok ? 'ok' : 'error',
+                            '<b>' + esc(d.nombre || '') + '</b>' +
+                            (rep ? '<br>Representante: ' + esc(rep) : '') +
+                            '<br>' + (ok ? '<i class="bi bi-check-circle-fill"></i> Folio elegible' : '<i class="bi bi-exclamation-triangle-fill"></i> ' + esc(msg)));
+                        // Quien acude: el representante (o la parte patronal), si no lo habían escrito.
+                        var sugerido = (rep || d.nombre || '').toUpperCase();
+                        if (ok && nombre && sugerido && (!nombre.value || nombre.value === nombrePuesto)) {
+                            nombre.value = nombrePuesto = sugerido;
+                            nombre.dispatchEvent(new Event('input', { bubbles: true }));
+                        }
+                        if (window.gcActualizarPasos) window.gcActualizarPasos();
+                    })
+                    .catch(function (e) {
+                        if (esta !== consulta) return;
+                        var msg = e === 404 ? 'El folio no existe. Revisa el número.' : 'No se pudo validar el folio. Inténtalo de nuevo.';
+                        poderFolio.setCustomValidity(msg);
+                        poderError.textContent = msg;
+                        infoFolio('error', '<i class="bi bi-exclamation-triangle-fill"></i> ' + esc(msg));
+                        if (window.gcActualizarPasos) window.gcActualizarPasos();
+                    });
+            }, 450);
+        }
+
+        function pintarPatronal(activo) {
+            if (bloqueFolio) bloqueFolio.hidden = !activo;
+            if (bloqueCitado) bloqueCitado.hidden = !activo;
+            if (camposTrab) camposTrab.style.display = activo ? 'none' : 'contents';
+            habilitar(bloqueFolio, activo);
+            habilitar(bloqueCitado, activo);
+            habilitar(camposTrab, !activo);
+            if (activo && poderFolio) validarFolio();
+            if (window.gcActualizarPasos) window.gcActualizarPasos();
+        }
+
         function pintar() {
-            var esRatificacion = tipo.value === 'Ratificación';
-            if (!esRatificacion) puesto.value = '';
-            var esEmpleador = esRatificacion && puesto.value === 'empleador';
+            var conTramite = destinos.hasOwnProperty(tipo.value);
+            if (!conTramite) puesto.value = '';
+            var esEmpleador = conTramite && puesto.value === 'empleador';
             if (!esEmpleador) folio.value = '';
-            cajaCalidad.style.display = esRatificacion ? '' : 'none';
+            cajaCalidad.style.display = conTramite ? '' : 'none';
             cajaFolio.style.display = esEmpleador ? '' : 'none';
+            if (ayudaFolio && conTramite) ayudaFolio.textContent = ayudas[tipo.value];
+            pintarPatronal(tipo.value === 'Solicitud' && esEmpleador && folio.value === 'si');
         }
 
         tipo.addEventListener('change', pintar);
         puesto.addEventListener('change', pintar);
         folio.addEventListener('change', function () {
-            if (folio.value === 'si') {
-                window.location.href = @json(route('create_cita', ['origen' => 'externo']));
-            }
+            var destino = destinos[tipo.value] && destinos[tipo.value][folio.value];
+            if (destino) { window.location.href = destino; return; }
+            pintar();
         });
+        if (poderFolio) poderFolio.addEventListener('input', validarFolio);
 
-        // Por si el trámite ya viene elegido (?tipo=Ratificación o un solo trámite).
+        // Si el servidor regresó el formulario (p. ej. horario ocupado), vuelve a la solicitud patronal.
+        if (tipo.value === 'Solicitud' && @json((bool) old('poder_folio'))) {
+            puesto.value = 'empleador';
+            folio.value = 'si';
+        }
+
+        // Por si el trámite ya viene elegido (?tipo=... o un solo trámite).
         pintar();
     })();
     </script>

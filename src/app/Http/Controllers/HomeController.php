@@ -250,8 +250,11 @@ class HomeController extends Controller
             return back()->withInput()->with('error', 'Es necesario seleccionar la fecha y el horario del turno en el calendario.');
         }
         
-        // CURP y domicilio del flujo nuevo (sólo si el formulario los pidió).
-        [$camposFlujo, $errorFlujo] = \App\Support\FlujoCita::camposDeCita($request);
+        // CURP y domicilio del flujo nuevo (sólo si el formulario los pidió); en una
+        // solicitud patronal, el folio de representante y la persona a citar.
+        [$camposFlujo, $errorFlujo] = \App\Support\CitaPatronal::aplica($request)
+            ? \App\Support\CitaPatronal::camposDeCita($request)
+            : \App\Support\FlujoCita::camposDeCita($request);
         if ($errorFlujo) {
             return back()->withInput()->with('error', $errorFlujo);
         }
@@ -390,7 +393,14 @@ class HomeController extends Controller
             return redirect()->route('citas')->with('errorr', 'No se ha podido completar tu cita.'); 
         }
 
-        return view('turnos_exito');
+        // Solicitud patronal (empleador con folio): la misma lista de "qué llevar"
+        // que el correo, que agrega domicilio y datos laborales de la persona citada.
+        $cita = session('id') ? \App\Models\Recepcion::find(session('id')) : null;
+        $queLlevarPatronal = $cita && $cita->tipo === 'Solicitud' && \App\Support\CitaPatronal::esPatronal($cita)
+            ? \App\Support\CitaCorreo::queLlevar($cita)
+            : null;
+
+        return view('turnos_exito', compact('queLlevarPatronal'));
     }
 
     // password_cambiar() y contraseña_update() vivían aquí. Los reemplaza

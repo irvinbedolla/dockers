@@ -1,7 +1,7 @@
 @extends('layouts.app')
 @section('title', 'Solicitud')
 
-{{-- Datos generales de la solicitud patronal individual (sin prellenado: la cita es de la persona trabajadora). --}}
+{{-- Datos generales de la solicitud patronal individual (con prellenado si la cita es patronal: App\Support\CitaPatronal). --}}
 
 @section('page_css')
     @include('solicitudes.auxiliares._estilos')
@@ -12,7 +12,7 @@
         <div class="section-body sa">
             @include('solicitudes.auxiliares._inicio_formulario', [
                 'accion'     => route('agregaSolicitanteAP'),
-                'prellenado' => null,
+                'prellenado' => \App\Support\PrellenadoCita::paraVista('patronal'),
             ])
         </div>
     </section>

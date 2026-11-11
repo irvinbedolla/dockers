@@ -403,11 +403,18 @@
         <section class="cx-tarjeta">
             <h2 class="cx-subtitulo"><i class="bi bi-card-checklist" aria-hidden="true"></i> Qué llevar</h2>
             <ul class="cx-lista">
+            @if (! empty($queLlevarPatronal))
+                {{-- Solicitud patronal con folio: misma lista que el correo (CitaCorreo::queLlevar). --}}
+                @foreach ($queLlevarPatronal as $punto)
+                    <li><i class="bi bi-check2-circle" aria-hidden="true"></i><span>{!! $punto !!}</span></li>
+                @endforeach
+            @else
                 <li><i class="bi bi-check2-circle" aria-hidden="true"></i><span><strong>Identificación oficial vigente</strong> (INE, pasaporte o cédula profesional).</span></li>
                 <li><i class="bi bi-check2-circle" aria-hidden="true"></i><span>Tu nombre, <strong>CURP</strong> y domicilio dentro de la región de esta oficina.</span></li>
                 <li><i class="bi bi-check2-circle" aria-hidden="true"></i><span>Nombre de la persona, empresa o sindicato al que se va a citar.</span></li>
                 <li><i class="bi bi-check2-circle" aria-hidden="true"></i><span>Su <strong>domicilio completo</strong> para poder notificarle.</span></li>
                 <li><i class="bi bi-check2-circle" aria-hidden="true"></i><span>El motivo de tu cita (qué pasó y qué solicitas).</span></li>
+            @endif
             </ul>
 
             <details class="cx-detalle">

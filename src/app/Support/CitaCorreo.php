@@ -38,6 +38,15 @@ class CitaCorreo
             'Su <strong>domicilio completo</strong> para poder notificarle.',
             'El motivo de tu cita: qué pasó y qué solicitas.',
         ],
+        // Solicitud patronal individual (App\Support\CitaPatronal): los datos del
+        // solicitante salen del folio; en la cita se captura a la persona citada.
+        'Solicitud patronal' => [
+            '<strong>Identificación oficial vigente</strong> (INE, pasaporte o cédula profesional) de quien acude.',
+            'Tu <strong>folio de representante patronal</strong>.',
+            '<strong>Domicilio completo de la persona trabajadora a citar</strong> (calle, número, colonia, código postal, municipio y estado) para poder notificarle.',
+            '<strong>Datos laborales de la persona citada</strong>: puesto, salario y periodo de pago, horario o jornada, horas por semana, fecha de ingreso y, en su caso, fecha de salida.',
+            'El motivo de tu solicitud: qué pasó y qué solicitas.',
+        ],
         'Ratificación' => [
             '<strong>Identificación oficial vigente</strong> (INE, pasaporte o cédula profesional).',
             'Tu <strong>CURP</strong>.',
@@ -50,6 +59,15 @@ class CitaCorreo
             'Fechas importantes anotadas: cuándo entraste, cuándo saliste y qué pasó.',
         ],
     ];
+
+    /** Qué llevar según el trámite (lo usan los correos y la página de cita agendada). */
+    public static function queLlevar(Recepcion $cita): array
+    {
+        $tipo = (string) $cita->tipo;
+        $clave = $tipo === 'Solicitud' && CitaPatronal::esPatronal($cita) ? 'Solicitud patronal' : $tipo;
+
+        return self::QUE_LLEVAR[$clave] ?? self::QUE_LLEVAR['Solicitud'];
+    }
 
     public static function datos(Recepcion $cita): array
     {
@@ -83,7 +101,7 @@ class CitaCorreo
                 'location' => $legible,
                 'details'  => $modulo.'. Lleva tu identificación oficial y tu acuse con código QR. Tolerancia: 5 minutos.',
             ], '', '&', PHP_QUERY_RFC3986),
-            'queLlevar'   => self::QUE_LLEVAR[$tipo] ?? self::QUE_LLEVAR['Solicitud'],
+            'queLlevar'   => self::queLlevar($cita),
             'excepcion'   => $cita->exepcion === 'Si',
             // El mismo enlace que lleva el QR del acuse (lo lee el escáner de recepción).
             'qrUrl'       => $cita->id ? route('citas.confirmar', $cita->id) : null,

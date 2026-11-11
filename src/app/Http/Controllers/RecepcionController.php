@@ -43,8 +43,11 @@ class RecepcionController extends Controller
             return redirect()->back()->with('error', 'Es necesario seleccionar la fecha y el horario del turno en el calendario.');
         }
 
-        // CURP y domicilio del flujo nuevo (sólo si el formulario los pidió).
-        [$camposFlujo, $errorFlujo] = \App\Support\FlujoCita::camposDeCita($request);
+        // CURP y domicilio del flujo nuevo (sólo si el formulario los pidió); en una
+        // solicitud patronal, el folio de representante y la persona a citar.
+        [$camposFlujo, $errorFlujo] = \App\Support\CitaPatronal::aplica($request)
+            ? \App\Support\CitaPatronal::camposDeCita($request)
+            : \App\Support\FlujoCita::camposDeCita($request);
         if ($errorFlujo) {
             return back()->withInput()->with('error', $errorFlujo);
         }
