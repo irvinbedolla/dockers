@@ -17,7 +17,13 @@ use Illuminate\Support\Str;
  *                   liquidados porque el pago va rezagado y premiaría
  *                   convenios de meses anteriores.
  *   auxiliares    → solicitudes registradas (seer_general.user_id, que es
- *                   quien capturó la solicitud).
+ *                   quien capturó la solicitud) MÁS ratificaciones hechas
+ *                   (turnos tipo Ratificación con fecha en el mes y user_id
+ *                   de quien la capturó; se cuentan las Confirmadas,
+ *                   Concluidas, Concluidas Pagos e Incumplimiento, no las
+ *                   archivadas). Muchos auxiliares viven de ratificar: medirlos
+ *                   sólo por solicitudes los dejaba abajo. El lugar sale de la
+ *                   suma y la tarjeta muestra el desglose.
  *   orientadores  → lo mismo que los auxiliares: en la práctica son quienes
  *                   capturan la solicitud tras orientar a la persona. Las
  *                   asesorías (seer_asesorias) casi no se registran y no
@@ -44,6 +50,9 @@ class TablaPosiciones
     /** Cuántos se ven antes del botón "Ver todos", contando al primer lugar. */
     public const VISIBLES = 5;
 
+    /** Ratificaciones que cuentan como hechas (no las archivadas ni pendientes). */
+    private const RATIFICACION_HECHA = ['Confirmado', 'Concluida', 'Concluida Pagos', 'Incumplimiento'];
+
     /** Son datos del mes en curso: se mueven durante el día. */
     private const MINUTOS_CACHE = 15;
 
@@ -57,7 +66,7 @@ class TablaPosiciones
         $inicio = Carbon::now()->startOfMonth();
 
         return Cache::remember(
-            'inicio.tabla_posiciones.v3.'.$inicio->format('Y-m'),
+            'inicio.tabla_posiciones.v4.'.$inicio->format('Y-m'),
             now()->addMinutes(self::MINUTOS_CACHE),
             fn () => self::calcular($inicio)
         );
@@ -65,7 +74,7 @@ class TablaPosiciones
 
     public static function olvidar(): void
     {
-        Cache::forget('inicio.tabla_posiciones.v3.'.Carbon::now()->format('Y-m'));
+        Cache::forget('inicio.tabla_posiciones.v4.'.Carbon::now()->format('Y-m'));
     }
 
     private static function calcular(Carbon $inicio): array
@@ -83,7 +92,7 @@ class TablaPosiciones
             [
                 'clave'   => 'auxiliares',
                 'titulo'  => 'Auxiliares',
-                'unidad'  => 'solicitudes',
+                'unidad'  => 'trámites',
                 'gente'   => self::ordenar(self::auxiliares($desde, $hasta)),
             ],
             [
@@ -144,12 +153,17 @@ class TablaPosiciones
         // con rol Auxiliar y sin rol Orientador. Así aparecen todos, aunque
         // lleven 0 en el mes, y no se cuelan cuentas genéricas ni gente de
         // otras áreas que capturó una solicitud suelta.
+        // valor = solicitudes + ratificaciones; las dos van aparte para el desglose.
+        $hechas = implode(', ', array_fill(0, count(self::RATIFICACION_HECHA), '?'));
+
         return DB::select("
             SELECT u.id,
                    u.name,
                    u.delegacion,
                    u.foto_perfil,
-                   COALESCE(s.valor, 0) AS valor,
+                   COALESCE(s.valor, 0) + COALESCE(r.valor, 0) AS valor,
+                   COALESCE(s.valor, 0) AS solicitudes,
+                   COALESCE(r.valor, 0) AS ratificaciones,
                    NULL                 AS resueltas
               FROM users u
               LEFT JOIN (
@@ -158,6 +172,14 @@ class TablaPosiciones
                      WHERE g.fecha >= ? AND g.fecha < ?
                      GROUP BY g.user_id
                    ) s ON s.user_id = u.id
+              LEFT JOIN (
+                    SELECT t.user_id, COUNT(*) AS valor
+                      FROM turnos t
+                     WHERE t.fecha >= ? AND t.fecha < ?
+                       AND t.tipo = 'Ratificación'
+                       AND t.estatus IN ($hechas)
+                     GROUP BY t.user_id
+                   ) r ON r.user_id = u.id
              WHERE u.estatus = 'Activo'
                AND u.email NOT LIKE '%temporal%'
                AND u.name  NOT LIKE '%temporal%'
@@ -174,7 +196,7 @@ class TablaPosiciones
                       JOIN roles r ON r.id = mr.role_id
                      WHERE mr.model_id = u.id AND mr.model_type = ? AND r.name = 'Orientador'
                    )
-        ", [$desde, $hasta, \App\Models\User::class, \App\Models\User::class]);
+        ", [$desde, $hasta, $desde, $hasta, ...self::RATIFICACION_HECHA, \App\Models\User::class, \App\Models\User::class]);
     }
 
     private static function orientadores(string $desde, string $hasta): array
@@ -226,6 +248,7 @@ class TablaPosiciones
                 'foto'      => null,
                 'valor'     => 0,
                 'resueltas' => 0,
+                'desglose'  => null,
                 'mayor'     => -1,
             ];
 
@@ -233,6 +256,13 @@ class TablaPosiciones
 
             $actual['valor']     += (int) $fila->valor;
             $actual['resueltas'] += (int) $fila->resueltas;
+
+            // Auxiliares: solicitudes y ratificaciones por separado.
+            if (isset($fila->ratificaciones)) {
+                $actual['desglose'] ??= ['solicitudes' => 0, 'ratificaciones' => 0];
+                $actual['desglose']['solicitudes']    += (int) $fila->solicitudes;
+                $actual['desglose']['ratificaciones'] += (int) $fila->ratificaciones;
+            }
 
             // De las cuentas duplicadas nos quedamos con la foto de la que
             // tenga; si ninguna tiene, con los datos de la más activa.

@@ -8,6 +8,9 @@
     primer lugar en grande -foto, sede y el dato que lo puso ahí- y sigue con
     los demás en renglones compactos.
 
+    Los auxiliares se miden por trámites: solicitudes más ratificaciones,
+    con el desglose a la vista (la ratificación es su fuerte).
+
     Aquí no hay barras. Son escalas que no se comparan entre sí -convenios
     contra solicitudes- y el número es el dato; una barra sólo invitaría a
     medir a un conciliador contra un auxiliar, que no significa nada.
@@ -63,6 +66,12 @@
                                 @if ($grupo['clave'] === 'conciliadores' && $lider['resueltas'] > 0)
                                     · {{ number_format($lider['valor']) }} de {{ number_format($lider['resueltas']) }} resueltas
                                 @endif
+                                @if ($lider['desglose'])
+                                    <span class="tp-desglose">
+                                        {{ number_format($lider['desglose']['solicitudes']) }} {{ $lider['desglose']['solicitudes'] === 1 ? 'solicitud' : 'solicitudes' }}
+                                        · {{ number_format($lider['desglose']['ratificaciones']) }} {{ $lider['desglose']['ratificaciones'] === 1 ? 'ratificación' : 'ratificaciones' }}
+                                    </span>
+                                @endif
                             </span>
                         </span>
 
@@ -78,7 +87,7 @@
                             @foreach ($resto as $persona)
                                 <li class="tp-fila {{ $loop->index >= $visibles ? 'tp-fila--extra' : '' }} {{ $persona['valor'] === 0 ? 'tp-fila--cero' : '' }}"
                                     @if ($loop->index >= $visibles) hidden @endif
-                                    title="{{ $persona['nombre'] }} · {{ $persona['sede'] }} · {{ number_format($persona['valor']) }} {{ $grupo['unidad'] }}">
+                                    title="{{ $persona['nombre'] }} · {{ $persona['sede'] }} · {{ number_format($persona['valor']) }} {{ $grupo['unidad'] }}@if ($persona['desglose']) ({{ number_format($persona['desglose']['solicitudes']) }} solicitudes, {{ number_format($persona['desglose']['ratificaciones']) }} ratificaciones)@endif">
                                     <span class="tp-puesto">{{ $persona['puesto'] }}</span>
                                     <span class="tp-avatar">
                                         @if ($persona['foto'])
@@ -87,7 +96,7 @@
                                             <span class="tp-iniciales">{{ $persona['iniciales'] }}</span>
                                         @endif
                                     </span>
-                                    <span class="tp-nombre">{{ $persona['nombre'] }}</span>
+                                    <span class="tp-nombre">{{ $persona['nombre'] }}@if ($persona['desglose'])<small class="tp-desglose">{{ number_format($persona['desglose']['solicitudes']) }} sol. · {{ number_format($persona['desglose']['ratificaciones']) }} rat.</small>@endif</span>
                                     <span class="tp-valor">{{ number_format($persona['valor']) }}</span>
                                 </li>
                             @endforeach
@@ -269,6 +278,18 @@
         min-width: 28px;
         text-align: right;
     }
+
+    /* Auxiliares: solicitudes · ratificaciones, debajo del nombre. */
+    .tp-desglose {
+        display: block;
+        font-size: 10.5px;
+        color: #8A9899;
+        font-variant-numeric: tabular-nums;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .tp-lider__pie .tp-desglose { font-size: 11px; color: #5E6E6F; margin-top: 1px; }
 
     .tp-vacio { font-size: 12.5px; color: #8A9899; margin: 0; }
 
