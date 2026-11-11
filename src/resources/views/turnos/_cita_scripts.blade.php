@@ -519,3 +519,56 @@
         pintar();
     })();
     </script>
+    @if ($ventanilla && session()->hasOldInput())
+    {{-- Ventanilla: si al guardar salió un error (RecepcionController@turnos_guardar
+         regresa con withInput), se vuelve a poner lo capturado para no perderlo.
+         Se disparan los mismos eventos que al capturar a mano, para que se llenen
+         la sede, el caso de excepción y el avance. El día y la hora no se
+         restauran: hay que volver a elegirlos en el calendario. --}}
+    @php
+        $capturaAnterior = collect(session()->getOldInput())->only([
+            'tipo', 'municipio_solicitante', 'nombre', 'edad', 'sexo', 'correo',
+            'telefono', 'vulnerables', 'tipo_caso', 'motivo_excepcion', 'conflicto',
+        ]);
+    @endphp
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        'use strict';
+        var anterior = @json($capturaAnterior);
+
+        function poner(id, valor, evento) {
+            var campo = document.getElementById(id);
+            if (!campo || valor === undefined || valor === null || valor === '') { return; }
+            campo.value = Array.isArray(valor) ? valor[0] : valor;
+            campo.dispatchEvent(new Event(evento || 'input', { bubbles: true }));
+        }
+
+        poner('tipo', anterior.tipo, 'change');
+        poner('municipio_citado', anterior.municipio_solicitante, 'change');
+        poner('gcNombre', anterior.nombre);
+        poner('gcEdad', anterior.edad);
+        poner('gcSexo', anterior.sexo, 'change');
+        poner('gcCorreo', anterior.correo);
+        poner('gcCorreo2', anterior.correo);
+        poner('gcTelefono', anterior.telefono);
+        poner('gcVulnerables', anterior.vulnerables, 'change');
+        poner('gcConflicto', anterior.conflicto);
+
+        // Tipo de caso: varias opciones comparten value; se elige la del motivo exacto.
+        var tipoCaso = document.getElementById('gcTipoCaso');
+        if (tipoCaso && anterior.tipo_caso) {
+            var opcion = anterior.motivo_excepcion
+                ? tipoCaso.querySelector('option[data-motivo="' + CSS.escape(anterior.motivo_excepcion) + '"]')
+                : null;
+            if (opcion) { opcion.selected = true; } else { tipoCaso.value = anterior.tipo_caso; }
+            tipoCaso.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+
+        var resumen = document.getElementById('resumenTurno');
+        resumen.className = 'gc-aviso-cambio';
+        resumen.textContent = 'Se conservaron los datos capturados. Vuelve a elegir día y hora.';
+        resumen.style.display = 'block';
+        if (window.gcActualizarPasos) { window.gcActualizarPasos(); }
+    });
+    </script>
+    @endif

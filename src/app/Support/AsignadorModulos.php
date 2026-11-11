@@ -139,53 +139,68 @@ class AsignadorModulos
     }
 
     /**
-     * Para el calendario de horarios: cuántos módulos podrían recibir la cita
-     * en cada horario, con la MISMA regla que elegir() (activo, con persona
-     * activa, que reciba el trámite de primera mano o de respaldo, que no esté
-     * en pausa para ese canal, que no esté en su comida y que ni el módulo ni
-     * su persona tengan ya otra cita a esa hora). Así el calendario no ofrece
-     * un horario en el que al guardar saldría "No se ha encontrado auxiliar".
+     * Para el calendario: lo mismo que elegir() !== null, pero para todo un
+     * rango de fechas con una sola consulta. Devuelve una función
+     * (fecha 'Y-m-d', hora 'H:i:s') => bool que dice si a esa hora hay al
+     * menos un módulo que podría recibir la cita (activo, con persona activa,
+     * sin pausa para el canal, que reciba el trámite o lo tenga de respaldo,
+     * fuera de su comida y sin otra cita a esa hora, ni el módulo ni su
+     * persona). Así no se ofrece un horario en el que luego saldría
+     * "No se ha encontrado auxiliar disponible".
      *
-     * Una sola consulta para todo el rango. Devuelve
-     * ['libres' => fn (string $fecha, string $hora): int, 'hayQuienReciba' => bool].
+     * $reasignacion y $excepto: como en elegir(), para la reagenda (sólo
+     * módulos que aceptan citas movidas a esa fecha, sin contar la cita que
+     * se está moviendo).
      */
-    public static function libresPorHorario(string $sede, string $tramite, string $desde, string $hasta, bool $enLinea = false, bool $reasignacion = false): array
+    public static function disponibilidadEnRango(string $sede, string $tramite, string $desde, string $hasta, bool $enLinea = false, bool $reasignacion = false, ?int $excepto = null): \Closure
     {
+        // Hay citas guardadas sin acento ("Lazaro Cardenas", "Asesoria"); los módulos usan los nombres del catálogo.
+        $sede    = CitasCancelacion::sede($sede);
+        $tramite = CitasCancelacion::tramite($tramite) ?? $tramite;
         $canal = $enLinea ? 'linea' : 'ventanilla';
+        $duracionExc = $tramite === self::TRAMITE_EXCEPCION ? (int) HorarioCitas::config($sede, null, true)->duracion : null;
         $modulos = self::deSede($sede, true)
-            ->filter(fn (Modulo $m) => self::atendible($m))
-            ->filter(fn (Modulo $m) => $m->recibe($tramite) || $m->recibeDeRespaldo($tramite))
+            ->filter(fn (Modulo $m) => self::atendible($m)
+                && $m->recibePor($canal)
+                && ($m->recibe($tramite) || $m->recibeDeRespaldo($tramite)))
             ->values();
-        $hayQuienReciba = $modulos->isNotEmpty();
-        $modulos = $modulos->filter(fn (Modulo $m) => $m->recibePor($canal))->values();
 
         if ($modulos->isEmpty()) {
-            return ['libres' => fn () => 0, 'hayQuienReciba' => $hayQuienReciba];
+            return fn (string $fecha, string $hora): bool => false;
         }
 
-        // Citas que ocupan a esos módulos o a sus personas, como choque().
-        $ocupado = [];
-        DB::table('recepcion')
+        // Las citas de esos módulos o de sus personas en el rango (las mismas que mira choque()).
+        $personas = $modulos->pluck('user_id')->filter()->unique()->values()->all();
+        $porHorario = DB::table('recepcion')
             ->whereBetween('fecha', [$desde, $hasta])
             ->whereNotIn('estatus', ['expirada', 'cancelada'])
-            ->where(fn ($q) => $q->whereIn('modulo_id', $modulos->pluck('id'))->orWhereIn('auxiliar', $modulos->pluck('user_id')))
-            ->get(['fecha', 'hora', 'modulo_id', 'auxiliar'])
-            ->each(function ($c) use (&$ocupado) {
-                $clave = substr((string) $c->fecha, 0, 10).'|'.substr((string) $c->hora, 0, 5);
-                $ocupado[$clave]['m'][(int) $c->modulo_id] = true;
-                $ocupado[$clave]['u'][(int) $c->auxiliar] = true;
-            });
+            ->when($excepto, fn ($q) => $q->where('id', '<>', $excepto))
+            ->where(fn ($q) => $q->whereIn('modulo_id', $modulos->pluck('id')->all())
+                ->when($personas, fn ($w) => $w->orWhereIn('auxiliar', $personas)))
+            ->get(['fecha', 'hora', 'modulo_id', 'auxiliar', 'exepcion'])
+            ->groupBy(fn ($c) => substr((string) $c->fecha, 0, 10).'T'.HorarioCitas::normalizarHora((string) $c->hora));
 
-        $libres = function (string $fecha, string $hora) use ($modulos, $ocupado, $reasignacion): int {
-            $clave = $fecha.'|'.substr($hora, 0, 5);
+        return function (string $fecha, string $hora) use ($modulos, $porHorario, $duracionExc, $reasignacion): bool {
+            $hora  = HorarioCitas::normalizarHora($hora);
+            $citas = $porHorario->get($fecha.'T'.$hora, collect());
 
-            return $modulos->filter(fn (Modulo $m) => ! $m->enComida($hora)
-                && ! isset($ocupado[$clave]['m'][$m->id])
-                && ! isset($ocupado[$clave]['u'][(int) $m->user_id])
-                && (! $reasignacion || $m->aceptaReasignacion($fecha)))->count();
+            return $modulos->contains(fn (Modulo $m) => (! $reasignacion || $m->aceptaReasignacion($fecha))
+                && ! $m->enComida($hora, $duracionExc)
+                && ! $citas->contains(fn ($c) => self::citaOcupa($m, $c)));
         };
+    }
 
-        return ['libres' => $libres, 'hayQuienReciba' => $hayQuienReciba];
+    /** La misma regla que choque(), para una cita ya leída. */
+    private static function citaOcupa(Modulo $modulo, object $cita): bool
+    {
+        $deModulo  = $cita->modulo_id !== null && (int) $cita->modulo_id === (int) $modulo->id;
+        $dePersona = $modulo->user_id && $cita->auxiliar !== null && (int) $cita->auxiliar === (int) $modulo->user_id;
+
+        if ($modulo->esDeExcepcion()) {
+            return ($deModulo && $cita->exepcion === 'Si') || ($dePersona && ! $deModulo);
+        }
+
+        return $deModulo || $dePersona;
     }
 
     /**
