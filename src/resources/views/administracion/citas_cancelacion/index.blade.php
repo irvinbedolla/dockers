@@ -431,7 +431,9 @@
         const nodo = (tag, clase, texto) => { const n = document.createElement(tag); if (clase) n.className = clase; if (texto != null) n.textContent = texto; return n; };
 
         async function traerSemana(inicio) {
-            const q = new URLSearchParams({ sede: cita.sede, tipo: cita.tipo, excepcion: cita.excepcion, start: ymd(inicio), end: ymd(masDias(inicio, 4)) });
+            // reasignacion/excepto: sólo horarios con un módulo libre que acepte citas movidas
+            // (sin contar esta cita), igual que al guardar (CancelacionCitasController@reagendar).
+            const q = new URLSearchParams({ sede: cita.sede, tipo: cita.tipo, excepcion: cita.excepcion, reasignacion: 1, excepto: cita.id || '', start: ymd(inicio), end: ymd(masDias(inicio, 4)) });
             const r = await fetch(URL_HORARIOS + '?' + q.toString(), { headers: { Accept: 'application/json' } });
             if (!r.ok) throw new Error('HTTP ' + r.status);
             const dias = {};
@@ -593,7 +595,7 @@
 
         modal.addEventListener('show.bs.modal', function (e) {
             const b = e.relatedTarget.dataset;
-            cita = { sede: b.sede, tipo: b.tipo, excepcion: b.excepcion, fecha: b.fecha, hora: b.hora };
+            cita = { id: b.id, sede: b.sede, tipo: b.tipo, excepcion: b.excepcion, fecha: b.fecha, hora: b.hora };
             original = { sede: b.sedeCatalogo || b.sede, tipo: b.tramite || b.tipo, sedeGuardada: b.sede, tipoGuardado: b.tipo,
                          excepcion: b.excepcion, fecha: b.fecha, hora: b.hora };
             if (el.sedeNueva) {
