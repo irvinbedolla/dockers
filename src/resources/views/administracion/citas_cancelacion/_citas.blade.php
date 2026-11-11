@@ -83,6 +83,7 @@
                             <button type="button" class="btn btn-sm btn-outline-primary"
                                     data-bs-toggle="modal" data-bs-target="#modalReagendar"
                                     data-folio="{{ $cita->folio_cita }}"
+                                    data-id="{{ $cita->id }}"
                                     data-accion="{{ route('citas_cancelacion.reagendar', $cita->id) }}"
                                     data-sede="{{ $cita->delegacion }}"
                                     data-tipo="{{ $cita->tipo }}"
