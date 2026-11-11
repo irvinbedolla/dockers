@@ -99,7 +99,7 @@ class RecepcionController extends Controller
             // Catálogo de módulos: Administración → Módulos.
             $elegido = \App\Support\AsignadorModulos::elegir($sede, $tipoTramite, $fecha_asignada_str, $hora_turno);
             if (!$elegido) {
-                return redirect()->back()->with('error', 'No se ha podido completar tu cita. No se ha encontrado auxiliar disponible.');
+                return redirect()->back()->withInput()->with('error', 'Ese horario se ocupó mientras llenabas el formulario: ya no hay auxiliar libre a esa hora. Vuelve a abrir los horarios y elige otro.');
             }
             $id_aux    = $elegido->user_id;
             $modulo    = $elegido->nombre;
@@ -870,6 +870,14 @@ class RecepcionController extends Controller
         // horarios: no habría a quién asignar la cita.
         $enPausa = ! $esExcepcion && \App\Support\AsignadorModulos::enPausa($sede, $tipo, $publico ? 'linea' : 'ventanilla');
 
+        // Que haya cupo no basta: también tiene que haber un módulo libre a esa
+        // hora (misma regla que AsignadorModulos::elegir al guardar). Si no, el
+        // horario sale como "Sin auxiliar" y no se ofrece. reasignacion=1: el
+        // diálogo de reagenda, que sólo usa módulos que aceptan reasignaciones.
+        $asignables = $esExcepcion ? null : \App\Support\AsignadorModulos::libresPorHorario(
+            $sede, $tipo, $fecha_inicio_str, $fecha_fin_str, $publico, $request->boolean('reasignacion')
+        );
+
         // Casos de excepción: si la sede tiene módulo de excepción, el cupo es
         // cuántos de esos módulos están libres a esa hora. En ventanilla, un
         // horario de excepción se puede tomar mientras no termine: si la cita
@@ -890,12 +898,19 @@ class RecepcionController extends Controller
         $colores = [
             'ocupado' => '#DA0909', 'inhabil' => '#3B78DB',
             'expirado' => '#8a959e', 'disponible' => '#26c03a',
-            'turnos' => '#26c03a',
+            'turnos' => '#26c03a', 'sin_auxiliar' => '#8a959e',
         ];
         $titulos = [
             'ocupado' => 'Ocupado', 'inhabil' => 'Inhábil',
             'expirado' => 'No disponible', 'disponible' => 'Disponible',
+            'sin_auxiliar' => 'Sin auxiliar',
         ];
+        // Por qué no hay lugar, para que la ventanilla lo pueda decir (turnos._cita_scripts).
+        $motivoGeneral = match (true) {
+            $enPausa => 'pausa',
+            $asignables !== null && ! $asignables['hayQuienReciba'] => 'sin_modulo',
+            default => null,
+        };
 
         while ($fecha <= $fin) {
             if ((int) $fecha->format('N') < 6) { // Saltar fines de semana
@@ -919,10 +934,16 @@ class RecepcionController extends Controller
                     $tolerancia = Carbon::parse($slotStart)->addMinutes($minutosReserva);
                     $capacidad = $cupo($hora);
 
+                    $motivo = null;
                     if ($enPausa || $lleno || $esInhabil || $ahora > $tolerancia || $capacidad === 0) {
                         $estado = 'expirado';
+                        $motivo = $motivoGeneral;
                     } elseif ($cantidadOcupados >= $capacidad) {
                         $estado = 'ocupado';
+                    } elseif ($asignables !== null && ($asignables['libres'])($dia, $hora) === 0) {
+                        // Hay cupo, pero ningún módulo puede recibirla: ocupados, en comida o inactivos.
+                        $estado = 'sin_auxiliar';
+                        $motivo = $motivoGeneral ?? 'ocupados';
                     } elseif ($cantidadOcupados > 0) {
                         $estado = 'turnos';
                     } else {
@@ -933,7 +954,7 @@ class RecepcionController extends Controller
                         'title' => $estado === 'turnos' ? 'Disponible' : $titulos[$estado],
                         'start' => $slotStart,
                         'color' => $colores[$estado],
-                        'extendedProps' => ['estado' => $estado],
+                        'extendedProps' => array_filter(['estado' => $estado, 'motivo' => $motivo]),
                     ];
                 }
             }

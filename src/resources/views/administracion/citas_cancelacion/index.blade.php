@@ -431,7 +431,8 @@
         const nodo = (tag, clase, texto) => { const n = document.createElement(tag); if (clase) n.className = clase; if (texto != null) n.textContent = texto; return n; };
 
         async function traerSemana(inicio) {
-            const q = new URLSearchParams({ sede: cita.sede, tipo: cita.tipo, excepcion: cita.excepcion, start: ymd(inicio), end: ymd(masDias(inicio, 4)) });
+            // reasignacion=1: sólo horarios con un módulo que acepte reasignaciones (como al guardar).
+            const q = new URLSearchParams({ sede: cita.sede, tipo: cita.tipo, excepcion: cita.excepcion, reasignacion: 1, start: ymd(inicio), end: ymd(masDias(inicio, 4)) });
             const r = await fetch(URL_HORARIOS + '?' + q.toString(), { headers: { Accept: 'application/json' } });
             if (!r.ok) throw new Error('HTTP ' + r.status);
             const dias = {};

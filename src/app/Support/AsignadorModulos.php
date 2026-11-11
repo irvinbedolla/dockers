@@ -139,6 +139,56 @@ class AsignadorModulos
     }
 
     /**
+     * Para el calendario de horarios: cuántos módulos podrían recibir la cita
+     * en cada horario, con la MISMA regla que elegir() (activo, con persona
+     * activa, que reciba el trámite de primera mano o de respaldo, que no esté
+     * en pausa para ese canal, que no esté en su comida y que ni el módulo ni
+     * su persona tengan ya otra cita a esa hora). Así el calendario no ofrece
+     * un horario en el que al guardar saldría "No se ha encontrado auxiliar".
+     *
+     * Una sola consulta para todo el rango. Devuelve
+     * ['libres' => fn (string $fecha, string $hora): int, 'hayQuienReciba' => bool].
+     */
+    public static function libresPorHorario(string $sede, string $tramite, string $desde, string $hasta, bool $enLinea = false, bool $reasignacion = false): array
+    {
+        $canal = $enLinea ? 'linea' : 'ventanilla';
+        $modulos = self::deSede($sede, true)
+            ->filter(fn (Modulo $m) => self::atendible($m))
+            ->filter(fn (Modulo $m) => $m->recibe($tramite) || $m->recibeDeRespaldo($tramite))
+            ->values();
+        $hayQuienReciba = $modulos->isNotEmpty();
+        $modulos = $modulos->filter(fn (Modulo $m) => $m->recibePor($canal))->values();
+
+        if ($modulos->isEmpty()) {
+            return ['libres' => fn () => 0, 'hayQuienReciba' => $hayQuienReciba];
+        }
+
+        // Citas que ocupan a esos módulos o a sus personas, como choque().
+        $ocupado = [];
+        DB::table('recepcion')
+            ->whereBetween('fecha', [$desde, $hasta])
+            ->whereNotIn('estatus', ['expirada', 'cancelada'])
+            ->where(fn ($q) => $q->whereIn('modulo_id', $modulos->pluck('id'))->orWhereIn('auxiliar', $modulos->pluck('user_id')))
+            ->get(['fecha', 'hora', 'modulo_id', 'auxiliar'])
+            ->each(function ($c) use (&$ocupado) {
+                $clave = substr((string) $c->fecha, 0, 10).'|'.substr((string) $c->hora, 0, 5);
+                $ocupado[$clave]['m'][(int) $c->modulo_id] = true;
+                $ocupado[$clave]['u'][(int) $c->auxiliar] = true;
+            });
+
+        $libres = function (string $fecha, string $hora) use ($modulos, $ocupado, $reasignacion): int {
+            $clave = $fecha.'|'.substr($hora, 0, 5);
+
+            return $modulos->filter(fn (Modulo $m) => ! $m->enComida($hora)
+                && ! isset($ocupado[$clave]['m'][$m->id])
+                && ! isset($ocupado[$clave]['u'][(int) $m->user_id])
+                && (! $reasignacion || $m->aceptaReasignacion($fecha)))->count();
+        };
+
+        return ['libres' => $libres, 'hayQuienReciba' => $hayQuienReciba];
+    }
+
+    /**
      * ¿Algún módulo de estos (activo, con persona) recibe el trámite, de
      * primera mano o de respaldo? Con $canal ('linea' o 'ventanilla'), sólo
      * los que no lo tienen en pausa para ese canal.
