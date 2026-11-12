@@ -19,6 +19,37 @@ class Pagos extends Model
         'hora_audiencia'  => 'datetime:H:i:s',
     ];
 
+    /** Estatus con los que un pago programado queda atendido (cumplimiento registrado). */
+    public const ATENDIDO = ['Pagado', 'Pagado con pena convencional', 'No pagado', 'Incomparecencia trabajador'];
+
+    /**
+     * Quién registró el cumplimiento y cuándo. Antes sólo algunas pantallas
+     * lo guardaban (las de ratificación y el pago total, no); ahora se llena
+     * siempre que un pago pasa a un estatus de atendido desde el modelo
+     * (Pagos::find()->update(...)), sin importar la pantalla.
+     *
+     * Las actualizaciones masivas (Pagos::where()->update()) no pasan por
+     * aquí, a propósito: son los pagos que se cierran solos en un pago total
+     * ("Pagado en el cumplimiento #…") y no cuentan como otro cumplimiento.
+     * Lo usa la tabla de posiciones del Inicio (App\Support\TablaPosiciones).
+     */
+    protected static function booted(): void
+    {
+        static::updating(function (Pagos $pago) {
+            if (! $pago->isDirty('estatus') || ! in_array($pago->estatus, self::ATENDIDO, true)) {
+                return;
+            }
+
+            if (auth()->check()) {
+                $pago->user_id = auth()->id();
+            }
+
+            if (! $pago->fecha_conclucion || ! $pago->isDirty('fecha_conclucion')) {
+                $pago->fecha_conclucion = now()->format('Y-m-d');
+            }
+        });
+    }
+
     public function turno()
     {
         return $this->hasOne(Turnos::class, 'id', 'id_solicitud');

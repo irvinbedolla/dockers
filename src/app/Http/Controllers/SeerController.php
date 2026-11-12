@@ -5044,7 +5044,7 @@ class SeerController extends Controller
                 }
             }
 
-            $query->whereIn('seer_general.delegacion', $delegacionesPermitidas);
+            $query->whereIn('seer_general.delegacion', \App\Support\SedesConciliador::sumarSedes($user, $delegacionesPermitidas));
         }
         
         // 4. CORRECCIÓN CRÍTICA: Agrupamiento del OR para que no rompa el filtro de fecha ni de delegación
@@ -5163,55 +5163,16 @@ class SeerController extends Controller
                 }
             }
 
-            // 4. PREPARACIÓN Y SANITIZACIÓN DE DATOS DEL SOLICITANTE
-            $solicitanteUpdate = [
-                'curp'                  => $data["curp_solicitante"] ?? null,
-                'nombre'                => $data["nombre_solicitante"] ?? null,
-                'sexo'                  => $data["sexo_solicitante"] ?? null,
-                'nacionalidad'          => $data["nacionalidad_solicitante"] ?? null,
-                'email'                 => $data["email_solicitante"] ?? null,
-                'fecha_nacimiento'      => $data["fecha_nacimiento_solicitante"] ?? null,
-                'edad'                  => $data["edad_solicitante"] ?? null,
-                'telefono1'             => $data["telefono1_solicitante"] ?? null,
-                'traductor'             => $data["traductor_solicitante"] ?? 'No',
-                'lenguaje'              => !empty($data["lenguaje_solicitante"]) ? $data["lenguaje_solicitante"] : null,
-                'discapacidad'          => $data["discapacidad_solicitante"] ?? 'No',
-                'tipo_discapacidad'     => !empty($data["disc_solicitante"]) ? $data["disc_solicitante"] : null,
-                'tipo_vialidad'         => $data["tipo_vialidad"] ?? null,
-                'calle'                 => $data["calle_solicitante"] ?? null,
-                'num_ext'               => $data["num_ext_solicitante"] ?? null,
-                'num_int'               => !empty($data["num_int_solicitante"]) ? $data["num_int_solicitante"] : null,
-                'codigo_postal'         => $data["codigo_postal_solicitante"] ?? null,
-                'referencia'            => !empty($data["referencia_solicitante"]) ? $data["referencia_solicitante"] : null,
-                'colonia'               => $data["colonia_solicitante"] ?? null,
-                'calle2'                => !empty($data["calle2_solicitante"]) ? $data["calle2_solicitante"] : null,
-                'calle3'                => !empty($data["calle3_solicitante"]) ? $data["calle3_solicitante"] : null,
-                'municipio_domicilio'   => $data["municipio_solicitante"] ?? null,
-                'estado_domicilio'      => $data["estado_solicitante"] ?? null,
-                'puesto'                => $data["puesto"] ?? null,
-                'pago'                  => $data["pago"] ?? null,
-                'periodo_pago'          => $data["periodo_pago"] ?? null,
-                'fecha_ingreso'         => $data["fecha_ingreso"] ?? null,
-                'fecha_salida'          => !empty($data["fecha_salida"]) ? $data["fecha_salida"] : null,
-                'jornada'               => $data["jornada"] ?? null,
-                'horas_semana'          => $data["horas_semana"] ?? null,
-                'descripcionSolicitud'  => $data["descripcionSolicitud"] ?? null,
-                'labora'                => $data["labora"] ?? 'Si',
-            ];
-
-            // Opcionales específicos
-            if (!empty($data["telefono2_solicitante"])) {
-                $solicitanteUpdate['telefono2'] = $data["telefono2_solicitante"];
+            // 4. SOLICITANTE(S): Revisar audiencia manda cada uno en sol[i][...] con su
+            // id y se guarda cada uno con lo suyo. Antes los campos no eran arreglo:
+            // con varios solicitantes sólo llegaba el último (y se copiaba a todos).
+            $solicitantesForm = array_values(array_filter((array) ($data['sol'] ?? []), fn ($d) => is_array($d) && ! empty($d['id'])));
+            foreach ($solicitantesForm as $datosSol) {
+                $cambios = \App\Support\RevisionAudiencia::datosSolicitante($datosSol);
+                if ($cambios) {
+                    SeerSolicitante::where('id_solicitud', $id_solicitud)->where('id', (int) $datosSol['id'])->update($cambios);
+                }
             }
-            if (!empty($data["nss"])) {
-                $solicitanteUpdate['nss'] = $data["nss"];
-            }
-            if (!empty($data["rfc_solicitante"])) {
-                $solicitanteUpdate['rfc'] = $data["rfc_solicitante"];
-            }
-
-            // Ejecutar actualización masiva y limpia del Solicitante
-            SeerSolicitante::where('id_solicitud', $id_solicitud)->update($solicitanteUpdate);
 
             // 5. PROCESAMIENTO DE CITADOS
             $audienciaId = $data['audiencia_id'] ?? null;
@@ -5289,10 +5250,14 @@ class SeerController extends Controller
             }
 
             // 6. Archivos adjuntos
-            if ($request->hasFile('indetificacion') && !empty($data['curp_solicitante'])) {
-                $documentoidentificacion = $data['curp_solicitante'] . '_Identificacion.pdf';
+            // La identificación que se reemplaza en Documentos es la del primer solicitante.
+            $principal = $solicitantesForm[0] ?? [];
+            if ($request->hasFile('indetificacion') && !empty($principal['curp_solicitante']) && !empty($principal['id'])) {
+                $documentoidentificacion = $principal['curp_solicitante'] . '_Identificacion.pdf';
                 Storage::disk('s3')->putFileAs('documentosSolicitud/' . $id_solicitud, $request->file('indetificacion'), $documentoidentificacion);
-                SeerSolicitante::where('id_solicitud', $id_solicitud)->update(['documentoIdentificacion' => $documentoidentificacion]);
+                SeerSolicitante::where('id_solicitud', $id_solicitud)
+                    ->where('id', (int) $principal['id'])
+                    ->update(['documentoIdentificacion' => $documentoidentificacion]);
             }
 
             DB::commit();
@@ -5697,6 +5662,8 @@ class SeerController extends Controller
             } else {
                 $sala = $salasMapeo[(int)$Audiencia[3]] ?? "Pendiente";
             }
+            // Fuera de su sede (agenda por sede) su sala de casa no existe: la de su agenda en esa sede.
+            $sala = \App\Support\SedesConciliador::sala((int) $Audiencia[3], $delegacion->delegacion) ?? $sala;
 
             // Cambiado a un formato limpio usando Carbon para evitar discrepancias de zona horaria
             $fecha_audiencia = Carbon::parse($Audiencia[0])->addDays(7)->toDateString();
@@ -8273,21 +8240,33 @@ class SeerController extends Controller
             $fecha_inicio_busqueda = $fecha_limite_natural->copy();
         }
 
-        // 4. Obtener conciliadores aptos
-        $conciliadores = User::whereHas('roles', function ($q) { $q->where('name', 'Conciliador'); })
+        // 4. Obtener conciliadores aptos. Quien tiene agenda por sede
+        // (Administración → Conciliadores, App\Support\SedesConciliador) entra
+        // sólo por su renglón de ESTA sede, con los días y el horario de esa
+        // sede, aunque sea de otra delegación; los demás, como siempre.
+        $configurados = \App\Support\SedesConciliador::idsConfigurados();
+        $generales = User::whereHas('roles', function ($q) { $q->where('name', 'Conciliador'); })
             ->where('delegacion', $oficina)
             ->whereIn('id', function ($q) use ($permisos_requeridos) {
                 $q->select('id_conciliador')->from('permisos_conciliador')->whereIn('tipo', $permisos_requeridos);
-            })->get();
+            })
+            ->when($configurados, fn ($q) => $q->whereNotIn('id', $configurados))
+            ->get();
+        $porSede = \App\Support\SedesConciliador::conciliadoresDeSedes([$delegacion]);
+        $conciliadores = $generales->concat($porSede)->unique('id')->values();
 
         if ($conciliadores->isEmpty()) {
             return response()->json(['error' => 'Sin conciliadores configurados.'], 404);
         }
 
-        $permisosConciliadores = PermisosConciliador::whereIn('id_conciliador', $conciliadores->pluck('id'))
+        $permisosConciliadores = PermisosConciliador::whereIn('id_conciliador', $generales->pluck('id'))
             ->whereIn('tipo', $permisos_requeridos)
             ->get()
-            ->groupBy('id_conciliador');
+            ->groupBy('id_conciliador')
+            ->union(\App\Models\SedeConciliador::where('sede', $delegacion)
+                ->whereIn('id_conciliador', $porSede->pluck('id'))
+                ->get()
+                ->groupBy('id_conciliador'));
 
         $dia_semana_map = [1 => 'lunes', 2 => 'martes', 3 => 'miercoles', 4 => 'jueves', 5 => 'viernes'];
 
@@ -10127,6 +10106,11 @@ class SeerController extends Controller
         $audiencia_id = $request->query('audiencia_id', null);
 
         $audienciaCurrent = Audiencias::where('id', $audiencia_id)->first();
+        // Algunas listas no mandan audiencia_id: se toma la más reciente de la
+        // solicitud (antes la pantalla tronaba al leer su estatus o su poder).
+        if (! $audienciaCurrent && $isAudiencia === 'Si') {
+            $audienciaCurrent = Audiencias::where('id_solicitud', $id)->orderByDesc('id')->first();
+        }
         
         // Usamos with() si existen relaciones definidas en el modelo para evitar el problema N+1
         $general = SeerPerGeneral::findOrFail($id);
@@ -10195,10 +10179,20 @@ class SeerController extends Controller
         // PASAMOS LA FECHA ACTUAL DESDE EL CONTROLADOR
         $fecha_actual = now(); 
 
+        // Encabezado del caso, "¿Está lista la audiencia?" y si se puede editar (App\Support\RevisionAudiencia).
+        $revision = \App\Support\RevisionAudiencia::armar($general, $solicitantes, $citados, $audienciaCurrent);
+        $edicionAbierta = \App\Support\RevisionAudiencia::edicionAbierta($general, $audienciaCurrent, $user);
+        // Fase 2: tarjeta por citado y si se puede abrir cada sección con "Editar".
+        $tarjetas = \App\Support\RevisionAudiencia::partes($general, $citados, $notificaciones);
+        $puedeEditar = $edicionAbierta && $user->can('audiencias_guardar_edicion');
+        // Fase 3: representantes con sus datos y documentos (pestaña Documentos).
+        $representantes = \App\Support\RevisionAudiencia::representantes($general, $solicitantes, $citados, $audienciaCurrent);
+
         return view('audiencias.revisar_audiencia', compact(
             'id','general','solicitantes','citados','ramas','estados','municipios',
             'mostrarMotivos','motivos','conciliadores', 'isAudiencia','notificaciones',
-            'historial_audiencias','datosIncompletos','citadosConMulta', 'ultimaEstatus', 'fecha_actual', 'audienciaCurrent'
+            'historial_audiencias','datosIncompletos','citadosConMulta', 'ultimaEstatus', 'fecha_actual', 'audienciaCurrent',
+            'revision', 'edicionAbierta', 'tarjetas', 'puedeEditar', 'representantes'
         )); 
     }
 
@@ -15237,8 +15231,9 @@ class SeerController extends Controller
             'fecha_conclucion' => \Carbon\Carbon::now()->format('Y-m-d')
         ]);
     
-        $id_solicitud = $pago->id_solicitud;
-        Pagos::find($id_solicitud)?->update(['estatus' => "Incomparecencia trabajador", 'user_id' => $user_id]);
+        // Antes aquí se hacía Pagos::find($pago->id_solicitud)->update(...): buscaba
+        // un PAGO con el id de la SOLICITUD y le cambiaba el estatus a otro pago.
+        // Quién lo registró ya lo guarda el modelo (Pagos::booted).
         
         return redirect()->route('audiencias.cumplimiento');  
     }
@@ -15532,7 +15527,7 @@ class SeerController extends Controller
             
             //if ($permisos && $permisos->tipo === "Ambos") {
                 $delegaciones = $mapaDelegaciones[$user->delegacion] ?? [$user->delegacion];
-                $query->whereIn('delegacion', $delegaciones);
+                $query->whereIn('delegacion', \App\Support\SedesConciliador::sumarSedes($user, $delegaciones));
             /*} else {
                 $query->where('delegacion', $user->delegacion);
             }*/
@@ -15648,14 +15643,13 @@ class SeerController extends Controller
         elseif ($userRole === "Conciliador") {
             $permisos = PermisosConciliador::where('id_conciliador', $user->id)->select('tipo')->first();
             
-            if ($permisos && $permisos->tipo === "Ambos" && isset($mapaDelegaciones[$delegacionUsuario])) {
-                $sedes = $mapaDelegaciones[$delegacionUsuario];
-                $queryRatificacion->whereIn('turnos.delegacion', $sedes);
-                $queryAudiencia->whereIn('seer_general.delegacion', $sedes);
-            } else {
-                $queryRatificacion->where('turnos.delegacion', $delegacionUsuario);
-                $queryAudiencia->where('seer_general.delegacion', $delegacionUsuario);
-            }
+            $sedes = ($permisos && $permisos->tipo === "Ambos" && isset($mapaDelegaciones[$delegacionUsuario]))
+                ? $mapaDelegaciones[$delegacionUsuario]
+                : [$delegacionUsuario];
+            // Más las sedes de su agenda por sede, si la tiene (App\Support\SedesConciliador).
+            $sedes = \App\Support\SedesConciliador::sumarSedes($user, $sedes);
+            $queryRatificacion->whereIn('turnos.delegacion', $sedes);
+            $queryAudiencia->whereIn('seer_general.delegacion', $sedes);
         } 
         elseif (in_array($userRole, ["Delegado", "Enlace"])) {
             $sedes = $mapaDelegaciones[$delegacionUsuario] ?? [$delegacionUsuario];
@@ -15724,11 +15718,11 @@ class SeerController extends Controller
             // Optimizado trayendo solo la columna 'tipo'
             $permisos = PermisosConciliador::where('id_conciliador', $user->id)->select('tipo')->first();
             
-            if ($permisos && $permisos->tipo === "Ambos" && isset($mapaDelegaciones[$user->delegacion])) {
-                $query->whereIn('delegacion', $mapaDelegaciones[$user->delegacion]);
-            } else {
-                $query->where('delegacion', $user->delegacion);
-            }
+            $sedesConciliador = ($permisos && $permisos->tipo === "Ambos" && isset($mapaDelegaciones[$user->delegacion]))
+                ? $mapaDelegaciones[$user->delegacion]
+                : [$user->delegacion];
+            // Más las sedes de su agenda por sede, si la tiene (App\Support\SedesConciliador).
+            $query->whereIn('delegacion', \App\Support\SedesConciliador::sumarSedes($user, $sedesConciliador));
         } 
         elseif (in_array($userRole, ["Delegado", "Enlace"])) {
             $delegaciones = $mapaDelegaciones[$user->delegacion] ?? [$user->delegacion];
@@ -15853,11 +15847,11 @@ class SeerController extends Controller
         elseif ($userRole === "Conciliador") {
             $permisos = PermisosConciliador::where('id_conciliador', $user->id)->select('tipo')->first();
             
-            if ($permisos && $permisos->tipo === "Ambos" && isset($mapaDelegaciones[$user->delegacion])) {
-                $query->whereIn('delegacion', $mapaDelegaciones[$user->delegacion]);
-            } else {
-                $query->where('delegacion', $user->delegacion);
-            }
+            $sedesConciliador = ($permisos && $permisos->tipo === "Ambos" && isset($mapaDelegaciones[$user->delegacion]))
+                ? $mapaDelegaciones[$user->delegacion]
+                : [$user->delegacion];
+            // Más las sedes de su agenda por sede, si la tiene (App\Support\SedesConciliador).
+            $query->whereIn('delegacion', \App\Support\SedesConciliador::sumarSedes($user, $sedesConciliador));
         } 
         elseif (in_array($userRole, ["Delegado", "Enlace"])) {
             if (isset($mapaDelegaciones[$user->delegacion])) {

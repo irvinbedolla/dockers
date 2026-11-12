@@ -62,7 +62,9 @@ function calFiltrarPersonasPorSede() {
     let seOculhoLaActiva = false;
 
     document.querySelectorAll('.cal-persona[data-delegacion]').forEach(function (pastilla) {
-        const visible = sede === 'Todos' || sede === '' || pastilla.getAttribute('data-delegacion') === sede;
+        // Con agenda múltiple también sale en las otras sedes que atiende (data-sedes).
+        const visible = sede === 'Todos' || sede === '' || pastilla.getAttribute('data-delegacion') === sede
+            || (pastilla.getAttribute('data-sedes') || '').split('|').indexOf(sede) !== -1;
         pastilla.hidden = !visible;
 
         if (!visible && pastilla.classList.contains('active')) {
@@ -609,6 +611,21 @@ function calContenidoEvento(info) {
 
     tarjeta.appendChild(hora);
 
+    // Agenda múltiple: el conciliador atiende en más de una sede. La marca dice
+    // en qué sede y con qué modalidad es ESTA audiencia; el title, todas sus sedes.
+    if (props.multisede) {
+        const marca = document.createElement('div');
+        marca.className = 'evt-multisede';
+        marca.title = 'Agenda múltiple: ' + (props.sedes_conciliador || '');
+        const iconoSede = document.createElement('i');
+        iconoSede.className = 'bi bi-diagram-3-fill';
+        marca.appendChild(iconoSede);
+        const textoSede = document.createElement('span');
+        textoSede.textContent = (props.delegacion || '') + (props.modalidad ? ' · ' + props.modalidad : '');
+        marca.appendChild(textoSede);
+        tarjeta.appendChild(marca);
+    }
+
     // Una fuente puede mandar sus propios renglones en props.lineas: una cita
     // en linea no tiene citado ni conciliador todavia, y pintar dos "N/A"
     // en cada tarjeta solo estorba.
@@ -1026,8 +1043,9 @@ function handleEventClick(info, calendarType) {
             secciones: [
                 { titulo: 'Audiencia', filas: [
                     ['Conciliador', t(props.conciliador)],
-                    ['Sede', t(props.delegacion)],
-                    ['Sala', t(props.sala)]
+                    ['Sede', t(props.delegacion) + (props.multisede && props.modalidad ? ' · ' + t(props.modalidad) : '')],
+                    ['Sala', t(props.sala)],
+                    props.multisede ? ['Agenda múltiple', t(props.sedes_conciliador)] : null
                 ] }
             ],
             accion: props.estatus === 'Pendiente'

@@ -118,7 +118,8 @@ class CitaController extends Controller
 
             // Aplicamos el filtro de delegación (ya sea una o varias)
             // Nota: Especificamos la tabla para evitar ambigüedad en el join
-            $query->whereIn('pago_solicitud.delegacion', $delegacionesPermitidas);
+            // Más las sedes de su agenda por sede, si es conciliador y la tiene (App\Support\SedesConciliador).
+            $query->whereIn('pago_solicitud.delegacion', \App\Support\SedesConciliador::sumarSedes($user, $delegacionesPermitidas));
         }
 
         // 3. Filtros opcionales desde el Request (Selects de la interfaz)
@@ -203,7 +204,7 @@ class CitaController extends Controller
                     $delegacionesPermitidas = $mapaSedes[$user->delegacion];
                 }
             }
-            $query->whereIn('delegacion', $delegacionesPermitidas);
+            $query->whereIn('delegacion', \App\Support\SedesConciliador::sumarSedes($user, $delegacionesPermitidas));
         }
 
         $this->acotarPorRango($query, $request, 'pago_solicitud.fecha');
@@ -283,7 +284,7 @@ class CitaController extends Controller
                     $delegacionesPermitidas = $mapaSedes[$user->delegacion];
                 }
             }
-            $query->whereIn('delegacion', $delegacionesPermitidas);
+            $query->whereIn('delegacion', \App\Support\SedesConciliador::sumarSedes($user, $delegacionesPermitidas));
         }
 
         $this->acotarPorRango($query, $request, 'pago_solicitud.fecha');

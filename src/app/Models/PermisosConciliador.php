@@ -19,6 +19,22 @@ use Illuminate\Database\Eloquent\Model;
 class PermisosConciliador extends Model
 {
     protected $table = 'permisos_conciliador';
+
+    /**
+     * Sólo el renglón de siempre (sede = NULL). Los renglones con sede son la
+     * agenda por sede (App\Models\SedeConciliador): si este modelo los
+     * viera, ->value('tipo') o ->first() podrían tomar uno de ellos y las
+     * pantallas de hoy cambiarían de sedes sin que nadie lo pidiera.
+     */
+    protected static function booted(): void
+    {
+        static::addGlobalScope('agenda_general', function ($consulta) {
+            if (\App\Support\SedesConciliador::migrado()) {
+                $consulta->whereNull($consulta->getModel()->getTable().'.sede');
+            }
+        });
+    }
+
     protected $primaryKey = 'id';
     protected $fillable = ['id_conciliador','tipo','lunes','martes','miercoles','jueves','viernes','lunes_inicio','lunes_final','martes_inicio','martes_final','miercoles_inicio','miercoles_final'
     ,'jueves_inicio','jueves_final','viernes_inicio','viernes_final'];

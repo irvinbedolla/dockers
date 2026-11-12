@@ -112,7 +112,8 @@ class AgendaAudiencias
             return $hacer();
         }
 
-        $nombre = 'siconcilio_agenda_'.Str::slug(Str::ascii(self::oficina($sede)));
+        // Las oficinas unidas por un conciliador con agenda por sede comparten candado.
+        $nombre = 'siconcilio_agenda_'.Str::slug(Str::ascii(SedesConciliador::grupoBloqueo(self::oficina($sede))));
         $tomado = (int) (DB::selectOne('SELECT GET_LOCK(?, ?) AS ok', [$nombre, self::ESPERA])->ok ?? 0);
 
         if ($tomado !== 1) {
