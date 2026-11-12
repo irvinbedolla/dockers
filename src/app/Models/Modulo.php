@@ -89,10 +89,24 @@ class Modulo extends Model
         if (! $this->recibeVentanilla()) {
             return false;
         }
+        // Día bloqueado en el calendario de su persona: tampoco se le mueven citas.
+        if ($this->bloqueadoEl($fecha ?? now()->toDateString())) {
+            return false;
+        }
         $desde = $this->no_reasignar_desde;
         $dia   = $fecha ? substr($fecha, 0, 10) : now()->toDateString();
 
         return ! ($desde && $dia >= $desde->toDateString());
+    }
+
+    /**
+     * ¿Su persona tiene ese día (Y-m-d) bloqueado en su calendario?
+     * (Administración → Módulos, "Días bloqueados"; App\Models\BloqueoCita.)
+     * Ese día no recibe citas en línea ni de ventanilla, ni reasignaciones.
+     */
+    public function bloqueadoEl(string $fecha): bool
+    {
+        return BloqueoCita::bloqueado($this->user_id ? (int) $this->user_id : null, $fecha);
     }
 
     /** null (acepta), 'vigente' (ya no acepta) o 'programado' (desde una fecha que no llega). */

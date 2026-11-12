@@ -82,7 +82,7 @@ class AsignadorModulos
      * (activas, sin pausa y fuera de su comida). Null si la sede no tiene
      * módulo de excepción (manda sólo Horarios, como antes).
      */
-    public static function capacidadExcepcion(string $sede, string $canal, string $hora, ?Collection $modulos = null): ?int
+    public static function capacidadExcepcion(string $sede, string $canal, string $hora, ?Collection $modulos = null, ?string $fecha = null): ?int
     {
         if (! self::hayModulosExcepcion($sede)) {
             return null;
@@ -91,7 +91,8 @@ class AsignadorModulos
         $config   = HorarioCitas::config($sede, null, true);
         $duracion = (int) $config->duracion;
 
-        $personas = $modulos->filter(fn (Modulo $m) => self::atendible($m) && $m->recibePor($canal) && ! $m->enComida($hora, $duracion))->count();
+        $personas = $modulos->filter(fn (Modulo $m) => self::atendible($m) && $m->recibePor($canal) && ! $m->enComida($hora, $duracion)
+            && ! ($fecha && $m->bloqueadoEl($fecha)))->count();
 
         return min($personas, HorarioCitas::capacidad($config, $hora));
     }
@@ -123,6 +124,8 @@ class AsignadorModulos
         $modulos = self::deSede($sede, true)
             ->filter(fn (Modulo $m) => self::atendible($m))
             ->filter(fn (Modulo $m) => $m->recibePor($canal))
+            // Día bloqueado en el calendario de su persona (Administración → Módulos).
+            ->filter(fn (Modulo $m) => ! $m->bloqueadoEl($fecha))
             ->filter(fn (Modulo $m) => ! $reasignacion || $m->aceptaReasignacion($fecha));
 
         foreach (['recibe', 'recibeDeRespaldo'] as $criterio) {
@@ -184,7 +187,8 @@ class AsignadorModulos
             $hora  = HorarioCitas::normalizarHora($hora);
             $citas = $porHorario->get($fecha.'T'.$hora, collect());
 
-            return $modulos->contains(fn (Modulo $m) => (! $reasignacion || $m->aceptaReasignacion($fecha))
+            return $modulos->contains(fn (Modulo $m) => ! $m->bloqueadoEl($fecha)
+                && (! $reasignacion || $m->aceptaReasignacion($fecha))
                 && ! $m->enComida($hora, $duracionExc)
                 && ! $citas->contains(fn ($c) => self::citaOcupa($m, $c)));
         };

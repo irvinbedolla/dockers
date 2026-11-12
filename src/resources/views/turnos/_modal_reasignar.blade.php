@@ -77,6 +77,7 @@
                 inactivo:    'Módulo inactivo',
                 pausa:       'En pausa: no recibe citas nuevas',
                 sin_reasignar: 'No acepta reasignaciones para esa fecha',
+                bloqueado: 'Tiene ese día bloqueado en su calendario',
                 sin_persona: 'Sin persona asignada'
             };
 
