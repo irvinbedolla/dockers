@@ -95,6 +95,36 @@
     .tr-fila--choca td { background: #FFF8F6; }
     .tr-aplicar { display: grid; grid-template-columns: 1fr auto; gap: 10px 14px; align-items: end; }
     @media (max-width: 767px) { .tr-aplicar { grid-template-columns: 1fr; } }
+    .tr-decision { max-width: 420px; font-size: 12.5px; }
+    .tr-masivo { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 4px 0 10px; }
+    .tr-alerta { border-radius: 10px; padding: 10px 14px; font-size: 13px; }
+    .tr-alerta ul { padding-left: 18px; }
+    .tr-alerta--roja { background: #FCEFEC; border: 1px solid #E9C2B8; color: #7A2A18; margin-bottom: 10px; }
+    .tr-alerta--ambar { background: #FFF8E6; border: 1px solid #EBD69A; color: #6E5410; }
+
+    /* Resumen del traspaso (se baja como imagen con html2canvas): estilos sencillos y fijos. */
+    .tr-resumen-marco { overflow-x: auto; }
+    .tr-resumen { width: 980px; background: #fff; padding: 22px 26px; font-family: Arial, Helvetica, sans-serif; color: #2E3C3D; border: 1px solid #E3E8E8; border-radius: 10px; }
+    .tr-resumen__cabeza { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; }
+    .tr-resumen__titulo { font-size: 20px; font-weight: 700; color: #354647; }
+    .tr-resumen__sub { font-size: 13px; font-weight: 700; color: #496163; margin-top: 2px; }
+    .tr-resumen__ccl { font-size: 11px; color: #8A9899; text-align: right; }
+    .tr-resumen__barra { height: 4px; background: #496163; margin: 10px 0 12px; }
+    .tr-resumen__barra span { display: block; width: 110px; height: 4px; background: #CEA845; }
+    .tr-resumen__cifras { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; font-size: 12.5px; }
+    .tr-resumen__cifras div { border: 1px solid #DDE4E4; border-radius: 8px; padding: 6px 10px; }
+    .tr-resumen__cifras b { font-size: 16px; margin-right: 3px; }
+    .tr-resumen__cifras .ok { background: #F1F9F4; border-color: #B9DCC5; color: #1E7B3C; }
+    .tr-resumen__cifras .otro { background: #EAF2F8; border-color: #B9D2E3; color: #1F4E79; }
+    .tr-resumen__cifras .queda { background: #F4F6F6; color: #5E6E6F; }
+    .tr-resumen__cifras .empalme { background: #FFF8E6; border-color: #EBD69A; color: #6E5410; }
+    .tr-resumen__tabla { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+    .tr-resumen__tabla th { background: #496163; color: #fff; text-align: left; padding: 5px 6px; font-size: 10.5px; text-transform: uppercase; }
+    .tr-resumen__tabla td { padding: 4px 6px; border-bottom: 1px solid #E3E8E8; vertical-align: top; }
+    .tr-resumen__queda td { color: #8A9899; }
+    .tr-resumen__empalme td { background: #FFF8E6; }
+    .tr-resumen__otro td { background: #EAF2F8; }
+    .tr-resumen__pie { margin-top: 12px; font-size: 11px; color: #6B7A7B; }
     .cn-previa td, .cn-previa th { text-align: center; }
     .cn-aviso-previa { font-size: 12px; color: #8A6A12; margin-top: 6px; }
 
