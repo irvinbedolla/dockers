@@ -2177,7 +2177,9 @@
                 }
                 var marcar = function (e) {
                     if (!e.target.matches || !e.target.matches(CAMPOS + ', input[type=file]')) { return; }
+                    if (e.target.id === 'motivo_solicitud') { return; }
                     cambios = true;
+                    sec.setAttribute('data-ra-editada', '');
                     sec.querySelectorAll('.ra-seccion__cambios').forEach(function (m) { m.hidden = false; });
                 };
                 sec.addEventListener('input', marcar);
@@ -2231,8 +2233,11 @@
 
             // Recargar o cerrar la pestaña: el navegador sólo permite su aviso
             // propio (no se puede cambiar por uno de la página).
+            var porFormulario = false;
+            document.addEventListener('submit', function (e) { if (!e.defaultPrevented) { porFormulario = true; } });
             window.addEventListener('beforeunload', function (e) {
-                if (hayCambios() && !enviando && !window.raSaltarAvisoSalida) { e.preventDefault(); e.returnValue = ''; }
+                var hay = porFormulario ? hayCambiosLocales() : hayCambios();
+                if (hay && !enviando && !window.raSaltarAvisoSalida) { e.preventDefault(); e.returnValue = ''; }
             });
 
             // "Subir de nuevo" (archivo que no existe): abre la sección y el selector de archivo.
@@ -2247,8 +2252,8 @@
             // Salir por un enlace (Regresar, menú lateral, etc.) o con el botón
             // Atrás del navegador: confirmación con SweetAlert en vez del aviso
             // nativo. Cuenta como cambio lo que marcan las secciones y lo que
-            // enciende "Guardar edición" (motivos, archivos).
-            function hayCambios() { return cambios || !!window.raCambioDetectado; }
+            function hayCambiosLocales() { return cambios || !!window.raCambiosLocales; }
+            function hayCambios() { return hayCambiosLocales() || !!window.raCambioDetectado || !!window.raPendientesServidor; }
 
             function preguntarSalida() {
                 if (typeof Swal === 'undefined') {
@@ -2280,6 +2285,7 @@
                 if (e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) { return; }
                 if (a.target === '_blank' || a.hasAttribute('download') || a.hasAttribute('data-bs-toggle')
                     || href === '' || href.charAt(0) === '#' || href.indexOf('javascript:') === 0) { return; }
+                if (a.classList.contains('eliminar') && !hayCambiosLocales()) { return; }
                 e.preventDefault();
                 preguntarSalida().then(function (si) {
                     if (si) { salir(function () { window.location.href = a.href; }); }
@@ -2296,6 +2302,8 @@
             }
             form.addEventListener('input', function (e) { if (e.isTrusted) { ponerTrampa(); } }, true);
             form.addEventListener('change', function (e) { if (e.isTrusted) { ponerTrampa(); } }, true);
+            // Citados o motivos pendientes en la sesión
+            if (window.raPendientesServidor) { ponerTrampa(); }
             window.addEventListener('popstate', function () {
                 if (!trampa) { return; }
                 if (!hayCambios() || enviando || window.raSaltarAvisoSalida) { trampa = false; history.back(); return; }
@@ -2310,17 +2318,17 @@
         });
     </script>
     <script>
-        // "Guardar edición" apagado (gris) hasta que la persona cambie algo:
-        // escribir, elegir una opción, subir un archivo, agregar o quitar un
-        // motivo. Sólo cuentan acciones de la persona (isTrusted): los
-        // municipios y demás campos que se llenan solos al cargar no lo
-        // activan. Si la página regresó con errores, ya trae cambios: activo.
+        // Citados agregados o borrados y motivos ya guardados que se quitaron: la página se recarga y quedan pendientes en la sesión hasta dar "Guardar edición"
+        window.raPendientesServidor = {{ (!empty(session('citados_edicion_new')) || !empty(session('citados_edicion_delete')) || !empty(session('motivos_edicion_delete'))) ? 'true' : 'false' }};
         // "Guardar e iniciar audiencia" no se toca: se puede iniciar sin editar.
         document.addEventListener('DOMContentLoaded', function () {
             var boton = document.querySelector('[data-ra-guardar]');
             var form = boton && boton.form;
             if (!form || {{ $errors->any() ? 'true' : 'false' }}) { return; }
             var aviso = document.querySelector('[data-ra-guardar-aviso]');
+            var selectorMotivo = document.getElementById('motivo_solicitud');
+            var secMotivos = selectorMotivo && selectorMotivo.closest('.ra-seccion');
+            var editoCampos = false;
 
             function esperar(si) {
                 boton.disabled = si;
@@ -2328,19 +2336,38 @@
                 boton.title = si ? 'Aún no has cambiado nada. Da clic en Editar en la sección que quieras corregir.' : '';
                 if (aviso) { aviso.hidden = !si; }
             }
-            function activar() { window.raCambioDetectado = true; if (boton.disabled) { esperar(false); } }
+
+            // Motivos agregados en esta pantalla (aún no guardados).
+            function motivosNuevos() {
+                return document.querySelectorAll('input[type=hidden][name="motivo_solicitud[]"]').length > 0;
+            }
+
+            function revisar() {
+                var nuevos = motivosNuevos();
+                window.raCambiosLocales = editoCampos || nuevos;
+                window.raCambioDetectado = window.raCambiosLocales || !!window.raPendientesServidor;
+                esperar(!window.raCambioDetectado);
+                // Marca "cambios" de la sección de motivos: sigue si se editó otro campo de ella.
+                if (secMotivos) {
+                    var marcar = nuevos || secMotivos.hasAttribute('data-ra-editada');
+                    secMotivos.querySelectorAll('.ra-seccion__cambios').forEach(function (m) { m.hidden = !marcar; });
+                }
+            }
+            function activar() { editoCampos = true; revisar(); }
 
             function cambio(e) {
                 var t = e.target;
                 if (!e.isTrusted || !t.matches || !t.matches('input, select, textarea') || t.type === 'hidden') { return; }
+                // El selector de motivos no se envía: lo que cuenta es la lista de motivos (abajo).
+                if (t === selectorMotivo) { return; }
                 activar();
             }
             form.addEventListener('input', cambio, true);
             form.addEventListener('change', cambio, true);
-            // Quitar un motivo (botón Eliminar de la tabla de motivos).
-            form.addEventListener('click', function (e) {
-                if (e.isTrusted && e.target.closest && e.target.closest('.eliminar')) { activar(); }
-            }, true);
+            // Agregar o quitar un motivo nuevo: se recalcula cuando cambia la lista.
+            if (typeof MutationObserver !== 'undefined') {
+                new MutationObserver(revisar).observe(form, { childList: true, subtree: true });
+            }
 
             // Enter en un campo sin cambios no debe mandar el siguiente botón
             // activo ("Guardar e iniciar audiencia") en lugar de Guardar edición.
@@ -2350,7 +2377,7 @@
 
             // Para otros scripts que cambien datos del formulario por su cuenta.
             window.raMarcarCambio = activar;
-            esperar(true);
+            revisar();
         });
     </script>
 
