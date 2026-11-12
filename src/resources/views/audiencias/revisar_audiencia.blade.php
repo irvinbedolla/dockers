@@ -108,6 +108,15 @@
 
         /* Se puede editar dando clic en el dato: al pasar el mouse el dato se
            sombrea y sale un lápiz; el clic abre la sección en ese campo. */
+        /* Datos que no se editan (fechas, número de expediente): siempre como
+           texto, también con la sección en edición, para que no parezcan campos. */
+        html body .ra-seccion input.ra-fijo,
+        html body .ra-seccion input.ra-fijo:focus { border-color: transparent !important; background: transparent !important; box-shadow: none !important;
+            padding-left: 0 !important; color: #2E3C3D !important; font-weight: 600; pointer-events: none; cursor: default; }
+        .ra-fijo__candado { font-size: 11px; color: #A2AFAF; margin-left: 2px; }
+        .ra-lectura.ra-editable .form-group:has(.ra-fijo) { cursor: default; }
+        .ra-lectura.ra-editable .form-group:has(.ra-fijo):hover { background-color: transparent; box-shadow: none; }
+        .ra-lectura.ra-editable .form-group:has(.ra-fijo):hover::after { content: none; }
         .ra-lectura.ra-editable .form-group { position: relative; cursor: pointer; border-radius: 8px; transition: background-color .12s, box-shadow .12s; }
         .ra-lectura.ra-editable .form-group:hover { background-color: #F2F6F6; box-shadow: 0 0 0 6px #F2F6F6; }
         .ra-lectura.ra-editable .form-group:hover::after {
@@ -285,20 +294,21 @@
                                         <div id="tabla_detalles" class="row">
                                             <div class="col-xs-12 col-sm-6 col-md-2">
                                                 <div class="form-group">
-                                                    <label for="name">Fecha de Registro</label>
-                                                    <input type="date" class="form-control" value="<?=$general["fecha"];?>" readonly>
+                                                    <label>Fecha de Registro <i class="bi bi-lock ra-fijo__candado" title="No se puede editar"></i></label>
+                                                    <input type="text" class="form-control ra-fijo" value="{{ filled($general['fecha'] ?? null) ? \Illuminate\Support\Carbon::parse($general['fecha'] ?? null)->format('d/m/Y') : '—' }}" readonly tabindex="-1" aria-readonly="true">
                                                 </div>
                                             </div>
                                             <div class="col-xs-12 col-sm-6 col-md-3">
                                                 <div class="form-group">
-                                                    <label for="name">Fecha de Confirmación</label>
-                                                    <input type="date" class="form-control" value="{{ $general['fecha_confirmacion'] ?? '' }}" readonly>
+                                                    <label>Fecha de Confirmación <i class="bi bi-lock ra-fijo__candado" title="No se puede editar"></i></label>
+                                                    <input type="text" class="form-control ra-fijo" value="{{ filled($general['fecha_confirmacion'] ?? null) ? \Illuminate\Support\Carbon::parse($general['fecha_confirmacion'] ?? null)->format('d/m/Y') : '—' }}" readonly tabindex="-1" aria-readonly="true">
                                                 </div>
                                             </div>
                                             <div class="col-xs-12 col-sm-6 col-md-3">
                                                 <div class="form-group">
-                                                    <label for="password">Número de Expediente</label>
-                                                    <input type="text" name="actividad_economica" class="form-control" value="{{ $general['NUE'] ?? '' }}" readonly>
+                                                    <label>Número de Expediente <i class="bi bi-lock ra-fijo__candado" title="No se puede editar"></i></label>
+                                                    {{-- Sin name: antes llevaba name="actividad_economica" y competía con el campo real de actividad. --}}
+                                                    <input type="text" class="form-control ra-fijo" value="{{ $general['NUE'] ?? '—' }}" readonly tabindex="-1" aria-readonly="true">
                                                 </div>
                                             </div>
 
@@ -2099,7 +2109,8 @@
             if (!form || !secciones.length) { return; }
             var puedeEditar = {{ $puedeEditar ? 'true' : 'false' }};
             var conErrores = {{ $errors->any() ? 'true' : 'false' }};
-            var CAMPOS = 'input:not([type=hidden]):not([type=file]):not([type=checkbox]):not([type=radio]):not([type=button]):not([type=submit]), select, textarea';
+            // .ra-fijo: datos que no se editan (fechas, expediente); no entran al modo edición.
+            var CAMPOS = 'input:not([type=hidden]):not([type=file]):not([type=checkbox]):not([type=radio]):not([type=button]):not([type=submit]):not(.ra-fijo), select, textarea';
             var cambios = false, enviando = false;
 
             function lectura(sec, si) {
@@ -2185,6 +2196,7 @@
                     var sec = grupo && grupo.closest('.ra-seccion');
                     if (!sec || !sec.classList.contains('ra-lectura') || !sec.classList.contains('ra-editable')) { return; }
                     if (e.target.closest('a, button, .btn, [data-bs-toggle], input[type=file]')) { return; }
+                    if (grupo.querySelector('.ra-fijo') && !grupo.querySelector(CAMPOS)) { return; } // dato fijo: no abre la edición
                     var campo = Array.prototype.find.call(grupo.querySelectorAll(CAMPOS), function (el) { return !oculto(el, grupo); });
                     lectura(sec, false);
                     if (campo) {
