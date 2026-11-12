@@ -164,6 +164,11 @@
         html body .btn.btn-primary.ra-guardar--espera,
         html body .btn.btn-primary.ra-guardar--espera:disabled { background-color: #E3EAEA !important; border-color: #E3EAEA !important; color: #8A9899 !important; box-shadow: none; opacity: 1; }
         .ra-guardar-aviso { font-size: 12px; color: #8A9899; }
+        /* Documentos: se comprueba que exista el archivo (script de data-doc). */
+        a.ra-doc-revisando { opacity: .6; }
+        .ra-doc-falta { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: 12.5px; font-weight: 700; color: #9A3A22; background: #FBEDE8; border-radius: 8px; padding: 4px 4px 4px 10px; }
+        .ra-doc-falta .btn { font-size: 12px; padding: 2px 8px; }
+        input.ra-doc-subir { border-color: #CEA845 !important; box-shadow: 0 0 0 3px rgba(206, 168, 69, .2) !important; }
         .ra-guardar-aviso b { color: #496163; }
         html body .btn.btn-light.disabled { background-color: #F4F6F6 !important; border-color: #F4F6F6 !important; color: #8A9899 !important; box-shadow: none; }
         /* Confirmación de borrar citado */
@@ -664,20 +669,20 @@
                                                         ])
                                                         : null;
                                                 @endphp
-                                                <div class="col-xs-12 col-sm-12 col-md-5">
+                                                <div class="col-xs-12 col-sm-12 col-md-5" data-doc-grupo>
                                                     <label for="password">Referencia Imagen 1<span style="color:red;"> (*)</span></label><br>
                                                     @if ($urlImg1)
-                                                        <a href="{{ $urlImg1 }}" target="_blank" class="btn btn-outline-info">Ver Imagen Existente</a>
+                                                        <a href="{{ $urlImg1 }}" target="_blank" class="btn btn-outline-info" data-doc>Ver Imagen Existente</a>
                                                     @else
                                                         <span class="text-muted">No se subió imagen</span>
                                                     @endif
                                                     <input type="file" name="foto1[]" accept="image/*" class="form-control">
                                                     <input type="hidden" name="imagen_domicilio1[]" value="{{ $citado->imagen_domicilio1 }}">
                                                 </div>
-                                                <div class="col-xs-12 col-sm-12 col-md-5">
+                                                <div class="col-xs-12 col-sm-12 col-md-5" data-doc-grupo>
                                                     <label for="password">Referencia Imagen 2</label><br>
                                                     @if ($urlImg2)
-                                                        <a target='_blank' href="{{ $urlImg2 }}">VER IMAGEN</a><br>
+                                                        <a target='_blank' href="{{ $urlImg2 }}" class="btn btn-outline-info" data-doc>Ver Imagen Existente</a>
                                                     @else
                                                         <span class="text-muted">No se subió imagen</span>
                                                     @endif
@@ -716,7 +721,7 @@
                                             </div><br>
                                             <div class="col-xs-12 col-sm-12 col-md-6">
                                                 <label for="password">Identificación Oficial</label><br>
-                                                <a class="btn btn-info" target="_blank" href="{{ signedDocRoute('documento_identificacion_solicitante_ver', $id) }}">Visualizar</a>
+                                                <a class="btn btn-info" target="_blank" href="{{ signedDocRoute('documento_identificacion_solicitante_ver', $id) }}" data-doc @if ($general->tipo_solicitud != 2) data-doc-subir="indetificacion" @endif>Visualizar</a>
                                             </div>
                                             @if($general->tipo_solicitud != 2)
                                             <div class="col-xs-12 col-sm-12 col-md-6">
@@ -1462,6 +1467,79 @@
 @endpush
 
 @section('scripts')
+    <script>
+        // Documentos que ya no existen en el servidor de archivos: cada enlace
+        // con data-doc se comprueba con una petición HEAD (no descarga nada;
+        // SeerController::verPDF y documento_identificacion_solicitante_ver
+        // responden 200 o 404). Si falta, el botón cambia por "No se encontró
+        // el archivo" y, donde se puede, "Subir de nuevo".
+        // Los enlaces van firmados por 60 minutos: si la página lleva más
+        // tiempo abierta, al dar clic se avisa que hay que recargar.
+        document.addEventListener('DOMContentLoaded', function () {
+            var cargada = Date.now(), VIGENCIA = 55 * 60 * 1000;
+            var enlaces = Array.prototype.slice.call(document.querySelectorAll('a[data-doc]'));
+            if (!enlaces.length) { return; }
+
+            function subirDe(a) {
+                var nombre = a.getAttribute('data-doc-subir');
+                if (nombre) { return document.querySelector('input[type=file][name="' + nombre + '"]'); }
+                var grupo = a.closest('[data-doc-grupo]');
+                return grupo ? grupo.querySelector('input[type=file]') : null;
+            }
+
+            function falta(a) {
+                var aviso = document.createElement('span');
+                aviso.className = 'ra-doc-falta';
+                aviso.innerHTML = '<i class="bi bi-exclamation-triangle-fill"></i> No se encontró el archivo';
+                aviso.title = 'El archivo está registrado pero ya no está en el servidor de archivos.';
+                var input = subirDe(a);
+                if (input) {
+                    var boton = document.createElement('button');
+                    boton.type = 'button';
+                    boton.className = 'btn btn-sm btn-outline-secondary ra-doc-subir-btn';
+                    boton.innerHTML = '<i class="bi bi-upload"></i> Subir de nuevo';
+                    boton.addEventListener('click', function () {
+                        if (window.raSubirDeNuevo) { window.raSubirDeNuevo(input); } else { input.click(); }
+                    });
+                    aviso.appendChild(boton);
+                }
+                a.replaceWith(aviso);
+            }
+
+            // De 4 en 4 para no saturar el servidor de archivos.
+            var cola = enlaces.slice();
+            function siguiente() {
+                var a = cola.shift();
+                if (!a) { return; }
+                a.classList.add('ra-doc-revisando');
+                fetch(a.href, { method: 'HEAD', credentials: 'same-origin' })
+                    .then(function (r) {
+                        a.classList.remove('ra-doc-revisando');
+                        if (r.status === 404) { falta(a); }
+                    })
+                    .catch(function () { a.classList.remove('ra-doc-revisando'); })
+                    .then(siguiente);
+            }
+            for (var i = 0; i < 4; i++) { siguiente(); }
+
+            document.addEventListener('click', function (e) {
+                var a = e.target.closest && e.target.closest('a[data-doc]');
+                if (!a || Date.now() - cargada < VIGENCIA) { return; }
+                e.preventDefault();
+                var recargar = function () { window.raSaltarAvisoSalida = true; location.reload(); };
+                if (typeof Swal === 'undefined') {
+                    if (confirm('Los enlaces a los documentos caducaron (la página lleva más de una hora abierta). ¿Recargar la página?')) { recargar(); }
+                    return;
+                }
+                Swal.fire({
+                    icon: 'info', title: 'Hay que recargar la página',
+                    text: 'Los enlaces a los documentos duran una hora y esta página lleva más tiempo abierta. Si tienes cambios sin guardar, guárdalos primero.',
+                    showCancelButton: true, confirmButtonText: 'Recargar', cancelButtonText: 'Cancelar',
+                    reverseButtons: true, confirmButtonColor: '#496163'
+                }).then(function (r) { if (r.isConfirmed) { recargar(); } });
+            });
+        });
+    </script>
     {{-- SweetAlert2 (como en el resto de Administración): confirmación al salir sin guardar. --}}
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
@@ -2104,6 +2182,15 @@
             window.addEventListener('beforeunload', function (e) {
                 if (hayCambios() && !enviando && !window.raSaltarAvisoSalida) { e.preventDefault(); e.returnValue = ''; }
             });
+
+            // "Subir de nuevo" (archivo que no existe): abre la sección y el selector de archivo.
+            window.raSubirDeNuevo = function (input) {
+                var sec = input.closest('.ra-seccion');
+                if (sec && sec.classList.contains('ra-lectura')) { lectura(sec, false); }
+                input.classList.add('ra-doc-subir');
+                input.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                input.click();
+            };
 
             // Salir por un enlace (Regresar, menú lateral, etc.) o con el botón
             // Atrás del navegador: confirmación con SweetAlert en vez del aviso

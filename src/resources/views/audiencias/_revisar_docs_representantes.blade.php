@@ -56,7 +56,7 @@
                 <div class="ra-rep__docs">
                     @foreach ($r['docs'] as $d)
                         @if ($d['url'])
-                            <a class="btn btn-sm btn-outline-secondary" href="{{ $d['url'] }}" target="_blank"><i class="bi bi-file-earmark-pdf"></i> {{ $d['nombre'] }}</a>
+                            <a class="btn btn-sm btn-outline-secondary" href="{{ $d['url'] }}" target="_blank" data-doc><i class="bi bi-file-earmark-pdf"></i> {{ $d['nombre'] }}</a>
                         @else
                             <span class="btn btn-sm btn-light disabled" aria-disabled="true">{{ $d['nombre'] }}: sin archivo</span>
                         @endif

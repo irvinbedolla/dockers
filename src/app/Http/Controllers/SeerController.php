@@ -541,7 +541,8 @@ class SeerController extends Controller
 
             foreach ($candidatas as $rutaS3) {
                 if (Storage::disk('s3')->exists($rutaS3)) {
-                    return Storage::disk('s3')->response($rutaS3);
+                    // HEAD: sólo "¿existe?" (Revisar audiencia avisa si falta), sin descargarlo.
+                    return request()->isMethod('HEAD') ? response('', 200) : Storage::disk('s3')->response($rutaS3);
                 }
             }
         }
@@ -21420,6 +21421,8 @@ class SeerController extends Controller
     public function documento_identificacion_solicitante_ver($id)
     {
         $disk = Storage::disk('s3');
+        // HEAD: sólo "¿existe?" (Revisar audiencia avisa si falta), sin descargarlo.
+        $soloComprobar = request()->isMethod('HEAD');
 
         // 1. Intentar resolver el archivo exacto guardado en BD: primero en la subcarpeta con ID,
         //    y si no está ahí, en la ruta plana legado (sin subcarpeta).
@@ -21429,7 +21432,7 @@ class SeerController extends Controller
         if ($fileName && $fileName !== 'Sin documento') {
             foreach (["documentosSolicitud/{$id}/{$fileName}", "documentosSolicitud/{$fileName}"] as $candidato) {
                 if ($disk->exists($candidato)) {
-                    return $disk->response($candidato, $fileName, [
+                    return $soloComprobar ? response('', 200) : $disk->response($candidato, $fileName, [
                         'Content-Type' => 'application/pdf',
                     ]);
                 }
@@ -21451,7 +21454,7 @@ class SeerController extends Controller
                     str_contains(strtolower($baseName), 'ine') ||
                     pathinfo($baseName, PATHINFO_EXTENSION) === 'pdf'
                 ) {
-                    return $disk->response($file, $baseName, [
+                    return $soloComprobar ? response('', 200) : $disk->response($file, $baseName, [
                         'Content-Type' => 'application/pdf',
                     ]);
                 }
@@ -21459,7 +21462,7 @@ class SeerController extends Controller
 
             // B) Si no hay filtro específico, abrir el primer archivo encontrado en la carpeta
             if (count($files) > 0) {
-                return $disk->response($files[0]);
+                return $soloComprobar ? response('', 200) : $disk->response($files[0]);
             }
         }
 
@@ -21467,7 +21470,7 @@ class SeerController extends Controller
         $filesTmp = $disk->exists("documentosSolicitud/tmp") ? $disk->files("documentosSolicitud/tmp") : [];
         foreach ($filesTmp as $fileTmp) {
             if (str_contains(strtolower(basename($fileTmp)), 'identificacion')) {
-                return $disk->response($fileTmp);
+                return $soloComprobar ? response('', 200) : $disk->response($fileTmp);
             }
         }
 
