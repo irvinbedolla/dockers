@@ -15551,10 +15551,31 @@ class SeerController extends Controller
             $query->where('delegacion', $user->delegacion);
         }
 
-        // 4. Paginación e inyección del parámetro de búsqueda
-        $audiencias = $query->orderBy('created_at', 'desc')
-                            ->paginate(500)
-                            ->appends(['buscar' => $request->input('buscar')]);
+        // PArámetro de día, si no se pasa se visualizan todas
+        $fecha = $request->input('fecha');
+        if (is_string($fecha) && preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $fecha, $p) && checkdate((int) $p[2], (int) $p[3], (int) $p[1])) {
+            $query->whereDate('fecha', $fecha);
+        } else {
+            $fecha = null;
+        }
+
+        // El NUE vive en seer_general: se ordena con una subconsulta para no romper el select.
+        $ordenes = [
+            'recientes'      => [['created_at', 'desc']],
+            'antiguas'       => [['created_at', 'asc']],
+            'fecha_reciente' => [['fecha', 'desc'], ['hora', 'desc']],
+            'fecha_antigua'  => [['fecha', 'asc'], ['hora', 'asc']],
+            'nue'            => [[SeerPerGeneral::select('NUE')->whereColumn('seer_general.id', 'audiencias.id_solicitud'), 'asc']],
+        ];
+        $orden = in_array($request->input('orden'), array_keys($ordenes), true) ? $request->input('orden') : 'recientes';
+        foreach ($ordenes[$orden] as [$columnaOrden, $direccion]) {
+            $query->orderBy($columnaOrden, $direccion);
+        }
+
+        // 4. Paginación en el servidor
+        $audiencias = $query->orderBy('id', 'desc')
+                            ->paginate(100)
+                            ->withQueryString();
         
         $audiencias->through(function ($audiencia) {
             $audiencia->estatus_modelo = $audiencia->estatus;
@@ -15567,7 +15588,7 @@ class SeerController extends Controller
             return $audiencia;
         });
         
-        return view('audiencias.todas_audiencias', compact('audiencias', 'isAudiencia'));
+        return view('audiencias.todas_audiencias', compact('audiencias', 'isAudiencia', 'fecha', 'orden'));
     }
 
     public function todos_complimientos(Request $request) {

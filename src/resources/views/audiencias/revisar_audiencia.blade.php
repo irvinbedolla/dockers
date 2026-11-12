@@ -62,11 +62,16 @@
         /* style.css le da a todo .btn fondo blanco al pasar el mouse (y con
            !important borde transparente): la pestaña activa, con texto blanco,
            se "borraba". Por eso estos selectores llevan html body y !important. */
-        html body .tab a.btn.ra-tab { border-radius: 10px 10px 0 0; border: 1px solid #D5DDDD !important; border-bottom: 0 !important; background: #F1F4F4 !important; color: #496163 !important; font-weight: 700; padding: 8px 16px; box-shadow: none; transition: background-color .15s, color .15s; }
-        html body .tab a.btn.ra-tab:not(.active):hover { background: #E3EAEA !important; border-color: #D5DDDD !important; color: #2E3C3D !important; }
+        /* Navegación: blancas con borde marcado; la abierta, en el verde
+           obscuro del encabezado de tablas con una línea dorada arriba. */
+        html body .tab a.btn.ra-tab { display: inline-flex; align-items: center; gap: 6px; border-radius: 10px 10px 0 0; border: 1px solid #C3CFCF !important; border-bottom: 0 !important; background: #fff !important; color: #354647 !important; font-weight: 700; padding: 9px 18px; box-shadow: inset 0 3px 0 transparent; transition: background-color .15s, color .15s, box-shadow .15s; }
+        html body .tab a.btn.ra-tab i { color: #829A9C; transition: color .15s; }
+        html body .tab a.btn.ra-tab:not(.active):hover { background: #EEF3F3 !important; border-color: #A9BBBB !important; color: #1D2B2C !important; box-shadow: inset 0 3px 0 #829A9C; }
+        html body .tab a.btn.ra-tab:not(.active):hover i { color: #496163; }
         html body .tab a.btn.ra-tab.active,
         html body .tab a.btn.ra-tab.active:hover,
-        html body .tab a.btn.ra-tab.active:focus { background: #496163 !important; border-color: #496163 !important; color: #fff !important; cursor: default; }
+        html body .tab a.btn.ra-tab.active:focus { background: #354647 !important; border-color: #354647 !important; color: #fff !important; box-shadow: inset 0 3px 0 #CEA845; cursor: default; }
+        html body .tab a.btn.ra-tab.active i { color: #CEA845; }
         .tabcontent { display: none; padding: 12px 14px; border: 1px solid #D5DDDD; border-radius: 0 12px 12px 12px; scroll-margin-top: 170px; }
 
         .was-validated .form-control:invalid ~ .invalid-feedback,
@@ -138,39 +143,72 @@
         .ra-rep__ancho { grid-column: 1 / -1; }
         .ra-rep__docs { display: flex; flex-wrap: wrap; gap: 6px; }
         .ra-rep-resumen { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; background: #F7F9F9; border: 1px solid #E3E8E8; border-radius: 10px; padding: 10px 14px; margin: 8px 0 12px; font-size: 13.5px; }
-        /* Botones con los colores institucionales: verde obscuro #496163 (hover
-           #3E5254, el de style.css) y verde claro #829A9C. Rojo apagado sólo
-           para borrar. Con html body y !important para ganarle a style.css. */
-        html body .btn.btn-primary,
-        html body .btn.btn-success { background-color: #496163 !important; border-color: #496163 !important; color: #fff !important; box-shadow: 0 2px 6px rgba(73, 97, 99, .28); }
-        html body .btn.btn-primary:not(.btn-social):hover, html body .btn.btn-primary:not(.btn-social):focus, html body .btn.btn-primary:not(.btn-social):active,
-        html body .btn.btn-success:not(.btn-social):hover, html body .btn.btn-success:not(.btn-social):focus, html body .btn.btn-success:not(.btn-social):active { background-color: #3E5254 !important; border-color: #3E5254 !important; color: #fff !important; }
-        html body .btn.btn-info { background-color: #829A9C !important; border-color: #829A9C !important; color: #fff !important; box-shadow: 0 2px 6px rgba(130, 154, 156, .3); }
-        html body .btn.btn-info:not(.btn-social):hover, html body .btn.btn-info:not(.btn-social):focus, html body .btn.btn-info:not(.btn-social):active { background-color: #496163 !important; border-color: #496163 !important; color: #fff !important; }
-        html body .btn.btn-secondary { background-color: #E3EAEA !important; border-color: #E3EAEA !important; color: #496163 !important; box-shadow: none; }
-        html body .btn.btn-secondary:not(.btn-social):not(:disabled):hover { background-color: #D2DCDC !important; border-color: #D2DCDC !important; color: #354647 !important; }
-        html body .btn.btn-outline-secondary,
-        html body .btn.ra-editar { background-color: #829A9C !important; border: 1px solid #829A9C !important; color: #fff !important; box-shadow: 0 2px 6px rgba(130, 154, 156, .3); }
-        html body .btn.btn-outline-secondary:not(.btn-social):hover, html body .btn.btn-outline-secondary:not(.btn-social):focus,
+        
+        html body .btn { transition: background-color .15s, border-color .15s, color .15s, box-shadow .15s; }
+
+        /* Guardar: dorado. */
+        html body .btn.btn-primary { background-color: #CEA845 !important; border: 1px solid #CEA845 !important; color: #fff !important; font-weight: 700; box-shadow: 0 2px 6px rgba(206, 168, 69, .35); }
+        html body .btn.btn-primary:not(.btn-social):hover, html body .btn.btn-primary:not(.btn-social):focus { background-color: #B8952F !important; border-color: #B8952F !important; color: #fff !important; }
+        html body .btn.btn-primary:not(.btn-social):active { background-color: #A6852A !important; border-color: #A6852A !important; color: #fff !important; }
+
+        /* Guardar e iniciar audiencia: verde (el mismo de "Iniciar" en el índice). */
+        html body .btn.ra-btn-iniciar { background-color: #1E7B3C !important; border: 1px solid #1E7B3C !important; color: #fff !important; font-weight: 700; box-shadow: 0 2px 6px rgba(30, 123, 60, .3); }
+        html body .btn.ra-btn-iniciar:not(.btn-social):hover, html body .btn.ra-btn-iniciar:not(.btn-social):focus { background-color: #186632 !important; border-color: #186632 !important; color: #fff !important; }
+        html body .btn.ra-btn-iniciar:not(.btn-social):active { background-color: #13522A !important; border-color: #13522A !important; color: #fff !important; }
+
+        /* Agregar: verde suave. */
+        html body .btn.ra-btn-agregar { background-color: #E5F3EA !important; border: 1px solid #A8D5B6 !important; color: #1E7B3C !important; font-weight: 700; box-shadow: none; }
+        html body .btn.ra-btn-agregar:not(.btn-social):hover, html body .btn.ra-btn-agregar:not(.btn-social):focus { background-color: #1E7B3C !important; border-color: #1E7B3C !important; color: #fff !important; }
+
+        /* Editar: azul petróleo. Suave en reposo; sólido al pasar por la
+           sección (invita a dar clic) y mientras se edita ("Listo"). */
+        html body .btn.ra-editar,
+        html body .btn.ra-btn-editar { background-color: #E3EFF3 !important; border: 1px solid #A9CBD7 !important; color: #1D5F73 !important; font-weight: 700; box-shadow: none; }
         html body .btn.ra-editar:not(.btn-social):hover, html body .btn.ra-editar:not(.btn-social):focus,
+        html body .btn.ra-btn-editar:not(.btn-social):hover, html body .btn.ra-btn-editar:not(.btn-social):focus,
         html body .ra-seccion.ra-lectura.ra-editable:hover > .ra-seccion__cab .btn.ra-editar,
-        html body .ra-seccion.ra-lectura.ra-editable:hover > .ra-parte__cab .btn.ra-editar,
-        html body .ra-seccion.is-editando .btn.ra-editar { background-color: #496163 !important; border-color: #496163 !important; color: #fff !important; }
+        html body .ra-seccion.ra-lectura.ra-editable:hover > .ra-parte__cab .btn.ra-editar { background-color: #1D5F73 !important; border-color: #1D5F73 !important; color: #fff !important; }
+        html body .ra-seccion.is-editando > .ra-seccion__cab .btn.ra-editar,
+        html body .ra-seccion.is-editando > .ra-parte__cab .btn.ra-editar { background-color: #1D5F73 !important; border-color: #1D5F73 !important; color: #fff !important; box-shadow: 0 2px 6px rgba(29, 95, 115, .3); }
+        html body .ra-seccion.is-editando > .ra-seccion__cab .btn.ra-editar:not(.btn-social):hover,
+        html body .ra-seccion.is-editando > .ra-parte__cab .btn.ra-editar:not(.btn-social):hover { background-color: #164B5B !important; border-color: #164B5B !important; }
+        .tabcontent.ra-seccion.is-editando { border-color: #A9CBD7; }
+
+        /* Ver documento: contorno verde institucional, se rellena al pasar. */
+        html body .btn.btn-info,
+        html body .btn.btn-success:not(.ra-btn-iniciar),
+        html body .btn.btn-outline-info,
+        html body .btn.btn-outline-secondary { background-color: #fff !important; border: 1px solid #829A9C !important; color: #496163 !important; font-weight: 600; box-shadow: none; }
+        html body .btn.btn-info:not(.btn-social):hover, html body .btn.btn-info:not(.btn-social):focus,
+        html body .btn.btn-success:not(.ra-btn-iniciar):not(.btn-social):hover, html body .btn.btn-success:not(.ra-btn-iniciar):not(.btn-social):focus,
+        html body .btn.btn-outline-info:not(.btn-social):hover, html body .btn.btn-outline-info:not(.btn-social):focus,
+        html body .btn.btn-outline-secondary:not(.btn-social):hover, html body .btn.btn-outline-secondary:not(.btn-social):focus { background-color: #496163 !important; border-color: #496163 !important; color: #fff !important; }
+
+        /* Regresar / Cerrar: gris neutro. */
+        html body .btn.btn-secondary { background-color: #E3EAEA !important; border: 1px solid #E3EAEA !important; color: #496163 !important; font-weight: 600; box-shadow: none; }
+        html body .btn.btn-secondary:not(.btn-social):not(:disabled):not(.disabled):hover { background-color: #D2DCDC !important; border-color: #D2DCDC !important; color: #354647 !important; }
+
+        /* Borrar: rojo apagado. */
         html body .btn.btn-danger,
         html body .btn.btn-outline-danger { background-color: #fff !important; border: 1px solid #C9A49A !important; color: #9A3A22 !important; box-shadow: none; }
         html body .btn.btn-danger:not(.btn-social):hover, html body .btn.btn-danger:not(.btn-social):focus,
         html body .btn.btn-outline-danger:not(.btn-social):hover, html body .btn.btn-outline-danger:not(.btn-social):focus { background-color: #9A3A22 !important; border-color: #9A3A22 !important; color: #fff !important; }
-        /* "Guardar edición" mientras no hay cambios: gris, no verde. */
+
+        /* "Guardar edición" mientras no hay cambios: gris, no dorado. */
         html body .btn.btn-primary.ra-guardar--espera,
         html body .btn.btn-primary.ra-guardar--espera:disabled { background-color: #E3EAEA !important; border-color: #E3EAEA !important; color: #8A9899 !important; box-shadow: none; opacity: 1; }
         .ra-guardar-aviso { font-size: 12px; color: #8A9899; }
+        .ra-guardar-aviso b { color: #1D5F73; }
+
+        /* Sin archivo / sin generar: apagado, de cualquier tipo. */
+        html body .btn.disabled,
+        html body .btn:disabled:not(.ra-guardar--espera) { background-color: #F4F6F6 !important; border: 1px dashed #D5DDDD !important; color: #8A9899 !important; box-shadow: none; opacity: 1; }
+
         /* Documentos: se comprueba que exista el archivo (script de data-doc). */
         a.ra-doc-revisando { opacity: .6; }
         .ra-doc-falta { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: 12.5px; font-weight: 700; color: #9A3A22; background: #FBEDE8; border-radius: 8px; padding: 4px 4px 4px 10px; }
         .ra-doc-falta .btn { font-size: 12px; padding: 2px 8px; }
         input.ra-doc-subir { border-color: #CEA845 !important; box-shadow: 0 0 0 3px rgba(206, 168, 69, .2) !important; }
-        .ra-guardar-aviso b { color: #496163; }
-        html body .btn.btn-light.disabled { background-color: #F4F6F6 !important; border-color: #F4F6F6 !important; color: #8A9899 !important; box-shadow: none; }
         /* Confirmación de borrar citado */
         .ra-confirmar__datos { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; background: #F7F9F9; border: 1px solid #E3E8E8; border-radius: 10px; padding: 10px 14px; margin: 0 0 12px; }
         .ra-confirmar__datos dt { font-size: 12px; color: #8A9899; font-weight: 700; margin: 0; }
@@ -236,10 +274,10 @@
 
                                     {{-- Las acciones ya no son pestaña: están en el encabezado. Los id de "Citado(s)" y "Documentos" están cruzados desde antes; se dejan así. --}}
                                     <div class="tab">
-                                        <a class="btn ra-tab tablinks" onclick="openCity(event, 'detalles')">Detalles</a>
-                                        <a class="btn ra-tab tablinks" onclick="openCity(event, 'solicitante')">{{ $general->tipo_solicitud == 2 ? 'Solicitante (patrón)' : 'Solicitante' }}</a>
-                                        <a class="btn ra-tab tablinks" onclick="openCity(event, 'documentos')">Citado(s)</a>
-                                        <a class="btn ra-tab tablinks" onclick="openCity(event, 'citados')">Documentos</a>
+                                        <a class="btn ra-tab tablinks" onclick="openCity(event, 'detalles')"><i class="bi bi-card-text" aria-hidden="true"></i> Detalles</a>
+                                        <a class="btn ra-tab tablinks" onclick="openCity(event, 'solicitante')"><i class="bi bi-person" aria-hidden="true"></i> {{ $general->tipo_solicitud == 2 ? 'Solicitante (patrón)' : 'Solicitante' }}</a>
+                                        <a class="btn ra-tab tablinks" onclick="openCity(event, 'documentos')"><i class="bi bi-people" aria-hidden="true"></i> Citado(s)</a>
+                                        <a class="btn ra-tab tablinks" onclick="openCity(event, 'citados')"><i class="bi bi-folder2-open" aria-hidden="true"></i> Documentos</a>
                                     </div>
 
                                     <div id="detalles" class="tabcontent ra-seccion">
@@ -380,10 +418,10 @@
                                             @if($edicionAbierta && $general->tipo_solicitud == 1)
                                                 @can('audiencias_borrar_citados')
                                                     <div class="col-xs-12 col-sm-12 col-md-12"><br>
-                                                        <a type="button" class="btn btn-primary open-modal mb-3" data-bs-toggle="modal" 
-                                                        data-bs-target="#exampleModal1" data-id="{{ $id }}">Agregar Citado</a>
-                                                        <a type="button" class="btn btn-outline-danger open-modal mb-3" data-bs-toggle="modal" 
-                                                        data-bs-target="#exampleModal2" data-id="{{ $id }}">Borrar Citado</a>
+                                                        <a type="button" class="btn ra-btn-agregar open-modal mb-3" data-bs-toggle="modal"
+                                                        data-bs-target="#exampleModal1" data-id="{{ $id }}"><i class="bi bi-person-plus"></i> Agregar Citado</a>
+                                                        <a type="button" class="btn btn-outline-danger open-modal mb-3" data-bs-toggle="modal"
+                                                        data-bs-target="#exampleModal2" data-id="{{ $id }}"><i class="bi bi-person-dash"></i> Borrar Citado</a>
                                                     </div>
                                                 @endcan
                                             @endif<br>
@@ -2084,6 +2122,8 @@
                 });
                 var txt = sec.querySelector('.ra-editar span');
                 if (txt) { txt.textContent = si ? 'Editar datos' : 'Listo'; }
+                var ico = sec.querySelector('.ra-editar i');
+                if (ico) { ico.className = si ? 'bi bi-pencil' : 'bi bi-check2'; }
             }
 
             // Oculto dentro de la sección (no cuenta que la pestaña esté cerrada).
