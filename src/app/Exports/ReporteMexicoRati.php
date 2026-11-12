@@ -74,7 +74,9 @@ class ReporteMexicoRati implements FromView
             ->leftJoin('municipios', 'municipios.id', '=', 'turnos.municipio_rat')
             ->leftJoin('abogados', 'abogados.idAbogado', '=', 'turnos.idAbogado')
             ->leftJoin('municipios as mun_abogado', 'mun_abogado.id', '=', 'abogados.municipio_patronal')
-            
+            // Foto del poder con la que se ratificó (si existe)
+            ->leftJoin('historial_abogados as hist_poder', 'hist_poder.id', '=', 'turnos.id_historial')
+
             // Unimos los pagos como tabla derivada
             ->leftJoinSub($pagosTurnosSub, 'pagos', 'pagos.id_solicitud', '=', 'turnos.id')
             
@@ -86,7 +88,8 @@ class ReporteMexicoRati implements FromView
                 'estados.nombre as estado',
                 'municipios.nombre as municipio',
                 'mun_abogado.nombre as municipio_abogado',
-                'abogados.giroComercial',
+                // Giro comercial del poder: primero historial_abogados, si no abogados
+                DB::raw('COALESCE(NULLIF(hist_poder.giroComercial, ""), abogados.giroComercial) as giroComercial'),
                 DB::raw('COALESCE(abogados.nombres_patronal, "No seleccionado") as nombres_patronal'),
                 'abogados.primer_apellido_patronal',
                 'abogados.segundo_apellido_patronal',
@@ -116,7 +119,9 @@ class ReporteMexicoRati implements FromView
             ->leftJoin('seer_citados', 'seer_citados.id', '=', 'citado_min.min_id')
             ->leftJoin('abogados', 'abogados.idAbogado', '=', 'seer_citados.id_abogado') 
             ->leftJoin('municipios as mun_abogado', 'mun_abogado.id', '=', 'abogados.municipio_patronal')
-            
+            // Foto del poder del citado (si existe)
+            ->leftJoin('historial_abogados as hist_poder', 'hist_poder.id', '=', 'seer_citados.id_historial')
+
             // Unimos motivos y pagos ya pre-calculados
             ->leftJoinSub($motivosSub, 'motivos_agrupados', 'motivos_agrupados.id_solicitud', '=', 'seer_general.id')
             ->leftJoinSub($pagosSeerSub, 'pagos', 'pagos.id_solicitud', '=', 'seer_general.id')
@@ -129,7 +134,8 @@ class ReporteMexicoRati implements FromView
                 'estados.nombre as estado',
                 'municipios.nombre as municipio',
                 'mun_abogado.nombre as municipio_abogado',
-                'seer_general.actividad as giroComercial',
+                // Giro comercial del poder del citado: primero historial_abogados, si no abogados
+                DB::raw('COALESCE(NULLIF(hist_poder.giroComercial, ""), abogados.giroComercial) as giroComercial'),
                 'seer_citados.nombre as nombres_patronal',
                 'seer_citados.primer_apellido as primer_apellido_patronal',
                 'seer_citados.segundo_apellido as segundo_apellido_patronal',

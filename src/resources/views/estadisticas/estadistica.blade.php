@@ -49,7 +49,7 @@
                                                     @can('reportes_convenios')<option value="Convenios">Convenios</option>@endcan
                                                     @can('reportes_graficas')<option value="CumplimientosGrafica">Graficas</option>@endcan
                                                     @can('reportes_productividad')<option value="Productividad">Productividad</option>@endcan
-                                                    @can('reportes_inegi')<option value="EstadisticaMexico">INEGI</option> @endcan
+                                                    @can('reportes_inegi')<option value="EstadisticaMexico"INEGI></option> @endcan
                                                     @can('reportes_motivos')<option value="Motivos">Motivos</option>@endcan
                                                     <!--<option value="Concentrado">General</option>-->
                                                     @can('reportes_general_sede')<option value="GeneralSede">General por Sede</option>@endcan
