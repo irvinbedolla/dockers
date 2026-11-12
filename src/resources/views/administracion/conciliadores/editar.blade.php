@@ -15,6 +15,7 @@
     $filas = old('sedes', array_map(fn ($s) => [
         'sede' => $s['sede'], 'modalidad' => $s['modalidad'], 'dias' => $s['dias'],
         'inicio' => $s['inicio'], 'fin' => $s['fin'], 'sala' => $s['sala'],
+        'desde' => $s['desde'] ?? null, 'hasta' => $s['hasta'] ?? null, 'exclusiva' => $s['exclusiva'] ?? false,
     ], $sedes));
     if (! $filas) {
         $filas = [['sede' => $conciliador->delegacion, 'modalidad' => SC::PRESENCIAL, 'dias' => array_keys(PermisosConciliador::DIAS),
@@ -133,6 +134,7 @@
         @include('administracion.conciliadores._fila', ['i' => '__I__', 'f' => [
             'sede' => '', 'modalidad' => SC::VIRTUAL, 'dias' => [],
             'inicio' => PermisosConciliador::PREDETERMINADO['inicio'], 'fin' => PermisosConciliador::PREDETERMINADO['fin'], 'sala' => null,
+            'desde' => null, 'hasta' => null, 'exclusiva' => false,
         ], 'conciliador' => $conciliador])
     </template>
 @endsection

@@ -402,6 +402,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::put('administracion/horarios',                        [HorariosCitasController::class, 'actualizar'])->name('horarios.actualizar');
             // Conciliadores: en qué sedes atiende cada uno (una presencial y las virtuales), días, horario y sala (App\Support\SedesConciliador).
             Route::get('administracion/conciliadores',                   [App\Http\Controllers\ConciliadoresController::class, 'index'])->name('conciliadores.index');
+            Route::get('administracion/conciliadores/traspaso',          [App\Http\Controllers\ConciliadoresController::class, 'traspaso'])->name('conciliadores.traspaso');
+            Route::post('administracion/conciliadores/traspaso',         [App\Http\Controllers\ConciliadoresController::class, 'aplicarTraspaso'])->name('conciliadores.traspaso.aplicar');
             Route::get('administracion/conciliadores/{id}',              [App\Http\Controllers\ConciliadoresController::class, 'editar'])->name('conciliadores.editar')->whereNumber('id');
             Route::put('administracion/conciliadores/{id}',              [App\Http\Controllers\ConciliadoresController::class, 'guardar'])->name('conciliadores.guardar')->whereNumber('id');
             Route::delete('administracion/conciliadores/{id}/sedes',     [App\Http\Controllers\ConciliadoresController::class, 'quitar'])->name('conciliadores.quitar')->whereNumber('id');

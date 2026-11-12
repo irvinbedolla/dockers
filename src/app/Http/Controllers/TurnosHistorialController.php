@@ -147,6 +147,10 @@ class TurnosHistorialController extends Controller
             'diaSiguiente'    => Carbon::parse($fecha ?? $hoy)->addDay()->toDateString(),
             'sedesPermitidas' => $sedesPermitidas,
             'atendientes'     => $atendientes,
+            // Descargar agenda → Persona (App\Support\AgendaTurnos::personas).
+            'personasAgenda'  => \App\Support\AgendaTurnos::puedeDescargar($request->user())
+                ? \App\Support\AgendaTurnos::personas(\App\Support\Recepcion::sedesVisibles($request->user()))
+                : collect(),
             'conteos'         => $conteos,
             'totalSinEstatus' => $conteos->sum(),
         ]);

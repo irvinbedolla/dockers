@@ -6,6 +6,7 @@ use App\Models\PermisosConciliador;
 use App\Models\User;
 use App\Support\AgendaContexto;
 use App\Support\SedesConciliador;
+use App\Support\TraspasoAudiencias;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -91,6 +92,9 @@ class ConciliadoresController extends Controller
             'sedes.*.inicio'    => ['required', 'date_format:H:i'],
             'sedes.*.fin'       => ['required', 'date_format:H:i'],
             'sedes.*.sala'      => ['nullable', 'string', 'max:40'],
+            'sedes.*.desde'     => ['nullable', 'date_format:Y-m-d'],
+            'sedes.*.hasta'     => ['nullable', 'date_format:Y-m-d'],
+            'sedes.*.exclusiva' => ['nullable', 'boolean'],
             'motivo'            => ['nullable', 'string', 'max:255'],
         ], [
             'sedes.required'          => 'Agrega al menos una sede.',
@@ -98,7 +102,10 @@ class ConciliadoresController extends Controller
             'sedes.*.dias.required'   => 'Elige al menos un día en cada sede.',
             'sedes.*.inicio.required' => 'Falta la hora de entrada.',
             'sedes.*.fin.required'    => 'Falta la hora de salida.',
-            'date_format'             => 'La hora va como HH:MM.',
+            'sedes.*.inicio.date_format' => 'La hora va como HH:MM.',
+            'sedes.*.fin.date_format'    => 'La hora va como HH:MM.',
+            'sedes.*.desde.date_format'  => 'La fecha "desde" no es válida.',
+            'sedes.*.hasta.date_format'  => 'La fecha "hasta" no es válida.',
         ]);
 
         $filas = array_values(array_map(fn ($f) => [
@@ -108,6 +115,9 @@ class ConciliadoresController extends Controller
             'inicio'    => $f['inicio'],
             'fin'       => $f['fin'],
             'sala'      => $f['sala'] ?? null,
+            'desde'     => $f['desde'] ?? null,
+            'hasta'     => $f['hasta'] ?? null,
+            'exclusiva' => ! empty($f['exclusiva']),
         ], $datos['sedes']));
 
         if ($errores = SedesConciliador::validar($filas)) {
@@ -115,11 +125,26 @@ class ConciliadoresController extends Controller
         }
 
         $antes = array_column(SedesConciliador::sedes($conciliador), 'sede');
+        // Antes de guardar: quiénes atienden hoy las sedes que quedan exclusivas.
+        $desplazados = [];
+        foreach (array_filter($filas, fn ($f) => $f['exclusiva']) as $f) {
+            $otros = SedesConciliador::quienesAtienden($f['sede'])->where('id', '<>', $conciliador->id)->pluck('name')->all();
+            if ($otros) {
+                $desplazados[] = $f['sede'].(($v = SedesConciliador::vigenciaTexto($f['desde'], $f['hasta'])) ? ' ('.mb_strtolower($v).')' : '')
+                    .': '.implode(', ', $otros);
+            }
+        }
         SedesConciliador::guardar($conciliador, $filas, $datos['motivo'] ?? null);
+
+        $avisos = array_filter([
+            $this->avisoPendientes($conciliador, array_diff($antes, array_column($filas, 'sede'))),
+            $desplazados ? 'Sede exclusiva: estos conciliadores dejan de recibir audiencias nuevas de ahí mientras esté vigente — '
+                .implode(' · ', $desplazados).'. Las que ya tienen agendadas siguen a su nombre: muévelas con "Traspasar audiencias".' : null,
+        ]);
 
         return redirect()->route('conciliadores.editar', $conciliador->id)
             ->with('success', "Agenda de {$conciliador->name} guardada: ".SedesConciliador::resumen($conciliador).'.')
-            ->with('warning', $this->avisoPendientes($conciliador, array_diff($antes, array_column($filas, 'sede'))));
+            ->with('warning', $avisos ? implode(' ', $avisos) : null);
     }
 
     /** Vuelve a la agenda de siempre (la de su región, como quedó al guardar). */
@@ -134,6 +159,121 @@ class ConciliadoresController extends Controller
         return redirect()->route('conciliadores.editar', $conciliador->id)
             ->with('success', "{$conciliador->name} volvió a la agenda de siempre: ".(SedesConciliador::resumen($conciliador) ?: 'sin sedes').'.')
             ->with('warning', $this->avisoPendientes($conciliador, array_diff($antes, array_column(SedesConciliador::sedes($conciliador), 'sede'))));
+    }
+
+    /**
+     * Traspasar audiencias ya agendadas de una sede a un conciliador
+     * (App\Support\TraspasoAudiencias). Primero se revisa: qué
+     * conciliadores tienen audiencias ahí desde esa fecha, cuáles se pasan
+     * y cuántas chocarían con la agenda del destino.
+     */
+    public function traspaso(Request $request)
+    {
+        $f = $request->validate([
+            'sede'       => ['nullable', Rule::in(SedesConciliador::SEDES)],
+            'destino'    => ['nullable', 'integer'],
+            'desde'      => ['nullable', 'date_format:Y-m-d'],
+            'hasta'      => ['nullable', 'date_format:Y-m-d', 'after_or_equal:desde'],
+            'elegir'     => ['nullable', 'boolean'],
+            'origenes'   => ['nullable', 'array'],
+            'origenes.*' => ['integer'],
+        ], ['hasta.after_or_equal' => 'La fecha "hasta" no puede ser antes de "desde".']);
+
+        $conciliadores = User::whereHas('roles', fn ($q) => $q->where('name', 'Conciliador'))
+            ->where('estatus', 'Activo')->orderBy('delegacion')->orderBy('name')->get(['id', 'name', 'delegacion']);
+
+        $vista = ['filtros' => $f, 'conciliadores' => $conciliadores, 'listo' => false,
+            'historial' => SedesConciliador::historial(null, 10)->where('tipo', TraspasoAudiencias::TIPO_BITACORA)->values(),
+            'nombres' => $conciliadores->pluck('name', 'id'), 'resultado' => session('resultado')];
+
+        if (empty($f['sede']) || empty($f['destino']) || empty($f['desde'])) {
+            return view('administracion.conciliadores.traspaso', $vista);
+        }
+
+        $destino  = $this->conciliador((int) $f['destino']);
+        $hasta    = $f['hasta'] ?? null;
+        $origenes = TraspasoAudiencias::origenes($f['sede'], $f['desde'], $hasta, $destino->id);
+
+        // La primera vez van todos marcados; después, los que se dejaron marcados.
+        $elegidos = ! empty($f['elegir'])
+            ? array_values(array_intersect($origenes->pluck('id')->all(), array_map('intval', $f['origenes'] ?? [])))
+            : $origenes->pluck('id')->all();
+
+        // Por conciliador, cuántas le cabrían al destino si se pasaran sólo las suyas.
+        $porOrigen = [];
+        foreach ($origenes as $o) {
+            $porOrigen[$o->id] = TraspasoAudiencias::resumen(TraspasoAudiencias::revisar($f['sede'], $f['desde'], $hasta, $destino, [$o->id]));
+        }
+
+        $revision = TraspasoAudiencias::revisar($f['sede'], $f['desde'], $hasta, $destino, $elegidos);
+
+        return view('administracion.conciliadores.traspaso', array_merge($vista, [
+            'listo'     => true,
+            'destino'   => $destino,
+            'agenda'    => TraspasoAudiencias::agendaEn($destino, $f['sede'], $f['desde']),
+            'origenes'  => $origenes,
+            'elegidos'  => $elegidos,
+            'porOrigen' => $porOrigen,
+            'revision'  => $revision,
+            'resumen'   => TraspasoAudiencias::resumen($revision),
+            'saturados' => TraspasoAudiencias::saturados($revision),
+            'opciones'  => TraspasoAudiencias::opciones($f['sede'], $revision, $destino),
+        ]));
+    }
+
+    public function aplicarTraspaso(Request $request)
+    {
+        $f = $request->validate([
+            'sede'            => ['required', Rule::in(SedesConciliador::SEDES)],
+            'destino'         => ['required', 'integer'],
+            'desde'           => ['required', 'date_format:Y-m-d'],
+            'hasta'           => ['nullable', 'date_format:Y-m-d', 'after_or_equal:desde'],
+            'origenes'        => ['required', 'array', 'min:1'],
+            'origenes.*'      => ['integer'],
+            'decisiones'      => ['nullable', 'array'],
+            'decisiones.*'    => ['nullable', 'string', 'max:20'],
+            'confirmar_empalmes' => ['nullable', 'boolean'],
+            'motivo'          => ['required', 'string', 'min:5', 'max:255'],
+        ], [
+            'origenes.required' => 'Elige al menos un conciliador cuyas audiencias se pasen.',
+            'motivo.required'   => 'Escribe el motivo del traspaso (queda en la bitácora).',
+        ]);
+
+        $destino = $this->conciliador((int) $f['destino']);
+
+        try {
+            $r = TraspasoAudiencias::aplicar($f['sede'], $f['desde'], $f['hasta'] ?? null, $destino,
+                array_map('intval', $f['origenes']), $f['decisiones'] ?? [], ! empty($f['confirmar_empalmes']), $f['motivo']);
+        } catch (\App\Support\AgendaOcupadaException $e) {
+            return back()->withInput()->with('error', $e->getMessage());
+        }
+
+        if ($r['error']) {
+            $detalle = collect($r['saturados'])->map(fn ($s) => \Illuminate\Support\Carbon::parse($s['fecha'])->format('d/m/Y')
+                ." {$s['hora']} ({$s['total']}: ".implode(', ', $s['expedientes']).')')->implode(' · ');
+
+            return back()->withInput()->with('error', $r['error'].' '.$detalle);
+        }
+
+        $volver = array_filter(['sede' => $f['sede'], 'destino' => $destino->id, 'desde' => $f['desde'], 'hasta' => $f['hasta'] ?? null]);
+
+        // Para la tarjeta "Resumen del traspaso" (se descarga como imagen).
+        $resultado = [
+            'sede'      => $f['sede'],
+            'destino'   => $destino->name,
+            'periodo'   => SedesConciliador::vigenciaTexto($f['desde'], $f['hasta'] ?? null),
+            'motivo'    => $f['motivo'],
+            'cuando'    => now()->format('d/m/Y H:i'),
+            'por'       => $request->user()->name,
+            'movidas'   => $r['movidas'],
+            'quedaron'  => $r['quedaron'],
+            'filas'     => $r['filas'],
+        ];
+
+        return redirect()->route('conciliadores.traspaso', $volver)
+            ->with('resultado', $resultado)
+            ->with('success', $r['movidas'] === 1 ? 'Se traspasó 1 audiencia.' : "Se traspasaron {$r['movidas']} audiencias.")
+            ->with('warning', trim(($r['quedaron'] ? "{$r['quedaron']} se quedaron con su conciliador. " : '').implode(' ', $r['avisos'] ?? [])) ?: null);
     }
 
     private function conciliador(int $id): User

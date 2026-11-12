@@ -541,7 +541,8 @@ class SeerController extends Controller
 
             foreach ($candidatas as $rutaS3) {
                 if (Storage::disk('s3')->exists($rutaS3)) {
-                    return Storage::disk('s3')->response($rutaS3);
+                    // HEAD: sólo "¿existe?" (Revisar audiencia avisa si falta), sin descargarlo.
+                    return request()->isMethod('HEAD') ? response('', 200) : Storage::disk('s3')->response($rutaS3);
                 }
             }
         }
@@ -8275,6 +8276,7 @@ class SeerController extends Controller
         // 5. Bucle principal de búsqueda de espacios vacíos
         while ($fecha_revisar->lte($fecha_limite_natural)) {
             $fecha_str = $fecha_revisar->format('Y-m-d');
+            $soloExclusivos = \App\Support\SedesConciliador::exclusivosEn($delegacion, $fecha_str);
 
             // OBTENCIÓN DINÁMICA DE HORARIOS SEGÚN SEDE Y FECHA A EVALUAR
             $horarios_disponibles = $this->obtenerHorariosPorSedeYFecha($oficina, $fecha_str);
@@ -8313,9 +8315,17 @@ class SeerController extends Controller
                 $dia_campo = $dia_semana_map[$fecha_revisar->dayOfWeek] ?? null;
 
                 foreach ($conciliadores as $c) {
+                    // Sede exclusiva vigente ese día (Administración → Conciliadores):
+                    // sólo quienes la tienen exclusiva reciben audiencias de esta sede.
+                    if ($soloExclusivos !== [] && ! in_array((int) $c->id, $soloExclusivos, true)) continue;
+
                     // Validar disponibilidad del conciliador según permisos_conciliador
                     $permisosDelConciliador = $permisosConciliadores->get($c->id, collect());
-                    $disponible = $dia_campo && $permisosDelConciliador->contains(function ($permiso) use ($dia_campo, $h) {
+                    $disponible = $dia_campo && $permisosDelConciliador->contains(function ($permiso) use ($dia_campo, $h, $fecha_str) {
+                        // Agenda por sede con vigencia (coberturas): cuenta la fecha de la audiencia.
+                        if ($permiso instanceof \App\Models\SedeConciliador && ! $permiso->vigenteEn($fecha_str)) {
+                            return false;
+                        }
                         return $permiso->{$dia_campo} === 'Si'
                             && $permiso->{$dia_campo . '_inicio'} <= $h
                             && $permiso->{$dia_campo . '_final'} >= $h;
@@ -15541,10 +15551,31 @@ class SeerController extends Controller
             $query->where('delegacion', $user->delegacion);
         }
 
-        // 4. Paginación e inyección del parámetro de búsqueda
-        $audiencias = $query->orderBy('created_at', 'desc')
-                            ->paginate(500)
-                            ->appends(['buscar' => $request->input('buscar')]);
+        // PArámetro de día, si no se pasa se visualizan todas
+        $fecha = $request->input('fecha');
+        if (is_string($fecha) && preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $fecha, $p) && checkdate((int) $p[2], (int) $p[3], (int) $p[1])) {
+            $query->whereDate('fecha', $fecha);
+        } else {
+            $fecha = null;
+        }
+
+        // El NUE vive en seer_general: se ordena con una subconsulta para no romper el select.
+        $ordenes = [
+            'recientes'      => [['created_at', 'desc']],
+            'antiguas'       => [['created_at', 'asc']],
+            'fecha_reciente' => [['fecha', 'desc'], ['hora', 'desc']],
+            'fecha_antigua'  => [['fecha', 'asc'], ['hora', 'asc']],
+            'nue'            => [[SeerPerGeneral::select('NUE')->whereColumn('seer_general.id', 'audiencias.id_solicitud'), 'asc']],
+        ];
+        $orden = in_array($request->input('orden'), array_keys($ordenes), true) ? $request->input('orden') : 'recientes';
+        foreach ($ordenes[$orden] as [$columnaOrden, $direccion]) {
+            $query->orderBy($columnaOrden, $direccion);
+        }
+
+        // 4. Paginación en el servidor
+        $audiencias = $query->orderBy('id', 'desc')
+                            ->paginate(100)
+                            ->withQueryString();
         
         $audiencias->through(function ($audiencia) {
             $audiencia->estatus_modelo = $audiencia->estatus;
@@ -15557,7 +15588,7 @@ class SeerController extends Controller
             return $audiencia;
         });
         
-        return view('audiencias.todas_audiencias', compact('audiencias', 'isAudiencia'));
+        return view('audiencias.todas_audiencias', compact('audiencias', 'isAudiencia', 'fecha', 'orden'));
     }
 
     public function todos_complimientos(Request $request) {
@@ -21411,6 +21442,8 @@ class SeerController extends Controller
     public function documento_identificacion_solicitante_ver($id)
     {
         $disk = Storage::disk('s3');
+        // HEAD: sólo "¿existe?" (Revisar audiencia avisa si falta), sin descargarlo.
+        $soloComprobar = request()->isMethod('HEAD');
 
         // 1. Intentar resolver el archivo exacto guardado en BD: primero en la subcarpeta con ID,
         //    y si no está ahí, en la ruta plana legado (sin subcarpeta).
@@ -21420,7 +21453,7 @@ class SeerController extends Controller
         if ($fileName && $fileName !== 'Sin documento') {
             foreach (["documentosSolicitud/{$id}/{$fileName}", "documentosSolicitud/{$fileName}"] as $candidato) {
                 if ($disk->exists($candidato)) {
-                    return $disk->response($candidato, $fileName, [
+                    return $soloComprobar ? response('', 200) : $disk->response($candidato, $fileName, [
                         'Content-Type' => 'application/pdf',
                     ]);
                 }
@@ -21442,7 +21475,7 @@ class SeerController extends Controller
                     str_contains(strtolower($baseName), 'ine') ||
                     pathinfo($baseName, PATHINFO_EXTENSION) === 'pdf'
                 ) {
-                    return $disk->response($file, $baseName, [
+                    return $soloComprobar ? response('', 200) : $disk->response($file, $baseName, [
                         'Content-Type' => 'application/pdf',
                     ]);
                 }
@@ -21450,7 +21483,7 @@ class SeerController extends Controller
 
             // B) Si no hay filtro específico, abrir el primer archivo encontrado en la carpeta
             if (count($files) > 0) {
-                return $disk->response($files[0]);
+                return $soloComprobar ? response('', 200) : $disk->response($files[0]);
             }
         }
 
@@ -21458,7 +21491,7 @@ class SeerController extends Controller
         $filesTmp = $disk->exists("documentosSolicitud/tmp") ? $disk->files("documentosSolicitud/tmp") : [];
         foreach ($filesTmp as $fileTmp) {
             if (str_contains(strtolower(basename($fileTmp)), 'identificacion')) {
-                return $disk->response($fileTmp);
+                return $soloComprobar ? response('', 200) : $disk->response($fileTmp);
             }
         }
 

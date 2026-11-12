@@ -62,11 +62,16 @@
         /* style.css le da a todo .btn fondo blanco al pasar el mouse (y con
            !important borde transparente): la pestaña activa, con texto blanco,
            se "borraba". Por eso estos selectores llevan html body y !important. */
-        html body .tab a.btn.ra-tab { border-radius: 10px 10px 0 0; border: 1px solid #D5DDDD !important; border-bottom: 0 !important; background: #F1F4F4 !important; color: #496163 !important; font-weight: 700; padding: 8px 16px; box-shadow: none; transition: background-color .15s, color .15s; }
-        html body .tab a.btn.ra-tab:not(.active):hover { background: #E3EAEA !important; border-color: #D5DDDD !important; color: #2E3C3D !important; }
+        /* Navegación: blancas con borde marcado; la abierta, en el verde
+           obscuro del encabezado de tablas con una línea dorada arriba. */
+        html body .tab a.btn.ra-tab { display: inline-flex; align-items: center; gap: 6px; border-radius: 10px 10px 0 0; border: 1px solid #C3CFCF !important; border-bottom: 0 !important; background: #fff !important; color: #354647 !important; font-weight: 700; padding: 9px 18px; box-shadow: inset 0 3px 0 transparent; transition: background-color .15s, color .15s, box-shadow .15s; }
+        html body .tab a.btn.ra-tab i { color: #829A9C; transition: color .15s; }
+        html body .tab a.btn.ra-tab:not(.active):hover { background: #EEF3F3 !important; border-color: #A9BBBB !important; color: #1D2B2C !important; box-shadow: inset 0 3px 0 #829A9C; }
+        html body .tab a.btn.ra-tab:not(.active):hover i { color: #496163; }
         html body .tab a.btn.ra-tab.active,
         html body .tab a.btn.ra-tab.active:hover,
-        html body .tab a.btn.ra-tab.active:focus { background: #496163 !important; border-color: #496163 !important; color: #fff !important; cursor: default; }
+        html body .tab a.btn.ra-tab.active:focus { background: #354647 !important; border-color: #354647 !important; color: #fff !important; box-shadow: inset 0 3px 0 #CEA845; cursor: default; }
+        html body .tab a.btn.ra-tab.active i { color: #CEA845; }
         .tabcontent { display: none; padding: 12px 14px; border: 1px solid #D5DDDD; border-radius: 0 12px 12px 12px; scroll-margin-top: 170px; }
 
         .was-validated .form-control:invalid ~ .invalid-feedback,
@@ -103,6 +108,15 @@
 
         /* Se puede editar dando clic en el dato: al pasar el mouse el dato se
            sombrea y sale un lápiz; el clic abre la sección en ese campo. */
+        /* Datos que no se editan (fechas, número de expediente): siempre como
+           texto, también con la sección en edición, para que no parezcan campos. */
+        html body .ra-seccion input.ra-fijo,
+        html body .ra-seccion input.ra-fijo:focus { border-color: transparent !important; background: transparent !important; box-shadow: none !important;
+            padding-left: 0 !important; color: #2E3C3D !important; font-weight: 600; pointer-events: none; cursor: default; }
+        .ra-fijo__candado { font-size: 11px; color: #A2AFAF; margin-left: 2px; }
+        .ra-lectura.ra-editable .form-group:has(.ra-fijo) { cursor: default; }
+        .ra-lectura.ra-editable .form-group:has(.ra-fijo):hover { background-color: transparent; box-shadow: none; }
+        .ra-lectura.ra-editable .form-group:has(.ra-fijo):hover::after { content: none; }
         .ra-lectura.ra-editable .form-group { position: relative; cursor: pointer; border-radius: 8px; transition: background-color .12s, box-shadow .12s; }
         .ra-lectura.ra-editable .form-group:hover { background-color: #F2F6F6; box-shadow: 0 0 0 6px #F2F6F6; }
         .ra-lectura.ra-editable .form-group:hover::after {
@@ -138,34 +152,72 @@
         .ra-rep__ancho { grid-column: 1 / -1; }
         .ra-rep__docs { display: flex; flex-wrap: wrap; gap: 6px; }
         .ra-rep-resumen { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; background: #F7F9F9; border: 1px solid #E3E8E8; border-radius: 10px; padding: 10px 14px; margin: 8px 0 12px; font-size: 13.5px; }
-        /* Botones con los colores institucionales: verde obscuro #496163 (hover
-           #3E5254, el de style.css) y verde claro #829A9C. Rojo apagado sólo
-           para borrar. Con html body y !important para ganarle a style.css. */
-        html body .btn.btn-primary,
-        html body .btn.btn-success { background-color: #496163 !important; border-color: #496163 !important; color: #fff !important; box-shadow: 0 2px 6px rgba(73, 97, 99, .28); }
-        html body .btn.btn-primary:not(.btn-social):hover, html body .btn.btn-primary:not(.btn-social):focus, html body .btn.btn-primary:not(.btn-social):active,
-        html body .btn.btn-success:not(.btn-social):hover, html body .btn.btn-success:not(.btn-social):focus, html body .btn.btn-success:not(.btn-social):active { background-color: #3E5254 !important; border-color: #3E5254 !important; color: #fff !important; }
-        html body .btn.btn-info { background-color: #829A9C !important; border-color: #829A9C !important; color: #fff !important; box-shadow: 0 2px 6px rgba(130, 154, 156, .3); }
-        html body .btn.btn-info:not(.btn-social):hover, html body .btn.btn-info:not(.btn-social):focus, html body .btn.btn-info:not(.btn-social):active { background-color: #496163 !important; border-color: #496163 !important; color: #fff !important; }
-        html body .btn.btn-secondary { background-color: #E3EAEA !important; border-color: #E3EAEA !important; color: #496163 !important; box-shadow: none; }
-        html body .btn.btn-secondary:not(.btn-social):not(:disabled):hover { background-color: #D2DCDC !important; border-color: #D2DCDC !important; color: #354647 !important; }
-        html body .btn.btn-outline-secondary,
-        html body .btn.ra-editar { background-color: #829A9C !important; border: 1px solid #829A9C !important; color: #fff !important; box-shadow: 0 2px 6px rgba(130, 154, 156, .3); }
-        html body .btn.btn-outline-secondary:not(.btn-social):hover, html body .btn.btn-outline-secondary:not(.btn-social):focus,
+        
+        html body .btn { transition: background-color .15s, border-color .15s, color .15s, box-shadow .15s; }
+
+        /* Guardar: dorado. */
+        html body .btn.btn-primary { background-color: #CEA845 !important; border: 1px solid #CEA845 !important; color: #fff !important; font-weight: 700; box-shadow: 0 2px 6px rgba(206, 168, 69, .35); }
+        html body .btn.btn-primary:not(.btn-social):hover, html body .btn.btn-primary:not(.btn-social):focus { background-color: #B8952F !important; border-color: #B8952F !important; color: #fff !important; }
+        html body .btn.btn-primary:not(.btn-social):active { background-color: #A6852A !important; border-color: #A6852A !important; color: #fff !important; }
+
+        /* Guardar e iniciar audiencia: verde (el mismo de "Iniciar" en el índice). */
+        html body .btn.ra-btn-iniciar { background-color: #1E7B3C !important; border: 1px solid #1E7B3C !important; color: #fff !important; font-weight: 700; box-shadow: 0 2px 6px rgba(30, 123, 60, .3); }
+        html body .btn.ra-btn-iniciar:not(.btn-social):hover, html body .btn.ra-btn-iniciar:not(.btn-social):focus { background-color: #186632 !important; border-color: #186632 !important; color: #fff !important; }
+        html body .btn.ra-btn-iniciar:not(.btn-social):active { background-color: #13522A !important; border-color: #13522A !important; color: #fff !important; }
+
+        /* Agregar: verde suave. */
+        html body .btn.ra-btn-agregar { background-color: #E5F3EA !important; border: 1px solid #A8D5B6 !important; color: #1E7B3C !important; font-weight: 700; box-shadow: none; }
+        html body .btn.ra-btn-agregar:not(.btn-social):hover, html body .btn.ra-btn-agregar:not(.btn-social):focus { background-color: #1E7B3C !important; border-color: #1E7B3C !important; color: #fff !important; }
+
+        /* Editar: azul petróleo. Suave en reposo; sólido al pasar por la
+           sección (invita a dar clic) y mientras se edita ("Listo"). */
+        html body .btn.ra-editar,
+        html body .btn.ra-btn-editar { background-color: #E3EFF3 !important; border: 1px solid #A9CBD7 !important; color: #1D5F73 !important; font-weight: 700; box-shadow: none; }
         html body .btn.ra-editar:not(.btn-social):hover, html body .btn.ra-editar:not(.btn-social):focus,
+        html body .btn.ra-btn-editar:not(.btn-social):hover, html body .btn.ra-btn-editar:not(.btn-social):focus,
         html body .ra-seccion.ra-lectura.ra-editable:hover > .ra-seccion__cab .btn.ra-editar,
-        html body .ra-seccion.ra-lectura.ra-editable:hover > .ra-parte__cab .btn.ra-editar,
-        html body .ra-seccion.is-editando .btn.ra-editar { background-color: #496163 !important; border-color: #496163 !important; color: #fff !important; }
+        html body .ra-seccion.ra-lectura.ra-editable:hover > .ra-parte__cab .btn.ra-editar { background-color: #1D5F73 !important; border-color: #1D5F73 !important; color: #fff !important; }
+        html body .ra-seccion.is-editando > .ra-seccion__cab .btn.ra-editar,
+        html body .ra-seccion.is-editando > .ra-parte__cab .btn.ra-editar { background-color: #1D5F73 !important; border-color: #1D5F73 !important; color: #fff !important; box-shadow: 0 2px 6px rgba(29, 95, 115, .3); }
+        html body .ra-seccion.is-editando > .ra-seccion__cab .btn.ra-editar:not(.btn-social):hover,
+        html body .ra-seccion.is-editando > .ra-parte__cab .btn.ra-editar:not(.btn-social):hover { background-color: #164B5B !important; border-color: #164B5B !important; }
+        .tabcontent.ra-seccion.is-editando { border-color: #A9CBD7; }
+
+        /* Ver documento: contorno verde institucional, se rellena al pasar. */
+        html body .btn.btn-info,
+        html body .btn.btn-success:not(.ra-btn-iniciar),
+        html body .btn.btn-outline-info,
+        html body .btn.btn-outline-secondary { background-color: #fff !important; border: 1px solid #829A9C !important; color: #496163 !important; font-weight: 600; box-shadow: none; }
+        html body .btn.btn-info:not(.btn-social):hover, html body .btn.btn-info:not(.btn-social):focus,
+        html body .btn.btn-success:not(.ra-btn-iniciar):not(.btn-social):hover, html body .btn.btn-success:not(.ra-btn-iniciar):not(.btn-social):focus,
+        html body .btn.btn-outline-info:not(.btn-social):hover, html body .btn.btn-outline-info:not(.btn-social):focus,
+        html body .btn.btn-outline-secondary:not(.btn-social):hover, html body .btn.btn-outline-secondary:not(.btn-social):focus { background-color: #496163 !important; border-color: #496163 !important; color: #fff !important; }
+
+        /* Regresar / Cerrar: gris neutro. */
+        html body .btn.btn-secondary { background-color: #E3EAEA !important; border: 1px solid #E3EAEA !important; color: #496163 !important; font-weight: 600; box-shadow: none; }
+        html body .btn.btn-secondary:not(.btn-social):not(:disabled):not(.disabled):hover { background-color: #D2DCDC !important; border-color: #D2DCDC !important; color: #354647 !important; }
+
+        /* Borrar: rojo apagado. */
         html body .btn.btn-danger,
         html body .btn.btn-outline-danger { background-color: #fff !important; border: 1px solid #C9A49A !important; color: #9A3A22 !important; box-shadow: none; }
         html body .btn.btn-danger:not(.btn-social):hover, html body .btn.btn-danger:not(.btn-social):focus,
         html body .btn.btn-outline-danger:not(.btn-social):hover, html body .btn.btn-outline-danger:not(.btn-social):focus { background-color: #9A3A22 !important; border-color: #9A3A22 !important; color: #fff !important; }
-        /* "Guardar edición" mientras no hay cambios: gris, no verde. */
+
+        /* "Guardar edición" mientras no hay cambios: gris, no dorado. */
         html body .btn.btn-primary.ra-guardar--espera,
         html body .btn.btn-primary.ra-guardar--espera:disabled { background-color: #E3EAEA !important; border-color: #E3EAEA !important; color: #8A9899 !important; box-shadow: none; opacity: 1; }
         .ra-guardar-aviso { font-size: 12px; color: #8A9899; }
-        .ra-guardar-aviso b { color: #496163; }
-        html body .btn.btn-light.disabled { background-color: #F4F6F6 !important; border-color: #F4F6F6 !important; color: #8A9899 !important; box-shadow: none; }
+        .ra-guardar-aviso b { color: #1D5F73; }
+
+        /* Sin archivo / sin generar: apagado, de cualquier tipo. */
+        html body .btn.disabled,
+        html body .btn:disabled:not(.ra-guardar--espera) { background-color: #F4F6F6 !important; border: 1px dashed #D5DDDD !important; color: #8A9899 !important; box-shadow: none; opacity: 1; }
+
+        /* Documentos: se comprueba que exista el archivo (script de data-doc). */
+        a.ra-doc-revisando { opacity: .6; }
+        .ra-doc-falta { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: 12.5px; font-weight: 700; color: #9A3A22; background: #FBEDE8; border-radius: 8px; padding: 4px 4px 4px 10px; }
+        .ra-doc-falta .btn { font-size: 12px; padding: 2px 8px; }
+        input.ra-doc-subir { border-color: #CEA845 !important; box-shadow: 0 0 0 3px rgba(206, 168, 69, .2) !important; }
         /* Confirmación de borrar citado */
         .ra-confirmar__datos { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; background: #F7F9F9; border: 1px solid #E3E8E8; border-radius: 10px; padding: 10px 14px; margin: 0 0 12px; }
         .ra-confirmar__datos dt { font-size: 12px; color: #8A9899; font-weight: 700; margin: 0; }
@@ -231,10 +283,10 @@
 
                                     {{-- Las acciones ya no son pestaña: están en el encabezado. Los id de "Citado(s)" y "Documentos" están cruzados desde antes; se dejan así. --}}
                                     <div class="tab">
-                                        <a class="btn ra-tab tablinks" onclick="openCity(event, 'detalles')">Detalles</a>
-                                        <a class="btn ra-tab tablinks" onclick="openCity(event, 'solicitante')">{{ $general->tipo_solicitud == 2 ? 'Solicitante (patrón)' : 'Solicitante' }}</a>
-                                        <a class="btn ra-tab tablinks" onclick="openCity(event, 'documentos')">Citado(s)</a>
-                                        <a class="btn ra-tab tablinks" onclick="openCity(event, 'citados')">Documentos</a>
+                                        <a class="btn ra-tab tablinks" onclick="openCity(event, 'detalles')"><i class="bi bi-card-text" aria-hidden="true"></i> Detalles</a>
+                                        <a class="btn ra-tab tablinks" onclick="openCity(event, 'solicitante')"><i class="bi bi-person" aria-hidden="true"></i> {{ $general->tipo_solicitud == 2 ? 'Solicitante (patrón)' : 'Solicitante' }}</a>
+                                        <a class="btn ra-tab tablinks" onclick="openCity(event, 'documentos')"><i class="bi bi-people" aria-hidden="true"></i> Citado(s)</a>
+                                        <a class="btn ra-tab tablinks" onclick="openCity(event, 'citados')"><i class="bi bi-folder2-open" aria-hidden="true"></i> Documentos</a>
                                     </div>
 
                                     <div id="detalles" class="tabcontent ra-seccion">
@@ -242,20 +294,21 @@
                                         <div id="tabla_detalles" class="row">
                                             <div class="col-xs-12 col-sm-6 col-md-2">
                                                 <div class="form-group">
-                                                    <label for="name">Fecha de Registro</label>
-                                                    <input type="date" class="form-control" value="<?=$general["fecha"];?>" readonly>
+                                                    <label>Fecha de Registro <i class="bi bi-lock ra-fijo__candado" title="No se puede editar"></i></label>
+                                                    <input type="text" class="form-control ra-fijo" value="{{ filled($general['fecha'] ?? null) ? \Illuminate\Support\Carbon::parse($general['fecha'] ?? null)->format('d/m/Y') : '—' }}" readonly tabindex="-1" aria-readonly="true">
                                                 </div>
                                             </div>
                                             <div class="col-xs-12 col-sm-6 col-md-3">
                                                 <div class="form-group">
-                                                    <label for="name">Fecha de Confirmación</label>
-                                                    <input type="date" class="form-control" value="{{ $general['fecha_confirmacion'] ?? '' }}" readonly>
+                                                    <label>Fecha de Confirmación <i class="bi bi-lock ra-fijo__candado" title="No se puede editar"></i></label>
+                                                    <input type="text" class="form-control ra-fijo" value="{{ filled($general['fecha_confirmacion'] ?? null) ? \Illuminate\Support\Carbon::parse($general['fecha_confirmacion'] ?? null)->format('d/m/Y') : '—' }}" readonly tabindex="-1" aria-readonly="true">
                                                 </div>
                                             </div>
                                             <div class="col-xs-12 col-sm-6 col-md-3">
                                                 <div class="form-group">
-                                                    <label for="password">Número de Expediente</label>
-                                                    <input type="text" name="actividad_economica" class="form-control" value="{{ $general['NUE'] ?? '' }}" readonly>
+                                                    <label>Número de Expediente <i class="bi bi-lock ra-fijo__candado" title="No se puede editar"></i></label>
+                                                    {{-- Sin name: antes llevaba name="actividad_economica" y competía con el campo real de actividad. --}}
+                                                    <input type="text" class="form-control ra-fijo" value="{{ $general['NUE'] ?? '—' }}" readonly tabindex="-1" aria-readonly="true">
                                                 </div>
                                             </div>
 
@@ -375,10 +428,10 @@
                                             @if($edicionAbierta && $general->tipo_solicitud == 1)
                                                 @can('audiencias_borrar_citados')
                                                     <div class="col-xs-12 col-sm-12 col-md-12"><br>
-                                                        <a type="button" class="btn btn-primary open-modal mb-3" data-bs-toggle="modal" 
-                                                        data-bs-target="#exampleModal1" data-id="{{ $id }}">Agregar Citado</a>
-                                                        <a type="button" class="btn btn-outline-danger open-modal mb-3" data-bs-toggle="modal" 
-                                                        data-bs-target="#exampleModal2" data-id="{{ $id }}">Borrar Citado</a>
+                                                        <a type="button" class="btn ra-btn-agregar open-modal mb-3" data-bs-toggle="modal"
+                                                        data-bs-target="#exampleModal1" data-id="{{ $id }}"><i class="bi bi-person-plus"></i> Agregar Citado</a>
+                                                        <a type="button" class="btn btn-outline-danger open-modal mb-3" data-bs-toggle="modal"
+                                                        data-bs-target="#exampleModal2" data-id="{{ $id }}"><i class="bi bi-person-dash"></i> Borrar Citado</a>
                                                     </div>
                                                 @endcan
                                             @endif<br>
@@ -664,20 +717,20 @@
                                                         ])
                                                         : null;
                                                 @endphp
-                                                <div class="col-xs-12 col-sm-12 col-md-5">
+                                                <div class="col-xs-12 col-sm-12 col-md-5" data-doc-grupo>
                                                     <label for="password">Referencia Imagen 1<span style="color:red;"> (*)</span></label><br>
                                                     @if ($urlImg1)
-                                                        <a href="{{ $urlImg1 }}" target="_blank" class="btn btn-outline-info">Ver Imagen Existente</a>
+                                                        <a href="{{ $urlImg1 }}" target="_blank" class="btn btn-outline-info" data-doc>Ver Imagen Existente</a>
                                                     @else
                                                         <span class="text-muted">No se subió imagen</span>
                                                     @endif
                                                     <input type="file" name="foto1[]" accept="image/*" class="form-control">
                                                     <input type="hidden" name="imagen_domicilio1[]" value="{{ $citado->imagen_domicilio1 }}">
                                                 </div>
-                                                <div class="col-xs-12 col-sm-12 col-md-5">
+                                                <div class="col-xs-12 col-sm-12 col-md-5" data-doc-grupo>
                                                     <label for="password">Referencia Imagen 2</label><br>
                                                     @if ($urlImg2)
-                                                        <a target='_blank' href="{{ $urlImg2 }}">VER IMAGEN</a><br>
+                                                        <a target='_blank' href="{{ $urlImg2 }}" class="btn btn-outline-info" data-doc>Ver Imagen Existente</a>
                                                     @else
                                                         <span class="text-muted">No se subió imagen</span>
                                                     @endif
@@ -716,7 +769,7 @@
                                             </div><br>
                                             <div class="col-xs-12 col-sm-12 col-md-6">
                                                 <label for="password">Identificación Oficial</label><br>
-                                                <a class="btn btn-info" target="_blank" href="{{ signedDocRoute('documento_identificacion_solicitante_ver', $id) }}">Visualizar</a>
+                                                <a class="btn btn-info" target="_blank" href="{{ signedDocRoute('documento_identificacion_solicitante_ver', $id) }}" data-doc @if ($general->tipo_solicitud != 2) data-doc-subir="indetificacion" @endif>Visualizar</a>
                                             </div>
                                             @if($general->tipo_solicitud != 2)
                                             <div class="col-xs-12 col-sm-12 col-md-6">
@@ -1462,6 +1515,79 @@
 @endpush
 
 @section('scripts')
+    <script>
+        // Documentos que ya no existen en el servidor de archivos: cada enlace
+        // con data-doc se comprueba con una petición HEAD (no descarga nada;
+        // SeerController::verPDF y documento_identificacion_solicitante_ver
+        // responden 200 o 404). Si falta, el botón cambia por "No se encontró
+        // el archivo" y, donde se puede, "Subir de nuevo".
+        // Los enlaces van firmados por 60 minutos: si la página lleva más
+        // tiempo abierta, al dar clic se avisa que hay que recargar.
+        document.addEventListener('DOMContentLoaded', function () {
+            var cargada = Date.now(), VIGENCIA = 55 * 60 * 1000;
+            var enlaces = Array.prototype.slice.call(document.querySelectorAll('a[data-doc]'));
+            if (!enlaces.length) { return; }
+
+            function subirDe(a) {
+                var nombre = a.getAttribute('data-doc-subir');
+                if (nombre) { return document.querySelector('input[type=file][name="' + nombre + '"]'); }
+                var grupo = a.closest('[data-doc-grupo]');
+                return grupo ? grupo.querySelector('input[type=file]') : null;
+            }
+
+            function falta(a) {
+                var aviso = document.createElement('span');
+                aviso.className = 'ra-doc-falta';
+                aviso.innerHTML = '<i class="bi bi-exclamation-triangle-fill"></i> No se encontró el archivo';
+                aviso.title = 'El archivo está registrado pero ya no está en el servidor de archivos.';
+                var input = subirDe(a);
+                if (input) {
+                    var boton = document.createElement('button');
+                    boton.type = 'button';
+                    boton.className = 'btn btn-sm btn-outline-secondary ra-doc-subir-btn';
+                    boton.innerHTML = '<i class="bi bi-upload"></i> Subir de nuevo';
+                    boton.addEventListener('click', function () {
+                        if (window.raSubirDeNuevo) { window.raSubirDeNuevo(input); } else { input.click(); }
+                    });
+                    aviso.appendChild(boton);
+                }
+                a.replaceWith(aviso);
+            }
+
+            // De 4 en 4 para no saturar el servidor de archivos.
+            var cola = enlaces.slice();
+            function siguiente() {
+                var a = cola.shift();
+                if (!a) { return; }
+                a.classList.add('ra-doc-revisando');
+                fetch(a.href, { method: 'HEAD', credentials: 'same-origin' })
+                    .then(function (r) {
+                        a.classList.remove('ra-doc-revisando');
+                        if (r.status === 404) { falta(a); }
+                    })
+                    .catch(function () { a.classList.remove('ra-doc-revisando'); })
+                    .then(siguiente);
+            }
+            for (var i = 0; i < 4; i++) { siguiente(); }
+
+            document.addEventListener('click', function (e) {
+                var a = e.target.closest && e.target.closest('a[data-doc]');
+                if (!a || Date.now() - cargada < VIGENCIA) { return; }
+                e.preventDefault();
+                var recargar = function () { window.raSaltarAvisoSalida = true; location.reload(); };
+                if (typeof Swal === 'undefined') {
+                    if (confirm('Los enlaces a los documentos caducaron (la página lleva más de una hora abierta). ¿Recargar la página?')) { recargar(); }
+                    return;
+                }
+                Swal.fire({
+                    icon: 'info', title: 'Hay que recargar la página',
+                    text: 'Los enlaces a los documentos duran una hora y esta página lleva más tiempo abierta. Si tienes cambios sin guardar, guárdalos primero.',
+                    showCancelButton: true, confirmButtonText: 'Recargar', cancelButtonText: 'Cancelar',
+                    reverseButtons: true, confirmButtonColor: '#496163'
+                }).then(function (r) { if (r.isConfirmed) { recargar(); } });
+            });
+        });
+    </script>
     {{-- SweetAlert2 (como en el resto de Administración): confirmación al salir sin guardar. --}}
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
@@ -1983,7 +2109,8 @@
             if (!form || !secciones.length) { return; }
             var puedeEditar = {{ $puedeEditar ? 'true' : 'false' }};
             var conErrores = {{ $errors->any() ? 'true' : 'false' }};
-            var CAMPOS = 'input:not([type=hidden]):not([type=file]):not([type=checkbox]):not([type=radio]):not([type=button]):not([type=submit]), select, textarea';
+            // .ra-fijo: datos que no se editan (fechas, expediente); no entran al modo edición.
+            var CAMPOS = 'input:not([type=hidden]):not([type=file]):not([type=checkbox]):not([type=radio]):not([type=button]):not([type=submit]):not(.ra-fijo), select, textarea';
             var cambios = false, enviando = false;
 
             function lectura(sec, si) {
@@ -2006,6 +2133,8 @@
                 });
                 var txt = sec.querySelector('.ra-editar span');
                 if (txt) { txt.textContent = si ? 'Editar datos' : 'Listo'; }
+                var ico = sec.querySelector('.ra-editar i');
+                if (ico) { ico.className = si ? 'bi bi-pencil' : 'bi bi-check2'; }
             }
 
             // Oculto dentro de la sección (no cuenta que la pestaña esté cerrada).
@@ -2048,7 +2177,9 @@
                 }
                 var marcar = function (e) {
                     if (!e.target.matches || !e.target.matches(CAMPOS + ', input[type=file]')) { return; }
+                    if (e.target.id === 'motivo_solicitud') { return; }
                     cambios = true;
+                    sec.setAttribute('data-ra-editada', '');
                     sec.querySelectorAll('.ra-seccion__cambios').forEach(function (m) { m.hidden = false; });
                 };
                 sec.addEventListener('input', marcar);
@@ -2067,6 +2198,7 @@
                     var sec = grupo && grupo.closest('.ra-seccion');
                     if (!sec || !sec.classList.contains('ra-lectura') || !sec.classList.contains('ra-editable')) { return; }
                     if (e.target.closest('a, button, .btn, [data-bs-toggle], input[type=file]')) { return; }
+                    if (grupo.querySelector('.ra-fijo') && !grupo.querySelector(CAMPOS)) { return; } // dato fijo: no abre la edición
                     var campo = Array.prototype.find.call(grupo.querySelectorAll(CAMPOS), function (el) { return !oculto(el, grupo); });
                     lectura(sec, false);
                     if (campo) {
@@ -2101,15 +2233,27 @@
 
             // Recargar o cerrar la pestaña: el navegador sólo permite su aviso
             // propio (no se puede cambiar por uno de la página).
+            var porFormulario = false;
+            document.addEventListener('submit', function (e) { if (!e.defaultPrevented) { porFormulario = true; } });
             window.addEventListener('beforeunload', function (e) {
-                if (hayCambios() && !enviando && !window.raSaltarAvisoSalida) { e.preventDefault(); e.returnValue = ''; }
+                var hay = porFormulario ? hayCambiosLocales() : hayCambios();
+                if (hay && !enviando && !window.raSaltarAvisoSalida) { e.preventDefault(); e.returnValue = ''; }
             });
+
+            // "Subir de nuevo" (archivo que no existe): abre la sección y el selector de archivo.
+            window.raSubirDeNuevo = function (input) {
+                var sec = input.closest('.ra-seccion');
+                if (sec && sec.classList.contains('ra-lectura')) { lectura(sec, false); }
+                input.classList.add('ra-doc-subir');
+                input.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                input.click();
+            };
 
             // Salir por un enlace (Regresar, menú lateral, etc.) o con el botón
             // Atrás del navegador: confirmación con SweetAlert en vez del aviso
             // nativo. Cuenta como cambio lo que marcan las secciones y lo que
-            // enciende "Guardar edición" (motivos, archivos).
-            function hayCambios() { return cambios || !!window.raCambioDetectado; }
+            function hayCambiosLocales() { return cambios || !!window.raCambiosLocales; }
+            function hayCambios() { return hayCambiosLocales() || !!window.raCambioDetectado || !!window.raPendientesServidor; }
 
             function preguntarSalida() {
                 if (typeof Swal === 'undefined') {
@@ -2141,6 +2285,7 @@
                 if (e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) { return; }
                 if (a.target === '_blank' || a.hasAttribute('download') || a.hasAttribute('data-bs-toggle')
                     || href === '' || href.charAt(0) === '#' || href.indexOf('javascript:') === 0) { return; }
+                if (a.classList.contains('eliminar') && !hayCambiosLocales()) { return; }
                 e.preventDefault();
                 preguntarSalida().then(function (si) {
                     if (si) { salir(function () { window.location.href = a.href; }); }
@@ -2157,6 +2302,8 @@
             }
             form.addEventListener('input', function (e) { if (e.isTrusted) { ponerTrampa(); } }, true);
             form.addEventListener('change', function (e) { if (e.isTrusted) { ponerTrampa(); } }, true);
+            // Citados o motivos pendientes en la sesión
+            if (window.raPendientesServidor) { ponerTrampa(); }
             window.addEventListener('popstate', function () {
                 if (!trampa) { return; }
                 if (!hayCambios() || enviando || window.raSaltarAvisoSalida) { trampa = false; history.back(); return; }
@@ -2171,17 +2318,17 @@
         });
     </script>
     <script>
-        // "Guardar edición" apagado (gris) hasta que la persona cambie algo:
-        // escribir, elegir una opción, subir un archivo, agregar o quitar un
-        // motivo. Sólo cuentan acciones de la persona (isTrusted): los
-        // municipios y demás campos que se llenan solos al cargar no lo
-        // activan. Si la página regresó con errores, ya trae cambios: activo.
+        // Citados agregados o borrados y motivos ya guardados que se quitaron: la página se recarga y quedan pendientes en la sesión hasta dar "Guardar edición"
+        window.raPendientesServidor = {{ (!empty(session('citados_edicion_new')) || !empty(session('citados_edicion_delete')) || !empty(session('motivos_edicion_delete'))) ? 'true' : 'false' }};
         // "Guardar e iniciar audiencia" no se toca: se puede iniciar sin editar.
         document.addEventListener('DOMContentLoaded', function () {
             var boton = document.querySelector('[data-ra-guardar]');
             var form = boton && boton.form;
             if (!form || {{ $errors->any() ? 'true' : 'false' }}) { return; }
             var aviso = document.querySelector('[data-ra-guardar-aviso]');
+            var selectorMotivo = document.getElementById('motivo_solicitud');
+            var secMotivos = selectorMotivo && selectorMotivo.closest('.ra-seccion');
+            var editoCampos = false;
 
             function esperar(si) {
                 boton.disabled = si;
@@ -2189,19 +2336,38 @@
                 boton.title = si ? 'Aún no has cambiado nada. Da clic en Editar en la sección que quieras corregir.' : '';
                 if (aviso) { aviso.hidden = !si; }
             }
-            function activar() { window.raCambioDetectado = true; if (boton.disabled) { esperar(false); } }
+
+            // Motivos agregados en esta pantalla (aún no guardados).
+            function motivosNuevos() {
+                return document.querySelectorAll('input[type=hidden][name="motivo_solicitud[]"]').length > 0;
+            }
+
+            function revisar() {
+                var nuevos = motivosNuevos();
+                window.raCambiosLocales = editoCampos || nuevos;
+                window.raCambioDetectado = window.raCambiosLocales || !!window.raPendientesServidor;
+                esperar(!window.raCambioDetectado);
+                // Marca "cambios" de la sección de motivos: sigue si se editó otro campo de ella.
+                if (secMotivos) {
+                    var marcar = nuevos || secMotivos.hasAttribute('data-ra-editada');
+                    secMotivos.querySelectorAll('.ra-seccion__cambios').forEach(function (m) { m.hidden = !marcar; });
+                }
+            }
+            function activar() { editoCampos = true; revisar(); }
 
             function cambio(e) {
                 var t = e.target;
                 if (!e.isTrusted || !t.matches || !t.matches('input, select, textarea') || t.type === 'hidden') { return; }
+                // El selector de motivos no se envía: lo que cuenta es la lista de motivos (abajo).
+                if (t === selectorMotivo) { return; }
                 activar();
             }
             form.addEventListener('input', cambio, true);
             form.addEventListener('change', cambio, true);
-            // Quitar un motivo (botón Eliminar de la tabla de motivos).
-            form.addEventListener('click', function (e) {
-                if (e.isTrusted && e.target.closest && e.target.closest('.eliminar')) { activar(); }
-            }, true);
+            // Agregar o quitar un motivo nuevo: se recalcula cuando cambia la lista.
+            if (typeof MutationObserver !== 'undefined') {
+                new MutationObserver(revisar).observe(form, { childList: true, subtree: true });
+            }
 
             // Enter en un campo sin cambios no debe mandar el siguiente botón
             // activo ("Guardar e iniciar audiencia") en lugar de Guardar edición.
@@ -2211,7 +2377,7 @@
 
             // Para otros scripts que cambien datos del formulario por su cuenta.
             window.raMarcarCambio = activar;
-            esperar(true);
+            revisar();
         });
     </script>
 

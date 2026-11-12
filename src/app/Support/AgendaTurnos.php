@@ -10,8 +10,10 @@ use Illuminate\Support\Str;
 
 /**
  * Agenda de turnos para descargar (Excel, PDF o imagen) desde Turnos →
- * Todos los turnos: un día o una semana, una sede o todas, con hora, módulo,
- * quién llega, quién lo atiende, a qué hora llegó y en qué quedó.
+ * Todos los turnos: un día, una semana o un rango de fechas, una sede o
+ * todas, y opcionalmente sólo los turnos de una persona (quien atiende: el
+ * auxiliar u orientador asignado), con hora, módulo, quién llega, quién lo
+ * atiende, a qué hora llegó y en qué quedó.
  *
  * Sólo Super Usuario y Directivo (lo cuida la ruta). Las citas de prueba
  * no salen salvo que se pidan.
@@ -36,7 +38,45 @@ class AgendaTurnos
     public const PERIODOS = [
         'dia'    => 'Un día',
         'semana' => 'La semana (lunes a domingo)',
+        'rango'  => 'Rango de fechas',
     ];
+
+    /** Rango más largo que se puede bajar de una vez (un trimestre). */
+    public const MAX_DIAS_RANGO = 93;
+
+    /** Quienes atienden turnos: se puede bajar la agenda de una de ellas. */
+    public const ROLES_PERSONA = ['Orientador', 'Auxiliar'];
+
+    /**
+     * Orientadores y auxiliares de esas sedes, para el filtro "Persona".
+     * Incluye cuentas inactivas: un rango pasado puede ser de alguien que ya
+     * no está. Cada uno lleva su sede para filtrar en el diálogo.
+     */
+    public static function personas(array $sedes): Collection
+    {
+        if ($sedes === []) {
+            return collect();
+        }
+
+        // Hay cuentas con la sede sin acento ("Lazaro Cardenas"): se buscan las
+        // dos formas y se devuelve el nombre oficial, el del selector de sede.
+        $clave    = fn ($s) => Str::lower(Str::ascii(trim((string) $s)));
+        $oficial  = collect($sedes)->keyBy($clave);
+        $nombres  = array_values(array_unique(array_merge($sedes, array_map(fn ($s) => Str::ascii($s), $sedes))));
+
+        return User::role(self::ROLES_PERSONA)
+            ->whereIn('delegacion', $nombres)
+            ->orderByRaw("estatus <> 'Activo'")
+            ->orderBy('name')
+            ->get(['id', 'name', 'delegacion', 'estatus'])
+            ->map(fn ($u) => (object) [
+                'id'         => $u->id,
+                'name'       => Str::title(mb_strtolower(trim($u->name))),
+                'delegacion' => $oficial[$clave($u->delegacion)] ?? $u->delegacion,
+                'activo'     => $u->estatus === 'Activo',
+            ])
+            ->values();
+    }
 
     public const EXCEPCION = [
         'incluir' => 'Incluir casos de excepción',
@@ -68,19 +108,27 @@ class AgendaTurnos
     /**
      * Todo lo que necesitan las tres salidas.
      *
-     * @param array{fecha: string, periodo: string, sede: ?string, excepcion: string, pruebas?: bool} $f
+     * @param array{fecha?: ?string, desde?: ?string, hasta?: ?string, periodo: string, sede: ?string, persona?: ?int, excepcion: string, pruebas?: bool} $f
      */
     public static function armar(array $f, User $usuario): array
     {
-        $dia = Carbon::parse($f['fecha']);
-        [$desde, $hasta] = $f['periodo'] === 'semana'
-            ? [$dia->copy()->startOfWeek(Carbon::MONDAY), $dia->copy()->endOfWeek(Carbon::SUNDAY)]
-            : [$dia->copy(), $dia->copy()];
+        if ($f['periodo'] === 'rango') {
+            [$desde, $hasta] = [Carbon::parse($f['desde']), Carbon::parse($f['hasta'])];
+        } else {
+            $dia = Carbon::parse($f['fecha']);
+            [$desde, $hasta] = $f['periodo'] === 'semana'
+                ? [$dia->copy()->startOfWeek(Carbon::MONDAY), $dia->copy()->endOfWeek(Carbon::SUNDAY)]
+                : [$dia->copy(), $dia->copy()];
+        }
 
         $visibles = Recepcion::sedesVisibles($usuario);
         $sedes    = ! empty($f['sede']) ? [$f['sede']] : $visibles;
 
-        $filas = self::filas($desde->toDateString(), $hasta->toDateString(), $sedes, $f['excepcion'], ! empty($f['pruebas']));
+        // Una persona: sus turnos (los que tiene asignados) en esas sedes.
+        $persona = ! empty($f['persona']) ? User::find((int) $f['persona'], ['id', 'name', 'delegacion']) : null;
+        $nombre  = $persona ? Str::title(mb_strtolower(trim($persona->name))) : null;
+
+        $filas = self::filas($desde->toDateString(), $hasta->toDateString(), $sedes, $f['excepcion'], ! empty($f['pruebas']), $persona?->id);
 
         // Agrupado por sede (en el orden oficial) y dentro por día.
         $porSede = [];
@@ -91,12 +139,15 @@ class AgendaTurnos
             }
         }
 
-        $periodo = $f['periodo'] === 'semana'
-            ? 'Semana del '.self::fechaLarga($desde, false).' al '.self::fechaLarga($hasta)
-            : Str::ucfirst($desde->locale('es')->isoFormat('dddd D [de] MMMM [de] YYYY'));
+        $periodo = match (true) {
+            $f['periodo'] === 'semana' => 'Semana del '.self::fechaLarga($desde, false).' al '.self::fechaLarga($hasta),
+            $desde->isSameDay($hasta)  => Str::ucfirst($desde->locale('es')->isoFormat('dddd D [de] MMMM [de] YYYY')),
+            default                    => 'Del '.self::fechaLarga($desde, $desde->year !== $hasta->year).' al '.self::fechaLarga($hasta),
+        };
 
         return [
-            'titulo'     => 'Agenda de turnos',
+            'titulo'     => $nombre ? 'Agenda de turnos · '.$nombre : 'Agenda de turnos',
+            'persona'    => $nombre,
             'periodo'    => $periodo,
             'sedesTexto' => ! empty($f['sede']) ? $f['sede'] : (count($visibles) >= count(Recepcion::TODAS_LAS_SEDES) ? 'Todas las sedes' : implode(' y ', $visibles)),
             'excepcion'  => self::EXCEPCION[$f['excepcion']],
@@ -109,13 +160,14 @@ class AgendaTurnos
             'porDia'     => self::porDia($filas, $desde, $hasta),
             'generado'   => now(),
             'por'        => $usuario->name,
-            'archivo'    => 'agenda_turnos_'.$desde->format('Y-m-d').($f['periodo'] === 'semana' ? '_al_'.$hasta->format('Y-m-d') : '')
-                            .(! empty($f['sede']) ? '_'.Str::slug($f['sede'], '_') : ''),
+            'archivo'    => 'agenda_turnos_'.$desde->format('Y-m-d').($desde->isSameDay($hasta) ? '' : '_al_'.$hasta->format('Y-m-d'))
+                            .(! empty($f['sede']) ? '_'.Str::slug($f['sede'], '_') : '')
+                            .($nombre ? '_'.Str::slug($nombre, '_') : ''),
         ];
     }
 
     /** Un renglón por turno, ya con los textos listos para imprimir. */
-    public static function filas(string $desde, string $hasta, array $sedes, string $excepcion, bool $pruebas = false): Collection
+    public static function filas(string $desde, string $hasta, array $sedes, string $excepcion, bool $pruebas = false, ?int $persona = null): Collection
     {
         if ($sedes === []) {
             return collect();
@@ -149,6 +201,7 @@ class AgendaTurnos
             ->leftJoin('users as u', 'u.id', '=', 'r.auxiliar')
             ->whereBetween('r.fecha', [$desde, $hasta])
             ->whereIn('r.delegacion', $nombres)
+            ->when($persona, fn ($q) => $q->where('r.auxiliar', $persona))
             ->when($excepcion === 'excluir', fn ($q) => $q->where(fn ($w) => $w->where('r.exepcion', '!=', 'Si')->orWhereNull('r.exepcion')))
             ->when($excepcion === 'solo', fn ($q) => $q->where('r.exepcion', 'Si'))
             ->when(FlujoCita::migrado() && ! $pruebas, fn ($q) => $q->where(fn ($w) => $w->where('r.es_prueba', 0)->orWhereNull('r.es_prueba')))
