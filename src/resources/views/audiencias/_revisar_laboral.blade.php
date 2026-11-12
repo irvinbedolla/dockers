@@ -93,7 +93,7 @@
 <div class="col-xs-12 col-sm-12 col-md-12">
     <div class="form-group">
         <label for="name">Describe brevemente el motivo de tu solicitud <span style="color:red;">(*)</span></label>
-        <textarea class="form-control" name="sol[{{ $i }}][descripcionSolicitud]" required>{{ $solicitante["descripcionSolicitud"] ?? '' }}</textarea>
+        <textarea class="form-control js-autoalto" name="sol[{{ $i }}][descripcionSolicitud]" rows="3" required>{{ $solicitante["descripcionSolicitud"] ?? '' }}</textarea>
         <div class="invalid-feedback">
             El campo descripción del motivo de la solicitud es obligatorio.
         </div>
