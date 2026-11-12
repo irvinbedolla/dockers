@@ -2,12 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\DiasInhabiles;
 use App\Models\PermisosConciliador;
 use App\Models\User;
 use App\Support\AgendaContexto;
 use App\Support\SedesConciliador;
 use App\Support\TraspasoAudiencias;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 /**
@@ -61,6 +65,7 @@ class ConciliadoresController extends Controller
             'cifras'    => $cifras,
             'filtros'   => $f,
             'historial' => SedesConciliador::historial(null, 10),
+            'bloqueos'  => self::bloqueosDe($visibles->map(fn ($r) => $r->usuario->id)->all()),
             'nombres'   => $todos->pluck('name', 'id'),
         ]);
     }
@@ -76,6 +81,7 @@ class ConciliadoresController extends Controller
             'region'      => AgendaContexto::sedesDeRegion($conciliador->delegacion),
             'pendientes'  => SedesConciliador::pendientesPorSede($conciliador->id),
             'historial'   => SedesConciliador::historial($conciliador->id),
+            'susBloqueos' => self::bloqueosDe([$conciliador->id])->get($conciliador->id, collect()),
         ]);
     }
 
@@ -274,6 +280,148 @@ class ConciliadoresController extends Controller
             ->with('resultado', $resultado)
             ->with('success', $r['movidas'] === 1 ? 'Se traspasó 1 audiencia.' : "Se traspasaron {$r['movidas']} audiencias.")
             ->with('warning', trim(($r['quedaron'] ? "{$r['quedaron']} se quedaron con su conciliador. " : '').implode(' ', $r['avisos'] ?? [])) ?: null);
+    }
+
+    /**
+     * Qué se bloquea (dias_inhabiles.tipo). Los tres los respeta el reparto de
+     * audiencias (ObtenerAudiencia) y Traspasar audiencias.
+     */
+    public const TIPOS_BLOQUEO = [
+        'Bloqueo por permiso' => 'Permiso (vacaciones, incapacidad, comisión)',
+        'Audiencias'          => 'Sólo audiencias',
+        'Todos'               => 'Todo (audiencias, ratificaciones y cumplimientos)',
+    ];
+
+    private const TIPOS_CORTO = ['Bloqueo por permiso' => 'Permiso', 'Audiencias' => 'Audiencias', 'Todos' => 'Todo'];
+
+    /**
+     * Bloquear días de un conciliador desde su tarjeta (lo mismo que
+     * Administración → Sedes → "Bloquear conciliador": un renglón de
+     * dias_inhabiles con su user_id). Todo el día = de 00:00 a 23:59.
+     */
+    public function bloquear(Request $request, int $id)
+    {
+        $conciliador = $this->conciliador($id);
+        $hoy = Carbon::today()->toDateString();
+
+        $d = $request->validate([
+            'desde'       => ['required', 'date_format:Y-m-d', 'after_or_equal:'.$hoy],
+            'hasta'       => ['nullable', 'date_format:Y-m-d', 'after_or_equal:desde'],
+            'tipo'        => ['required', Rule::in(array_keys(self::TIPOS_BLOQUEO))],
+            'todo_el_dia' => ['nullable', 'boolean'],
+            'hora_inicio' => ['exclude_if:todo_el_dia,1', 'required', 'date_format:H:i'],
+            'hora_final'  => ['exclude_if:todo_el_dia,1', 'required', 'date_format:H:i', 'after:hora_inicio'],
+        ], [
+            'desde.required'       => 'Elige desde qué día.',
+            'desde.after_or_equal' => 'No se puede bloquear un día que ya pasó.',
+            'hasta.after_or_equal' => 'La fecha "hasta" no puede ser antes de "desde".',
+            'hora_final.after'     => 'La hora final debe ser después de la inicial.',
+        ]);
+
+        $desde = $d['desde'];
+        $hasta = $d['hasta'] ?? $d['desde'];
+        $todo  = ! empty($d['todo_el_dia']);
+        $hi    = $todo ? '00:00:00' : $d['hora_inicio'].':00';
+        $hf    = $todo ? '23:59:00' : $d['hora_final'].':00';
+
+        $cruce = DiasInhabiles::where('user_id', $conciliador->id)
+            ->whereDate('fecha_inicio', '<=', $hasta)
+            ->whereDate('fecha_final', '>=', $desde)
+            ->where('horario_inicio', '<', $hf)
+            ->where('horario_final', '>', $hi)
+            ->first();
+        if ($cruce) {
+            return back()->with('error', "{$conciliador->name} ya tiene un bloqueo que se cruza: ".self::bloqueoTexto($cruce, true).'. Quítalo o elige otras fechas.');
+        }
+
+        DiasInhabiles::create([
+            'fecha_inicio'   => $desde,
+            'fecha_final'    => $hasta,
+            'horario_inicio' => $hi,
+            'horario_final'  => $hf,
+            'centro'         => $conciliador->delegacion,
+            'user_id'        => $conciliador->id,
+            // "No inhabil" + horario: así lo leen ObtenerAudiencia y el calendario de la sede.
+            // ("Inhabil" en dias_inhabiles es suspensión de términos de la sede.)
+            'descripcion'    => 'No inhabil',
+            'tipo'           => $d['tipo'],
+        ]);
+
+        // Lo ya agendado en ese periodo no se mueve solo.
+        $agendadas = DB::table('audiencias')
+            ->where('id_conciliador', $conciliador->id)
+            ->where('estatus', 'Pendiente')
+            ->whereBetween('fecha', [$desde, $hasta])
+            ->when(! $todo, fn ($q) => $q->whereBetween('hora', [$hi, $hf]))
+            ->count();
+
+        $periodo = $desde === $hasta
+            ? 'el '.Carbon::parse($desde)->locale('es')->isoFormat('dddd D [de] MMMM')
+            : 'del '.Carbon::parse($desde)->format('d/m').' al '.Carbon::parse($hasta)->format('d/m/Y');
+
+        return back()
+            ->with('success', "Se bloqueó a {$conciliador->name} {$periodo}".($todo ? '' : ' de '.substr($hi, 0, 5).' a '.substr($hf, 0, 5))
+                .': el reparto no le dará audiencias nuevas.')
+            ->with('warning', $agendadas
+                ? "Ojo: ya tiene {$agendadas} ".($agendadas === 1 ? 'audiencia agendada' : 'audiencias agendadas').' en ese periodo. Siguen a su nombre: muévelas con "Traspasar audiencias".'
+                : null);
+    }
+
+    /** Quita un bloqueo del conciliador. */
+    public function quitarBloqueo(int $id, int $bloqueo)
+    {
+        $conciliador = $this->conciliador($id);
+        $b = DiasInhabiles::where('id', $bloqueo)->where('user_id', $conciliador->id)->first();
+        if (! $b) {
+            return back()->with('warning', 'Ese bloqueo ya no existe.');
+        }
+        $texto = self::bloqueoTexto($b);
+        $b->delete();
+
+        return back()->with('success', "Se quitó el bloqueo de {$conciliador->name} ({$texto}).");
+    }
+
+    /** Bloqueos de hoy en adelante de esos conciliadores: [user_id => Collection]. */
+    public static function bloqueosDe(array $ids): Collection
+    {
+        if (! $ids) {
+            return collect();
+        }
+
+        return DiasInhabiles::whereIn('user_id', $ids)
+            ->whereDate('fecha_final', '>=', Carbon::today())
+            ->orderBy('fecha_inicio')
+            ->get()
+            ->groupBy('user_id');
+    }
+
+    /** "Lun 14 dic", "14–18 dic", "14 dic – 9 ene", con horario si no es todo el día; $largo agrega qué bloquea. */
+    public static function bloqueoTexto(DiasInhabiles $b, bool $largo = false): string
+    {
+        $i = Carbon::parse($b->fecha_inicio)->locale('es');
+        $f = Carbon::parse($b->fecha_final)->locale('es');
+        $fechas = match (true) {
+            $i->isSameDay($f)    => \Illuminate\Support\Str::ucfirst($i->isoFormat('ddd D MMM')),
+            $i->isSameMonth($f)  => $i->format('j').'–'.$f->isoFormat('D MMM'),
+            default              => $i->isoFormat('D MMM').' – '.$f->isoFormat('D MMM'),
+        };
+        $hi = substr((string) $b->horario_inicio, 0, 5);
+        $hf = substr((string) $b->horario_final, 0, 5);
+        $diaCompleto = $b->descripcion === 'Inhabil' || ($hi <= '00:00' && $hf >= '23:59');
+        $horas = $diaCompleto ? '' : " {$hi}–{$hf}";
+        $tipo = self::TIPOS_CORTO[$b->tipo] ?? $b->tipo;
+
+        return $largo
+            ? $fechas.$horas.' · '.(self::TIPOS_BLOQUEO[$b->tipo] ?? $b->tipo).($diaCompleto ? ' · todo el día' : '')
+            : $fechas.$horas.' · '.$tipo;
+    }
+
+    /** ¿El bloqueo incluye hoy? (para resaltarlo). */
+    public static function bloqueoHoy(DiasInhabiles $b): bool
+    {
+        $hoy = Carbon::today()->toDateString();
+
+        return substr((string) $b->fecha_inicio, 0, 10) <= $hoy && substr((string) $b->fecha_final, 0, 10) >= $hoy;
     }
 
     private function conciliador(int $id): User

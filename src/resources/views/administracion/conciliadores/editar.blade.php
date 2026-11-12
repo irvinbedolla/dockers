@@ -75,6 +75,15 @@
                 @endif
             </div>
 
+            {{-- Días bloqueados (permisos, vacaciones…): fuera del formulario de la agenda. --}}
+            <div class="tn-tarjeta mb-3">
+                <h5 class="mb-1" style="font-size: 15px; font-weight: 700; color: var(--tn-tinta);">Días bloqueados</h5>
+                <p class="cn-sub mb-2">Esos días (u horas) no se le dan audiencias nuevas. Son los mismos bloqueos de Administración → Sedes.</p>
+                @include('administracion.conciliadores._bloqueos', ['conciliador' => $conciliador, 'susBloqueos' => $susBloqueos])
+                @if ($susBloqueos->isEmpty())<p class="cn-sub mb-0 mt-1">No tiene días bloqueados de hoy en adelante.</p>@endif
+            </div>
+            @include('administracion.conciliadores._bloqueo_modal')
+
             <form method="POST" action="{{ route('conciliadores.guardar', $conciliador->id) }}" id="cnForm" novalidate>
                 @csrf
                 @method('PUT')
