@@ -36,19 +36,19 @@
                     <span class="ra-guardar-aviso" data-ra-guardar-aviso hidden><i class="bi bi-info-circle"></i> Sin cambios. Para corregir, da clic en <b>Editar datos</b> o directo en el dato.</span>
                 @endif
                 @if ($iniciar)
-                    <button type="submit" class="btn btn-success" name="toquen" value="iniciar_audiencia"><i class="bi bi-play-fill"></i> Guardar e iniciar audiencia</button>
+                    <button type="submit" class="btn btn-success ra-btn-iniciar" name="toquen" value="iniciar_audiencia"><i class="bi bi-play-fill"></i> Guardar e iniciar audiencia</button>
                 @endif
             @else
                 <button type="button" class="btn btn-secondary" disabled title="Agregue al menos un citado para poder guardar.">Guardar edición</button>
             @endif
         @endif
         @if ($editarFinal)
-            <a class="btn btn-outline-secondary" href="{{ route('edicion_audienciaConcluida', ['id' => $general->id, 'audiencia_id' => $audienciaCurrent->id]) }}" target="_blank">
+            <a class="btn ra-btn-editar" href="{{ route('edicion_audienciaConcluida', ['id' => $general->id, 'audiencia_id' => $audienciaCurrent->id]) }}" target="_blank">
                 <i class="bi bi-pencil-square"></i> Editar finalización
             </a>
         @endif
     @endcan
-    <a class="btn btn-outline-secondary" href="{{ route('cancelar_edicion', ['redirect_to' => $regresarA]) }}"><i class="bi bi-arrow-left"></i> Regresar</a>
+    <a class="btn btn-secondary" href="{{ route('cancelar_edicion', ['redirect_to' => $regresarA]) }}"><i class="bi bi-arrow-left"></i> Regresar</a>
 </div>
 @if ($citadosCount === 0 && $edicionAbierta)
     <div class="ra-nota-acciones">Debe agregar al menos un citado para poder guardar.</div>
