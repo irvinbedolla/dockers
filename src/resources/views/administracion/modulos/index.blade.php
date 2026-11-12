@@ -313,7 +313,9 @@
                         Se reparten entre las personas libres a su misma hora; no cambian de día ni de hora y no se le avisa a la persona.
                     </span>
                     <form method="POST" action="{{ route('modulos.pasar_excepcion') }}" class="m-0"
-                          onsubmit="return confirm('¿Pasar estas citas de excepción a los módulos de casos de excepción de {{ $sede }}?');">
+                          data-confirmar="¿Pasar estas citas de excepción?"
+                          data-confirmar-texto="Se pasan a los módulos de casos de excepción de {{ $sede }}. No cambian de día ni de hora y no se le avisa a la persona."
+                          data-confirmar-boton="Sí, pasarlas" data-confirmar-cargando="Pasando…">
                         @csrf
                         <input type="hidden" name="sede" value="{{ $sede }}">
                         <input type="hidden" name="fecha_vista" value="{{ $fecha }}">
@@ -501,7 +503,10 @@
                                                 </form>
                                             @endforeach
                                             @if ($susBloqueos->count() > 1)
-                                                <form method="POST" action="{{ route('modulos.bloqueos.quitar', $modulo) }}" class="d-inline">
+                                                <form method="POST" action="{{ route('modulos.bloqueos.quitar', $modulo) }}" class="d-inline"
+                                                      data-confirmar="¿Quitar todos sus días bloqueados?"
+                                                      data-confirmar-texto="{{ $nombreBonito(optional($modulo->persona)->name ?? $modulo->nombre) }} volverá a recibir citas esos días."
+                                                      data-confirmar-boton="Sí, quitarlos">
                                                     @csrf
                                                     @method('DELETE')
                                                     <input type="hidden" name="fecha_vista" value="{{ $fecha }}">
@@ -692,6 +697,46 @@
 @endsection
 
 @section('scripts')
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        // Confirmaciones con SweetAlert (nunca el confirm del navegador): cualquier
+        // <form data-confirmar="Título" data-confirmar-texto data-confirmar-boton data-confirmar-cargando>.
+        // Va en captura: se detiene el envío antes que los demás scripts (loaders) y,
+        // si se acepta, se vuelve a enviar con requestSubmit para que ellos sí corran.
+        document.addEventListener('submit', function (e) {
+            var form = e.target;
+            if (!form.matches || !form.matches('[data-confirmar]') || form.dataset.confirmado) { return; }
+            e.preventDefault();
+            e.stopPropagation();
+            var submitter = e.submitter || null;
+            var seguir = function () {
+                form.dataset.confirmado = '1';
+                var boton = submitter || form.querySelector('button[type=submit]');
+                if (form.dataset.confirmarCargando && boton && !form.closest('.md-bloqueos')) {
+                    form.requestSubmit(boton);
+                    boton.disabled = true;
+                    boton.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> ' + form.dataset.confirmarCargando;
+                    return;
+                }
+                form.requestSubmit(boton);
+            };
+            if (typeof Swal === 'undefined') {
+                if (window.confirm(form.dataset.confirmar + (form.dataset.confirmarTexto ? '\n' + form.dataset.confirmarTexto : ''))) { seguir(); }
+                return;
+            }
+            Swal.fire({
+                icon: 'question',
+                title: form.dataset.confirmar,
+                text: form.dataset.confirmarTexto || '',
+                showCancelButton: true,
+                confirmButtonText: form.dataset.confirmarBoton || 'Sí, continuar',
+                cancelButtonText: 'Cancelar',
+                reverseButtons: true,
+                focusCancel: true,
+                confirmButtonColor: '#496163'
+            }).then(function (r) { if (r.isConfirmed) { seguir(); } });
+        }, true);
+    </script>
     <script>
         (function () {
             // Elegir otro día recarga.
@@ -967,7 +1012,6 @@
         });
         document.addEventListener('submit', function (e) {
             var form = e.target;
-            if (form.querySelector('[data-bloq-todos]') && !confirm('¿Quitar todos sus días bloqueados? Volverá a recibir citas esos días.')) { e.preventDefault(); return; }
             // Bloquear / quitar: un solo envío. El botón queda con loader hasta que recarga la página.
             if (!form.closest('.md-bloqueos')) { return; }
             if (form.dataset.enviando) { e.preventDefault(); return; }
