@@ -148,6 +148,11 @@
         html body .btn.btn-outline-danger { background-color: #fff !important; border: 1px solid #C9A49A !important; color: #9A3A22 !important; box-shadow: none; }
         html body .btn.btn-danger:not(.btn-social):hover, html body .btn.btn-danger:not(.btn-social):focus,
         html body .btn.btn-outline-danger:not(.btn-social):hover, html body .btn.btn-outline-danger:not(.btn-social):focus { background-color: #9A3A22 !important; border-color: #9A3A22 !important; color: #fff !important; }
+        /* "Guardar edición" mientras no hay cambios: gris, no verde. */
+        html body .btn.btn-primary.ra-guardar--espera,
+        html body .btn.btn-primary.ra-guardar--espera:disabled { background-color: #E3EAEA !important; border-color: #E3EAEA !important; color: #8A9899 !important; box-shadow: none; opacity: 1; }
+        .ra-guardar-aviso { font-size: 12px; color: #8A9899; }
+        .ra-guardar-aviso b { color: #496163; }
         html body .btn.btn-light.disabled { background-color: #F4F6F6 !important; border-color: #F4F6F6 !important; color: #8A9899 !important; box-shadow: none; }
         /* Confirmación de borrar citado */
         .ra-confirmar__datos { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; background: #F7F9F9; border: 1px solid #E3E8E8; border-radius: 10px; padding: 10px 14px; margin: 0 0 12px; }
@@ -2060,6 +2065,50 @@
             window.addEventListener('beforeunload', function (e) {
                 if (cambios && !enviando && !window.raSaltarAvisoSalida) { e.preventDefault(); e.returnValue = ''; }
             });
+        });
+    </script>
+    <script>
+        // "Guardar edición" apagado (gris) hasta que la persona cambie algo:
+        // escribir, elegir una opción, subir un archivo, agregar o quitar un
+        // motivo. Sólo cuentan acciones de la persona (isTrusted): los
+        // municipios y demás campos que se llenan solos al cargar no lo
+        // activan. Si la página regresó con errores, ya trae cambios: activo.
+        // "Guardar e iniciar audiencia" no se toca: se puede iniciar sin editar.
+        document.addEventListener('DOMContentLoaded', function () {
+            var boton = document.querySelector('[data-ra-guardar]');
+            var form = boton && boton.form;
+            if (!form || {{ $errors->any() ? 'true' : 'false' }}) { return; }
+            var aviso = document.querySelector('[data-ra-guardar-aviso]');
+
+            function esperar(si) {
+                boton.disabled = si;
+                boton.classList.toggle('ra-guardar--espera', si);
+                boton.title = si ? 'Aún no has cambiado nada. Da clic en Editar en la sección que quieras corregir.' : '';
+                if (aviso) { aviso.hidden = !si; }
+            }
+            function activar() { if (boton.disabled) { esperar(false); } }
+
+            function cambio(e) {
+                var t = e.target;
+                if (!e.isTrusted || !t.matches || !t.matches('input, select, textarea') || t.type === 'hidden') { return; }
+                activar();
+            }
+            form.addEventListener('input', cambio, true);
+            form.addEventListener('change', cambio, true);
+            // Quitar un motivo (botón Eliminar de la tabla de motivos).
+            form.addEventListener('click', function (e) {
+                if (e.isTrusted && e.target.closest && e.target.closest('.eliminar')) { activar(); }
+            }, true);
+
+            // Enter en un campo sin cambios no debe mandar el siguiente botón
+            // activo ("Guardar e iniciar audiencia") en lugar de Guardar edición.
+            form.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' && boton.disabled && e.target.matches && e.target.matches('input')) { e.preventDefault(); }
+            }, true);
+
+            // Para otros scripts que cambien datos del formulario por su cuenta.
+            window.raMarcarCambio = activar;
+            esperar(true);
         });
     </script>
 
