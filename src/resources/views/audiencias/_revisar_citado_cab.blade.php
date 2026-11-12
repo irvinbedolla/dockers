@@ -30,7 +30,7 @@
         @endif
         <span class="ra-seccion__cambios" hidden><i class="bi bi-dot"></i> Cambios sin guardar</span>
         @if ($puedeEditar)
-            <button type="button" class="btn btn-sm ra-editar"><i class="bi bi-pencil"></i> <span>Editar</span></button>
+            <button type="button" class="btn btn-sm ra-editar"><i class="bi bi-pencil"></i> <span>Editar datos</span></button>
         @endif
     </div>
 </div>

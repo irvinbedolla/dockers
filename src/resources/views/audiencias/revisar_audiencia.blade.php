@@ -101,6 +101,16 @@
         .ra-lectura label span[style*="red"] { display: none; }
         .ra-lectura .form-group { margin-bottom: 6px; }
 
+        /* Se puede editar dando clic en el dato: al pasar el mouse el dato se
+           sombrea y sale un lápiz; el clic abre la sección en ese campo. */
+        .ra-lectura.ra-editable .form-group { position: relative; cursor: pointer; border-radius: 8px; transition: background-color .12s, box-shadow .12s; }
+        .ra-lectura.ra-editable .form-group:hover { background-color: #F2F6F6; box-shadow: 0 0 0 6px #F2F6F6; }
+        .ra-lectura.ra-editable .form-group:hover::after {
+            content: "\F4CB"; font-family: bootstrap-icons; position: absolute; top: 2px; right: 4px;
+            font-size: 12px; color: #496163; pointer-events: none;
+        }
+        .ra-lectura.ra-editable .form-group:hover label { color: #496163; }
+
         .ra-parte { border: 1px solid #E3E8E8; border-radius: 12px; padding: 12px 16px; margin: 6px 0 16px; background: #fff; }
         .ra-parte__cab { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px; padding-bottom: 10px; margin-bottom: 6px; border-bottom: 1px solid #EEF2F2; }
         .ra-parte__quien { display: flex; gap: 10px; align-items: flex-start; min-width: 0; }
@@ -140,14 +150,21 @@
         html body .btn.btn-secondary { background-color: #E3EAEA !important; border-color: #E3EAEA !important; color: #496163 !important; box-shadow: none; }
         html body .btn.btn-secondary:not(.btn-social):not(:disabled):hover { background-color: #D2DCDC !important; border-color: #D2DCDC !important; color: #354647 !important; }
         html body .btn.btn-outline-secondary,
-        html body .btn.ra-editar { background-color: #fff !important; border: 1px solid #829A9C !important; color: #496163 !important; box-shadow: none; }
+        html body .btn.ra-editar { background-color: #829A9C !important; border: 1px solid #829A9C !important; color: #fff !important; box-shadow: 0 2px 6px rgba(130, 154, 156, .3); }
         html body .btn.btn-outline-secondary:not(.btn-social):hover, html body .btn.btn-outline-secondary:not(.btn-social):focus,
         html body .btn.ra-editar:not(.btn-social):hover, html body .btn.ra-editar:not(.btn-social):focus,
+        html body .ra-seccion.ra-lectura.ra-editable:hover > .ra-seccion__cab .btn.ra-editar,
+        html body .ra-seccion.ra-lectura.ra-editable:hover > .ra-parte__cab .btn.ra-editar,
         html body .ra-seccion.is-editando .btn.ra-editar { background-color: #496163 !important; border-color: #496163 !important; color: #fff !important; }
         html body .btn.btn-danger,
         html body .btn.btn-outline-danger { background-color: #fff !important; border: 1px solid #C9A49A !important; color: #9A3A22 !important; box-shadow: none; }
         html body .btn.btn-danger:not(.btn-social):hover, html body .btn.btn-danger:not(.btn-social):focus,
         html body .btn.btn-outline-danger:not(.btn-social):hover, html body .btn.btn-outline-danger:not(.btn-social):focus { background-color: #9A3A22 !important; border-color: #9A3A22 !important; color: #fff !important; }
+        /* "Guardar edición" mientras no hay cambios: gris, no verde. */
+        html body .btn.btn-primary.ra-guardar--espera,
+        html body .btn.btn-primary.ra-guardar--espera:disabled { background-color: #E3EAEA !important; border-color: #E3EAEA !important; color: #8A9899 !important; box-shadow: none; opacity: 1; }
+        .ra-guardar-aviso { font-size: 12px; color: #8A9899; }
+        .ra-guardar-aviso b { color: #496163; }
         html body .btn.btn-light.disabled { background-color: #F4F6F6 !important; border-color: #F4F6F6 !important; color: #8A9899 !important; box-shadow: none; }
         /* Confirmación de borrar citado */
         .ra-confirmar__datos { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; background: #F7F9F9; border: 1px solid #E3E8E8; border-radius: 10px; padding: 10px 14px; margin: 0 0 12px; }
@@ -1445,6 +1462,8 @@
 @endpush
 
 @section('scripts')
+    {{-- SweetAlert2 (como en el resto de Administración): confirmación al salir sin guardar. --}}
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <script src="{{ asset('assets/js/estadistica/estadistica.js') }}"></script>
     <script>
@@ -1986,7 +2005,7 @@
                     }
                 });
                 var txt = sec.querySelector('.ra-editar span');
-                if (txt) { txt.textContent = si ? 'Editar' : 'Listo'; }
+                if (txt) { txt.textContent = si ? 'Editar datos' : 'Listo'; }
             }
 
             // Oculto dentro de la sección (no cuenta que la pestaña esté cerrada).
@@ -2036,6 +2055,29 @@
                 sec.addEventListener('change', marcar);
             });
 
+            // Clic directo en un dato (modo lectura): abre su sección y deja el
+            // cursor en ese campo. Los campos en lectura no reciben el clic
+            // (pointer-events: none), así que se toma el .form-group que lo envuelve.
+            if (puedeEditar) {
+                secciones.forEach(function (sec) {
+                    if (sec.querySelector('.ra-editar')) { sec.classList.add('ra-editable'); }
+                });
+                form.addEventListener('click', function (e) {
+                    var grupo = e.target.closest && e.target.closest('.form-group');
+                    var sec = grupo && grupo.closest('.ra-seccion');
+                    if (!sec || !sec.classList.contains('ra-lectura') || !sec.classList.contains('ra-editable')) { return; }
+                    if (e.target.closest('a, button, .btn, [data-bs-toggle], input[type=file]')) { return; }
+                    var campo = Array.prototype.find.call(grupo.querySelectorAll(CAMPOS), function (el) { return !oculto(el, grupo); });
+                    lectura(sec, false);
+                    if (campo) {
+                        try { campo.focus({ preventScroll: true }); } catch (err) {}
+                        if (campo.tagName === 'SELECT' && typeof campo.showPicker === 'function') {
+                            try { campo.showPicker(); } catch (err) {}
+                        }
+                    }
+                });
+            }
+
             // Al enviar: se abren todas para que la validación vea los obligatorios;
             // si algo falta, se queda abierta sólo la sección con el problema.
             form.addEventListener('submit', function () {
@@ -2057,10 +2099,123 @@
                 if (sec && sec.classList.contains('ra-lectura')) { lectura(sec, false); }
             }, true);
 
+            // Recargar o cerrar la pestaña: el navegador sólo permite su aviso
+            // propio (no se puede cambiar por uno de la página).
             window.addEventListener('beforeunload', function (e) {
-                if (cambios && !enviando && !window.raSaltarAvisoSalida) { e.preventDefault(); e.returnValue = ''; }
+                if (hayCambios() && !enviando && !window.raSaltarAvisoSalida) { e.preventDefault(); e.returnValue = ''; }
+            });
+
+            // Salir por un enlace (Regresar, menú lateral, etc.) o con el botón
+            // Atrás del navegador: confirmación con SweetAlert en vez del aviso
+            // nativo. Cuenta como cambio lo que marcan las secciones y lo que
+            // enciende "Guardar edición" (motivos, archivos).
+            function hayCambios() { return cambios || !!window.raCambioDetectado; }
+
+            function preguntarSalida() {
+                if (typeof Swal === 'undefined') {
+                    return Promise.resolve(window.confirm('Tienes cambios sin guardar. ¿Salir de todos modos?'));
+                }
+                return Swal.fire({
+                    icon: 'warning',
+                    title: '¿Salir sin guardar?',
+                    html: 'Hiciste cambios que <b>todavía no se guardan</b>. Si sales ahora, se pierden.<br>Para conservarlos, quédate y da clic en <b>Guardar edición</b>.',
+                    showCancelButton: true,
+                    confirmButtonText: 'Seguir editando',
+                    cancelButtonText: 'Salir sin guardar',
+                    reverseButtons: true,
+                    focusConfirm: true,
+                    confirmButtonColor: '#496163',
+                    cancelButtonColor: '#9A3A22',
+                }).then(function (r) { return r.dismiss === Swal.DismissReason.cancel; });
+            }
+
+            function salir(destino) {
+                window.raSaltarAvisoSalida = true;
+                destino();
+            }
+
+            document.addEventListener('click', function (e) {
+                var a = e.target.closest && e.target.closest('a[href]');
+                if (!a || !hayCambios() || enviando || window.raSaltarAvisoSalida) { return; }
+                var href = a.getAttribute('href') || '';
+                if (e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) { return; }
+                if (a.target === '_blank' || a.hasAttribute('download') || a.hasAttribute('data-bs-toggle')
+                    || href === '' || href.charAt(0) === '#' || href.indexOf('javascript:') === 0) { return; }
+                e.preventDefault();
+                preguntarSalida().then(function (si) {
+                    if (si) { salir(function () { window.location.href = a.href; }); }
+                });
+            }, true);
+
+            // Botón Atrás: se agrega una entrada al historial en el primer
+            // cambio; al regresar se pregunta y, si se queda, se vuelve a poner.
+            var trampa = false;
+            function ponerTrampa() {
+                if (trampa || !window.history || !history.pushState) { return; }
+                trampa = true;
+                history.pushState({ raCambios: true }, '');
+            }
+            form.addEventListener('input', function (e) { if (e.isTrusted) { ponerTrampa(); } }, true);
+            form.addEventListener('change', function (e) { if (e.isTrusted) { ponerTrampa(); } }, true);
+            window.addEventListener('popstate', function () {
+                if (!trampa) { return; }
+                if (!hayCambios() || enviando || window.raSaltarAvisoSalida) { trampa = false; history.back(); return; }
+                preguntarSalida().then(function (si) {
+                    if (si) {
+                        salir(function () { trampa = false; history.back(); });
+                    } else {
+                        history.pushState({ raCambios: true }, '');
+                    }
+                });
             });
         });
     </script>
+    <script>
+        // "Guardar edición" apagado (gris) hasta que la persona cambie algo:
+        // escribir, elegir una opción, subir un archivo, agregar o quitar un
+        // motivo. Sólo cuentan acciones de la persona (isTrusted): los
+        // municipios y demás campos que se llenan solos al cargar no lo
+        // activan. Si la página regresó con errores, ya trae cambios: activo.
+        // "Guardar e iniciar audiencia" no se toca: se puede iniciar sin editar.
+        document.addEventListener('DOMContentLoaded', function () {
+            var boton = document.querySelector('[data-ra-guardar]');
+            var form = boton && boton.form;
+            if (!form || {{ $errors->any() ? 'true' : 'false' }}) { return; }
+            var aviso = document.querySelector('[data-ra-guardar-aviso]');
+
+            function esperar(si) {
+                boton.disabled = si;
+                boton.classList.toggle('ra-guardar--espera', si);
+                boton.title = si ? 'Aún no has cambiado nada. Da clic en Editar en la sección que quieras corregir.' : '';
+                if (aviso) { aviso.hidden = !si; }
+            }
+            function activar() { window.raCambioDetectado = true; if (boton.disabled) { esperar(false); } }
+
+            function cambio(e) {
+                var t = e.target;
+                if (!e.isTrusted || !t.matches || !t.matches('input, select, textarea') || t.type === 'hidden') { return; }
+                activar();
+            }
+            form.addEventListener('input', cambio, true);
+            form.addEventListener('change', cambio, true);
+            // Quitar un motivo (botón Eliminar de la tabla de motivos).
+            form.addEventListener('click', function (e) {
+                if (e.isTrusted && e.target.closest && e.target.closest('.eliminar')) { activar(); }
+            }, true);
+
+            // Enter en un campo sin cambios no debe mandar el siguiente botón
+            // activo ("Guardar e iniciar audiencia") en lugar de Guardar edición.
+            form.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' && boton.disabled && e.target.matches && e.target.matches('input')) { e.preventDefault(); }
+            }, true);
+
+            // Para otros scripts que cambien datos del formulario por su cuenta.
+            window.raMarcarCambio = activar;
+            esperar(true);
+        });
+    </script>
+
+    {{-- "Describe brevemente el motivo de tu solicitud" crece hasta verse completo. --}}
+    @include('partials.general._textarea_autoalto')
 @endsection
 
