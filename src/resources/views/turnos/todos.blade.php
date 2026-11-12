@@ -469,19 +469,30 @@
                         </div>
                         <div class="modal-body">
                             <div class="row g-3">
-                                <div class="col-sm-6">
-                                    <label for="agFecha" class="form-label small fw-semibold">Día</label>
-                                    <input type="date" class="form-control" id="agFecha" name="fecha" value="{{ $fecha ?? $hoy }}" required>
-                                </div>
-                                <div class="col-sm-6">
+                                <div class="col-12">
                                     <label class="form-label small fw-semibold d-block">Periodo</label>
                                     <div class="btn-group w-100" role="group" aria-label="Periodo">
                                         <input type="radio" class="btn-check" name="periodo" id="agDia" value="dia" checked>
-                                        <label class="btn btn-outline-secondary" for="agDia">Ese día</label>
+                                        <label class="btn btn-outline-secondary" for="agDia">Un día</label>
                                         <input type="radio" class="btn-check" name="periodo" id="agSemana" value="semana">
                                         <label class="btn btn-outline-secondary" for="agSemana">Su semana</label>
+                                        <input type="radio" class="btn-check" name="periodo" id="agRango" value="rango">
+                                        <label class="btn btn-outline-secondary" for="agRango">Rango de fechas</label>
                                     </div>
+                                </div>
+                                <div class="col-sm-6" data-ag-un-dia>
+                                    <label for="agFecha" class="form-label small fw-semibold">Día</label>
+                                    <input type="date" class="form-control" id="agFecha" name="fecha" value="{{ $fecha ?? $hoy }}" required>
                                     <div class="form-text" id="agSemanaTexto"></div>
+                                </div>
+                                <div class="col-sm-6" data-ag-rango hidden>
+                                    <label for="agDesde" class="form-label small fw-semibold">Desde</label>
+                                    <input type="date" class="form-control" id="agDesde" name="desde" value="{{ $fecha ?? $hoy }}" disabled>
+                                </div>
+                                <div class="col-sm-6" data-ag-rango hidden>
+                                    <label for="agHasta" class="form-label small fw-semibold">Hasta</label>
+                                    <input type="date" class="form-control" id="agHasta" name="hasta" value="{{ $fecha ?? $hoy }}" disabled>
+                                    <div class="form-text" id="agRangoTexto">Hasta {{ \App\Support\AgendaTurnos::MAX_DIAS_RANGO }} días.</div>
                                 </div>
                                 <div class="col-sm-6">
                                     <label for="agSede" class="form-label small fw-semibold">Sede</label>
@@ -492,6 +503,12 @@
                                         @foreach ($sedesPermitidas as $s)
                                             <option value="{{ $s }}" @selected(($filtros['sede'] ?? '') === $s)>{{ $s }}</option>
                                         @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-sm-6">
+                                    <label for="agPersona" class="form-label small fw-semibold">Persona</label>
+                                    <select class="form-select" id="agPersona" name="persona" data-personas='@json($personasAgenda)'>
+                                        <option value="">Todas</option>
                                     </select>
                                 </div>
                                 <div class="col-sm-6">
@@ -513,6 +530,7 @@
                             </div>
                             <p class="small mt-3 mb-0" style="color: var(--tn-tenue);">
                                 Incluye hora, módulo, folio, trámite, quién llega, quién le atiende, a qué hora llegó, la atención y en qué quedó.
+                                Con una persona elegida, sólo salen los turnos que tiene asignados.
                                 Excel trae una hoja de resumen y una por sede; la imagen se abre en otra pestaña y se descarga sola.
                             </p>
                         </div>
@@ -580,6 +598,62 @@
             arma();
             if (tipo) tipo.addEventListener('change', arma);
             if (sede) sede.addEventListener('change', arma);
+        })();
+
+        // Descargar agenda: un día, su semana o un rango; y la persona, de la sede elegida.
+        (function () {
+            var form = document.getElementById('agForm');
+            if (!form) return;
+            var desde = document.getElementById('agDesde');
+            var hasta = document.getElementById('agHasta');
+            var fechaDia = document.getElementById('agFecha');
+            var maxDias = {{ \App\Support\AgendaTurnos::MAX_DIAS_RANGO }};
+
+            function periodo() {
+                var rango = document.getElementById('agRango').checked;
+                form.querySelectorAll('[data-ag-rango]').forEach(function (el) { el.hidden = !rango; });
+                form.querySelectorAll('[data-ag-un-dia]').forEach(function (el) { el.hidden = rango; });
+                // Lo que no se ve no se manda (ni se valida).
+                fechaDia.disabled = rango;
+                desde.disabled = hasta.disabled = !rango;
+                desde.required = hasta.required = rango;
+                limites();
+            }
+            function limites() {
+                if (!desde.value) return;
+                hasta.min = desde.value;
+                var tope = new Date(desde.value + 'T12:00:00'); tope.setDate(tope.getDate() + maxDias - 1);
+                hasta.max = tope.toISOString().slice(0, 10);
+                if (hasta.value && hasta.value < desde.value) hasta.value = desde.value;
+                if (hasta.value && hasta.value > hasta.max) hasta.value = hasta.max;
+            }
+            form.querySelectorAll('input[name="periodo"]').forEach(function (r) { r.addEventListener('change', periodo); });
+            desde.addEventListener('change', limites);
+            periodo();
+
+            // Persona: sólo las de la sede elegida (con todas, agrupadas por sede).
+            var persona = document.getElementById('agPersona');
+            var sede = document.getElementById('agSede');
+            var gente = JSON.parse(persona.dataset.personas || '[]');
+            function personas() {
+                var actual = persona.value;
+                var enSede = sede ? sede.value : '';
+                var grupos = {};
+                persona.innerHTML = '<option value="">Todas</option>';
+                gente.forEach(function (p) {
+                    if (enSede && p.delegacion !== enSede) return;
+                    var op = new Option(p.name + (p.activo ? '' : ' (inactiva)'), p.id, false, String(p.id) === actual);
+                    if (enSede) { persona.appendChild(op); return; }
+                    if (!grupos[p.delegacion]) {
+                        grupos[p.delegacion] = document.createElement('optgroup');
+                        grupos[p.delegacion].label = p.delegacion;
+                        persona.appendChild(grupos[p.delegacion]);
+                    }
+                    grupos[p.delegacion].appendChild(op);
+                });
+            }
+            if (sede) sede.addEventListener('change', personas);
+            personas();
         })();
 
         // Descargar agenda: muestra qué semana se va a bajar.
