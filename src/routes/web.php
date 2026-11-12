@@ -406,6 +406,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::get('administracion/conciliadores/{id}',              [App\Http\Controllers\ConciliadoresController::class, 'editar'])->name('conciliadores.editar')->whereNumber('id');
             Route::put('administracion/conciliadores/{id}',              [App\Http\Controllers\ConciliadoresController::class, 'guardar'])->name('conciliadores.guardar')->whereNumber('id');
             Route::delete('administracion/conciliadores/{id}/sedes',     [App\Http\Controllers\ConciliadoresController::class, 'quitar'])->name('conciliadores.quitar')->whereNumber('id');
+            // Días bloqueados del conciliador (dias_inhabiles con su user_id, como en Administración → Sedes).
+            Route::post('administracion/conciliadores/{id}/bloqueos',    [App\Http\Controllers\ConciliadoresController::class, 'bloquear'])->name('conciliadores.bloqueos.guardar')->whereNumber('id');
+            Route::delete('administracion/conciliadores/{id}/bloqueos/{bloqueo}', [App\Http\Controllers\ConciliadoresController::class, 'quitarBloqueo'])->name('conciliadores.bloqueos.quitar')->whereNumber('id')->whereNumber('bloqueo');
         });
         Route::get('administracion/sedes',                  [AdministracionController::class, 'configuracion_sedes'])->name('configuracion_sedes');
         Route::get('administracion/usuarios',               [AdministracionController::class, 'configuracion_usuarios'])->name('configuracion_usuarios');

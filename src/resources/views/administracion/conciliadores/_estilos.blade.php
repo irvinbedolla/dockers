@@ -44,6 +44,18 @@
     .cn-insignia--sin { background: #F6E4EA; color: #8C1D40; }
     .cn-insignia--sede { background: #F5F7F7; color: var(--tn-suave); font-weight: 600; }
 
+    /* Días bloqueados del conciliador (dias_inhabiles). */
+    .cn-bloqueos { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin-top: 6px; }
+    .cn-bloq { display: inline-flex; align-items: center; gap: 4px; margin: 0; padding: 1px 3px 1px 8px; border-radius: 999px;
+        background: #fff; border: 1px solid #EBC3D0; color: #8C1D40; font-size: 11.5px; font-weight: 700; white-space: nowrap; }
+    .cn-bloq.is-hoy { background: #8C1D40; border-color: #8C1D40; color: #fff; }
+    .cn-bloq button { border: 0; background: transparent; color: inherit; font-size: 14px; line-height: 1; padding: 0 3px; cursor: pointer; opacity: .75; }
+    .cn-bloq button:hover { opacity: 1; }
+    .cn-bloq button:disabled { cursor: wait; opacity: 1; }
+    .cn-bloq__spin { width: 10px; height: 10px; border-width: 2px; vertical-align: -1px; }
+    .cn-bloq-abrir { font-size: 12px; font-weight: 700; color: #496163; text-decoration: none; }
+    .cn-bloq-abrir:hover { text-decoration: underline; }
+
     .cn-historial { font-size: 12.5px; }
     .cn-historial li { padding: 6px 0; border-bottom: 1px dashed var(--tn-borde); }
     .cn-historial li:last-child { border-bottom: 0; }
