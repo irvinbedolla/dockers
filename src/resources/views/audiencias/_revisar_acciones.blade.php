@@ -33,7 +33,7 @@
             @if ($citadosCount > 0)
                 @if ($guardar)
                     <button type="submit" class="btn btn-primary" name="toquen" value="1" data-ra-guardar><i class="bi bi-save"></i> Guardar edición</button>
-                    <span class="ra-guardar-aviso" data-ra-guardar-aviso hidden><i class="bi bi-info-circle"></i> Sin cambios. Para corregir, da clic en <b>Editar</b> en la sección.</span>
+                    <span class="ra-guardar-aviso" data-ra-guardar-aviso hidden><i class="bi bi-info-circle"></i> Sin cambios. Para corregir, da clic en <b>Editar datos</b> o directo en el dato.</span>
                 @endif
                 @if ($iniciar)
                     <button type="submit" class="btn btn-success" name="toquen" value="iniciar_audiencia"><i class="bi bi-play-fill"></i> Guardar e iniciar audiencia</button>

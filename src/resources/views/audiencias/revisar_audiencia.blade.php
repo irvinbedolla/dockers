@@ -101,6 +101,16 @@
         .ra-lectura label span[style*="red"] { display: none; }
         .ra-lectura .form-group { margin-bottom: 6px; }
 
+        /* Se puede editar dando clic en el dato: al pasar el mouse el dato se
+           sombrea y sale un lápiz; el clic abre la sección en ese campo. */
+        .ra-lectura.ra-editable .form-group { position: relative; cursor: pointer; border-radius: 8px; transition: background-color .12s, box-shadow .12s; }
+        .ra-lectura.ra-editable .form-group:hover { background-color: #F2F6F6; box-shadow: 0 0 0 6px #F2F6F6; }
+        .ra-lectura.ra-editable .form-group:hover::after {
+            content: "\F4CB"; font-family: bootstrap-icons; position: absolute; top: 2px; right: 4px;
+            font-size: 12px; color: #496163; pointer-events: none;
+        }
+        .ra-lectura.ra-editable .form-group:hover label { color: #496163; }
+
         .ra-parte { border: 1px solid #E3E8E8; border-radius: 12px; padding: 12px 16px; margin: 6px 0 16px; background: #fff; }
         .ra-parte__cab { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px; padding-bottom: 10px; margin-bottom: 6px; border-bottom: 1px solid #EEF2F2; }
         .ra-parte__quien { display: flex; gap: 10px; align-items: flex-start; min-width: 0; }
@@ -140,9 +150,11 @@
         html body .btn.btn-secondary { background-color: #E3EAEA !important; border-color: #E3EAEA !important; color: #496163 !important; box-shadow: none; }
         html body .btn.btn-secondary:not(.btn-social):not(:disabled):hover { background-color: #D2DCDC !important; border-color: #D2DCDC !important; color: #354647 !important; }
         html body .btn.btn-outline-secondary,
-        html body .btn.ra-editar { background-color: #fff !important; border: 1px solid #829A9C !important; color: #496163 !important; box-shadow: none; }
+        html body .btn.ra-editar { background-color: #829A9C !important; border: 1px solid #829A9C !important; color: #fff !important; box-shadow: 0 2px 6px rgba(130, 154, 156, .3); }
         html body .btn.btn-outline-secondary:not(.btn-social):hover, html body .btn.btn-outline-secondary:not(.btn-social):focus,
         html body .btn.ra-editar:not(.btn-social):hover, html body .btn.ra-editar:not(.btn-social):focus,
+        html body .ra-seccion.ra-lectura.ra-editable:hover > .ra-seccion__cab .btn.ra-editar,
+        html body .ra-seccion.ra-lectura.ra-editable:hover > .ra-parte__cab .btn.ra-editar,
         html body .ra-seccion.is-editando .btn.ra-editar { background-color: #496163 !important; border-color: #496163 !important; color: #fff !important; }
         html body .btn.btn-danger,
         html body .btn.btn-outline-danger { background-color: #fff !important; border: 1px solid #C9A49A !important; color: #9A3A22 !important; box-shadow: none; }
@@ -1991,7 +2003,7 @@
                     }
                 });
                 var txt = sec.querySelector('.ra-editar span');
-                if (txt) { txt.textContent = si ? 'Editar' : 'Listo'; }
+                if (txt) { txt.textContent = si ? 'Editar datos' : 'Listo'; }
             }
 
             // Oculto dentro de la sección (no cuenta que la pestaña esté cerrada).
@@ -2040,6 +2052,29 @@
                 sec.addEventListener('input', marcar);
                 sec.addEventListener('change', marcar);
             });
+
+            // Clic directo en un dato (modo lectura): abre su sección y deja el
+            // cursor en ese campo. Los campos en lectura no reciben el clic
+            // (pointer-events: none), así que se toma el .form-group que lo envuelve.
+            if (puedeEditar) {
+                secciones.forEach(function (sec) {
+                    if (sec.querySelector('.ra-editar')) { sec.classList.add('ra-editable'); }
+                });
+                form.addEventListener('click', function (e) {
+                    var grupo = e.target.closest && e.target.closest('.form-group');
+                    var sec = grupo && grupo.closest('.ra-seccion');
+                    if (!sec || !sec.classList.contains('ra-lectura') || !sec.classList.contains('ra-editable')) { return; }
+                    if (e.target.closest('a, button, .btn, [data-bs-toggle], input[type=file]')) { return; }
+                    var campo = Array.prototype.find.call(grupo.querySelectorAll(CAMPOS), function (el) { return !oculto(el, grupo); });
+                    lectura(sec, false);
+                    if (campo) {
+                        try { campo.focus({ preventScroll: true }); } catch (err) {}
+                        if (campo.tagName === 'SELECT' && typeof campo.showPicker === 'function') {
+                            try { campo.showPicker(); } catch (err) {}
+                        }
+                    }
+                });
+            }
 
             // Al enviar: se abren todas para que la validación vea los obligatorios;
             // si algo falta, se queda abierta sólo la sección con el problema.
