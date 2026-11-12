@@ -58,6 +58,7 @@
         </form>
     </div>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         var modal = document.getElementById('cnBloqueoModal');
@@ -100,14 +101,36 @@
             enviar.disabled = true;
             enviar.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Bloqueando…';
         });
+        // Quitar un bloqueo: confirmación con SweetAlert y loader en la ×.
         document.addEventListener('submit', function (e) {
             var f = e.target;
             if (!f.matches('[data-cn-quitar]')) { return; }
-            if (f.dataset.enviando || !confirm('¿Quitar este bloqueo? Esos días podrá volver a recibir audiencias.')) { e.preventDefault(); return; }
-            f.dataset.enviando = '1';
-            var b = f.querySelector('button');
-            b.disabled = true;
-            b.innerHTML = '<span class="spinner-border cn-bloq__spin" role="status" aria-hidden="true"></span>';
+            e.preventDefault();
+            if (f.dataset.enviando) { return; }
+            var quitar = function () {
+                f.dataset.enviando = '1';
+                var b = f.querySelector('button');
+                b.disabled = true;
+                b.innerHTML = '<span class="spinner-border cn-bloq__spin" role="status" aria-hidden="true"></span>';
+                f.submit();
+            };
+            var texto = f.querySelector('span') ? f.querySelector('span').textContent.trim() : '';
+            if (typeof Swal === 'undefined') {
+                if (confirm('¿Quitar este bloqueo? Esos días podrá volver a recibir audiencias.')) { quitar(); }
+                return;
+            }
+            Swal.fire({
+                icon: 'question',
+                title: '¿Quitar este bloqueo?',
+                html: (texto ? '<b>' + texto.replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }) + '</b><br>' : '')
+                    + 'Esos días podrá volver a recibir audiencias.',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, quitarlo',
+                cancelButtonText: 'Cancelar',
+                reverseButtons: true,
+                focusCancel: true,
+                confirmButtonColor: '#496163'
+            }).then(function (r) { if (r.isConfirmed) { quitar(); } });
         });
     });
 </script>
