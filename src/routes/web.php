@@ -391,6 +391,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::put('administracion/modulos/{modulo}/en-linea',       [ModulosController::class, 'enLinea'])->name('modulos.en_linea');
             Route::put('administracion/modulos/{modulo}/reasignacion',   [ModulosController::class, 'reasignacion'])->name('modulos.reasignacion');
             Route::put('administracion/modulos/{modulo}/turnar',         [ModulosController::class, 'turnar'])->name('modulos.turnar');
+            // Días bloqueados en el calendario de la persona del módulo (App\Models\BloqueoCita).
+            Route::post('administracion/modulos/{modulo}/bloqueos',      [ModulosController::class, 'bloquearDias'])->name('modulos.bloqueos.guardar');
+            Route::delete('administracion/modulos/{modulo}/bloqueos',    [ModulosController::class, 'quitarBloqueo'])->name('modulos.bloqueos.quitar');
             // Las citas de excepción que se quedaron con el Departamento pasan a los módulos de excepción de la sede.
             Route::post('administracion/modulos/excepcion/pasar',        [ModulosController::class, 'pasarExcepcion'])->name('modulos.pasar_excepcion');
             Route::post('administracion/modulos/citas/{id}/reasignar',   [ModulosController::class, 'reasignar'])->name('modulos.reasignar')->whereNumber('id');

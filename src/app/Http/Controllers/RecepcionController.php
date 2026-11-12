@@ -878,8 +878,8 @@ class RecepcionController extends Controller
             ? \App\Support\AsignadorModulos::modulosExcepcion($sede)
             : null;
         $minutosReserva = $esExcepcion && ! $publico ? max(HorarioCitas::TOLERANCIA_RESERVA, (int) $config->duracion - 1) : HorarioCitas::TOLERANCIA_RESERVA;
-        $cupo = fn (string $hora) => $modulosExcepcion !== null
-            ? \App\Support\AsignadorModulos::capacidadExcepcion($sede, $publico ? 'linea' : 'ventanilla', $hora, $modulosExcepcion)
+        $cupo = fn (string $hora, ?string $dia = null) => $modulosExcepcion !== null
+            ? \App\Support\AsignadorModulos::capacidadExcepcion($sede, $publico ? 'linea' : 'ventanilla', $hora, $modulosExcepcion, $dia)
             : HorarioCitas::capacidad($config, $hora);
 
         // Aunque quede cupo en Horarios, la hora se bloquea si no hay ningún
@@ -942,7 +942,7 @@ class RecepcionController extends Controller
 
                     $cantidadOcupados = $ocupadosCount[$slotStart] ?? 0;
                     $tolerancia = Carbon::parse($slotStart)->addMinutes($minutosReserva);
-                    $capacidad = $cupo($hora);
+                    $capacidad = $cupo($hora, $dia);
 
                     $motivo = null;
                     if ($enPausa || $lleno || $esInhabil || $ahora > $tolerancia || $capacidad === 0) {
@@ -991,7 +991,7 @@ class RecepcionController extends Controller
         $delDia = HorarioCitas::citasQueOcupan($sede, $tipo, $esExcepcion)->where('fecha', $fecha);
 
         $capacidad = $esExcepcion
-            ? (\App\Support\AsignadorModulos::capacidadExcepcion($sede, $publico ? 'linea' : 'ventanilla', $hora) ?? HorarioCitas::capacidad($config, $hora))
+            ? (\App\Support\AsignadorModulos::capacidadExcepcion($sede, $publico ? 'linea' : 'ventanilla', $hora, null, $fecha) ?? HorarioCitas::capacidad($config, $hora))
             : HorarioCitas::capacidad($config, $hora);
         if ((clone $delDia)->where('hora', $hora)->count() >= $capacidad) {
             return false;

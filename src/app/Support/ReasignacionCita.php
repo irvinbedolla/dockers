@@ -80,6 +80,8 @@ class ReasignacionCita
                     ! AsignadorModulos::atendible($m)           => $m->activo ? 'sin_persona' : 'inactivo',
                     // Pausa total (Administración → Módulos): no recibe citas nuevas, ni movidas a mano.
                     ! $m->recibeVentanilla()                    => 'pausa',
+                    // Día bloqueado en el calendario de su persona (Administración → Módulos).
+                    $m->bloqueadoEl($c->fecha instanceof \DateTimeInterface ? $c->fecha->format('Y-m-d') : substr((string) $c->fecha, 0, 10)) => 'bloqueado',
                     // "Acepta reasignaciones" apagado desde una fecha (Administración → Módulos).
                     ! $m->aceptaReasignacion($c->fecha instanceof \DateTimeInterface ? $c->fecha->format('Y-m-d') : substr((string) $c->fecha, 0, 10)) => 'sin_reasignar',
                     $m->enComida($c->hora)                      => 'comida',
@@ -161,6 +163,7 @@ class ReasignacionCita
             $destino->id == $cita->modulo_id                  => 'La cita ya está en ese módulo.',
             ! AsignadorModulos::atendible($destino)           => "{$destino->nombre} está inactivo o no tiene persona asignada.",
             ! $destino->recibeVentanilla()                    => "{$destino->nombre} tiene en pausa todas sus citas (también ventanilla): no recibe citas nuevas. Reactívalo en Administración → Módulos.",
+            $destino->bloqueadoEl($fecha)                     => "{$destino->nombre}: su persona tiene bloqueado el ".\Illuminate\Support\Carbon::parse($fecha)->format('d/m/Y').' en su calendario. Cámbialo en Administración → Módulos.',
             ! $destino->aceptaReasignacion($fecha)            => "{$destino->nombre} no acepta reasignaciones de citas a partir del ".$destino->no_reasignar_desde?->format('d/m/Y').'. Cámbialo en Administración → Módulos.',
             $destino->enComida($hora, $destino->esDeExcepcion() ? (int) HorarioCitas::config($cita->delegacion, null, true)->duracion : null)
                                                               => "{$destino->nombre} está en su hora de comida a las ".substr($hora, 0, 5).'.',
