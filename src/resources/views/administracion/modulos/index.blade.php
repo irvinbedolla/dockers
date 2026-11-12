@@ -151,6 +151,8 @@
         .md-bloq.is-hoy small { color: #F3D9E2; }
         .md-bloq button { border: 0; background: transparent; color: inherit; font-size: 15px; line-height: 1; padding: 0 3px; cursor: pointer; opacity: .75; }
         .md-bloq button:hover { opacity: 1; }
+        .md-bloq button:disabled { cursor: wait; opacity: 1; }
+        .md-bloq__spin { width: 11px; height: 11px; border-width: 2px; vertical-align: -1px; }
         .md-bloqueos__todos { font-size: 12px; color: #8C1D40; }
         .md-bloqueos__form { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding-top: 6px; border-top: 1px dashed #DCE3E3; }
         .md-bloqueos__form label { display: inline-flex; align-items: center; gap: 6px; margin: 0; font-size: 12.5px; font-weight: 700; color: var(--tn-suave); }
@@ -518,7 +520,7 @@
                                         <label>Hasta <input type="date" class="form-control form-control-sm md-linea__fecha" name="bloqueo_hasta" min="{{ $hoy }}" data-bloq-hasta></label>
                                         <input type="text" class="form-control form-control-sm md-bloqueos__motivo" name="bloqueo_motivo" maxlength="120" placeholder="Motivo (vacaciones, permiso…)">
                                         <div class="md-linea__acciones">
-                                            <button type="submit" class="btn btn-sm btn-dark">Bloquear</button>
+                                            <button type="submit" class="btn btn-sm btn-dark" data-bloq-enviar>Bloquear</button>
                                             <button type="button" class="btn btn-sm btn-link p-0" data-bloq-cancelar>Cancelar</button>
                                         </div>
                                         <span class="md-linea__nota">Sin "Hasta" se bloquea sólo ese día. Sábados y domingos no cuentan. Lo ya agendado esos días no se mueve solo.</span>
@@ -964,7 +966,26 @@
             if (hasta.value && hasta.value < e.target.value) { hasta.value = e.target.value; }
         });
         document.addEventListener('submit', function (e) {
-            if (e.target.querySelector('[data-bloq-todos]') && !confirm('¿Quitar todos sus días bloqueados? Volverá a recibir citas esos días.')) { e.preventDefault(); }
+            var form = e.target;
+            if (form.querySelector('[data-bloq-todos]') && !confirm('¿Quitar todos sus días bloqueados? Volverá a recibir citas esos días.')) { e.preventDefault(); return; }
+            // Bloquear / quitar: un solo envío. El botón queda con loader hasta que recarga la página.
+            if (!form.closest('.md-bloqueos')) { return; }
+            if (form.dataset.enviando) { e.preventDefault(); return; }
+            form.dataset.enviando = '1';
+            var boton = form.querySelector('[data-bloq-enviar], [data-bloq-todos], button[type=submit]');
+            if (boton) {
+                boton.disabled = true;
+                boton.setAttribute('aria-busy', 'true');
+                if (boton.hasAttribute('data-bloq-enviar')) {
+                    boton.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Bloqueando…';
+                } else if (boton.hasAttribute('data-bloq-todos')) {
+                    boton.textContent = 'Quitando…';
+                } else {
+                    boton.innerHTML = '<span class="spinner-border md-bloq__spin" role="status" aria-hidden="true"></span>';
+                }
+            }
+            var cancelar = form.querySelector('[data-bloq-cancelar]');
+            if (cancelar) { cancelar.disabled = true; }
         });
     </script>
 @endsection
