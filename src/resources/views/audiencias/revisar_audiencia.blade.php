@@ -108,6 +108,15 @@
 
         /* Se puede editar dando clic en el dato: al pasar el mouse el dato se
            sombrea y sale un lápiz; el clic abre la sección en ese campo. */
+        /* Datos que no se editan (fechas, número de expediente): siempre como
+           texto, también con la sección en edición, para que no parezcan campos. */
+        html body .ra-seccion input.ra-fijo,
+        html body .ra-seccion input.ra-fijo:focus { border-color: transparent !important; background: transparent !important; box-shadow: none !important;
+            padding-left: 0 !important; color: #2E3C3D !important; font-weight: 600; pointer-events: none; cursor: default; }
+        .ra-fijo__candado { font-size: 11px; color: #A2AFAF; margin-left: 2px; }
+        .ra-lectura.ra-editable .form-group:has(.ra-fijo) { cursor: default; }
+        .ra-lectura.ra-editable .form-group:has(.ra-fijo):hover { background-color: transparent; box-shadow: none; }
+        .ra-lectura.ra-editable .form-group:has(.ra-fijo):hover::after { content: none; }
         .ra-lectura.ra-editable .form-group { position: relative; cursor: pointer; border-radius: 8px; transition: background-color .12s, box-shadow .12s; }
         .ra-lectura.ra-editable .form-group:hover { background-color: #F2F6F6; box-shadow: 0 0 0 6px #F2F6F6; }
         .ra-lectura.ra-editable .form-group:hover::after {
@@ -203,6 +212,12 @@
         /* Sin archivo / sin generar: apagado, de cualquier tipo. */
         html body .btn.disabled,
         html body .btn:disabled:not(.ra-guardar--espera) { background-color: #F4F6F6 !important; border: 1px dashed #D5DDDD !important; color: #8A9899 !important; box-shadow: none; opacity: 1; }
+
+        /* Documentos: se comprueba que exista el archivo (script de data-doc). */
+        a.ra-doc-revisando { opacity: .6; }
+        .ra-doc-falta { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: 12.5px; font-weight: 700; color: #9A3A22; background: #FBEDE8; border-radius: 8px; padding: 4px 4px 4px 10px; }
+        .ra-doc-falta .btn { font-size: 12px; padding: 2px 8px; }
+        input.ra-doc-subir { border-color: #CEA845 !important; box-shadow: 0 0 0 3px rgba(206, 168, 69, .2) !important; }
         /* Confirmación de borrar citado */
         .ra-confirmar__datos { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; background: #F7F9F9; border: 1px solid #E3E8E8; border-radius: 10px; padding: 10px 14px; margin: 0 0 12px; }
         .ra-confirmar__datos dt { font-size: 12px; color: #8A9899; font-weight: 700; margin: 0; }
@@ -279,20 +294,21 @@
                                         <div id="tabla_detalles" class="row">
                                             <div class="col-xs-12 col-sm-6 col-md-2">
                                                 <div class="form-group">
-                                                    <label for="name">Fecha de Registro</label>
-                                                    <input type="date" class="form-control" value="<?=$general["fecha"];?>" readonly>
+                                                    <label>Fecha de Registro <i class="bi bi-lock ra-fijo__candado" title="No se puede editar"></i></label>
+                                                    <input type="text" class="form-control ra-fijo" value="{{ filled($general['fecha'] ?? null) ? \Illuminate\Support\Carbon::parse($general['fecha'] ?? null)->format('d/m/Y') : '—' }}" readonly tabindex="-1" aria-readonly="true">
                                                 </div>
                                             </div>
                                             <div class="col-xs-12 col-sm-6 col-md-3">
                                                 <div class="form-group">
-                                                    <label for="name">Fecha de Confirmación</label>
-                                                    <input type="date" class="form-control" value="{{ $general['fecha_confirmacion'] ?? '' }}" readonly>
+                                                    <label>Fecha de Confirmación <i class="bi bi-lock ra-fijo__candado" title="No se puede editar"></i></label>
+                                                    <input type="text" class="form-control ra-fijo" value="{{ filled($general['fecha_confirmacion'] ?? null) ? \Illuminate\Support\Carbon::parse($general['fecha_confirmacion'] ?? null)->format('d/m/Y') : '—' }}" readonly tabindex="-1" aria-readonly="true">
                                                 </div>
                                             </div>
                                             <div class="col-xs-12 col-sm-6 col-md-3">
                                                 <div class="form-group">
-                                                    <label for="password">Número de Expediente</label>
-                                                    <input type="text" name="actividad_economica" class="form-control" value="{{ $general['NUE'] ?? '' }}" readonly>
+                                                    <label>Número de Expediente <i class="bi bi-lock ra-fijo__candado" title="No se puede editar"></i></label>
+                                                    {{-- Sin name: antes llevaba name="actividad_economica" y competía con el campo real de actividad. --}}
+                                                    <input type="text" class="form-control ra-fijo" value="{{ $general['NUE'] ?? '—' }}" readonly tabindex="-1" aria-readonly="true">
                                                 </div>
                                             </div>
 
@@ -701,20 +717,20 @@
                                                         ])
                                                         : null;
                                                 @endphp
-                                                <div class="col-xs-12 col-sm-12 col-md-5">
+                                                <div class="col-xs-12 col-sm-12 col-md-5" data-doc-grupo>
                                                     <label for="password">Referencia Imagen 1<span style="color:red;"> (*)</span></label><br>
                                                     @if ($urlImg1)
-                                                        <a href="{{ $urlImg1 }}" target="_blank" class="btn btn-outline-info">Ver Imagen Existente</a>
+                                                        <a href="{{ $urlImg1 }}" target="_blank" class="btn btn-outline-info" data-doc>Ver Imagen Existente</a>
                                                     @else
                                                         <span class="text-muted">No se subió imagen</span>
                                                     @endif
                                                     <input type="file" name="foto1[]" accept="image/*" class="form-control">
                                                     <input type="hidden" name="imagen_domicilio1[]" value="{{ $citado->imagen_domicilio1 }}">
                                                 </div>
-                                                <div class="col-xs-12 col-sm-12 col-md-5">
+                                                <div class="col-xs-12 col-sm-12 col-md-5" data-doc-grupo>
                                                     <label for="password">Referencia Imagen 2</label><br>
                                                     @if ($urlImg2)
-                                                        <a target='_blank' href="{{ $urlImg2 }}">VER IMAGEN</a><br>
+                                                        <a target='_blank' href="{{ $urlImg2 }}" class="btn btn-outline-info" data-doc>Ver Imagen Existente</a>
                                                     @else
                                                         <span class="text-muted">No se subió imagen</span>
                                                     @endif
@@ -753,7 +769,7 @@
                                             </div><br>
                                             <div class="col-xs-12 col-sm-12 col-md-6">
                                                 <label for="password">Identificación Oficial</label><br>
-                                                <a class="btn btn-info" target="_blank" href="{{ signedDocRoute('documento_identificacion_solicitante_ver', $id) }}">Visualizar</a>
+                                                <a class="btn btn-info" target="_blank" href="{{ signedDocRoute('documento_identificacion_solicitante_ver', $id) }}" data-doc @if ($general->tipo_solicitud != 2) data-doc-subir="indetificacion" @endif>Visualizar</a>
                                             </div>
                                             @if($general->tipo_solicitud != 2)
                                             <div class="col-xs-12 col-sm-12 col-md-6">
@@ -1499,6 +1515,79 @@
 @endpush
 
 @section('scripts')
+    <script>
+        // Documentos que ya no existen en el servidor de archivos: cada enlace
+        // con data-doc se comprueba con una petición HEAD (no descarga nada;
+        // SeerController::verPDF y documento_identificacion_solicitante_ver
+        // responden 200 o 404). Si falta, el botón cambia por "No se encontró
+        // el archivo" y, donde se puede, "Subir de nuevo".
+        // Los enlaces van firmados por 60 minutos: si la página lleva más
+        // tiempo abierta, al dar clic se avisa que hay que recargar.
+        document.addEventListener('DOMContentLoaded', function () {
+            var cargada = Date.now(), VIGENCIA = 55 * 60 * 1000;
+            var enlaces = Array.prototype.slice.call(document.querySelectorAll('a[data-doc]'));
+            if (!enlaces.length) { return; }
+
+            function subirDe(a) {
+                var nombre = a.getAttribute('data-doc-subir');
+                if (nombre) { return document.querySelector('input[type=file][name="' + nombre + '"]'); }
+                var grupo = a.closest('[data-doc-grupo]');
+                return grupo ? grupo.querySelector('input[type=file]') : null;
+            }
+
+            function falta(a) {
+                var aviso = document.createElement('span');
+                aviso.className = 'ra-doc-falta';
+                aviso.innerHTML = '<i class="bi bi-exclamation-triangle-fill"></i> No se encontró el archivo';
+                aviso.title = 'El archivo está registrado pero ya no está en el servidor de archivos.';
+                var input = subirDe(a);
+                if (input) {
+                    var boton = document.createElement('button');
+                    boton.type = 'button';
+                    boton.className = 'btn btn-sm btn-outline-secondary ra-doc-subir-btn';
+                    boton.innerHTML = '<i class="bi bi-upload"></i> Subir de nuevo';
+                    boton.addEventListener('click', function () {
+                        if (window.raSubirDeNuevo) { window.raSubirDeNuevo(input); } else { input.click(); }
+                    });
+                    aviso.appendChild(boton);
+                }
+                a.replaceWith(aviso);
+            }
+
+            // De 4 en 4 para no saturar el servidor de archivos.
+            var cola = enlaces.slice();
+            function siguiente() {
+                var a = cola.shift();
+                if (!a) { return; }
+                a.classList.add('ra-doc-revisando');
+                fetch(a.href, { method: 'HEAD', credentials: 'same-origin' })
+                    .then(function (r) {
+                        a.classList.remove('ra-doc-revisando');
+                        if (r.status === 404) { falta(a); }
+                    })
+                    .catch(function () { a.classList.remove('ra-doc-revisando'); })
+                    .then(siguiente);
+            }
+            for (var i = 0; i < 4; i++) { siguiente(); }
+
+            document.addEventListener('click', function (e) {
+                var a = e.target.closest && e.target.closest('a[data-doc]');
+                if (!a || Date.now() - cargada < VIGENCIA) { return; }
+                e.preventDefault();
+                var recargar = function () { window.raSaltarAvisoSalida = true; location.reload(); };
+                if (typeof Swal === 'undefined') {
+                    if (confirm('Los enlaces a los documentos caducaron (la página lleva más de una hora abierta). ¿Recargar la página?')) { recargar(); }
+                    return;
+                }
+                Swal.fire({
+                    icon: 'info', title: 'Hay que recargar la página',
+                    text: 'Los enlaces a los documentos duran una hora y esta página lleva más tiempo abierta. Si tienes cambios sin guardar, guárdalos primero.',
+                    showCancelButton: true, confirmButtonText: 'Recargar', cancelButtonText: 'Cancelar',
+                    reverseButtons: true, confirmButtonColor: '#496163'
+                }).then(function (r) { if (r.isConfirmed) { recargar(); } });
+            });
+        });
+    </script>
     {{-- SweetAlert2 (como en el resto de Administración): confirmación al salir sin guardar. --}}
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
@@ -2020,7 +2109,8 @@
             if (!form || !secciones.length) { return; }
             var puedeEditar = {{ $puedeEditar ? 'true' : 'false' }};
             var conErrores = {{ $errors->any() ? 'true' : 'false' }};
-            var CAMPOS = 'input:not([type=hidden]):not([type=file]):not([type=checkbox]):not([type=radio]):not([type=button]):not([type=submit]), select, textarea';
+            // .ra-fijo: datos que no se editan (fechas, expediente); no entran al modo edición.
+            var CAMPOS = 'input:not([type=hidden]):not([type=file]):not([type=checkbox]):not([type=radio]):not([type=button]):not([type=submit]):not(.ra-fijo), select, textarea';
             var cambios = false, enviando = false;
 
             function lectura(sec, si) {
@@ -2106,6 +2196,7 @@
                     var sec = grupo && grupo.closest('.ra-seccion');
                     if (!sec || !sec.classList.contains('ra-lectura') || !sec.classList.contains('ra-editable')) { return; }
                     if (e.target.closest('a, button, .btn, [data-bs-toggle], input[type=file]')) { return; }
+                    if (grupo.querySelector('.ra-fijo') && !grupo.querySelector(CAMPOS)) { return; } // dato fijo: no abre la edición
                     var campo = Array.prototype.find.call(grupo.querySelectorAll(CAMPOS), function (el) { return !oculto(el, grupo); });
                     lectura(sec, false);
                     if (campo) {
@@ -2143,6 +2234,15 @@
             window.addEventListener('beforeunload', function (e) {
                 if (hayCambios() && !enviando && !window.raSaltarAvisoSalida) { e.preventDefault(); e.returnValue = ''; }
             });
+
+            // "Subir de nuevo" (archivo que no existe): abre la sección y el selector de archivo.
+            window.raSubirDeNuevo = function (input) {
+                var sec = input.closest('.ra-seccion');
+                if (sec && sec.classList.contains('ra-lectura')) { lectura(sec, false); }
+                input.classList.add('ra-doc-subir');
+                input.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                input.click();
+            };
 
             // Salir por un enlace (Regresar, menú lateral, etc.) o con el botón
             // Atrás del navegador: confirmación con SweetAlert en vez del aviso
