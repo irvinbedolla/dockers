@@ -26,6 +26,9 @@
                 </a>
                 <h3 class="page__heading mb-0">Conciliadores</h3>
             </div>
+            <a href="{{ route('conciliadores.traspaso') }}" class="btn btn-sm tn-boton-dorado">
+                <i class="bi bi-arrow-left-right"></i> Traspasar audiencias
+            </a>
         </div>
 
         <div class="section-body">
@@ -109,8 +112,9 @@
                                             @forelse ($fila->semana[$dia] as $b)
                                                 <span class="cn-bloque {{ $b['modalidad'] === SC::VIRTUAL ? 'cn-bloque--virtual' : '' }}"
                                                       style="--c: {{ SC::COLORES[$b['sede']] ?? '#496163' }};"
-                                                      title="{{ $b['sede'] }} · {{ SC::MODALIDADES[$b['modalidad']] }} · {{ $b['inicio'] }}–{{ $b['fin'] }}">
+                                                      title="{{ $b['sede'] }} · {{ SC::MODALIDADES[$b['modalidad']] }} · {{ $b['inicio'] }}–{{ $b['fin'] }}{{ ! empty($b['vigencia']) ? ' · '.$b['vigencia'] : '' }}{{ ! empty($b['exclusiva']) ? ' · exclusiva' : '' }}">
                                                     {{ $b['sede'] }} <small>{{ $b['inicio'] }}–{{ $b['fin'] }}</small>
+                                                    @if (! empty($b['vigencia']) || ! empty($b['exclusiva']))<small class="cn-bloque__vig">@if (! empty($b['exclusiva']))<i class="bi bi-lock-fill"></i> Exclusiva @endif @if (! empty($b['vigencia']))<i class="bi bi-calendar-range"></i> {{ $b['vigencia'] }}@endif</small>@endif
                                                 </span>
                                             @empty
                                                 <span class="cn-vacio">—</span>

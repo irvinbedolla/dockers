@@ -27,6 +27,7 @@
     .cn-bloque small { font-weight: 500; opacity: .9; font-variant-numeric: tabular-nums; }
     .cn-bloque--virtual { background: #fff; color: var(--c); border-style: dashed; }
     .cn-bloque + .cn-bloque { margin-top: 3px; }
+    .cn-bloque .cn-bloque__vig { display: block; font-size: 10px; font-weight: 600; opacity: .95; }
 
     .cn-tabla { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
     .cn-tabla th { font-size: 11.5px; text-transform: uppercase; letter-spacing: .03em; color: var(--tn-tenue); font-weight: 700; padding: 8px 6px; border-bottom: 1px solid var(--tn-borde); }
@@ -61,6 +62,39 @@
     .cn-modos .btn-check:checked + .btn, .cn-dias .btn-check:checked + .btn { background: var(--tn-verde); border-color: var(--tn-verde); color: #fff; }
     .cn-dias { display: flex; gap: 4px; flex-wrap: wrap; }
     .cn-pendientes { font-size: 12px; color: var(--tn-suave); margin-top: 8px; }
+    .cn-vigencia { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding-top: 8px; border-top: 1px dashed var(--tn-borde); }
+    .cn-vigencia label { margin: 0; }
+    .cn-vigencia input[type=date] { width: 150px; }
+    .cn-vigencia__titulo { font-size: 12px; font-weight: 700; color: var(--tn-tinta); margin-right: 4px; }
+    .cn-vigencia__titulo small { font-weight: 500; color: var(--tn-suave); }
+    .cn-vigencia .cn-sub { flex-basis: 100%; }
+    /* Exclusiva: botón que se prende, como los días. Apagado gris; prendido guinda con candado cerrado. */
+    .cn-vigencia .btn.cn-exclusiva { margin-left: 10px; font-size: 12.5px; padding: 5px 12px; border: 1px solid var(--tn-borde); color: var(--tn-suave); background: #fff; border-radius: 8px; font-weight: 600; }
+    .cn-vigencia .btn.cn-exclusiva:hover { border-color: #8C1D40; color: #8C1D40; }
+    .cn-vigencia .btn-check:checked + .btn.cn-exclusiva { background: #8C1D40; border-color: #8C1D40; color: #fff; }
+    .cn-vigencia .btn-check:focus-visible + .btn.cn-exclusiva { box-shadow: 0 0 0 3px rgba(140, 29, 64, .2); }
+    .cn-exclusiva__si { display: none; }
+    .btn-check:checked + .cn-exclusiva .cn-exclusiva__si { display: inline; }
+    .btn-check:checked + .cn-exclusiva .cn-exclusiva__no { display: none; }
+
+    /* Traspaso de audiencias */
+    .tr-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px 14px; align-items: end; }
+    .tr-form label { display: block; font-size: 12px; font-weight: 700; color: var(--tn-suave); margin-bottom: 3px; }
+    .tr-agenda { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; font-size: 13px; }
+    .tr-cifras { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 12px; }
+    .tr-cifra { padding: 8px 12px; border-radius: 10px; border: 1px solid var(--tn-borde); background: #fff; font-size: 12.5px; color: var(--tn-suave); }
+    .tr-cifra b { font-size: 18px; color: var(--tn-tinta); margin-right: 4px; font-variant-numeric: tabular-nums; }
+    .tr-cifra--pasa { border-color: #B9DCC5; background: #F1F9F4; }
+    .tr-cifra--pasa b { color: #1E7B3C; }
+    .tr-cifra--choca { border-color: #E9C2B8; background: #FCF2EF; }
+    .tr-cifra--choca b { color: #9A3A22; }
+    .tr-tabla td, .tr-tabla th { vertical-align: middle; }
+    .tr-pasa { color: #1E7B3C; font-weight: 700; font-size: 12px; white-space: nowrap; }
+    .tr-choca { color: #9A3A22; font-weight: 700; font-size: 12px; }
+    .tr-choca span { display: block; font-weight: 500; color: #7A3A2A; }
+    .tr-fila--choca td { background: #FFF8F6; }
+    .tr-aplicar { display: grid; grid-template-columns: 1fr auto; gap: 10px 14px; align-items: end; }
+    @media (max-width: 767px) { .tr-aplicar { grid-template-columns: 1fr; } }
     .cn-previa td, .cn-previa th { text-align: center; }
     .cn-aviso-previa { font-size: 12px; color: #8A6A12; margin-top: 6px; }
 

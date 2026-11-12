@@ -74,6 +74,64 @@ class SedesConciliador
     /** @var array<int, string|null> id => users.delegacion */
     private static array $delegaciones = [];
 
+    private static ?bool $conVigencia = null;
+
+    private static ?bool $conExclusiva = null;
+
+    /** Ya corrió la migración de sede exclusiva. */
+    public static function conExclusiva(): bool
+    {
+        return self::$conExclusiva ??= self::conVigencia() && Schema::hasColumn('permisos_conciliador', 'exclusiva');
+    }
+
+    /**
+     * Quiénes reciben SÓLO ellos las audiencias nuevas de esa sede en esa
+     * fecha (renglones exclusivos vigentes). Vacío = no hay exclusividad:
+     * reparto normal.
+     *
+     * @return int[]
+     */
+    public static function exclusivosEn(string $sede, string $fecha): array
+    {
+        if (! self::conExclusiva()) {
+            return [];
+        }
+
+        return SedeConciliador::where('sede', $sede)->where('exclusiva', true)->get()
+            ->filter(fn (SedeConciliador $f) => $f->vigenteEn($fecha))
+            ->pluck('id_conciliador')->map(fn ($id) => (int) $id)->unique()->values()->all();
+    }
+
+    /**
+     * Conciliadores activos que hoy reciben audiencias de esa sede: los de su
+     * agenda de siempre (oficina de la sede, con el permiso que pide la sede o
+     * la subsede) y los que la tienen en su agenda por sede. Para avisar a
+     * quién deja fuera una sede exclusiva.
+     */
+    public static function quienesAtienden(string $sede): Collection
+    {
+        $oficina = AgendaAudiencias::oficina($sede);
+        $esSubsede = in_array($sede, self::SUBSEDE, true);
+        $permisos = $esSubsede ? ['Ambos', 'Virtual'] : ['Ambos', 'Precencial'];
+        $configurados = self::idsConfigurados();
+
+        $generales = User::whereHas('roles', fn ($q) => $q->where('name', 'Conciliador'))
+            ->where('estatus', 'Activo')
+            ->where('delegacion', $oficina)
+            ->whereIn('id', fn ($q) => $q->select('id_conciliador')->from('permisos_conciliador')
+                ->whereNull('sede')->whereIn('tipo', $permisos))
+            ->when($configurados, fn ($q) => $q->whereNotIn('id', $configurados))
+            ->get();
+
+        return $generales->concat(self::conciliadoresDeSedes([$sede]))->unique('id')->sortBy('name')->values();
+    }
+
+    /** Ya corrió la migración de vigencia (vigente_desde / vigente_hasta). */
+    public static function conVigencia(): bool
+    {
+        return self::$conVigencia ??= self::migrado() && Schema::hasColumn('permisos_conciliador', 'vigente_hasta');
+    }
+
     /** Ya corrió la migración (columna sede). Antes de eso todo sigue como siempre. */
     public static function migrado(): bool
     {
@@ -84,6 +142,8 @@ class SedesConciliador
     public static function olvidar(): void
     {
         self::$migrado = null;
+        self::$conVigencia = null;
+        self::$conExclusiva = null;
         self::$porSede = null;
         self::$general = null;
         self::$delegaciones = [];
@@ -100,8 +160,14 @@ class SedesConciliador
             return;
         }
 
+        // Las coberturas que ya terminaron (vigente_hasta pasada) no cuentan:
+        // ni se ven ni dan acceso. Las que empiezan después sí: así el
+        // conciliador ya ve los expedientes que le van a tocar.
         self::$porSede = self::migrado()
-            ? SedeConciliador::orderBy('id')->get()->groupBy('id_conciliador')->all()
+            ? SedeConciliador::orderBy('id')
+                ->when(self::conVigencia(), fn ($q) => $q->where(fn ($w) => $w->whereNull('vigente_hasta')
+                    ->orWhere('vigente_hasta', '>=', now()->toDateString())))
+                ->get()->groupBy('id_conciliador')->all()
             : [];
 
         // El de siempre: si hay renglones repetidos (los hay), vale el primero, como en resumen().
@@ -137,7 +203,7 @@ class SedesConciliador
 
     /**
      * Las sedes que atiende, en el mismo formato venga de donde venga:
-     * [['sede', 'modalidad' (Precencial|Virtual), 'dias' => [...], 'inicio', 'fin', 'sala', 'por_sede' => bool], …]
+     * [['sede', 'modalidad' (Precencial|Virtual), 'dias' => [...], 'inicio', 'fin', 'sala', 'desde', 'hasta', 'por_sede' => bool], …]
      * La presencial primero.
      */
     public static function sedes(User|int $conciliador): array
@@ -154,6 +220,9 @@ class SedesConciliador
                 'inicio'    => self::hm($f->{($f->dias()[0] ?? 'lunes').'_inicio'}),
                 'fin'       => self::hm($f->{($f->dias()[0] ?? 'lunes').'_final'}),
                 'sala'      => $f->sala,
+                'desde'     => $f->vigente_desde ? substr((string) $f->vigente_desde, 0, 10) : null,
+                'hasta'     => $f->vigente_hasta ? substr((string) $f->vigente_hasta, 0, 10) : null,
+                'exclusiva' => (bool) ($f->exclusiva ?? false),
                 'por_sede'  => true,
             ])->all();
         } else {
@@ -180,7 +249,10 @@ class SedesConciliador
             'inicio'   => self::hm($fila->{$primero.'_inicio'} ?? null) ?: '08:00',
             'fin'      => self::hm($fila->{$primero.'_final'} ?? null) ?: '18:00',
             'sala'     => null,
-            'por_sede' => false,
+            'desde'     => null,
+            'hasta'     => null,
+            'exclusiva' => false,
+            'por_sede'  => false,
         ];
         $subsede = self::SUBSEDE[$delegacion] ?? null;
 
@@ -229,6 +301,22 @@ class SedesConciliador
             ->implode(' · ');
     }
 
+    /**
+     * "Desde el 9 dic 2026", "Hasta el 31 ene 2027", "Del 9 dic 2026 al 31 ene 2027";
+     * null si no tiene vigencia (siempre).
+     */
+    public static function vigenciaTexto(?string $desde, ?string $hasta): ?string
+    {
+        $f = fn ($d) => \Illuminate\Support\Carbon::parse($d)->locale('es')->isoFormat('D MMM YYYY');
+
+        return match (true) {
+            $desde && $hasta => 'Del '.$f($desde).' al '.$f($hasta),
+            (bool) $desde    => 'Desde el '.$f($desde),
+            (bool) $hasta    => 'Hasta el '.$f($hasta),
+            default          => null,
+        };
+    }
+
     /** Días como "Lun, Mié y Vie". */
     public static function diasTexto(array $dias): string
     {
@@ -260,7 +348,10 @@ class SedesConciliador
             return collect();
         }
 
-        $ids = SedeConciliador::whereIn('sede', $sedes)->pluck('id_conciliador')->unique();
+        $ids = SedeConciliador::whereIn('sede', $sedes)
+            ->when(self::conVigencia(), fn ($q) => $q->where(fn ($w) => $w->whereNull('vigente_hasta')
+                ->orWhere('vigente_hasta', '>=', now()->toDateString())))
+            ->pluck('id_conciliador')->unique();
 
         return $ids->isEmpty() ? collect() : User::whereIn('id', $ids)
             ->whereHas('roles', fn ($q) => $q->where('name', 'Conciliador'))
@@ -303,7 +394,8 @@ class SedesConciliador
         $semana = array_fill_keys(array_keys(PermisosConciliador::DIAS), []);
         foreach (self::sedes($conciliador) as $s) {
             foreach ($s['dias'] as $dia) {
-                $semana[$dia][] = ['sede' => $s['sede'], 'modalidad' => $s['modalidad'], 'inicio' => $s['inicio'], 'fin' => $s['fin']];
+                $semana[$dia][] = ['sede' => $s['sede'], 'modalidad' => $s['modalidad'], 'inicio' => $s['inicio'], 'fin' => $s['fin'],
+                    'vigencia' => self::vigenciaTexto($s['desde'] ?? null, $s['hasta'] ?? null), 'exclusiva' => ! empty($s['exclusiva'])];
             }
         }
         foreach ($semana as &$bloques) {
@@ -339,6 +431,9 @@ class SedesConciliador
         }
 
         foreach ($filas as $f) {
+            if (! empty($f['desde']) && ! empty($f['hasta']) && $f['hasta'] < $f['desde']) {
+                $errores[] = "{$f['sede']}: la fecha \"hasta\" no puede ser antes de \"desde\".";
+            }
             if (! $f['dias']) {
                 $errores[] = "{$f['sede']}: elige al menos un día.";
             }
@@ -373,7 +468,12 @@ class SedesConciliador
                     'sede'           => $f['sede'],
                     'tipo'           => $f['modalidad'],
                     'sala'           => filled($f['sala'] ?? null) ? trim($f['sala']) : null,
-                ]);
+                ] + (self::conVigencia() ? [
+                    'vigente_desde'  => ($f['desde'] ?? null) ?: null,
+                    'vigente_hasta'  => ($f['hasta'] ?? null) ?: null,
+                ] : []) + (self::conExclusiva() ? [
+                    'exclusiva'      => ! empty($f['exclusiva']),
+                ] : []));
             }
 
             $general = self::generalEquivalente($conciliador->delegacion, $filas);
@@ -496,7 +596,7 @@ class SedesConciliador
     /** Últimos cambios a la agenda (bitácora de Administración), del conciliador o de todos. */
     public static function historial(?int $conciliador = null, int $cuantos = 15): Collection
     {
-        return HistorialAdministracion::where('tipo', 'agenda_conciliador')
+        return HistorialAdministracion::whereIn('tipo', ['agenda_conciliador', TraspasoAudiencias::TIPO_BITACORA])
             ->when($conciliador, fn ($q) => $q->where('registro_id', $conciliador))
             ->orderByDesc('id')
             ->limit($cuantos)
@@ -522,7 +622,9 @@ class SedesConciliador
         $texto = [];
         foreach (self::sedes($conciliador) as $s) {
             $texto[$s['sede']] = self::MODALIDADES[$s['modalidad']].' · '.self::diasTexto($s['dias'])." {$s['inicio']}–{$s['fin']}"
-                .(filled($s['sala']) ? " · {$s['sala']}" : '');
+                .(filled($s['sala']) ? " · {$s['sala']}" : '')
+                .(($v = self::vigenciaTexto($s['desde'] ?? null, $s['hasta'] ?? null)) ? ' · '.mb_strtolower($v) : '')
+                .(! empty($s['exclusiva']) ? ' · exclusiva' : '');
         }
         $texto['Forma'] = self::configurado($conciliador->id) ? 'Por sede' : 'La de siempre';
 

@@ -8275,6 +8275,7 @@ class SeerController extends Controller
         // 5. Bucle principal de búsqueda de espacios vacíos
         while ($fecha_revisar->lte($fecha_limite_natural)) {
             $fecha_str = $fecha_revisar->format('Y-m-d');
+            $soloExclusivos = \App\Support\SedesConciliador::exclusivosEn($delegacion, $fecha_str);
 
             // OBTENCIÓN DINÁMICA DE HORARIOS SEGÚN SEDE Y FECHA A EVALUAR
             $horarios_disponibles = $this->obtenerHorariosPorSedeYFecha($oficina, $fecha_str);
@@ -8313,9 +8314,17 @@ class SeerController extends Controller
                 $dia_campo = $dia_semana_map[$fecha_revisar->dayOfWeek] ?? null;
 
                 foreach ($conciliadores as $c) {
+                    // Sede exclusiva vigente ese día (Administración → Conciliadores):
+                    // sólo quienes la tienen exclusiva reciben audiencias de esta sede.
+                    if ($soloExclusivos !== [] && ! in_array((int) $c->id, $soloExclusivos, true)) continue;
+
                     // Validar disponibilidad del conciliador según permisos_conciliador
                     $permisosDelConciliador = $permisosConciliadores->get($c->id, collect());
-                    $disponible = $dia_campo && $permisosDelConciliador->contains(function ($permiso) use ($dia_campo, $h) {
+                    $disponible = $dia_campo && $permisosDelConciliador->contains(function ($permiso) use ($dia_campo, $h, $fecha_str) {
+                        // Agenda por sede con vigencia (coberturas): cuenta la fecha de la audiencia.
+                        if ($permiso instanceof \App\Models\SedeConciliador && ! $permiso->vigenteEn($fecha_str)) {
+                            return false;
+                        }
                         return $permiso->{$dia_campo} === 'Si'
                             && $permiso->{$dia_campo . '_inicio'} <= $h
                             && $permiso->{$dia_campo . '_final'} >= $h;
