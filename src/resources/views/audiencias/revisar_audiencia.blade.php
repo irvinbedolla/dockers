@@ -1462,6 +1462,8 @@
 @endpush
 
 @section('scripts')
+    {{-- SweetAlert2 (como en el resto de Administración): confirmación al salir sin guardar. --}}
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <script src="{{ asset('assets/js/estadistica/estadistica.js') }}"></script>
     <script>
@@ -2097,8 +2099,74 @@
                 if (sec && sec.classList.contains('ra-lectura')) { lectura(sec, false); }
             }, true);
 
+            // Recargar o cerrar la pestaña: el navegador sólo permite su aviso
+            // propio (no se puede cambiar por uno de la página).
             window.addEventListener('beforeunload', function (e) {
-                if (cambios && !enviando && !window.raSaltarAvisoSalida) { e.preventDefault(); e.returnValue = ''; }
+                if (hayCambios() && !enviando && !window.raSaltarAvisoSalida) { e.preventDefault(); e.returnValue = ''; }
+            });
+
+            // Salir por un enlace (Regresar, menú lateral, etc.) o con el botón
+            // Atrás del navegador: confirmación con SweetAlert en vez del aviso
+            // nativo. Cuenta como cambio lo que marcan las secciones y lo que
+            // enciende "Guardar edición" (motivos, archivos).
+            function hayCambios() { return cambios || !!window.raCambioDetectado; }
+
+            function preguntarSalida() {
+                if (typeof Swal === 'undefined') {
+                    return Promise.resolve(window.confirm('Tienes cambios sin guardar. ¿Salir de todos modos?'));
+                }
+                return Swal.fire({
+                    icon: 'warning',
+                    title: '¿Salir sin guardar?',
+                    html: 'Hiciste cambios que <b>todavía no se guardan</b>. Si sales ahora, se pierden.<br>Para conservarlos, quédate y da clic en <b>Guardar edición</b>.',
+                    showCancelButton: true,
+                    confirmButtonText: 'Seguir editando',
+                    cancelButtonText: 'Salir sin guardar',
+                    reverseButtons: true,
+                    focusConfirm: true,
+                    confirmButtonColor: '#496163',
+                    cancelButtonColor: '#9A3A22',
+                }).then(function (r) { return r.dismiss === Swal.DismissReason.cancel; });
+            }
+
+            function salir(destino) {
+                window.raSaltarAvisoSalida = true;
+                destino();
+            }
+
+            document.addEventListener('click', function (e) {
+                var a = e.target.closest && e.target.closest('a[href]');
+                if (!a || !hayCambios() || enviando || window.raSaltarAvisoSalida) { return; }
+                var href = a.getAttribute('href') || '';
+                if (e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) { return; }
+                if (a.target === '_blank' || a.hasAttribute('download') || a.hasAttribute('data-bs-toggle')
+                    || href === '' || href.charAt(0) === '#' || href.indexOf('javascript:') === 0) { return; }
+                e.preventDefault();
+                preguntarSalida().then(function (si) {
+                    if (si) { salir(function () { window.location.href = a.href; }); }
+                });
+            }, true);
+
+            // Botón Atrás: se agrega una entrada al historial en el primer
+            // cambio; al regresar se pregunta y, si se queda, se vuelve a poner.
+            var trampa = false;
+            function ponerTrampa() {
+                if (trampa || !window.history || !history.pushState) { return; }
+                trampa = true;
+                history.pushState({ raCambios: true }, '');
+            }
+            form.addEventListener('input', function (e) { if (e.isTrusted) { ponerTrampa(); } }, true);
+            form.addEventListener('change', function (e) { if (e.isTrusted) { ponerTrampa(); } }, true);
+            window.addEventListener('popstate', function () {
+                if (!trampa) { return; }
+                if (!hayCambios() || enviando || window.raSaltarAvisoSalida) { trampa = false; history.back(); return; }
+                preguntarSalida().then(function (si) {
+                    if (si) {
+                        salir(function () { trampa = false; history.back(); });
+                    } else {
+                        history.pushState({ raCambios: true }, '');
+                    }
+                });
             });
         });
     </script>
@@ -2121,7 +2189,7 @@
                 boton.title = si ? 'Aún no has cambiado nada. Da clic en Editar en la sección que quieras corregir.' : '';
                 if (aviso) { aviso.hidden = !si; }
             }
-            function activar() { if (boton.disabled) { esperar(false); } }
+            function activar() { window.raCambioDetectado = true; if (boton.disabled) { esperar(false); } }
 
             function cambio(e) {
                 var t = e.target;
