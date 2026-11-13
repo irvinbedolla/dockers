@@ -38,7 +38,9 @@ class PrellenadoCita
 
     public static function preparar(Recepcion $cita): void
     {
-        $patronal = CitaPatronal::esPatronal($cita);
+        // La agendó el empleador (con o sin folio): "Soy patronal individual",
+        // con la persona trabajadora como citada; el folio, si lo dio.
+        $patronal = CitaPatronal::esEmpleador($cita);
 
         session([self::SESION => [
             'cita_id' => $cita->id,
@@ -220,12 +222,55 @@ class PrellenadoCita
     private static function citadoPatronal(Recepcion $c): array
     {
         $citado = CitaPatronal::citado($c);
+        $dom = is_array($citado['domicilio'] ?? null) ? $citado['domicilio'] : [];
+        $curp = Curp::normalizar($citado['curp'] ?? null);
+        $curpValida = $curp !== '' && Curp::valida($curp);
 
         return array_filter([
             'nombre'               => $citado['nombre'] ?? null,
             'primer_apellido'      => $citado['primer_apellido'] ?? null,
             'segundo_apellido'     => $citado['segundo_apellido'] ?? null,
+            // La edad y la CURP capturadas al agendar son de la persona trabajadora.
+            'curp'                 => $curpValida ? $curp : null,
+            'fecha_nacimiento'     => $curpValida ? Curp::fecha($curp) : null,
+            'edad'                 => $c->edad,
+            'vialidad'             => ! empty($dom['calle']) ? 'CALLE' : null,
+            'calle'                => $dom['calle'] ?? null,
+            'exterior'             => $dom['num_ext'] ?? null,
+            'interior'             => $dom['num_int'] ?? null,
+            'colonia'              => $dom['colonia'] ?? null,
+            'cp'                   => $dom['cp'] ?? null,
             'descripcionSolicitud' => trim((string) ($c->conflicto ?: $c->observaciones)) ?: null,
+        ], fn ($v) => $v !== null && $v !== '');
+    }
+
+    /**
+     * Formulario de ratificación de Mi módulo (citas.blade.php) para una cita
+     * sin turno todavía: lo que se capturó al agendar. El domicilio de ese
+     * formulario es el de la fuente de empleo, así que sólo va su municipio.
+     */
+    public static function ratificacion(Recepcion $c): array
+    {
+        $trabajador = CitaPatronal::citado($c);
+        // Si agendó el trabajador, la CURP de la cita es la suya; si fue el
+        // empleador, la del trabajador va en citado.
+        $curp = Curp::normalizar(CitaPatronal::esEmpleador($c) ? ($trabajador['curp'] ?? null) : $c->curp);
+
+        return array_filter([
+            'folio'              => $c->poder_folio ?? null,
+            'primero_trabajador' => $trabajador['primer_apellido'] ?? null,
+            'segundo_trabajador' => $trabajador['segundo_apellido'] ?? null,
+            'trabajador'         => $trabajador['nombre'] ?? null,
+            'nacionalidad'       => strlen($curp) === 18 ? (substr($curp, 11, 2) === 'NE' ? 'EXTRANJERA' : 'MEXICANA') : null,
+            'trabajador_edad'    => $c->edad,
+            'trabajador_sexo'    => in_array($c->sexo, ['H', 'M'], true) ? $c->sexo : null,
+            'trabajador_curp'    => strlen($curp) === 18 ? $curp : null,
+            // Los municipios del formulario de cita son de Michoacán.
+            'estado_rat'         => $c->municipio ? 16 : null,
+            'municipio_rat'      => $c->municipio ?: null,
+            'sede'               => $c->delegacion,
+            'fecha'              => $c->fecha ? $c->fecha->format('Y-m-d') : null,
+            'hora'               => $c->hora ? $c->hora->format('H:i') : null,
         ], fn ($v) => $v !== null && $v !== '');
     }
 

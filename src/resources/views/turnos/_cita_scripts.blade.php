@@ -499,25 +499,26 @@
         var ayudaFolio  = document.getElementById('ayuda_folio_patronal');
         if (!tipo || !puesto || !folio) return;
 
-        // A dónde se manda al empleador según el trámite y su respuesta sobre el folio
-        // (si la respuesta no aparece, se queda en este formulario).
-        //  - Ratificación + ya tiene folio  -> formulario externo de ratificación.
-        //  - Solicitud    + no tiene folio  -> registro de representante patronal.
-        //  - Solicitud    + ya tiene folio  -> se queda: el formulario cambia a
-        //    solicitud patronal (folio + persona a citar; App\Support\CitaPatronal).
-        var destinos = {
-            'Ratificación': { si: @json(route('create_cita', ['origen' => 'externo'])) },
-            'Solicitud':    { no: @json(route('poder-crear')) }
-        };
+        // Solicitud y ratificación preguntan quién agenda (App\Support\CitaPatronal):
+        //  - Trabajador: sus datos, como siempre. En la ratificación, su nombre
+        //    va desglosado (lo usa el formulario de ratificación en Mi módulo).
+        //  - Empleador: el paso 2 son los datos de la persona trabajadora; el
+        //    nombre, correo y teléfono son el contacto de quien agenda.
+        //    Con folio, además se escribe y valida el folio.
+        var TRAMITES = ['Solicitud', 'Ratificación'];
         var ayudas = {
-            'Ratificación': {{ Js::from($ventanilla ? 'Si ya tiene folio, se abrirá el formulario para ratificar con él.' : 'Si ya tienes folio, te llevaremos al formulario para ratificar con él.') }},
-            'Solicitud':    {{ Js::from($ventanilla ? 'Si ya tiene folio, se captura en el paso 2. Si no, se abrirá el registro de representante patronal.' : 'Si ya tienes folio, lo escribirás en el paso 2. Si no, te llevaremos a registrarte como representante patronal.') }}
+            'Ratificación': {{ Js::from($ventanilla ? 'Si ya tiene folio, se captura en el paso 2. Si no, se capturan los datos de la persona trabajadora y el folio se registra en su cita.' : 'Si ya tienes folio, lo escribirás en el paso 2. Si no, escribe los datos de la persona trabajadora; el folio se registra el día de tu cita.') }},
+            'Solicitud':    {{ Js::from($ventanilla ? 'Si ya tiene folio, se captura en el paso 2. Si no, se capturan los datos de la persona trabajadora y el folio se registra en su cita.' : 'Si ya tienes folio, lo escribirás en el paso 2. Si no, escribe los datos de la persona trabajadora; el folio se registra el día de tu cita.') }}
+        };
+        var ETIQUETA_NOMBRE = {
+            normal:    'Nombre completo',
+            empleador: {{ Js::from($ventanilla ? 'Nombre de quien agenda (contacto)' : 'Tu nombre completo (contacto)') }}
         };
 
-        // Solicitud patronal: bloques que aparecen y campos del trabajador que se ocultan.
         var bloqueFolio    = document.getElementById('gcPatronalFolio');
         var bloqueCitado   = document.getElementById('gcPatronalCitado');
-        var camposTrab     = document.getElementById('gcCamposTrabajador');
+        var cajaNombre     = document.getElementById('gcNombreCaja');
+        var etiquetaNombre = document.getElementById('gcNombreEtiqueta');
         var poderFolio     = document.getElementById('gcPoderFolio');
         var poderInfo      = document.getElementById('gcPoderInfo');
         var poderError     = document.getElementById('gcPoderFolioError');
@@ -525,10 +526,16 @@
         var URL_FOLIO      = @json(url('/validar_folio_abogado'));
         var nombrePuesto   = '';   // el nombre que se puso solo desde el folio
         var espera = null, consulta = 0;
+        var folioActivo = false;
 
         function habilitar(caja, si) {
             if (!caja) return;
             caja.querySelectorAll('input, select, textarea').forEach(function (el) { el.disabled = !si; });
+        }
+        function mostrar(caja, si) {
+            if (!caja) return;
+            caja.hidden = !si;
+            habilitar(caja, si);
         }
 
         function esc(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
@@ -568,7 +575,7 @@
                             '<b>' + esc(d.nombre || '') + '</b>' +
                             (rep ? '<br>Representante: ' + esc(rep) : '') +
                             '<br>' + (ok ? '<i class="bi bi-check-circle-fill"></i> Folio elegible' : '<i class="bi bi-exclamation-triangle-fill"></i> ' + esc(msg)));
-                        // Quien acude: el representante (o la parte patronal), si no lo habían escrito.
+                        // Contacto: el representante (o la parte patronal), si no lo habían escrito.
                         var sugerido = (rep || d.nombre || '').toUpperCase();
                         if (ok && nombre && sugerido && (!nombre.value || nombre.value === nombrePuesto)) {
                             nombre.value = nombrePuesto = sugerido;
@@ -587,43 +594,51 @@
             }, 450);
         }
 
-        function pintarPatronal(activo) {
-            if (bloqueFolio) bloqueFolio.hidden = !activo;
-            if (bloqueCitado) bloqueCitado.hidden = !activo;
-            if (camposTrab) camposTrab.style.display = activo ? 'none' : 'contents';
-            habilitar(bloqueFolio, activo);
-            habilitar(bloqueCitado, activo);
-            habilitar(camposTrab, !activo);
-            if (activo && poderFolio) validarFolio();
-            if (window.gcActualizarPasos) window.gcActualizarPasos();
-        }
-
         function pintar() {
-            var conTramite = destinos.hasOwnProperty(tipo.value);
+            var conTramite = TRAMITES.indexOf(tipo.value) !== -1;
             if (!conTramite) puesto.value = '';
             var esEmpleador = conTramite && puesto.value === 'empleador';
             if (!esEmpleador) folio.value = '';
+            var conFolio = esEmpleador && folio.value === 'si';
+            // Nombre desglosado de la persona trabajadora.
+            var desglosado = esEmpleador || (tipo.value === 'Ratificación' && puesto.value === 'trabajador');
+            // En la ratificación del propio trabajador su nombre ya va desglosado.
+            var conNombre = !(tipo.value === 'Ratificación' && puesto.value === 'trabajador');
+
             cajaCalidad.style.display = conTramite ? '' : 'none';
+            puesto.disabled = !conTramite;
             cajaFolio.style.display = esEmpleador ? '' : 'none';
-            // Ratificación + Empleador: los datos y el caso que se capturan son del trabajador.
+            folio.disabled = !esEmpleador;
+            if (ayudaFolio && ayudas[tipo.value]) ayudaFolio.textContent = ayudas[tipo.value];
+
+            mostrar(bloqueFolio, conFolio);
+            mostrar(bloqueCitado, desglosado);
+            if (cajaNombre) {
+                cajaNombre.style.display = conNombre ? '' : 'none';
+                nombre.disabled = !conNombre;
+            }
+            if (etiquetaNombre) etiquetaNombre.textContent = esEmpleador ? ETIQUETA_NOMBRE.empleador : ETIQUETA_NOMBRE.normal;
+
+            // Empleador (con o sin folio): los datos y el caso que se capturan son del trabajador.
             document.querySelectorAll('[data-etq-empleador]').forEach(function (el) {
                 el.textContent = el.getAttribute(esEmpleador ? 'data-etq-empleador' : 'data-etq-normal');
             });
+
+            if (conFolio && !folioActivo) validarFolio();
+            folioActivo = conFolio;
+            if (window.gcActualizarPasos) window.gcActualizarPasos();
         }
 
         tipo.addEventListener('change', pintar);
         puesto.addEventListener('change', pintar);
-        folio.addEventListener('change', function () {
-            var destino = destinos[tipo.value] && destinos[tipo.value][folio.value];
-            if (destino) { window.location.href = destino; return; }
-            pintar();
-        });
+        folio.addEventListener('change', pintar);
         if (poderFolio) poderFolio.addEventListener('input', validarFolio);
 
-        // Si el servidor regresó el formulario (p. ej. horario ocupado), vuelve a la solicitud patronal.
-        if (tipo.value === 'Solicitud' && @json((bool) old('poder_folio'))) {
-            puesto.value = 'empleador';
-            folio.value = 'si';
+        // Si el servidor regresó el formulario (p. ej. horario ocupado), vuelve a como estaba.
+        var anterior = { calidad: @json(old('calidad')), tieneFolio: @json(old('tiene_folio')) };
+        if (TRAMITES.indexOf(tipo.value) !== -1 && anterior.calidad) {
+            puesto.value = anterior.calidad;
+            if (anterior.calidad === 'empleador' && anterior.tieneFolio) folio.value = anterior.tieneFolio;
         }
 
         // Por si el trámite ya viene elegido (?tipo=... o un solo trámite).

@@ -250,11 +250,9 @@ class HomeController extends Controller
             return back()->withInput()->with('error', 'Es necesario seleccionar la fecha y el horario del turno en el calendario.');
         }
         
-        // CURP y domicilio del flujo nuevo (sólo si el formulario los pidió); en una
-        // solicitud patronal, el folio de representante y la persona a citar.
-        [$camposFlujo, $errorFlujo] = \App\Support\CitaPatronal::aplica($request)
-            ? \App\Support\CitaPatronal::camposDeCita($request)
-            : \App\Support\FlujoCita::camposDeCita($request);
+        // Quien agenda (trabajador o empleador, con o sin folio), su CURP y
+        // domicilio y la persona trabajadora (App\Support\CitaPatronal).
+        [$camposFlujo, $errorFlujo] = \App\Support\CitaPatronal::camposDelFormulario($request);
         if ($errorFlujo) {
             return back()->withInput()->with('error', $errorFlujo);
         }
@@ -344,7 +342,7 @@ class HomeController extends Controller
 
         $data_insertar= array(
             'consecutivo'   => $numero_consecutivo,
-            'solicitante'   => $data["nombre"],
+            'solicitante'   => $camposFlujo['solicitante'] ?? ($data["nombre"] ?? null),
             'auxiliar'      => $id_aux,
             'lugar_auxiliar'=> $modulo,
             'modulo_id'     => $modulo_id,

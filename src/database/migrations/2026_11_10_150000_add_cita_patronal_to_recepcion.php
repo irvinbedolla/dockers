@@ -10,7 +10,9 @@ use Illuminate\Support\Facades\Schema;
  * va a citar, para prellenar "Soy patronal individual" en Mi módulo.
  *
  *   recepcion.poder_folio  abogados.idAbogado (folio de representante patronal)
- *   recepcion.citado       JSON con la persona trabajadora a citar
+ *   recepcion.citado       JSON con la persona trabajadora (nombre desglosado y,
+ *                          si agendó el empleador, su CURP y domicilio)
+ *   recepcion.calidad      quién agendó: 'trabajador' | 'empleador'
  *
  * Re-ejecutable.
  */
@@ -25,6 +27,9 @@ return new class extends Migration
             if (! Schema::hasColumn('recepcion', 'citado')) {
                 $table->text('citado')->nullable();
             }
+            if (! Schema::hasColumn('recepcion', 'calidad')) {
+                $table->string('calidad', 12)->nullable();
+            }
         });
     }
 
@@ -37,6 +42,9 @@ return new class extends Migration
             }
             if (Schema::hasColumn('recepcion', 'citado')) {
                 $table->dropColumn('citado');
+            }
+            if (Schema::hasColumn('recepcion', 'calidad')) {
+                $table->dropColumn('calidad');
             }
         });
     }

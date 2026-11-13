@@ -66,21 +66,24 @@
                                         </div>
                                         <div class="col-md-6"  id="calidad">
                                             <label class="form-label" for="puesto">{{ $ventanilla ? 'Acude en calidad de:' : 'Acudes en calidad de:' }}</label>
-                                            {{-- name="calidad": con Solicitud + Empleador + folio, la cita es patronal (App\Support\CitaPatronal). --}}
-                                            <select id="puesto" name="calidad" class="form-select">
+                                            {{-- name="calidad" y "tiene_folio": quién agenda y si trae folio patronal (App\Support\CitaPatronal).
+                                                 Van deshabilitados mientras el trámite no los pide. --}}
+                                            <select id="puesto" name="calidad" class="form-select" required disabled>
                                                 <option value="">Elige una opción</option>
                                                 <option value="trabajador">Trabajador</option>
                                                 <option value="empleador">Empleador</option>
                                             </select>
+                                            <div class="invalid-feedback">Elige una opción.</div>
                                         </div>
                                         <div class="col-md-6" style="display:none;" id="si_ratificacion">
                                             <label class="form-label" for="folio_patronal">{{ $ventanilla ? '¿Ya tiene folio de representante patronal?' : '¿Ya tienes un folio de representante patronal?' }}</label>
-                                            <select id="folio_patronal" class="form-select">
+                                            <select id="folio_patronal" name="tiene_folio" class="form-select" required disabled>
                                                 <option value="">Elige una opción</option>
                                                 <option value="si">{{ $ventanilla ? 'Sí, ya tiene folio' : 'Sí, ya tengo folio' }}</option>
                                                 <option value="no">{{ $ventanilla ? 'No tiene folio' : 'No tengo folio' }}</option>
                                             </select>
-                                            <div class="form-text" id="ayuda_folio_patronal">{{ $ventanilla ? 'Si ya tiene folio, se abrirá el formulario para ratificar con él.' : 'Si ya tienes folio, te llevaremos al formulario para ratificar con él.' }}</div>
+                                            <div class="form-text" id="ayuda_folio_patronal">{{ $ventanilla ? 'Si ya tiene folio, se captura en el paso 2.' : 'Si ya tienes folio, lo escribirás en el paso 2.' }}</div>
+                                            <div class="invalid-feedback">Elige una opción.</div>
                                         </div>
                                         <div class="col-md-6">
                                             <label class="form-label" for="municipio_citado">{{ $ventanilla ? 'Municipio de la fuente de empleo (o de la persona a citar)' : 'Municipio donde está tu trabajo (o la persona a la que vas a citar)' }} <span class="gc-req">*</span></label>
@@ -108,9 +111,9 @@
                                 <fieldset class="gc-seccion" data-paso="2">
                                     <legend class="gc-titulo"><span class="gc-num">2</span> <span data-etq-normal="{{ $ventanilla ? 'Datos de la persona' : 'Tus datos' }}" data-etq-empleador="Datos del trabajador">{{ $ventanilla ? 'Datos de la persona' : 'Tus datos' }}</span></legend>
                                     <div class="row g-3">
-                                        {{-- Solicitud patronal individual (App\Support\CitaPatronal): los datos de quien
-                                             presenta la solicitud salen del folio, como en "Soy patronal individual".
-                                             Los campos van deshabilitados (no se envían) mientras no aplique. --}}
+                                        {{-- Empleador con folio (App\Support\CitaPatronal): los datos de la parte patronal
+                                             salen del folio, como en "Soy patronal individual". Los campos van
+                                             deshabilitados (no se envían) mientras no aplique. --}}
                                         <div class="col-12 gc-patronal" id="gcPatronalFolio" hidden>
                                             <div class="row g-3">
                                                 <div class="col-md-5">
@@ -130,8 +133,8 @@
                                             </div>
                                             <div class="form-text mt-2">
                                                 {{ $ventanilla
-                                                    ? 'Los datos de la parte patronal (CURP, domicilio, identificación) se toman de su folio. Abajo van los datos de contacto de quien acude a la cita.'
-                                                    : 'Los datos de la parte patronal (CURP, domicilio, identificación) se toman de tu folio. Abajo van los datos de contacto de quien acudirá a la cita.' }}
+                                                    ? 'Los datos de la parte patronal (CURP, domicilio, identificación) se toman de su folio. Abajo van los datos de la persona trabajadora y el contacto de quien agenda.'
+                                                    : 'Los datos de la parte patronal (CURP, domicilio, identificación) se toman de tu folio. Abajo van los datos de la persona trabajadora y tu contacto.' }}
                                             </div>
                                             <hr class="my-2" style="border-color:#E3E8E8;">
                                             <style>
@@ -141,20 +144,47 @@
                                                 .gc-poder--error { background: #FBE9E9; color: #8A2626; }
                                             </style>
                                         </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label" for="gcNombre">Nombre completo <span class="gc-req">*</span></label>
+                                        {{-- Persona trabajadora con el nombre desglosado: la pide la ratificación y,
+                                             si agenda el empleador, "Datos Personales del Citado". Deshabilitado
+                                             (no se envía) mientras no aplique. --}}
+                                        <div class="col-12" id="gcPatronalCitado" hidden>
+                                            <span class="form-label d-block mb-1" style="font-weight:600;">Nombre de la persona trabajadora</span>
+                                            <div class="row g-3">
+                                                <div class="col-md-4">
+                                                    <label class="form-label" for="gcCitadoNombre">Nombre(s) <span class="gc-req">*</span></label>
+                                                    <input type="text" id="gcCitadoNombre" name="citado_nombre" class="form-control gc-mayus" maxlength="60" autocomplete="off"
+                                                           value="{{ old('citado_nombre') }}" oninput="this.value = this.value.toUpperCase();" required disabled>
+                                                    <div class="invalid-feedback">Escribe el nombre.</div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label class="form-label" for="gcCitadoPrimer">Primer apellido <span class="gc-req">*</span></label>
+                                                    <input type="text" id="gcCitadoPrimer" name="citado_primer_apellido" class="form-control gc-mayus" maxlength="60" autocomplete="off"
+                                                           value="{{ old('citado_primer_apellido') }}" oninput="this.value = this.value.toUpperCase();" required disabled>
+                                                    <div class="invalid-feedback">Escribe el primer apellido.</div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label class="form-label" for="gcCitadoSegundo">Segundo apellido</label>
+                                                    <input type="text" id="gcCitadoSegundo" name="citado_segundo_apellido" class="form-control gc-mayus" maxlength="60" autocomplete="off"
+                                                           value="{{ old('citado_segundo_apellido') }}" oninput="this.value = this.value.toUpperCase();" disabled>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {{-- Quien agenda. Si es el empleador, es su contacto (el acuse va a su correo);
+                                             en la ratificación del propio trabajador se oculta: su nombre va desglosado arriba. --}}
+                                        <div class="col-md-6" id="gcNombreCaja">
+                                            <label class="form-label" for="gcNombre"><span id="gcNombreEtiqueta">Nombre completo</span> <span class="gc-req">*</span></label>
                                             <input type="text" id="gcNombre" name="nombre" class="form-control gc-mayus" maxlength="100" autocomplete="name"
-                                                   placeholder="Nombre(s) y apellidos" oninput="this.value = this.value.toUpperCase();" required>
-                                            <div class="invalid-feedback">Escribe tu nombre completo.</div>
+                                                   placeholder="Nombre(s) y apellidos" value="{{ old('nombre') }}" oninput="this.value = this.value.toUpperCase();" required>
+                                            <div class="invalid-feedback">Escribe el nombre completo.</div>
                                         </div>
                                         <div class="col-6 col-md-3">
-                                            <label class="form-label" for="gcEdad">Edad <span class="gc-req">*</span></label>
+                                            <label class="form-label" for="gcEdad"><span data-etq-normal="Edad" data-etq-empleador="Edad del trabajador">Edad</span> <span class="gc-req">*</span></label>
                                             <input type="number" id="gcEdad" name="edad" class="form-control" inputmode="numeric" min="0" max="120" maxlength="3"
                                                    oninput="if(this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);" required>
-                                            <div class="invalid-feedback">Escribe tu edad.</div>
+                                            <div class="invalid-feedback" data-etq-normal="Escribe la edad." data-etq-empleador="Escribe la edad de la persona trabajadora.">Escribe la edad.</div>
                                         </div>
                                         <div class="col-6 col-md-3">
-                                            <label class="form-label" for="gcSexo">Sexo <span class="gc-req">*</span></label>
+                                            <label class="form-label" for="gcSexo"><span data-etq-normal="Sexo" data-etq-empleador="Sexo del trabajador">Sexo</span> <span class="gc-req">*</span></label>
                                             {{-- Los valores son los que acepta recepcion.sexo (H, M, NB, LGBTTTIQ).
                                                  Antes había "Otros", que la base rechazaba y la cita no se guardaba. --}}
                                             <select id="gcSexo" name="sexo" class="form-select" required>
@@ -242,8 +272,8 @@
                                             <div class="form-text">Nos ayuda a darte la atención adecuada.</div>
                                             <div class="invalid-feedback">Elige una opción.</div>
                                         </div>
-                                        {{-- CURP y domicilio para el prellenado (App\Support\FlujoCita). --}}
-                                        {{-- En la solicitud patronal no se piden: salen del folio. --}}
+                                        {{-- CURP y domicilio para el prellenado (App\Support\FlujoCita): de quien agenda o,
+                                             si es el empleador, de la persona trabajadora (App\Support\CitaPatronal). --}}
                                         @if (\App\Support\FlujoCita::camposExtra($ventanilla))
                                             <div id="gcCamposTrabajador" style="display:contents;">
                                                 @include('turnos._campos_flujo')
@@ -256,30 +286,6 @@
                                 <fieldset class="gc-seccion" data-paso="3">
                                     <legend class="gc-titulo"><span class="gc-num">3</span> <span data-etq-normal="{{ $ventanilla ? 'El caso' : 'Tu caso' }}" data-etq-empleador="Caso del trabajador">{{ $ventanilla ? 'El caso' : 'Tu caso' }}</span></legend>
                                     <div class="row g-3">
-                                        {{-- Solicitud patronal: a quién se cita (como "Datos Personales del Citado"
-                                             de "Soy patronal individual"). Deshabilitado mientras no aplique. --}}
-                                        <div class="col-12" id="gcPatronalCitado" hidden>
-                                            <span class="form-label d-block mb-1" style="font-weight:600;">Persona trabajadora a la que {{ $ventanilla ? 'va' : 'vas' }} a citar</span>
-                                            <div class="row g-3">
-                                                <div class="col-md-4">
-                                                    <label class="form-label" for="gcCitadoNombre">Nombre(s) <span class="gc-req">*</span></label>
-                                                    <input type="text" id="gcCitadoNombre" name="citado_nombre" class="form-control gc-mayus" maxlength="60" autocomplete="off"
-                                                           value="{{ old('citado_nombre') }}" oninput="this.value = this.value.toUpperCase();" required disabled>
-                                                    <div class="invalid-feedback">Escribe el nombre.</div>
-                                                </div>
-                                                <div class="col-md-4">
-                                                    <label class="form-label" for="gcCitadoPrimer">Primer apellido <span class="gc-req">*</span></label>
-                                                    <input type="text" id="gcCitadoPrimer" name="citado_primer_apellido" class="form-control gc-mayus" maxlength="60" autocomplete="off"
-                                                           value="{{ old('citado_primer_apellido') }}" oninput="this.value = this.value.toUpperCase();" required disabled>
-                                                    <div class="invalid-feedback">Escribe el primer apellido.</div>
-                                                </div>
-                                                <div class="col-md-4">
-                                                    <label class="form-label" for="gcCitadoSegundo">Segundo apellido</label>
-                                                    <input type="text" id="gcCitadoSegundo" name="citado_segundo_apellido" class="form-control gc-mayus" maxlength="60" autocomplete="off"
-                                                           value="{{ old('citado_segundo_apellido') }}" oninput="this.value = this.value.toUpperCase();" disabled>
-                                                </div>
-                                            </div>
-                                        </div>
                                         <div class="col-12">
                                             <label class="form-label" for="gcTipoCaso">
                                                 {{ $ventanilla ? '¿El caso es por alguno de estos motivos?' : '¿Tu caso es por alguno de estos motivos?' }} <span class="gc-req">*</span>

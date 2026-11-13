@@ -6,42 +6,52 @@ use App\Models\Poder;
 use Illuminate\Http\Request;
 
 /**
- * Cita de solicitud patronal individual.
+ * Quién agenda la cita y, si es la parte patronal, con qué folio.
  *
  * En el formulario de cita (público y ventanilla), con "Solicitud de
- * conciliación" + "Acudes en calidad de: Empleador" + "Sí, ya tengo folio",
- * la persona escribe su folio de representante patronal (abogados.idAbogado)
- * y los datos de la persona trabajadora a la que va a citar, igual que en
- * "Soy patronal individual". Sus datos de solicitante salen del folio, así
- * que no se piden CURP ni domicilio (FlujoCita::camposDeCita).
+ * conciliación" o "Ratificación de convenio" se pregunta "Acudes en calidad
+ * de" (trabajador | empleador). Si es el empleador, se pregunta si ya tiene
+ * folio de representante patronal (abogados.idAbogado):
  *
- * En Mi módulo, "Preparar solicitud" (PrellenadoCita) lleva al auxiliar por
- * "Soy patronal individual" con el folio y la persona citada ya puestos.
+ *   - Sin folio: el paso 2 son los datos de la persona trabajadora (nombre
+ *     desglosado, edad, sexo, CURP y domicilio). El nombre completo, correo y
+ *     teléfono de ese paso son de quien agenda: ahí le llega el acuse.
+ *   - Con folio: lo mismo, más el folio validado. Los datos de la parte
+ *     patronal salen del folio.
+ *
+ * En una ratificación también se pide el nombre desglosado cuando agenda el
+ * trabajador (el formulario de ratificación lo usa así).
+ *
+ * Dónde queda cada cosa en recepcion:
+ *   calidad      'trabajador' | 'empleador'
+ *   poder_folio  el folio, si lo dio
+ *   citado       JSON de la persona trabajadora: nombre, primer_apellido,
+ *                segundo_apellido y, si agendó el empleador, curp y domicilio
+ *   curp/domicilio  los de quien agenda si es trabajador; si es el empleador
+ *                con folio, la CURP del folio (para ligar la solicitud por CURP)
+ *
+ * En Mi módulo, PrellenadoCita usa esto para abrir "Soy patronal individual"
+ * (solicitud) o el formulario de ratificación con la persona ya puesta.
  */
 class CitaPatronal
 {
-    /** ¿Ya corrió la migración de recepcion.poder_folio / citado? */
+    public const TRAMITES = ['Solicitud', 'Ratificación'];
+
+    /** ¿Ya corrió la migración de recepcion.poder_folio / citado / calidad? */
     public static function migrado(): bool
     {
         static $listo = null;
 
-        return $listo ??= \Illuminate\Support\Facades\Schema::hasColumn('recepcion', 'poder_folio');
+        return $listo ??= \Illuminate\Support\Facades\Schema::hasColumn('recepcion', 'calidad');
     }
 
-    /**
-     * ¿El formulario de cita llegó como solicitud patronal (con folio)? No
-     * depende de la migración: una cita patronal nunca pide CURP ni domicilio
-     * (FlujoCita::camposDeCita); sin la migración sólo no se guardan el folio
-     * ni la persona citada (ver camposDeCita).
-     */
-    public static function aplica(Request $request): bool
+    /** ¿La cita la agendó el empleador (con o sin folio)? */
+    public static function esEmpleador(object $cita): bool
     {
-        return $request->input('tipo') === 'Solicitud'
-            && $request->input('calidad') === 'empleador'
-            && $request->filled('poder_folio');
+        return self::migrado() && (($cita->calidad ?? null) === 'empleador' || ! empty($cita->poder_folio));
     }
 
-    /** ¿La cita es de solicitud patronal? */
+    /** ¿La cita trae folio de representante patronal? */
     public static function esPatronal(object $cita): bool
     {
         return self::migrado() && ! empty($cita->poder_folio);
@@ -66,59 +76,119 @@ class CitaPatronal
     }
 
     /**
-     * Folio y persona citada del formulario de cita, validados, listos para
-     * Recepcion::create. La CURP es la de quien presentará la solicitud (la
-     * misma que pone solicitud_parte2AuxP), para que también se ligue por CURP.
+     * El folio escrito, si existe y es elegible.
+     *
+     * @return array{0: ?Poder, 1: ?string} [poder, error]
+     */
+    public static function poderElegible($folio): array
+    {
+        $folio = (int) preg_replace('/\D/', '', (string) $folio);
+        $poder = $folio > 0 ? Poder::find($folio) : null;
+        if (! $poder) {
+            return [null, 'El folio de representante patronal no existe. Revísalo o regístrate en "Registro de representante patronal".'];
+        }
+        [$status, $mensaje] = self::estado($poder);
+
+        return $status === 'elegible' ? [$poder, null] : [null, $mensaje];
+    }
+
+    /**
+     * Columnas de recepcion que salen del formulario de cita, validadas:
+     * solicitante, curp, domicilio, calidad, poder_folio y citado.
      *
      * @return array{0: array, 1: ?string} [columnas, error]
      */
-    public static function camposDeCita(Request $request): array
+    public static function camposDelFormulario(Request $request): array
     {
-        $folio = (int) preg_replace('/\D/', '', (string) $request->input('poder_folio'));
-        $poder = $folio > 0 ? Poder::find($folio) : null;
-        if (! $poder) {
-            return [[], 'El folio de representante patronal no existe. Revísalo o regístrate en "Registro de representante patronal".'];
+        $tipo      = (string) $request->input('tipo');
+        $calidad   = in_array($tipo, self::TRAMITES, true) && in_array($request->input('calidad'), ['trabajador', 'empleador'], true)
+            ? $request->input('calidad')
+            : null;
+        $empleador = $calidad === 'empleador';
+        $conFolio  = $empleador && $request->input('tiene_folio') === 'si';
+        // Nombre desglosado de la persona trabajadora: lo pide el formulario de
+        // ratificación y "Datos Personales del Citado" de la solicitud patronal.
+        $desglosado = $empleador || $tipo === 'Ratificación';
+
+        if (in_array($tipo, self::TRAMITES, true) && ! $calidad) {
+            return [[], 'Indica si acudes como trabajador o como empleador.'];
         }
-        [$status, $mensaje] = self::estado($poder);
-        if ($status !== 'elegible') {
-            return [[], $mensaje];
+
+        // CURP y domicilio (de quien agenda o, si es el empleador, del trabajador).
+        [$flujo, $error] = FlujoCita::camposDeCita($request);
+        if ($error) {
+            return [[], $error];
         }
 
         $limpio = fn (string $campo) => mb_substr(mb_strtoupper(trim((string) $request->input($campo))), 0, 60);
-        $citado = [
-            'nombre'           => $limpio('citado_nombre'),
-            'primer_apellido'  => $limpio('citado_primer_apellido'),
-            'segundo_apellido' => $limpio('citado_segundo_apellido'),
-        ];
-        if ($citado['nombre'] === '' || $citado['primer_apellido'] === '') {
-            return [[], 'Escribe el nombre y el primer apellido de la persona trabajadora a la que vas a citar.'];
+        $trabajador = [];
+        if ($desglosado) {
+            $trabajador = array_filter([
+                'nombre'           => $limpio('citado_nombre'),
+                'primer_apellido'  => $limpio('citado_primer_apellido'),
+                'segundo_apellido' => $limpio('citado_segundo_apellido'),
+            ], fn ($v) => $v !== '');
+            if (empty($trabajador['nombre']) || empty($trabajador['primer_apellido'])) {
+                return [[], 'Escribe el nombre y el primer apellido de la persona trabajadora.'];
+            }
         }
 
-        $curp = Curp::normalizar($poder->reprecentante === 'Si' ? $poder->curp_representante : $poder->curp_patronal);
-        $curp = strlen($curp) === 18 ? $curp : null;
+        // Quien agenda: el nombre completo; en una ratificación del propio
+        // trabajador, su nombre desglosado.
+        $solicitante = $empleador || ! $desglosado
+            ? mb_strtoupper(trim((string) $request->input('nombre')))
+            : implode(' ', $trabajador);
+        if ($solicitante === '') {
+            return [[], $empleador ? 'Escribe el nombre de quien agenda la cita.' : 'Escribe tu nombre completo.'];
+        }
 
-        // Sin la migración de recepcion.poder_folio / citado la cita se agenda
-        // igual (sólo con la CURP del folio); en Mi módulo no habrá prellenado patronal.
+        $poder = null;
+        if ($conFolio) {
+            [$poder, $error] = self::poderElegible($request->input('poder_folio'));
+            if ($error) {
+                return [[], $error];
+            }
+        }
+
+        $campos = ['solicitante' => $solicitante];
+
         if (! self::migrado()) {
-            \Illuminate\Support\Facades\Log::warning('Cita patronal sin la migración add_cita_patronal_to_recepcion: no se guardan folio ni persona citada.', ['folio' => $poder->idAbogado]);
+            if ($calidad) {
+                \Illuminate\Support\Facades\Log::warning('Cita sin la migración add_cita_patronal_to_recepcion: no se guardan calidad, folio ni persona trabajadora.', ['folio' => $poder?->idAbogado]);
+            }
 
-            return [array_filter(['curp' => $curp]), null];
+            return [$campos + $flujo, null];
         }
 
-        return [array_filter([
-            'poder_folio' => $poder->idAbogado,
-            'citado'      => json_encode(array_filter($citado, fn ($v) => $v !== ''), JSON_UNESCAPED_UNICODE),
-            'curp'        => $curp,
+        if ($empleador) {
+            // La CURP y el domicilio capturados son de la persona trabajadora.
+            $trabajador += array_filter([
+                'curp'      => $flujo['curp'] ?? null,
+                'domicilio' => isset($flujo['domicilio']) ? json_decode($flujo['domicilio'], true) : null,
+            ]);
+            $curpFolio = $poder ? Curp::normalizar($poder->reprecentante === 'Si' ? $poder->curp_representante : $poder->curp_patronal) : '';
+            $campos += [
+                'curp'      => strlen($curpFolio) === 18 ? $curpFolio : null,
+                'domicilio' => null,
+            ];
+        } else {
+            $campos += $flujo;
+        }
+
+        return [$campos + array_filter([
+            'calidad'     => $calidad,
+            'poder_folio' => $poder?->idAbogado,
+            'citado'      => $trabajador ? json_encode($trabajador, JSON_UNESCAPED_UNICODE) : null,
         ], fn ($v) => $v !== null), null];
     }
 
-    /** Persona trabajadora a citar guardada en la cita. */
+    /** Persona trabajadora guardada en la cita. */
     public static function citado(object $cita): array
     {
         return json_decode((string) ($cita->citado ?? ''), true) ?: [];
     }
 
-    /** "NOMBRE APELLIDO APELLIDO" de la persona citada (para Mi módulo). */
+    /** "NOMBRE APELLIDO APELLIDO" de la persona trabajadora (para Mi módulo). */
     public static function nombreCitado(object $cita): ?string
     {
         $c = self::citado($cita);

@@ -4,8 +4,8 @@
 {{--
     Nueva solicitud (auxiliar): ¿quién la presenta? Si viene de una cita
     (App\Support\PrellenadoCita) se resalta la opción de la cita: "Soy
-    patronal individual" si el empleador agendó con su folio de representante
-    (App\Support\CitaPatronal); si no, "Soy trabajador(a)".
+    patronal individual" si la agendó el empleador, con o sin folio de
+    representante (App\Support\CitaPatronal); si no, "Soy trabajador(a)".
 --}}
 
 @php
@@ -36,7 +36,9 @@
             @if ($prellenado)
                 @include('solicitudes.auxiliares._prellenado_banner', [
                     'texto' => $citaPatronal
-                        ? 'Cita patronal con folio de representante <b>'.e($prellenado['datos']['folio'] ?? '').'</b>: elige <b>Soy patronal individual</b> y en las siguientes pantallas verás el folio y la persona a citar ya puestos para revisarlos.'
+                        ? (! empty($prellenado['datos']['folio'])
+                            ? 'Cita patronal con folio de representante <b>'.e($prellenado['datos']['folio']).'</b>: elige <b>Soy patronal individual</b> y en las siguientes pantallas verás el folio y la persona a citar ya puestos para revisarlos.'
+                            : 'La agendó el empleador <b>sin folio</b> de representante patronal: elige <b>Soy patronal individual</b>, captura su folio (o regístralo) y en la pantalla del citado verás los datos de la persona trabajadora ya puestos.')
                         : 'Viene de su cita: elige <b>Soy trabajador(a)</b> y en las siguientes pantallas verás los datos ya puestos para revisarlos.',
                 ])
             @endif
