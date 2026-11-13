@@ -568,6 +568,12 @@ class TurnosController extends Controller
     }
 
     public function create_publico($origen){
+        // /citas/interno es para el personal: sin sesión, al login (y de
+        // regreso aquí después de entrar). /citas/externo sigue siendo público.
+        if ($origen === 'interno' && ! auth()->check()) {
+            return redirect()->guest(route('login'));
+        }
+
         $estados = Estados::all();
         $municipios = Municipios::all();
         return view('citas', compact('estados','municipios', 'origen'));

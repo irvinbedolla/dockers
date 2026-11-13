@@ -24,6 +24,7 @@
         .mm-chip--activo { background: #E5F3EA; color: #1E7B3C; }
         .mm-chip--prueba { background: #FBF4E1; color: #7A5D10; }
         .mm-chip--linea { background: #EEF2F2; color: var(--tn-verde); }
+        .mm-chip--excepcion { background: #F4E6EC; color: #7A1F3D; }
         .mm-chip--termino {
             background: #F3F1EC; color: #5A5446; font-weight: 600; max-width: 230px;
             overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; vertical-align: middle;
@@ -204,6 +205,7 @@
         return '<span class="tn-estatus tn-estatus--' + esc(c.estatus) + '">' + esc(c.estatus) + '</span>' +
             (c.enLinea ? ' <span class="mm-chip mm-chip--linea">En línea</span>' : '') +
             (c.prueba ? ' <span class="mm-chip mm-chip--prueba">Prueba</span>' : '') +
+            (c.excepcion ? ' <span class="mm-chip mm-chip--excepcion" title="Recepción lo canalizó a casos de excepción">Caso de excepción</span>' : '') +
             (vigente(c) && c.enAtencion ? ' <span class="mm-chip mm-chip--atencion">En atención</span>'
                 : (vigente(c) && c.llamado ? ' <span class="mm-chip mm-chip--llamado">Llamado ' + esc(c.llamado) + '</span>' : '')) +
             (c.llegoTarde ? ' <span class="mm-chip mm-chip--tarde" title="Recepción la reactivó: va después de quienes llegaron a tiempo">Llegó tarde</span>' : '') +
@@ -245,7 +247,7 @@
         if (!c.flujoNuevo || c.tipo !== 'Solicitud' || !vigente(c)) { return ''; }
         return '<form method="POST" action="' + esc(URL_PRELLENAR.replace('__ID__', c.id)) + '">' +
             '<input type="hidden" name="_token" value="' + esc(TOKEN) + '">' +
-            '<button type="submit" class="btn tn-boton-dorado"><i class="bi bi-magic me-1"></i> Preparar solicitud con estos datos</button></form>';
+            '<button type="submit" class="btn tn-boton-dorado"><i class="bi bi-magic me-1"></i> Preparar solicitud' + (c.empleador ? ' patronal' : '') + ' con estos datos</button></form>';
     }
 
     // Fase 4: botones según dónde va la cita. Sólo citas del flujo nuevo.
@@ -299,10 +301,11 @@
         var dato = function (k, v) { return v ? '<dt>' + k + '</dt><dd>' + esc(v) + '</dd>' : ''; };
         return '<p class="mm-turno__etiqueta">' + etiqueta + '</p>' +
             '<div class="mm-folio"><span>' + esc(c.prefijo) + '</span><strong>' + esc(c.numero) + '</strong></div>' +
-            '<div class="mm-meta"><b>' + esc(c.hora) + '</b> · ' + esc(c.tipo) + ' ' + chips(c) + '</div>' +
+            '<div class="mm-meta"><b>' + esc(c.hora) + '</b> · ' + esc(c.tipo) + (c.empleador ? ' (empleador)' : '') + ' ' + chips(c) + '</div>' +
             tiempo(c, etiqueta) +
             '<div class="mm-nombre">' + esc(c.solicitante || 'Sin nombre') + '</div>' +
             '<dl class="mm-datos">' +
+                dato('Acude como', c.calidad) + dato('Folio patronal', c.folioPatronal) + dato('Persona trabajadora', c.citado) +
                 dato('Edad', c.edad) + dato('Municipio', c.municipio) + dato('Teléfono', c.telefono) + dato('Correo', c.correo) +
                 dato('Caso', c.caso) + dato('Motivo', c.motivo) + dato('Grupo vulnerable', c.vulnerables) +
             '</dl>' + (c.flujoNuevo ? acciones(c, false) : iniciar(c));

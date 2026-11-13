@@ -9,10 +9,10 @@
 --}}
 <div class="col-12"><hr class="my-1" style="border-color:#E3E8E8;"></div>
 <div class="col-md-6">
-    <label class="form-label" for="gcCurp">CURP <span class="gc-req">*</span></label>
+    <label class="form-label" for="gcCurp"><span data-etq-normal="CURP" data-etq-empleador="CURP de la persona trabajadora">CURP</span> <span class="text-muted fw-normal">(opcional)</span></label>
     <input type="text" id="gcCurp" name="curp" class="form-control gc-mayus" maxlength="18" autocomplete="off"
            placeholder="18 letras y números" value="{{ old('curp') }}"
-           oninput="this.value = this.value.toUpperCase().replace(/\s/g, '');" required>
+           oninput="this.value = this.value.toUpperCase().replace(/\s/g, '');">
     <div class="form-text">
         {{ $ventanilla ? 'Con ella se adelanta el registro de su solicitud.' : 'Con ella adelantamos el registro de tu solicitud y te atendemos más rápido.' }}
         <a href="https://www.gob.mx/curp/" target="_blank" rel="noopener">Consultar CURP</a>
@@ -20,7 +20,7 @@
     <div class="invalid-feedback" id="gcCurpError">Revisa la CURP.</div>
 </div>
 <div class="col-12">
-    <span class="form-label d-block mb-1" style="font-weight:600;">{{ $ventanilla ? 'Domicilio de la persona' : 'Tu domicilio' }}</span>
+    <span class="form-label d-block mb-1" style="font-weight:600;" data-etq-normal="{{ $ventanilla ? 'Domicilio de la persona' : 'Tu domicilio' }}" data-etq-empleador="Domicilio de la persona trabajadora">{{ $ventanilla ? 'Domicilio de la persona' : 'Tu domicilio' }}</span>
 </div>
 <div class="col-md-6">
     <label class="form-label" for="gcCalle">Calle <span class="gc-req">*</span></label>
@@ -76,10 +76,11 @@
 
     function revisar() {
         var c = campo.value.trim();
-        var msg = c ? error(c) : 'Escribe la CURP.';
+        // Opcional: vacía está bien; si la escriben, tiene que ser válida.
+        var msg = c ? error(c) : '';
         campo.setCustomValidity(msg);
         document.getElementById('gcCurpError').textContent = msg || 'Revisa la CURP.';
-        if (!msg) {
+        if (c && !msg) {
             // Edad y sexo desde la CURP, sólo si están vacíos.
             var edad = document.getElementById('gcEdad'), sexo = document.getElementById('gcSexo');
             var anio = (/\d/.test(c[16]) ? 1900 : 2000) + parseInt(c.substr(4, 2), 10);

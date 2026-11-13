@@ -11,12 +11,17 @@ use Illuminate\Support\Facades\DB;
  *
  *   preparar()  Desde "Mi módulo" ("Preparar solicitud"): guarda en la sesión
  *               del auxiliar los datos de la cita.
- *   paraVista() Lo usan las pantallas de la captura del trabajador; sólo
- *               ponen valores y los resaltan, el auxiliar revisa y corrige:
- *                 - solicitudAuxiliares: resalta "Soy trabajador(a)";
+ *   paraVista() Lo usan las pantallas de la captura; sólo ponen valores y
+ *               los resaltan, el auxiliar revisa y corrige:
+ *                 - solicitudAuxiliares: resalta "Soy trabajador(a)" o, si la
+ *                   cita es patronal (CitaPatronal), "Soy patronal individual";
  *                 - datos generales (_inicio_formulario): municipio de la
  *                   fuente de empleo, delegación y objeto sugerido ('inicio');
- *                 - solicitanteAux (_prellenado): datos de la persona ('datos').
+ *                 - solicitanteAux (_prellenado): datos de la persona ('datos');
+ *                 - patronal: solicitanteAuxP (folio de representante, 'datos')
+ *                   y citadosAuxP (persona trabajadora a citar, 'citado').
+ *               Con paraVista('trabajador') / paraVista('patronal') cada
+ *               pantalla sólo toma el prellenado de su tipo.
  *   ligar()     Al guardar la solicitud (guardar_solicitudAux) la liga con la
  *               cita (seer_general.recepcion_id), da la cita por atendida
  *               (fase 4: se quita de la pantalla) y limpia la sesión.
@@ -33,23 +38,41 @@ class PrellenadoCita
 
     public static function preparar(Recepcion $cita): void
     {
+        // La agendó el empleador (con o sin folio): "Soy patronal individual",
+        // con la persona trabajadora como citada; el folio, si lo dio.
+        $patronal = CitaPatronal::esEmpleador($cita);
+
         session([self::SESION => [
             'cita_id' => $cita->id,
             'folio'   => $cita->folio_cita,
+            'tipo'    => $patronal ? 'patronal' : 'trabajador',
             'persona' => mb_strtoupper(trim((string) $cita->solicitante)),
             'en'      => now()->timestamp,
-            'datos'   => self::datos($cita),
-            'inicio'  => self::inicio($cita),
+            'datos'   => $patronal ? self::datosPatronal($cita) : self::datos($cita),
+            'citado'  => $patronal ? self::citadoPatronal($cita) : [],
+            'inicio'  => $patronal
+                // Los objetos sugeridos son del catálogo del trabajador: en patronal no se sugieren.
+                ? ['municipio' => $cita->municipio ? (int) $cita->municipio : null, 'motivos' => []]
+                : self::inicio($cita),
         ]]);
     }
 
-    public static function paraVista(): ?array
+    /**
+     * El prellenado vigente; con $tipo ('trabajador' | 'patronal'), sólo si
+     * es de ese tipo (la captura del trabajador no toma el de una cita
+     * patronal y al revés). Los anteriores a este cambio son de trabajador.
+     */
+    public static function paraVista(?string $tipo = null): ?array
     {
         $p = session(self::SESION);
 
         if (! is_array($p) || (now()->timestamp - ($p['en'] ?? 0)) > self::VIGENCIA_MINUTOS * 60) {
             session()->forget(self::SESION);
 
+            return null;
+        }
+
+        if ($tipo !== null && ($p['tipo'] ?? 'trabajador') !== $tipo) {
             return null;
         }
 
@@ -80,7 +103,11 @@ class PrellenadoCita
             return;
         }
 
-        $p = $enLinea ? null : self::paraVista();
+        // El prellenado sólo liga una solicitud de su mismo tipo (tipo_solicitud 2 = patronal individual).
+        $tipo = isset($solicitud->tipo_solicitud)
+            ? ((string) $solicitud->tipo_solicitud === '2' ? 'patronal' : 'trabajador')
+            : null;
+        $p = $enLinea ? null : self::paraVista($tipo);
         if ($p) {
             $citaId  = (int) $p['cita_id'];
             $vinculo = 'prellenado';
@@ -180,6 +207,76 @@ class PrellenadoCita
         ];
 
         return array_filter($campos, fn ($v) => $v !== null && $v !== '');
+    }
+
+    /** Campo de "Datos del Solicitante Patronal" (solicitanteAuxP) => valor. */
+    private static function datosPatronal(Recepcion $c): array
+    {
+        return array_filter([
+            'folio'     => $c->poder_folio ? (string) $c->poder_folio : null,
+            'excepcion' => $c->exepcion === 'Si' ? 'Si' : null,
+        ], fn ($v) => $v !== null && $v !== '');
+    }
+
+    /** Campo de "Datos Personales del Citado" (citadosAuxP) => valor. */
+    private static function citadoPatronal(Recepcion $c): array
+    {
+        $citado = CitaPatronal::citado($c);
+        $dom = is_array($citado['domicilio'] ?? null) ? $citado['domicilio'] : [];
+        $curp = Curp::normalizar($citado['curp'] ?? null);
+        $curpValida = $curp !== '' && Curp::valida($curp);
+
+        return array_filter([
+            'nombre'               => $citado['nombre'] ?? null,
+            'primer_apellido'      => $citado['primer_apellido'] ?? null,
+            'segundo_apellido'     => $citado['segundo_apellido'] ?? null,
+            // La edad y la CURP capturadas al agendar son de la persona trabajadora.
+            'curp'                 => $curpValida ? $curp : null,
+            'fecha_nacimiento'     => $curpValida ? Curp::fecha($curp) : null,
+            'edad'                 => $c->edad,
+            'vialidad'             => ! empty($dom['calle']) ? 'CALLE' : null,
+            'calle'                => $dom['calle'] ?? null,
+            'exterior'             => $dom['num_ext'] ?? null,
+            'interior'             => $dom['num_int'] ?? null,
+            'colonia'              => $dom['colonia'] ?? null,
+            'cp'                   => $dom['cp'] ?? null,
+            'descripcionSolicitud' => trim((string) ($c->conflicto ?: $c->observaciones)) ?: null,
+        ], fn ($v) => $v !== null && $v !== '');
+    }
+
+    /**
+     * Formulario de ratificación de Mi módulo (citas.blade.php) para una cita
+     * sin turno todavía: lo que se capturó al agendar. El domicilio de ese
+     * formulario es el de la fuente de empleo, así que sólo va su municipio.
+     */
+    public static function ratificacion(Recepcion $c): array
+    {
+        $trabajador = CitaPatronal::citado($c);
+        // Formulario corto de ventanilla: si agendó el propio trabajador sólo
+        // está su nombre completo; se desglosa (aproximado) para prellenar.
+        if (! $trabajador && ! CitaPatronal::esEmpleador($c)) {
+            $trabajador = CitaPatronal::desglosarNombre($c->solicitante);
+        }
+        // Si agendó el trabajador, la CURP de la cita es la suya; si fue el
+        // empleador, la del trabajador va en citado.
+        $curp = Curp::normalizar(CitaPatronal::esEmpleador($c) ? ($trabajador['curp'] ?? null) : $c->curp);
+
+        return array_filter([
+            'folio'              => $c->poder_folio ?? null,
+            'primero_trabajador' => $trabajador['primer_apellido'] ?? null,
+            'segundo_trabajador' => $trabajador['segundo_apellido'] ?? null,
+            'trabajador'         => $trabajador['nombre'] ?? null,
+            'nacionalidad'       => strlen($curp) === 18 ? (substr($curp, 11, 2) === 'NE' ? 'EXTRANJERA' : 'MEXICANA') : null,
+            'trabajador_edad'    => $c->edad,
+            'trabajador_sexo'    => in_array($c->sexo, ['H', 'M'], true) ? $c->sexo : null,
+            'trabajador_curp'    => strlen($curp) === 18 ? $curp : null,
+            // Los municipios del formulario de cita son de Michoacán.
+            'estado_rat'         => $c->municipio ? 16 : null,
+            'municipio_rat'      => $c->municipio ?: null,
+            'sede'               => $c->delegacion,
+            'fecha'              => $c->fecha ? $c->fecha->format('Y-m-d') : null,
+            'hora'               => $c->hora ? $c->hora->format('H:i') : null,
+        ], fn ($v) => $v !== null && $v !== '');
     }
 
     /**

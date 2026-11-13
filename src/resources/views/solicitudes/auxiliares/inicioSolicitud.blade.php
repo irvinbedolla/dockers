@@ -12,7 +12,7 @@
         <div class="section-body sa">
             @include('solicitudes.auxiliares._inicio_formulario', [
                 'accion'     => route('agregaSolicitanteA'),
-                'prellenado' => \App\Support\PrellenadoCita::paraVista(),
+                'prellenado' => \App\Support\PrellenadoCita::paraVista('trabajador'),
             ])
         </div>
     </section>
