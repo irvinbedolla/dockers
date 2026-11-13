@@ -182,6 +182,52 @@ class CitaPatronal
         ], fn ($v) => $v !== null), null];
     }
 
+    /**
+     * Formulario corto de ventanilla (/turnos/nuevo): sólo trámite, municipio,
+     * calidad (trabajador | empleador), nombre completo de quien solicita,
+     * caso de excepción y horario. Ya no se piden CURP, domicilio, folio ni
+     * la persona trabajadora: el auxiliar los captura en Mi módulo.
+     *
+     * @return array{0: array, 1: ?string} [columnas, error]
+     */
+    public static function camposVentanilla(Request $request): array
+    {
+        $calidad = $request->input('calidad');
+        if (! in_array($calidad, ['trabajador', 'empleador'], true)) {
+            return [[], 'Indica si quien solicita es trabajador o empleador.'];
+        }
+
+        $nombre = mb_substr(preg_replace('/\s+/u', ' ', mb_strtoupper(trim((string) $request->input('nombre')))), 0, 100);
+        if ($nombre === '') {
+            return [[], 'Escribe el nombre completo de quien solicita.'];
+        }
+
+        return [['solicitante' => $nombre] + (self::migrado() ? ['calidad' => $calidad] : []), null];
+    }
+
+    /**
+     * "NOMBRE(S) APELLIDO1 APELLIDO2" → nombre, primer y segundo apellido.
+     * Aproximado (con 3 o más palabras, las dos últimas son los apellidos);
+     * se usa sólo para prellenar y el auxiliar lo revisa.
+     *
+     * @return array{nombre?: string, primer_apellido?: string, segundo_apellido?: string}
+     */
+    public static function desglosarNombre(?string $completo): array
+    {
+        $partes = preg_split('/\s+/u', mb_strtoupper(trim((string) $completo)), -1, PREG_SPLIT_NO_EMPTY);
+
+        return match (true) {
+            count($partes) === 0 => [],
+            count($partes) === 1 => ['nombre' => $partes[0]],
+            count($partes) === 2 => ['nombre' => $partes[0], 'primer_apellido' => $partes[1]],
+            default => [
+                'nombre'           => implode(' ', array_slice($partes, 0, -2)),
+                'primer_apellido'  => $partes[count($partes) - 2],
+                'segundo_apellido' => $partes[count($partes) - 1],
+            ],
+        };
+    }
+
     /** Persona trabajadora guardada en la cita. */
     public static function citado(object $cita): array
     {

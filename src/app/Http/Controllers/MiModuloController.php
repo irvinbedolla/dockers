@@ -617,6 +617,9 @@ class MiModuloController extends Controller
                     'vulnerables' => $c->vulnerables,
                     // Quién agendó y, si fue el empleador, su folio y la persona trabajadora (App\Support\CitaPatronal).
                     'empleador'   => \App\Support\CitaPatronal::esEmpleador($c),
+                    // Formulario corto de ventanilla: quién solicita y si recepción lo canalizó a excepción.
+                    'calidad'     => match ($c->calidad ?? null) { 'trabajador' => 'Trabajador', 'empleador' => 'Empleador', default => null },
+                    'excepcion'   => $c->exepcion === 'Si',
                     'folioPatronal' => \App\Support\CitaPatronal::esPatronal($c) ? (string) $c->poder_folio : null,
                     'citado'      => \App\Support\CitaPatronal::nombreCitado($c),
                     'minutos'     => $minutos,

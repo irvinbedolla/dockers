@@ -150,66 +150,6 @@ class CasosExcepcionController extends Controller
     }
 
     /**
-     * "Canalizar a módulo" desde la bandeja: no es caso de excepción y la
-     * MISMA cita pasa a un orientador o auxiliar de su trámite (hoy, en el
-     * primer horario con módulo libre, u otra fecha y hora con módulo libre).
-     * Es lo mismo que el formato con "No es caso de excepción" → hoy / otra
-     * fecha (FormatoExcepcion::reclasificar): la cita conserva su folio y su
-     * id, así que el orientador la ve en Mi módulo y la solicitud se prellena
-     * con sus datos. Antes, para esto se creaba otra cita en /turnos/nuevo y
-     * ésta se quedaba sin atender.
-     */
-    public function canalizar(Request $request, int $id)
-    {
-        abort_unless(CasosExcepcion::atiende($request->user()), 403);
-        abort_unless(CasosExcepcion::conFormato(), 503, 'Falta correr la migración del formato 685 Ter.');
-
-        $origen = $this->origen('cita', $id);
-        $cita   = $origen['cita'];
-        $folio  = \App\Support\FolioCita::mostrar($cita);
-
-        if ($cita->exepcion !== 'Si' || ! empty($origen['caso']->terminado_at)
-            || ! in_array($cita->estatus, ['pendiente', 'confirmada'], true)) {
-            return back()->with('error', "El folio {$folio} ya no se puede canalizar: el caso ya se cerró o la cita ya no está por atender.");
-        }
-
-        $opciones = array_values(array_intersect(['hoy', 'otra_fecha'], FormatoExcepcion::siguientesPosibles($origen)));
-        $datos = $request->validate([
-            'siguiente'   => ['required', Rule::in($opciones)],
-            'fecha_nueva' => ['required_if:siguiente,otra_fecha', 'nullable', 'date_format:Y-m-d'],
-            'hora_nueva'  => ['required_if:siguiente,otra_fecha', 'nullable', 'regex:/^\d{2}:\d{2}(:\d{2})?$/'],
-        ], [
-            'siguiente.required'      => 'Elige si pasa a la fila de hoy o en otra fecha.',
-            'siguiente.in'            => "El folio {$folio} no se puede canalizar desde aquí (ya tiene solicitud o su módulo no turna); ábrelo en el formato.",
-            'fecha_nueva.required_if' => 'Elige la fecha.',
-            'hora_nueva.required_if'  => 'Elige el horario.',
-        ]);
-
-        try {
-            $aviso = FormatoExcepcion::reclasificar($origen, $datos['siguiente'], $datos['fecha_nueva'] ?? null, $datos['hora_nueva'] ?? null);
-        } catch (\RuntimeException $e) {
-            return back()->with('error', "Folio {$folio}: ".$e->getMessage());
-        }
-
-        // Se cierra el caso como "No es caso de excepción" (estadísticas). Si ya había
-        // un borrador del formato, se conserva lo que tenía capturado.
-        $previo = $origen['caso'] ? (array) $origen['caso'] : [];
-        FormatoExcepcion::guardar($origen, array_merge($previo, [
-            'nombre'        => $previo['nombre'] ?? $cita->solicitante,
-            'telefono'      => $previo['telefono'] ?? $cita->telefono,
-            'correo'        => $previo['correo'] ?? $cita->correo,
-            'resultado'     => 'no_excepcion',
-            'siguiente'     => $datos['siguiente'],
-            'tipos'         => [],
-            'instituciones' => [],
-        ]), true, $request->user());
-
-        Log::info('excepcion.canalizar', ['cita' => $cita->id, 'folio' => $folio, 'siguiente' => $datos['siguiente'], 'por' => $request->user()->id]);
-
-        return back()->with('success', $aviso);
-    }
-
-    /**
      * "Buscar expedientes" (modal de la bandeja): todas las solicitudes ya
      * registradas, con filtro de caso de excepción, sede y fechas. JSON.
      */
@@ -637,7 +577,6 @@ class CasosExcepcionController extends Controller
             ->select([
                 'r.id', 'r.codigo', 'r.consecutivo', 'r.fecha', 'r.hora', 'r.solicitante', 'r.tipo', 'r.origen',
                 'r.delegacion', 'r.tipo_caso', 'r.vulnerables', 'r.estatus', 'r.telefono', 'r.correo',
-                'r.modulo_id', 'r.exepcion', // "Canalizar a módulo" (FormatoExcepcion::noTurna)
                 'u.name as atiende', 'x.id as formato_id', 'x.terminado_at', 'x.resultado', 'g.id as solicitud_id', 'g.NUE as nue',
             ])
             ->paginate(self::POR_PAGINA)

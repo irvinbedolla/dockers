@@ -252,6 +252,11 @@ class PrellenadoCita
     public static function ratificacion(Recepcion $c): array
     {
         $trabajador = CitaPatronal::citado($c);
+        // Formulario corto de ventanilla: si agendó el propio trabajador sólo
+        // está su nombre completo; se desglosa (aproximado) para prellenar.
+        if (! $trabajador && ! CitaPatronal::esEmpleador($c)) {
+            $trabajador = CitaPatronal::desglosarNombre($c->solicitante);
+        }
         // Si agendó el trabajador, la CURP de la cita es la suya; si fue el
         // empleador, la del trabajador va en citado.
         $curp = Curp::normalizar(CitaPatronal::esEmpleador($c) ? ($trabajador['curp'] ?? null) : $c->curp);

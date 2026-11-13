@@ -6,6 +6,8 @@
     correo y municipio_solicitante. Requiere también _cita_modales,
     _cita_estilos y _cita_scripts.
     Espera: $modo ('publico' | 'ventanilla'), $accion (URL del POST), $municipios.
+    Nota: /turnos/nuevo ya tiene su propio formulario corto (turnos/crear); el
+    modo "ventanilla" se conserva por si se vuelve a necesitar.
 --}}
 @php
     $ventanilla = ($modo ?? 'publico') === 'ventanilla';
@@ -286,6 +288,11 @@
                                 <fieldset class="gc-seccion" data-paso="3">
                                     <legend class="gc-titulo"><span class="gc-num">3</span> <span data-etq-normal="{{ $ventanilla ? 'El caso' : 'Tu caso' }}" data-etq-empleador="Caso del trabajador">{{ $ventanilla ? 'El caso' : 'Tu caso' }}</span></legend>
                                     <div class="row g-3">
+                                        {{-- Desactivado: la pregunta de casos de excepción se usaba mal en el
+                                             formulario público. Ahora sólo recepción canaliza a excepción
+                                             (interruptor de /turnos/nuevo). Las citas en línea se guardan con
+                                             tipo_caso "Ninguno" y exepcion "No" (HomeController::turnos_publico). --}}
+                                        @if (false)
                                         <div class="col-12">
                                             <label class="form-label" for="gcTipoCaso">
                                                 {{ $ventanilla ? '¿El caso es por alguno de estos motivos?' : '¿Tu caso es por alguno de estos motivos?' }} <span class="gc-req">*</span>
@@ -308,6 +315,7 @@
                                             <div class="form-text" id="gcAyudaCaso">Si no estás seguro, elige "No, ninguno de estos".</div>
                                             <div class="invalid-feedback">Elige una opción.</div>
                                         </div>
+                                        @endif
                                         <div class="col-12">
                                             <label class="form-label" for="gcConflicto">{{ $ventanilla ? 'Descripción breve de lo que pasó' : 'Cuéntanos brevemente qué pasó' }} <span class="gc-opcional">(opcional)</span></label>
                                             <textarea id="gcConflicto" name="conflicto" class="form-control gc-mayus" rows="3" maxlength="500"

@@ -260,7 +260,11 @@ class HomeController extends Controller
         $data = $request->all();
         $sede = $data["delegacion"];
         $tipo = $data["tipo"];
-        $excepcion = $data["excepcion"] ?? "No";
+        // Casos de excepción: el formulario público ya no lo pregunta (se usaba
+        // mal). Sólo recepción canaliza a excepción desde /turnos/nuevo, así que
+        // aquí se ignora lo que llegue en el POST.
+        $excepcion = "No";
+        $data["excepcion"] = "No";
         $fecha_turno = $data["fecha_turno"];
         $hora_turno = $data["hora_turno"];
         $todas_direcciones = [
@@ -348,7 +352,7 @@ class HomeController extends Controller
             'modulo_id'     => $modulo_id,
             'origen'        => 'linea',
             'tipo'          => $tipo,
-            'tipo_caso'     => $data["tipo_caso"],
+            'tipo_caso'     => 'Ninguno',
             'fecha'         => $fecha_turno,
             'hora'          => $hora_turno,
             'hora_fin'      => $hora_fin,
@@ -372,7 +376,7 @@ class HomeController extends Controller
     
             // Motivo exacto del caso de excepción (CasosExcepcion::MOTIVOS).
             if (\App\Support\CasosExcepcion::conMotivo()) {
-                $data_insertar['motivo_excepcion'] = \App\Support\CasosExcepcion::motivoValido($data['motivo_excepcion'] ?? null);
+                $data_insertar['motivo_excepcion'] = null;
             }
             // En transacción: si el INSERT falla, también se deshace el folio
             // que se apartó en folios_citas y no quedan números saltados.

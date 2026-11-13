@@ -46,11 +46,7 @@
 
 @section('page_css')
     @include('turnos._estilos')
-    {{-- Calendario de "Canalizar a módulo": el mismo de /turnos/nuevo. --}}
-    @include('turnos._horario_estilos')
     <style>
-        .cx-can-hoy { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 12px; margin-bottom: 12px; border-radius: 10px; background: #EEF2F2; font-size: 13px; color: #5E6E6F; }
-        .cx-can-hoy span { flex: 1 1 240px; }
         .cx-pestanas { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
         .cx-pestana {
             display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 10px;
@@ -121,8 +117,8 @@
             <div class="d-flex flex-wrap gap-2">
             @if ($atiende)
                 {{-- Para quien llega SIN cita. Si ya tiene cita de excepción y no lo es, se usa
-                     "Canalizar a módulo" en su renglón: crear otra cita deja ésta sin atender y la
-                     nueva sin los datos de la persona. --}}
+                     Atender → "No es caso de excepción" en su renglón: crear otra cita deja ésta
+                     sin atender y la nueva sin los datos de la persona. --}}
                 @foreach (array_intersect(\App\Support\Recepcion::tramitesQuePuedeCrear(auth()->user()), \App\Support\CasosExcepcion::TRAMITES_TURNO) as $t)
                     <a class="btn btn-primary btn-sm" href="{{ route('nueva_cita', ['tipo' => $t]) }}"
                        data-bs-toggle="modal" data-bs-target="#cxTurnoNuevoModal" data-tramite="{{ mb_strtolower($t) }}"><i class="bi bi-calendar-plus"></i> Turno de {{ mb_strtolower($t) }}</a>
@@ -315,13 +311,6 @@
                                                         <i class="bi bi-clipboard2-pulse"></i> {{ ! empty($f->terminado_at) ? 'Formato' : ($f->formato_id ? 'Continuar' : 'Atender') }}
                                                     </a>
                                                 @endif
-                                                @if ($atiende && ($f->exepcion ?? 'Si') === 'Si' && in_array($estatus, ['pendiente', 'confirmada'], true)
-                                                    && empty($f->terminado_at) && empty($f->solicitud_id) && ! \App\Support\FormatoExcepcion::noTurna($f))
-                                                    <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#cxCanalizarModal"
-                                                            data-accion="{{ route('excepciones.canalizar', $f->id) }}" data-folio="{{ \App\Support\FolioCita::mostrar($f) }}"
-                                                            data-nombre="{{ $titulo($f->solicitante) ?: 'Sin nombre' }}" data-sede="{{ $f->delegacion }}" data-tipo="{{ $f->tipo }}"
-                                                            title="No es caso de excepción: esta misma cita pasa a un orientador o auxiliar"><i class="bi bi-arrow-left-right"></i> Canalizar a módulo</button>
-                                                @endif
                                                 @if ($f->formato_id)
                                                     <a class="btn btn-sm btn-outline-secondary" href="{{ route('excepciones.formato.pdf', ['tipo' => 'cita', 'id' => $f->id]) }}" target="_blank" rel="noopener" title="Formato en PDF"><i class="bi bi-file-earmark-pdf"></i></a>
                                                 @endif
@@ -356,55 +345,11 @@
     </section>
 @endsection
 
-{{-- "Canalizar a módulo" (CasosExcepcionController@canalizar): el mismo calendario por
-     semanas de /turnos/nuevo (turnos._horario_estilos, /api/obtenerTurnosDisponibles),
-     que sólo muestra horarios con un módulo libre de la sede y el trámite de la cita.
-     Va en el stack "modals" del layout, fuera de .main-content, como en turnos.crear. --}}
+{{-- Va en el stack "modals" del layout, fuera de .main-content, como en turnos.crear. --}}
 @push('modals')
-<div class="modal fade" id="cxCanalizarModal" tabindex="-1" aria-labelledby="cxCanalizarTitulo" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg hc-dialogo">
-        <form class="modal-content" method="POST" action="" id="cxCanalizarForm">
-            @csrf
-            <input type="hidden" name="siguiente" value="otra_fecha">
-            <input type="hidden" name="fecha_nueva" value="">
-            <input type="hidden" name="hora_nueva" value="">
-            <div class="modal-header card-header-guinda py-3">
-                <div>
-                    <h5 class="modal-title text-white mb-0" id="cxCanalizarTitulo"><i class="bi bi-arrow-left-right me-2" aria-hidden="true"></i>Canalizar a módulo · <span data-folio></span></h5>
-                    <span class="hc-contexto" data-contexto></span>
-                </div>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
-            </div>
-
-            <div class="modal-body hc-cuerpo">
-                <p class="small text-muted mb-2">No es caso de excepción: <b>esta misma cita</b> pasa a un módulo de su trámite con un orientador o auxiliar libre. Conserva su folio y sus datos, y el caso se cierra como «No es caso de excepción».</p>
-                <div class="cx-can-hoy">
-                    <i class="bi bi-person-check" aria-hidden="true"></i>
-                    <span><b>¿La persona ya está aquí?</b> Pásala a la fila de hoy, en el primer horario con un módulo libre.</span>
-                    <button type="button" class="btn btn-sm btn-outline-primary" data-hoy><i class="bi bi-arrow-right-circle me-1"></i>Pasar a la fila de hoy</button>
-                </div>
-                <div class="hc-semana">
-                    <button type="button" class="hc-flecha" data-anterior aria-label="Semana anterior"><i class="bi bi-chevron-left"></i></button>
-                    <span class="hc-semana__texto" data-semana aria-live="polite"></span>
-                    <button type="button" class="hc-flecha" data-siguiente aria-label="Semana siguiente"><i class="bi bi-chevron-right"></i></button>
-                </div>
-                <div class="hc-dias" data-dias role="tablist" aria-label="Días de la semana"></div>
-                <div class="hc-horas" data-horas aria-live="polite"></div>
-            </div>
-
-            <div class="modal-footer hc-pie">
-                <div class="hc-elegido" data-elegido>Toca un horario para elegirlo.</div>
-                <div class="hc-pie__botones">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-oro" data-guardar disabled><i class="bi bi-check2 me-1" aria-hidden="true"></i>Canalizar en este horario</button>
-                </div>
-            </div>
-        </form>
-    </div>
-</div>
-
 {{-- Aviso antes de "Turno de solicitud / ratificación": crea una cita NUEVA. Si la persona
-     ya tiene cita de excepción y no lo es, lo correcto es "Canalizar a módulo". --}}
+     ya tiene cita de excepción y no lo es, lo correcto es Atender → "No es caso de
+     excepción" (FormatoExcepcion::reclasificar), que pasa esa misma cita a un módulo. --}}
 <div class="modal fade" id="cxTurnoNuevoModal" tabindex="-1" aria-labelledby="cxTurnoNuevoTitulo" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -416,8 +361,8 @@
                 <p class="mb-2">Esto crea una cita <b>nueva</b> de <span data-tramite></span>. Úsalo sólo si la persona <b>no tiene cita</b>.</p>
                 <div class="alert alert-primary" role="alert">
                     
-                    <div>Si la persona <b>ya tiene una cita de caso de excepción</b> y no lo es, cierra este aviso y usa
-                        <b>« <i class="bi bi-arrow-left-right" aria-hidden="true"></i> Canalizar a módulo »</b> en su renglón: su misma cita pasa al orientador con todos sus datos y no queda sin atender.</div>
+                    <div>Si la persona <b>ya tiene una cita de caso de excepción</b> y no lo es, cierra este aviso, presiona
+                        <b>«Atender»</b> en su renglón y marca <b>«No es caso de excepción»</b>: su misma cita pasa al orientador con todos sus datos y no queda sin atender.</div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -443,182 +388,6 @@
                 var origen = e.relatedTarget;
                 aviso.querySelector('[data-tramite]').textContent = origen.dataset.tramite;
                 aviso.querySelector('[data-continuar]').href = origen.getAttribute('href');
-            });
-        })();
-
-        // "Canalizar a módulo": la misma tira de días de /turnos/nuevo (turnos._cita_scripts)
-        // y de la reagenda, con la sede y el trámite de la cita (excepcion=No: el
-        // calendario normal, sólo horarios con un módulo libre).
-        (function () {
-            const modal = document.getElementById('cxCanalizarModal');
-            if (!modal) { return; }
-            const URL_HORARIOS = @json(url('/api/obtenerTurnosDisponibles'));
-            const SEMANAS_A_BUSCAR = 8;    // al abrir, busca la primera semana con lugar
-            const form = document.getElementById('cxCanalizarForm');
-            const $ = s => modal.querySelector(s);
-            const el = {
-                semana: $('[data-semana]'), anterior: $('[data-anterior]'), siguiente: $('[data-siguiente]'),
-                dias: $('[data-dias]'), horas: $('[data-horas]'), elegido: $('[data-elegido]'),
-                guardar: $('[data-guardar]'), hoy: $('[data-hoy]'),
-                tipoSig: form.querySelector('[name=siguiente]'), fecha: form.querySelector('[name=fecha_nueva]'), hora: form.querySelector('[name=hora_nueva]')
-            };
-            let cita = null, lunes = null, lunesMinimo = null, porDia = {}, diaActivo = null, elegido = null, peticion = 0;
-
-            const pad = n => String(n).padStart(2, '0');
-            const ymd = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
-            const lunesDe = d => { const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); x.setDate(x.getDate() - (x.getDay() + 6) % 7); return x; };
-            const masDias = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
-            const fmt = (d, o) => d.toLocaleDateString('es-MX', o);
-            const largo = f => { const t = fmt(new Date(f + 'T00:00:00'), { weekday: 'long', day: 'numeric', month: 'long' }).replace(',', ''); return t.charAt(0).toUpperCase() + t.slice(1); };
-            const nodo = (tag, clase, texto) => { const n = document.createElement(tag); if (clase) n.className = clase; if (texto != null) n.textContent = texto; return n; };
-
-            async function traerSemana(inicio) {
-                const q = new URLSearchParams({ sede: cita.sede, tipo: cita.tipo, excepcion: 'No', start: ymd(inicio), end: ymd(masDias(inicio, 4)) });
-                const r = await fetch(URL_HORARIOS + '?' + q.toString(), { headers: { Accept: 'application/json' } });
-                if (!r.ok) throw new Error('HTTP ' + r.status);
-                const dias = {};
-                for (let i = 0; i < 5; i++) dias[ymd(masDias(inicio, i))] = [];
-                (await r.json()).forEach(function (e) {
-                    const estado = e.extendedProps && e.extendedProps.estado;
-                    if (estado !== 'disponible' && estado !== 'turnos') return;
-                    const [f, h] = String(e.start).split('T');
-                    if (dias[f]) dias[f].push(h.slice(0, 5));
-                });
-                Object.keys(dias).forEach(k => dias[k].sort());
-                return dias;
-            }
-
-            function mensaje(icono, texto, accion) {
-                el.horas.textContent = '';
-                const m = nodo('div', 'hc-mensaje');
-                m.appendChild(nodo('i', 'bi ' + icono));
-                m.appendChild(nodo('div', null, texto));
-                if (accion) {
-                    const b = nodo('button', 'btn btn-outline-secondary btn-sm', accion.texto);
-                    b.type = 'button';
-                    b.addEventListener('click', accion.fn);
-                    m.appendChild(b);
-                }
-                el.horas.appendChild(m);
-            }
-
-            function pintarSemana() {
-                const viernes = masDias(lunes, 4);
-                el.semana.textContent = lunes.getMonth() === viernes.getMonth()
-                    ? lunes.getDate() + ' al ' + viernes.getDate() + ' de ' + fmt(viernes, { month: 'long', year: 'numeric' })
-                    : fmt(lunes, { day: 'numeric', month: 'short' }) + ' al ' + fmt(viernes, { day: 'numeric', month: 'short', year: 'numeric' });
-                el.anterior.disabled = lunes <= lunesMinimo;
-                el.dias.textContent = '';
-                Object.keys(porDia).forEach(function (f) {
-                    const d = new Date(f + 'T00:00:00');
-                    const libres = porDia[f].length;
-                    const b = nodo('button', 'hc-dia' + (f === diaActivo ? ' is-activo' : ''));
-                    b.type = 'button';
-                    b.setAttribute('role', 'tab');
-                    b.setAttribute('aria-selected', f === diaActivo ? 'true' : 'false');
-                    b.disabled = libres === 0;
-                    b.appendChild(nodo('span', 'hc-dia__semana', fmt(d, { weekday: 'short' }).replace('.', '')));
-                    b.appendChild(nodo('span', 'hc-dia__numero', String(d.getDate())));
-                    b.appendChild(nodo('span', 'hc-dia__mes', fmt(d, { month: 'short' }).replace('.', '')));
-                    b.appendChild(nodo('span', 'hc-dia__libres', libres ? (libres === 1 ? '1 horario' : libres + ' horarios') : 'Sin lugar'));
-                    b.addEventListener('click', function () { diaActivo = f; pintarSemana(); pintarHoras(); });
-                    el.dias.appendChild(b);
-                });
-            }
-
-            function pintarHoras() {
-                if (!diaActivo) {
-                    mensaje('bi-calendar-x', 'No hay horarios con módulo libre esta semana.', { texto: 'Ver la semana siguiente', fn: () => irA(masDias(lunes, 7)) });
-                    return;
-                }
-                el.horas.textContent = '';
-                const horas = porDia[diaActivo];
-                [['Mañana', horas.filter(h => h < '13:00')], ['Tarde', horas.filter(h => h >= '13:00')]].forEach(function ([titulo, lista]) {
-                    if (!lista.length) return;
-                    const g = nodo('div', 'hc-grupo');
-                    g.appendChild(nodo('div', 'hc-grupo__titulo', titulo));
-                    const cont = nodo('div', 'hc-grupo__horas');
-                    lista.forEach(function (h) {
-                        const b = nodo('button', 'hc-hora', h);
-                        b.type = 'button';
-                        const es = elegido && elegido.fecha === diaActivo && elegido.hora === h;
-                        if (es) b.classList.add('is-elegida');
-                        b.setAttribute('aria-pressed', es ? 'true' : 'false');
-                        b.addEventListener('click', () => elegir(diaActivo, h));
-                        cont.appendChild(b);
-                    });
-                    g.appendChild(cont);
-                    el.horas.appendChild(g);
-                });
-            }
-
-            function elegir(fecha, hora) {
-                elegido = { fecha, hora };
-                el.tipoSig.value = 'otra_fecha';
-                el.fecha.value = fecha;
-                el.hora.value = hora;
-                el.elegido.textContent = '';
-                el.elegido.appendChild(document.createTextNode('Nuevo horario: '));
-                el.elegido.appendChild(nodo('strong', null, largo(fecha) + ' · ' + hora + ' h'));
-                el.guardar.disabled = false;
-                pintarHoras();
-            }
-
-            async function irA(inicio, buscarHaciaAdelante) {
-                const mia = ++peticion;
-                lunes = inicio;
-                diaActivo = null;
-                el.dias.textContent = '';
-                el.semana.textContent = 'Buscando horarios…';
-                mensaje('bi-hourglass-split', 'Buscando horarios con módulo libre…');
-                try {
-                    let intentos = buscarHaciaAdelante ? SEMANAS_A_BUSCAR : 1;
-                    let dias = await traerSemana(lunes);
-                    while (--intentos > 0 && !Object.values(dias).some(h => h.length)) {
-                        lunes = masDias(lunes, 7);
-                        dias = await traerSemana(lunes);
-                        if (mia !== peticion) return;
-                    }
-                    if (mia !== peticion) return;
-                    porDia = dias;
-                    diaActivo = Object.keys(porDia).find(f => porDia[f].length) || null;
-                    pintarSemana();
-                    pintarHoras();
-                } catch (e) {
-                    if (mia !== peticion) return;
-                    el.semana.textContent = '';
-                    mensaje('bi-wifi-off', 'No se pudieron cargar los horarios.', { texto: 'Intentar de nuevo', fn: () => irA(lunes) });
-                }
-            }
-
-            el.anterior.addEventListener('click', () => irA(masDias(lunes, -7)));
-            el.siguiente.addEventListener('click', () => irA(masDias(lunes, 7)));
-
-            // La persona ya está aquí: fila de hoy, primer horario con módulo libre (lo elige el servidor).
-            el.hoy.addEventListener('click', function () {
-                el.tipoSig.value = 'hoy';
-                el.fecha.value = el.hora.value = '';
-                el.hoy.disabled = el.guardar.disabled = true;
-                form.submit();
-            });
-            form.addEventListener('submit', function () { el.guardar.disabled = el.hoy.disabled = true; });
-
-            modal.addEventListener('show.bs.modal', function (e) {
-                const b = e.relatedTarget.dataset;
-                cita = { sede: b.sede, tipo: b.tipo };
-                form.action = b.accion;
-                $('[data-folio]').textContent = b.folio;
-                $('[data-contexto]').textContent = b.nombre + ' · ' + b.tipo + ' · Oficina ' + b.sede;
-                elegido = null;
-                el.tipoSig.value = 'otra_fecha';
-                el.fecha.value = el.hora.value = '';
-                el.guardar.disabled = true;
-                el.hoy.disabled = false;
-                el.elegido.textContent = 'Toca un horario para elegirlo.';
-                // Sábado o domingo: la primera semana útil es la siguiente.
-                const hoy = new Date();
-                lunesMinimo = lunesDe(hoy.getDay() === 0 || hoy.getDay() === 6 ? masDias(hoy, 2) : hoy);
-                irA(lunesMinimo, true);
             });
         })();
     </script>

@@ -43,9 +43,14 @@ class RecepcionController extends Controller
             return redirect()->back()->withInput()->with('error', 'Es necesario seleccionar la fecha y el horario del turno en el calendario.');
         }
 
-        // Quien agenda (trabajador o empleador, con o sin folio), su CURP y
-        // domicilio y la persona trabajadora (App\Support\CitaPatronal).
-        [$camposFlujo, $errorFlujo] = \App\Support\CitaPatronal::camposDelFormulario($request);
+        if (!$request->filled('municipio_solicitante')) {
+            return redirect()->back()->withInput()->with('error', 'Es necesario seleccionar el municipio.');
+        }
+
+        // Formulario corto de ventanilla: quien solicita (trabajador o empleador)
+        // y su nombre completo. El resto lo captura el auxiliar en Mi módulo
+        // (App\Support\CitaPatronal::camposVentanilla).
+        [$camposFlujo, $errorFlujo] = \App\Support\CitaPatronal::camposVentanilla($request);
         if ($errorFlujo) {
             return back()->withInput()->with('error', $errorFlujo);
         }
@@ -57,7 +62,9 @@ class RecepcionController extends Controller
         $hora_turno = $data["hora_turno"];
         $id_auxiliar = auth()->user()->id;
         $hora_fin =$hora_turno;
+        // Interruptor "Canalizar a casos de excepción" del formulario de ventanilla.
         $esExcepcion = $request->input('excepcion') === 'Si';
+        $data["excepcion"] = $esExcepcion ? 'Si' : 'No';
 
         $todas_direcciones = [
             'Morelia' => 'BLVD. GARCÍA DE LEÓN NO. 1575, COL. CHAPULTEPEC ORIENTE, C.P. 58260, MORELIA, MICHOACÁN',
@@ -116,7 +123,7 @@ class RecepcionController extends Controller
             DB::transaction(function () use (
                 $sede, $fecha_asignada_str, $hora_turno, $hora_fin, $id_aux, 
                 $tipoTramite, $modulo, $modulo_id, $data, $tipo_caso, $prestacionSS, 
-                $vulnerables, $camposFlujo, &$numero_consecutivo, &$cita
+                $vulnerables, $camposFlujo, $esExcepcion, &$numero_consecutivo, &$cita
             ) {
                 $ultimoTurno = Recepcion::where('delegacion', $sede) 
                     ->lockForUpdate()
@@ -138,7 +145,8 @@ class RecepcionController extends Controller
                     'exepcion'        => $data["excepcion"] ?? 'No',
                     'edad'            => $data["edad"] ?? null,
                     'sexo'            => $data["sexo"] ?? null,
-                    'tipo_caso'       => $tipo_caso,
+                    // Sin pregunta de motivos: el caso de excepción lo clasifica quien lo atiende.
+                    'tipo_caso'       => $tipo_caso ?? ($esExcepcion ? null : 'Ninguno'),
                     // Motivo exacto del caso de excepción (CasosExcepcion::MOTIVOS).
                     ...(\App\Support\CasosExcepcion::conMotivo()
                         ? ['motivo_excepcion' => \App\Support\CasosExcepcion::motivoValido($data['motivo_excepcion'] ?? null)]
@@ -153,8 +161,9 @@ class RecepcionController extends Controller
                     'folio'           => $data["folio"] ?? null,
                     'INS'             => $data["INS"] ?? null,
                     'resultado'       => null,
-                    'telefono'        => $data["telefono"],
-                    'correo'          => $data["correo"],
+                    // Ventanilla ya no pide teléfono ni correo (se capturan en Mi módulo).
+                    'telefono'        => $data["telefono"] ?? null,
+                    'correo'          => $data["correo"] ?? null,
                     'municipio'       => $data["municipio_solicitante"],
                 ] + $camposFlujo);
             }); 

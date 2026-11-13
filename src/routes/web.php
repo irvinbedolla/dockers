@@ -252,10 +252,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // "No es caso de excepción" sin turnar: levantar la solicitud (o retomarla) desde la cita.
         Route::post('/excepciones/citas/{id}/levantar-solicitud', [App\Http\Controllers\CasosExcepcionController::class, 'levantar'])->name('excepciones.levantar')
             ->whereNumber('id');
-        // "Canalizar a módulo" desde la lista: la misma cita pasa a un orientador o auxiliar
-        // (no es caso de excepción), sin llenar el formato ni crear otra cita.
-        Route::post('/excepciones/citas/{id}/canalizar', [App\Http\Controllers\CasosExcepcionController::class, 'canalizar'])->name('excepciones.canalizar')
-            ->whereNumber('id')->middleware('throttle:60,1');
         Route::post('/excepciones/{tipo}/{id}/oficio/{institucion}', [App\Http\Controllers\CasosExcepcionController::class, 'guardarOficio'])->name('excepciones.oficio.guardar')
             ->whereIn('tipo', App\Support\FormatoExcepcion::TIPOS_ORIGEN)->whereNumber('id')->whereIn('institucion', array_keys(App\Support\CasosExcepcion::INSTITUCIONES));
     });
