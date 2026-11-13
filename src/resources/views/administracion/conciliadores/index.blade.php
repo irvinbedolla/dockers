@@ -106,6 +106,7 @@
                                             @if ($fila->sinAgenda)<span class="cn-insignia cn-insignia--sin">Sin agenda</span>@endif
                                             <span class="cn-insignia cn-insignia--sede">{{ $fila->porSede ? 'Por sede' : 'La de siempre' }}</span>
                                         </div>
+                                        @include('administracion.conciliadores._bloqueos', ['conciliador' => $u, 'susBloqueos' => $bloqueos->get($u->id, collect())])
                                     </td>
                                     @foreach (PermisosConciliador::DIAS as $dia => $corto)
                                         <td class="cn-dia">
@@ -134,6 +135,8 @@
                     </table>
                 </div>
             </div>
+
+            @include('administracion.conciliadores._bloqueo_modal')
 
             @if ($historial->isNotEmpty())
                 <div class="tn-tarjeta mt-3">

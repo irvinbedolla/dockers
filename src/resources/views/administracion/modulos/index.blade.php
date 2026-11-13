@@ -137,6 +137,27 @@
         .md-linea__fecha { width: auto; min-width: 150px; padding: 2px 8px; font-size: 12.5px; }
         .md-linea__acciones { flex-basis: 100%; display: flex; align-items: center; gap: 8px; }
         .md-linea__acciones .btn { font-size: 12px; padding: 2px 10px; }
+        /* "Días bloqueados" de cada tarjeta (aparte de "Recibe citas" y "Acepta reasignaciones"). */
+        .md-bloqueos { flex-direction: column; align-items: stretch; gap: 6px; background: #F5F7F7; border-color: #E0E5E5; }
+        .md-bloqueos__cab { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; }
+        .md-bloqueos__titulo { font-size: 13px; font-weight: 700; color: var(--tn-tinta); }
+        .md-bloqueos__titulo i { color: #8C1D40; }
+        .md-bloqueos__abrir { font-size: 12.5px; font-weight: 700; color: #496163; text-decoration: none; }
+        .md-bloqueos__dias { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+        .md-bloq { display: inline-flex; align-items: center; gap: 4px; margin: 0; padding: 2px 4px 2px 9px; border-radius: 999px;
+            background: #fff; border: 1px solid #EBC3D0; color: #8C1D40; font-size: 12px; font-weight: 700; }
+        .md-bloq small { font-weight: 500; color: #7A5A66; }
+        .md-bloq.is-hoy { background: #8C1D40; border-color: #8C1D40; color: #fff; }
+        .md-bloq.is-hoy small { color: #F3D9E2; }
+        .md-bloq button { border: 0; background: transparent; color: inherit; font-size: 15px; line-height: 1; padding: 0 3px; cursor: pointer; opacity: .75; }
+        .md-bloq button:hover { opacity: 1; }
+        .md-bloq button:disabled { cursor: wait; opacity: 1; }
+        .md-bloq__spin { width: 11px; height: 11px; border-width: 2px; vertical-align: -1px; }
+        .md-bloqueos__todos { font-size: 12px; color: #8C1D40; }
+        .md-bloqueos__form { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding-top: 6px; border-top: 1px dashed #DCE3E3; }
+        .md-bloqueos__form label { display: inline-flex; align-items: center; gap: 6px; margin: 0; font-size: 12.5px; font-weight: 700; color: var(--tn-suave); }
+        .md-bloqueos__motivo { flex: 1 1 180px; font-size: 12.5px; }
+        .md-bloqueos__form .md-linea__nota { flex-basis: 100%; }
         /* .d-flex lleva !important: sin esto el aviso no se oculta. */
         #mdAvisoPausa[hidden] { display: none !important; }
         .md-linea__modo { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; font-size: 12.5px; color: var(--tn-suave); }
@@ -292,7 +313,9 @@
                         Se reparten entre las personas libres a su misma hora; no cambian de día ni de hora y no se le avisa a la persona.
                     </span>
                     <form method="POST" action="{{ route('modulos.pasar_excepcion') }}" class="m-0"
-                          onsubmit="return confirm('¿Pasar estas citas de excepción a los módulos de casos de excepción de {{ $sede }}?');">
+                          data-confirmar="¿Pasar estas citas de excepción?"
+                          data-confirmar-texto="Se pasan a los módulos de casos de excepción de {{ $sede }}. No cambian de día ni de hora y no se le avisa a la persona."
+                          data-confirmar-boton="Sí, pasarlas" data-confirmar-cargando="Pasando…">
                         @csrf
                         <input type="hidden" name="sede" value="{{ $sede }}">
                         <input type="hidden" name="fecha_vista" value="{{ $fecha }}">
@@ -440,6 +463,74 @@
                                         <button class="btn btn-sm btn-link p-0">Guardar</button>
                                     </noscript>
                                 </form>
+                            @endif
+
+                            @if ($bloqueosMigrado && $modulo->user_id)
+                                @php
+                                    $susBloqueos = $bloqueos->get((int) $modulo->user_id, collect());
+                                    $vistaBloqueada = $susBloqueos->contains(fn ($b) => $b->fecha->toDateString() === $fecha);
+                                @endphp
+                                {{-- Días bloqueados en el calendario de su persona: esos días no recibe citas
+                                     (en línea ni ventanilla) ni reasignaciones. App\Models\BloqueoCita. --}}
+                                <div class="md-linea md-bloqueos {{ $vistaBloqueada ? 'is-pausa' : ($susBloqueos->isNotEmpty() ? 'is-programada' : '') }}">
+                                    <div class="md-bloqueos__cab">
+                                        <span class="md-bloqueos__titulo"><i class="bi bi-calendar-x"></i> Días bloqueados</span>
+                                        <span class="md-linea__nota">
+                                            @if ($vistaBloqueada)
+                                                Este día está bloqueado: no recibe citas ni reasignaciones
+                                            @elseif ($susBloqueos->isEmpty())
+                                                Ninguno: recibe citas todos los días
+                                            @else
+                                                Esos días no recibe citas en línea ni de ventanilla, ni reasignaciones
+                                            @endif
+                                        </span>
+                                        <button type="button" class="btn btn-sm btn-link p-0 ms-auto md-bloqueos__abrir" data-bloq-abrir>
+                                            <i class="bi bi-plus-lg"></i> Bloquear días
+                                        </button>
+                                    </div>
+                                    @if ($susBloqueos->isNotEmpty())
+                                        <div class="md-bloqueos__dias">
+                                            @foreach ($susBloqueos as $b)
+                                                <form method="POST" action="{{ route('modulos.bloqueos.quitar', $modulo) }}" class="md-bloq {{ $b->fecha->toDateString() === $fecha ? 'is-hoy' : '' }}"
+                                                      title="{{ $b->motivo ? 'Motivo: '.$b->motivo : 'Sin motivo' }}">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <input type="hidden" name="fecha_vista" value="{{ $fecha }}">
+                                                    <input type="hidden" name="origen_vista" value="{{ $origen }}">
+                                                    <input type="hidden" name="fecha" value="{{ $b->fecha->toDateString() }}">
+                                                    <span>{{ \Illuminate\Support\Str::ucfirst($b->fecha->locale('es')->isoFormat('ddd D MMM')) }}@if ($b->motivo)<small> · {{ \Illuminate\Support\Str::limit($b->motivo, 22) }}</small>@endif</span>
+                                                    <button type="submit" aria-label="Desbloquear {{ $b->fecha->format('d/m/Y') }}" title="Desbloquear este día">&times;</button>
+                                                </form>
+                                            @endforeach
+                                            @if ($susBloqueos->count() > 1)
+                                                <form method="POST" action="{{ route('modulos.bloqueos.quitar', $modulo) }}" class="d-inline"
+                                                      data-confirmar="¿Quitar todos sus días bloqueados?"
+                                                      data-confirmar-texto="{{ $nombreBonito(optional($modulo->persona)->name ?? $modulo->nombre) }} volverá a recibir citas esos días."
+                                                      data-confirmar-boton="Sí, quitarlos">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <input type="hidden" name="fecha_vista" value="{{ $fecha }}">
+                                                    <input type="hidden" name="origen_vista" value="{{ $origen }}">
+                                                    <input type="hidden" name="todos" value="1">
+                                                    <button type="submit" class="btn btn-sm btn-link p-0 md-bloqueos__todos" data-bloq-todos>Quitar todos</button>
+                                                </form>
+                                            @endif
+                                        </div>
+                                    @endif
+                                    <form method="POST" action="{{ route('modulos.bloqueos.guardar', $modulo) }}" class="md-bloqueos__form" data-bloq-form hidden>
+                                        @csrf
+                                        <input type="hidden" name="fecha_vista" value="{{ $fecha }}">
+                                        <input type="hidden" name="origen_vista" value="{{ $origen }}">
+                                        <label>Desde <input type="date" class="form-control form-control-sm md-linea__fecha" name="bloqueo_desde" min="{{ $hoy }}" required data-bloq-desde></label>
+                                        <label>Hasta <input type="date" class="form-control form-control-sm md-linea__fecha" name="bloqueo_hasta" min="{{ $hoy }}" data-bloq-hasta></label>
+                                        <input type="text" class="form-control form-control-sm md-bloqueos__motivo" name="bloqueo_motivo" maxlength="120" placeholder="Motivo (vacaciones, permiso…)">
+                                        <div class="md-linea__acciones">
+                                            <button type="submit" class="btn btn-sm btn-dark" data-bloq-enviar>Bloquear</button>
+                                            <button type="button" class="btn btn-sm btn-link p-0" data-bloq-cancelar>Cancelar</button>
+                                        </div>
+                                        <span class="md-linea__nota">Sin "Hasta" se bloquea sólo ese día. Sábados y domingos no cuentan. Lo ya agendado esos días no se mueve solo.</span>
+                                    </form>
+                                </div>
                             @endif
 
                             @if ($modulo->esDeExcepcion() && \App\Models\Modulo::turnarMigrado())
@@ -606,6 +697,46 @@
 @endsection
 
 @section('scripts')
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        // Confirmaciones con SweetAlert (nunca el confirm del navegador): cualquier
+        // <form data-confirmar="Título" data-confirmar-texto data-confirmar-boton data-confirmar-cargando>.
+        // Va en captura: se detiene el envío antes que los demás scripts (loaders) y,
+        // si se acepta, se vuelve a enviar con requestSubmit para que ellos sí corran.
+        document.addEventListener('submit', function (e) {
+            var form = e.target;
+            if (!form.matches || !form.matches('[data-confirmar]') || form.dataset.confirmado) { return; }
+            e.preventDefault();
+            e.stopPropagation();
+            var submitter = e.submitter || null;
+            var seguir = function () {
+                form.dataset.confirmado = '1';
+                var boton = submitter || form.querySelector('button[type=submit]');
+                if (form.dataset.confirmarCargando && boton && !form.closest('.md-bloqueos')) {
+                    form.requestSubmit(boton);
+                    boton.disabled = true;
+                    boton.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> ' + form.dataset.confirmarCargando;
+                    return;
+                }
+                form.requestSubmit(boton);
+            };
+            if (typeof Swal === 'undefined') {
+                if (window.confirm(form.dataset.confirmar + (form.dataset.confirmarTexto ? '\n' + form.dataset.confirmarTexto : ''))) { seguir(); }
+                return;
+            }
+            Swal.fire({
+                icon: 'question',
+                title: form.dataset.confirmar,
+                text: form.dataset.confirmarTexto || '',
+                showCancelButton: true,
+                confirmButtonText: form.dataset.confirmarBoton || 'Sí, continuar',
+                cancelButtonText: 'Cancelar',
+                reverseButtons: true,
+                focusCancel: true,
+                confirmButtonColor: '#496163'
+            }).then(function (r) { if (r.isConfirmed) { seguir(); } });
+        }, true);
+    </script>
     <script>
         (function () {
             // Elegir otro día recarga.
@@ -861,5 +992,44 @@
                 });
             });
         })();
+    </script>
+    <script>
+        // "Días bloqueados" de cada tarjeta: abre el formulario y "Hasta" no puede ser antes de "Desde".
+        document.addEventListener('click', function (e) {
+            var abrir = e.target.closest('[data-bloq-abrir]');
+            var cancelar = e.target.closest('[data-bloq-cancelar]');
+            var caja = (abrir || cancelar) && (abrir || cancelar).closest('.md-bloqueos');
+            if (!caja) { return; }
+            var form = caja.querySelector('[data-bloq-form]');
+            form.hidden = !!cancelar;
+            if (abrir) { var d = form.querySelector('[data-bloq-desde]'); try { d.focus(); d.showPicker && d.showPicker(); } catch (err) {} }
+        });
+        document.addEventListener('change', function (e) {
+            if (!e.target.matches('[data-bloq-desde]')) { return; }
+            var hasta = e.target.closest('form').querySelector('[data-bloq-hasta]');
+            hasta.min = e.target.value || hasta.min;
+            if (hasta.value && hasta.value < e.target.value) { hasta.value = e.target.value; }
+        });
+        document.addEventListener('submit', function (e) {
+            var form = e.target;
+            // Bloquear / quitar: un solo envío. El botón queda con loader hasta que recarga la página.
+            if (!form.closest('.md-bloqueos')) { return; }
+            if (form.dataset.enviando) { e.preventDefault(); return; }
+            form.dataset.enviando = '1';
+            var boton = form.querySelector('[data-bloq-enviar], [data-bloq-todos], button[type=submit]');
+            if (boton) {
+                boton.disabled = true;
+                boton.setAttribute('aria-busy', 'true');
+                if (boton.hasAttribute('data-bloq-enviar')) {
+                    boton.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Bloqueando…';
+                } else if (boton.hasAttribute('data-bloq-todos')) {
+                    boton.textContent = 'Quitando…';
+                } else {
+                    boton.innerHTML = '<span class="spinner-border md-bloq__spin" role="status" aria-hidden="true"></span>';
+                }
+            }
+            var cancelar = form.querySelector('[data-bloq-cancelar]');
+            if (cancelar) { cancelar.disabled = true; }
+        });
     </script>
 @endsection

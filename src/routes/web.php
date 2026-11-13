@@ -391,6 +391,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::put('administracion/modulos/{modulo}/en-linea',       [ModulosController::class, 'enLinea'])->name('modulos.en_linea');
             Route::put('administracion/modulos/{modulo}/reasignacion',   [ModulosController::class, 'reasignacion'])->name('modulos.reasignacion');
             Route::put('administracion/modulos/{modulo}/turnar',         [ModulosController::class, 'turnar'])->name('modulos.turnar');
+            // Días bloqueados en el calendario de la persona del módulo (App\Models\BloqueoCita).
+            Route::post('administracion/modulos/{modulo}/bloqueos',      [ModulosController::class, 'bloquearDias'])->name('modulos.bloqueos.guardar');
+            Route::delete('administracion/modulos/{modulo}/bloqueos',    [ModulosController::class, 'quitarBloqueo'])->name('modulos.bloqueos.quitar');
             // Las citas de excepción que se quedaron con el Departamento pasan a los módulos de excepción de la sede.
             Route::post('administracion/modulos/excepcion/pasar',        [ModulosController::class, 'pasarExcepcion'])->name('modulos.pasar_excepcion');
             Route::post('administracion/modulos/citas/{id}/reasignar',   [ModulosController::class, 'reasignar'])->name('modulos.reasignar')->whereNumber('id');
@@ -403,6 +406,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::get('administracion/conciliadores/{id}',              [App\Http\Controllers\ConciliadoresController::class, 'editar'])->name('conciliadores.editar')->whereNumber('id');
             Route::put('administracion/conciliadores/{id}',              [App\Http\Controllers\ConciliadoresController::class, 'guardar'])->name('conciliadores.guardar')->whereNumber('id');
             Route::delete('administracion/conciliadores/{id}/sedes',     [App\Http\Controllers\ConciliadoresController::class, 'quitar'])->name('conciliadores.quitar')->whereNumber('id');
+            // Días bloqueados del conciliador (dias_inhabiles con su user_id, como en Administración → Sedes).
+            Route::post('administracion/conciliadores/{id}/bloqueos',    [App\Http\Controllers\ConciliadoresController::class, 'bloquear'])->name('conciliadores.bloqueos.guardar')->whereNumber('id');
+            Route::delete('administracion/conciliadores/{id}/bloqueos/{bloqueo}', [App\Http\Controllers\ConciliadoresController::class, 'quitarBloqueo'])->name('conciliadores.bloqueos.quitar')->whereNumber('id')->whereNumber('bloqueo');
         });
         Route::get('administracion/sedes',                  [AdministracionController::class, 'configuracion_sedes'])->name('configuracion_sedes');
         Route::get('administracion/usuarios',               [AdministracionController::class, 'configuracion_usuarios'])->name('configuracion_usuarios');
