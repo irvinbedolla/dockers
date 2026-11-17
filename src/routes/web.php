@@ -887,7 +887,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/ratificaciones/pagos/{id}',            [TurnosController::class, 'pagar_ratificacion'])->name('ratificacion_pagar');
         Route::get('/ratificaciones/cumplimietos/{id}',     [TurnosController::class, 'ver_pagos_rati'])->name('ratificacion_cumplimientos');
         Route::post('/ratificaciones/pagoA',                [TurnosController::class, 'pagoA_ratificacion'])->name('ratificacion_pagoA');
-        Route::get('/ratificaciones/pagoR/{id}',            [TurnosController::class, 'pagoR_ratificacion'])->name('ratificacion_pagoR');
+        Route::post('/ratificaciones/pago_pena',            [TurnosController::class, 'pagarConPenaRatificacion'])->name('ratificacion_pago_pena');
+        Route::get('/ratificaciones/pagoR/{id}',           [TurnosController::class, 'pagoR_ratificacion'])->name('ratificacion_pagoR');
         Route::get('ratificaciones/consultar/{id}',         [TurnosController::class, 'consultar_ratificaciones'])->name('consultar_ratificacion');
         Route::get('ratificaciones/detalle/{id}',           [TurnosController::class, 'detalle_ratificacion'])->name('detalle_ratificacion')->whereNumber('id');
         Route::post('ratificaciones/editar',                [TurnosController::class, 'editar_ratificaciones'])->name('editar_ratificacion');
