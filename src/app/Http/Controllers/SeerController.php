@@ -15734,6 +15734,19 @@ class SeerController extends Controller
             });
         }
 
+        // Filtro por trabajador: cada palabra debe aparecer en el nombre completo
+        // (nombre + primer apellido + segundo apellido), en cualquier orden.
+        if ($request->filled('trabajador')) {
+            $palabras = preg_split('/\s+/', trim($request->input('trabajador')), -1, PREG_SPLIT_NO_EMPTY);
+            foreach ($palabras as $palabra) {
+                $palabra = addcslashes($palabra, '%_\\');
+                $query->whereRaw(
+                    "CONCAT_WS(' ', trabajador, primero_trabajador, segundo_trabajador) LIKE ?",
+                    ["%{$palabra}%"]
+                );
+            }
+        }
+
         // 2. Mapeo de delegaciones regionales (Gobierno de Michoacán)
         $mapaDelegaciones = [
             'Morelia' => ['Morelia', 'Zitácuaro'],
@@ -15810,7 +15823,7 @@ class SeerController extends Controller
         $solicitudes = $query->orderBy($columnaOrden, $direccion)
                             ->orderBy('id', 'desc')
                             ->paginate(500)
-                            ->appends($request->only(['buscar', 'estatus', 'orden', 'fecha']));
+                            ->appends($request->only(['buscar', 'trabajador', 'estatus', 'orden', 'fecha']));
 
         // 5. Transformamos de manera eficiente ÚNICAMENTE los registros de la página actual
         $solicitudes->through(function ($audiencia) {
