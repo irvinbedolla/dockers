@@ -281,6 +281,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('role:Super Usuario|Estadistica|Directivo');
     Route::post('/estadisticas/atencion/{id}/atender',  [App\Http\Controllers\EstadisticasAtencionController::class, 'atender'])->name('estadisticas.atencion.atender')
         ->whereNumber('id')->middleware('role:Super Usuario|Estadistica|Directivo');
+    // Reporte estadístico: la presentación "Estadística" calculada con el sistema (App\Support\ReporteEstadistico).
+    Route::get('/estadisticas/reporte',                 [App\Http\Controllers\ReporteEstadisticoController::class, 'index'])->name('estadisticas.reporte')
+        ->middleware('role:Super Usuario|Estadistica|Directivo');
+    Route::get('/estadisticas/reporte/descargar',       [App\Http\Controllers\ReporteEstadisticoController::class, 'descargar'])->name('estadisticas.reporte.descargar')
+        ->middleware('role:Super Usuario|Estadistica|Directivo');
+    // Datos de referencia: lo que el reporte necesita y no sale del sistema (App\Support\DatosReferencia).
+    Route::get('/estadisticas/datos-referencia',        [App\Http\Controllers\ReporteEstadisticoController::class, 'referencia'])->name('datos_referencia.index')
+        ->middleware('role:Super Usuario|Estadistica|Directivo');
+    Route::put('/estadisticas/datos-referencia/{clave}', [App\Http\Controllers\ReporteEstadisticoController::class, 'guardarReferencia'])->name('datos_referencia.guardar')
+        ->where('clave', '[a-z_]+')->middleware('role:Super Usuario|Estadistica|Directivo');
     // Casos de excepción (art. 685 Ter): también los ve Conciliación, Género e Igualdad.
     Route::get('/estadisticas/excepciones',             [EstadisticasController::class, 'excepciones'])->name('estadisticas.excepciones')
         ->middleware(CasosExcepcionAcceso::class.':estadisticas');

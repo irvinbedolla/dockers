@@ -143,6 +143,10 @@
                 <h3 class="page__heading mb-0">Panel estadístico</h3>
                 <span class="small" style="color: var(--tn-tenue);">Reportes y cifras del Centro por sede</span>
             </div>
+            {{-- Estadística lo tiene en el menú lateral; Super Usuario y Directivo, aquí. --}}
+            @if (auth()->user()->hasAnyRole(['Super Usuario', 'Directivo']))
+                <a class="btn btn-outline-secondary btn-sm" href="{{ route('datos_referencia.index') }}"><i class="bi bi-database-fill-gear"></i> Datos de referencia</a>
+            @endif
         </div>
 
         <div class="section-body">
@@ -249,6 +253,17 @@
             {{-- Cada tema con más detalle vive en su página; aquí sólo la tarjeta. --}}
             <h3 class="tn-titulo-seccion es-seccion">Secciones</h3>
             <div class="es-secciones">
+                <a class="tn-tarjeta es-acceso" href="{{ route('estadisticas.reporte') }}">
+                    <div class="es-acceso__cabeza">
+                        <span class="es-acceso__icono" style="background:#FBF4E1;color:#8A6A12;"><i class="bi bi-easel2"></i></span>
+                        <div>
+                            <h2 class="es-acceso__titulo">Reporte estadístico</h2>
+                            <span class="es-acceso__sub">La presentación por mes o fechas: sedes, histórico y comparativos</span>
+                        </div>
+                        <i class="bi bi-chevron-right es-acceso__ir" aria-hidden="true"></i>
+                    </div>
+                </a>
+
                 @php($nm = $notificacionesMes)
                 <a class="tn-tarjeta es-acceso" href="{{ route('estadisticas.notificaciones') }}">
                     <div class="es-acceso__cabeza">
