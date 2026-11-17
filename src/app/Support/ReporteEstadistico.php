@@ -62,6 +62,9 @@ class ReporteEstadistico
 
     public const FORMATOS = ['pdf', 'xlsx', 'png'];
 
+    /** Diseños de las láminas (no cambian los datos ni el Excel). */
+    public const DISENOS = ['tradicional' => 'Tradicional', 'nuevo' => 'Nuevo'];
+
     private const METRICAS = ['asesorias', 'solicitudes', 'audiencias', 'convenios', 'constancias', 'archivadas', 'incompetencias', 'ratificaciones', 'montos'];
 
     private const MESES = [1 => 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
@@ -70,7 +73,7 @@ class ReporteEstadistico
 
     /**
      * Periodo pedido: ?mes=2026-09 (un mes) o ?desde=…&hasta=… (rango).
-     * Sin nada: de enero al último mes completo.
+     * Sin nada: de enero al último mes completo. ?diseno=nuevo cambia las láminas.
      */
     public static function filtros(Request $request): array
     {
@@ -78,12 +81,14 @@ class ReporteEstadistico
             'mes'   => ['nullable', 'date_format:Y-m'],
             'desde' => ['nullable', 'date_format:Y-m-d'],
             'hasta' => ['nullable', 'date_format:Y-m-d'],
+            'diseno' => ['nullable', 'in:'.implode(',', array_keys(self::DISENOS))],
         ]);
+        $diseno = ['diseno' => $datos['diseno'] ?? 'tradicional'];
 
         if (! empty($datos['mes'])) {
             $m = Carbon::createFromFormat('Y-m-d', $datos['mes'].'-01');
 
-            return ['modo' => 'mes', 'mes' => $datos['mes'], 'desde' => $m->toDateString(), 'hasta' => $m->copy()->endOfMonth()->toDateString()];
+            return ['modo' => 'mes', 'mes' => $datos['mes'], 'desde' => $m->toDateString(), 'hasta' => $m->copy()->endOfMonth()->toDateString()] + $diseno;
         }
 
         if (! empty($datos['desde']) || ! empty($datos['hasta'])) {
@@ -93,12 +98,12 @@ class ReporteEstadistico
                 throw ValidationException::withMessages(['hasta' => 'La fecha final no puede ser antes de la inicial.']);
             }
 
-            return ['modo' => 'rango', 'mes' => null, 'desde' => $desde, 'hasta' => $hasta];
+            return ['modo' => 'rango', 'mes' => null, 'desde' => $desde, 'hasta' => $hasta] + $diseno;
         }
 
         $fin = Carbon::today()->subMonthNoOverflow()->endOfMonth();
 
-        return ['modo' => 'rango', 'mes' => null, 'desde' => $fin->copy()->startOfYear()->toDateString(), 'hasta' => $fin->toDateString()];
+        return ['modo' => 'rango', 'mes' => null, 'desde' => $fin->copy()->startOfYear()->toDateString(), 'hasta' => $fin->toDateString()] + $diseno;
     }
 
     // ------------------------------------------------------------------ armado

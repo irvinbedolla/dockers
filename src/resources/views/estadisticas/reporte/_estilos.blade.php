@@ -14,6 +14,7 @@
     @font-face { font-family: 'ReMontserrat'; font-weight: bold;   src: url('{{ $fuente('Montserrat-Bold.ttf') }}') format('truetype'); }
     @font-face { font-family: 'ReOpenSans';   font-weight: normal; src: url('{{ $fuente('OpenSans-Regular.ttf') }}') format('truetype'); }
     @font-face { font-family: 'ReOpenSans';   font-weight: bold;   src: url('{{ $fuente('OpenSans-Bold.ttf') }}') format('truetype'); }
+    @font-face { font-family: 'ReOpenSans';   font-weight: normal; font-style: italic; src: url('{{ $fuente('OpenSans-Italic.ttf') }}') format('truetype'); }
 
     .re-lam {
         position: relative; width: 960px; height: 540px; overflow: hidden;
@@ -87,6 +88,17 @@
     .re-mapa { position: absolute; left: 50px; top: 28px; width: 890px; height: 501px; }
     .re-mapa-dato { position: absolute; font-size: 8.5px; line-height: 1.25; color: #111; white-space: nowrap; }
     .re-mapa-dato b { font-weight: bold; }
+
+    /* Diseño nuevo: fondo con encabezado y pie, título, bajada y número de lámina */
+    .re-fondo { position: absolute; left: 0; top: 0; width: 960px; height: 540px; }
+    .re-n-titulo {
+        position: absolute; left: 44px; top: 40px; width: 760px; white-space: nowrap;
+        font-family: 'ReOpenSans', Arial, sans-serif; font-weight: bold; font-size: 29px; line-height: 1.1;
+        letter-spacing: -0.8px; color: #4A6163;
+    }
+    .re-n-bajada { position: absolute; left: 46px; top: 80px; width: 760px; font-family: 'ReOpenSans', Arial, sans-serif; font-size: 11.5px; color: #5E6E6F; }
+    .re-n-numero { position: absolute; left: 860px; top: 512px; width: 58px; text-align: right; font-family: 'ReOpenSans', Arial, sans-serif; font-weight: bold; font-size: 15px; color: #3A4142; }
+    .re-n-periodo { position: absolute; left: 54px; top: 507px; width: 700px; font-family: 'ReOpenSans', Arial, sans-serif; font-style: italic; font-size: 12.5px; color: #FFFFFF; }
 
     .re-vacio { position: absolute; left: 150px; width: 660px; text-align: center; font-size: 12px; color: #8A9899; }
 </style>

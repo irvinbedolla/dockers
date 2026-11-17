@@ -23,7 +23,7 @@ class ReporteEstadisticoController extends Controller
     {
         $f = ReporteEstadistico::filtros($request);
 
-        return view('estadisticas.reporte.index', ReporteEstadistico::armar($f['desde'], $f['hasta']) + ['filtros' => $f]);
+        return view('estadisticas.reporte.index', ReporteEstadistico::armar($f['desde'], $f['hasta']) + ['filtros' => $f, 'diseno' => $f['diseno']]);
     }
 
     /** Lo mismo en PDF, Excel o imagen (PNG, una por lámina). */
@@ -31,7 +31,7 @@ class ReporteEstadisticoController extends Controller
     {
         $formato = $request->validate(['formato' => ['required', Rule::in(ReporteEstadistico::FORMATOS)]])['formato'];
         $f = ReporteEstadistico::filtros($request);
-        $datos = ReporteEstadistico::armar($f['desde'], $f['hasta']) + ['filtros' => $f];
+        $datos = ReporteEstadistico::armar($f['desde'], $f['hasta']) + ['filtros' => $f, 'diseno' => $f['diseno']];
 
         if ($formato === 'xlsx') {
             return Excel::download(new ReporteEstadisticoExport($datos), $datos['archivo'].'.xlsx');

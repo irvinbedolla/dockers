@@ -16,8 +16,11 @@
         'Lo que va del año' => ['desde' => $hoy->copy()->startOfYear()->toDateString(), 'hasta' => $mesPasado->copy()->endOfMonth()->toDateString()],
         'Año pasado'   => ['desde' => $hoy->copy()->subYear()->startOfYear()->toDateString(), 'hasta' => $hoy->copy()->subYear()->endOfYear()->toDateString()],
     ];
-    $consulta = $f['modo'] === 'mes' ? ['mes' => $f['mes']] : ['desde' => $f['desde'], 'hasta' => $f['hasta']];
-    $activo = fn (array $a) => $a == $consulta;
+    $periodoQs = $f['modo'] === 'mes' ? ['mes' => $f['mes']] : ['desde' => $f['desde'], 'hasta' => $f['hasta']];
+    // El diseño viaja en la URL sólo si no es el tradicional.
+    $conDiseno = fn (array $q, ?string $d = null) => $q + (($d ?? $f['diseno']) !== 'tradicional' ? ['diseno' => $d ?? $f['diseno']] : []);
+    $consulta = $conDiseno($periodoQs);
+    $activo = fn (array $a) => $a == $periodoQs;
     $descargar = fn (string $formato) => route('estadisticas.reporte.descargar', $consulta + ['formato' => $formato]);
     $corteDia = \Illuminate\Support\Carbon::parse($corte);
     $modo = 'web';
@@ -76,7 +79,7 @@
                         <span class="re-etq">Periodo</span>
                         <div class="re-atajos">
                             @foreach ($atajos as $etiqueta => $a)
-                                <a class="re-atajo {{ $activo($a) ? 'is-activo' : '' }}" href="{{ route('estadisticas.reporte', $a) }}">{{ $etiqueta }}</a>
+                                <a class="re-atajo {{ $activo($a) ? 'is-activo' : '' }}" href="{{ route('estadisticas.reporte', $conDiseno($a)) }}">{{ $etiqueta }}</a>
                             @endforeach
                         </div>
                     </div>
@@ -96,6 +99,15 @@
                     <div class="re-campos-fecha {{ $f['modo'] === 'rango' ? '' : 're-oculto' }}" data-campos="rango">
                         <div><label for="reDesde">Desde</label><input type="date" id="reDesde" name="desde" class="form-control" value="{{ $f['desde'] }}" {{ $f['modo'] === 'rango' ? '' : 'disabled' }}></div>
                         <div><label for="reHasta">Hasta</label><input type="date" id="reHasta" name="hasta" class="form-control" value="{{ $f['hasta'] }}" {{ $f['modo'] === 'rango' ? '' : 'disabled' }}></div>
+                    </div>
+                    <div>
+                        <span class="re-etq">Diseño</span>
+                        <div class="re-segmento">
+                            @foreach (\App\Support\ReporteEstadistico::DISENOS as $clave => $nombre)
+                                <a class="re-atajo {{ $f['diseno'] === $clave ? 'is-activo' : '' }}" href="{{ route('estadisticas.reporte', $conDiseno($periodoQs, $clave)) }}" title="Cambia la vista, el PDF y las imágenes">{{ $nombre }}</a>
+                            @endforeach
+                        </div>
+                        @if ($f['diseno'] !== 'tradicional')<input type="hidden" name="diseno" value="{{ $f['diseno'] }}">@endif
                     </div>
                     <div>
                         <button type="submit" class="btn re-btn-ver" id="reVer"><i class="bi bi-arrow-repeat"></i> Ver reporte</button>
