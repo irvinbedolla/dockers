@@ -733,6 +733,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/cumplimientos/detalle/{id}',                           [SeerController::class, 'ver_pago_cumplimiento'])->name('pago_cumplimiento');
     Route::get('/seer/asseria',                                         [SeerController::class, 'create_asesoria'])->name('create_asesoria')->middleware('especialidad:asesoria_crear');
     Route::get('/revisar/indexAudiencia',                               [SeerController::class, 'todas_audiencias'])->name('todas_audiencias');
+    // Vista rápida de la solicitud completa (modal del índice de audiencias, sólo consulta).
+    Route::get('/revisar/indexAudiencia/solicitud/{id}',                [SeerController::class, 'todas_audiencias_solicitud'])->name('todas_audiencias.solicitud')->whereNumber('id');
     Route::get('/revisar/indexSolictudes',                              [SeerController::class, 'todas_solicitudes'])->name('todas_solicitudes');
     Route::get('/revisar/indexRatificaciones',                          [SeerController::class, 'todas_ratificaciones'])->name('todas_ratificaciones');
     // La cita de la ratificación expiró hoy (llegó tarde) y la persona sí está: vuelve a la fila.

@@ -15523,33 +15523,8 @@ class SeerController extends Controller
             });
         }
 
-        // 2. Mapeo de delegaciones regionales (Gobierno de Michoacán)
-        $mapaDelegaciones = [
-            'Morelia' => ['Morelia', 'Zitácuaro'],
-            'Uruapan' => ['Uruapan', 'Lázaro Cárdenas'],
-            'Zamora'  => ['Sahuayo', 'Zamora'],
-        ];
-
-        // 3. Filtros de Rol de Usuario (Incluyendo Auxiliar)
-        if ($userRole === "Conciliador") {
-            $query->where('id_conciliador', $user->id);
-            $permisos = PermisosConciliador::where('id_conciliador', $user->id)->select('tipo')->first();
-            
-            //if ($permisos && $permisos->tipo === "Ambos") {
-                $delegaciones = $mapaDelegaciones[$user->delegacion] ?? [$user->delegacion];
-                $query->whereIn('delegacion', \App\Support\SedesConciliador::sumarSedes($user, $delegaciones));
-            /*} else {
-                $query->where('delegacion', $user->delegacion);
-            }*/
-        } 
-        elseif ($userRole === "Delegado") {
-            $delegaciones = $mapaDelegaciones[$user->delegacion] ?? [$user->delegacion];
-            $query->whereIn('delegacion', $delegaciones);
-        }
-        // NUEVO: Filtro restrictivo para personal Auxiliar
-        elseif ($userRole === "Auxiliar") {
-            $query->where('delegacion', $user->delegacion);
-        }
+        // 2 y 3. Delegaciones y filtros por rol (los mismos para la vista rápida de la solicitud).
+        $this->filtrarAudienciasPorRol($query, $user, $userRole);
 
         // PArámetro de día, si no se pasa se visualizan todas
         $fecha = $request->input('fecha');
@@ -15589,6 +15564,51 @@ class SeerController extends Controller
         });
         
         return view('audiencias.todas_audiencias', compact('audiencias', 'isAudiencia', 'fecha', 'orden'));
+    }
+
+    /**
+     * Índice de audiencias: lo que cada rol alcanza a ver. Conciliador, sus
+     * audiencias en sus sedes; Delegado, las sedes de su delegación regional;
+     * Auxiliar, su sede. Los demás roles ven todas.
+     */
+    private function filtrarAudienciasPorRol($query, $user, ?string $userRole)
+    {
+        // Mapeo de delegaciones regionales (Gobierno de Michoacán)
+        $mapaDelegaciones = [
+            'Morelia' => ['Morelia', 'Zitácuaro'],
+            'Uruapan' => ['Uruapan', 'Lázaro Cárdenas'],
+            'Zamora'  => ['Sahuayo', 'Zamora'],
+        ];
+
+        if ($userRole === "Conciliador") {
+            $query->where('id_conciliador', $user->id);
+            $delegaciones = $mapaDelegaciones[$user->delegacion] ?? [$user->delegacion];
+            $query->whereIn('delegacion', \App\Support\SedesConciliador::sumarSedes($user, $delegaciones));
+        } elseif ($userRole === "Delegado") {
+            $delegaciones = $mapaDelegaciones[$user->delegacion] ?? [$user->delegacion];
+            $query->whereIn('delegacion', $delegaciones);
+        } elseif ($userRole === "Auxiliar") {
+            $query->where('delegacion', $user->delegacion);
+        }
+
+        return $query;
+    }
+
+    /**
+     * Vista rápida de la solicitud completa desde el índice de audiencias
+     * (modal, sólo consulta): el HTML de solicitudes/_vista. Sólo si quien
+     * pregunta alcanza a ver alguna audiencia de esa solicitud en el índice.
+     */
+    public function todas_audiencias_solicitud(Request $request, int $id)
+    {
+        $user = $request->user();
+        abort_unless($user->can('audiencias_consultar'), 403);
+
+        $visible = $this->filtrarAudienciasPorRol(Audiencias::where('id_solicitud', $id), $user, $user->roles->first()->name ?? null)->exists();
+        $datos = $visible ? \App\Support\VistaSolicitud::datos($id) : null;
+        abort_unless($datos, 404);
+
+        return view('solicitudes._vista', $datos);
     }
 
     public function todos_complimientos(Request $request) {
