@@ -523,6 +523,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware(['role:Super Usuario|Conciliador'])->group(function () {
         Route::get('/solicitud/indexA',                 [SeerController::class, 'indexA'])->name('audiencias.conciliador');
         Route::get('/solicitud/iniciar/{id}',           [SeerController::class, 'iniciar_audiencia'])->name('inicioAudiencia');
+        // Formato "Comparecencia sin Acreditación de Facultades": se captura y se vuelve a editar desde la audiencia iniciada.
+        Route::post('/audiencia/comparecencia-sin-facultades', [App\Http\Controllers\ComparecenciaSinFacultadesController::class, 'guardar'])->name('comparecencia_sf.guardar');
         Route::post('/audiencia/guardar',               [SeerController::class, 'concluir_audiencia_conciliador'])->name('concluir_audiencia_conciliador');
         Route::post('/audiencia/guardarNC',             [SeerController::class, 'concluir_audiencia_noconciliacion'])->name('concluir_audiencia_noconcialiacion');
         Route::get('/solicitud/indexB/{id}',            [SeerController::class, 'audienciaParte3'])->name('audiencias.parte3');
@@ -856,7 +858,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/VerpdfNotificacionNoENS/{id}/{id_solicitud}',      [SeerController::class, 'PDFnotificadoNoexitosaNS'])->name('PDFnotificadoNoexitosaNS'); //Notificación No exitosa NO SE LOCALIZA INTERIOR
         Route::get('/VerpdfcPTULabora/{id}',                            [SeerController::class, 'VerPDFConvenioPTULabora'])->name('PDFconvenioPTU_SI_S'); //Convenio PTU SIGUE laborando el trabajador
         Route::get('/VerpdfcPTUNLabora/{id}',                           [SeerController::class, 'VerPDFConvenioPTUNoLabora'])->name('PDFconvenioPTU_NO_S'); //Convenio PTU ya NO labora el trabajador
-        Route::get('/pdfsinPoder/{id}',                                 [SeerController::class, 'VerPDFCompareceSinPoder'])->name('PDFcompareceSP'); //Comparece representante legal sin poder
+        Route::get('/pdfsinPoder/{id}',                                 [App\Http\Controllers\ComparecenciaSinFacultadesController::class, 'pdf'])->name('PDFcompareceSP'); //Comparece representante legal sin poder (con lo capturado; ?citado=ID)
         Route::get('/Verpdfcumpumplimiento/{id}',                       [SeerController::class, 'VerPDFCumplimiento'])->name('PDFcumplimiento');
         Route::get('/VerpdfcumpumplimientoP/{id}',                      [SeerController::class, 'PDFcumplimientoParcial'])->name('PDFcumplimientoParcial');
         Route::get('/solicitudes/descargarCitatorios/{id}',             [SeerController::class, 'descargarCitatorios'])->name('descargarCitatorios'); //Vista para descargar y subircitatorios entregados por el trabajador

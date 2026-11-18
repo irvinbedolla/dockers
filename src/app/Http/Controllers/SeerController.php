@@ -6436,9 +6436,12 @@ class SeerController extends Controller
 
         $viewName = ($tipo_solicitud == "1") ? 'audiencias.audiencias' : 'audiencias.audienciasPatronal';
 
+        // Formato "Comparecencia sin Acreditación de Facultades": lo guardado (o lo propuesto) por citado.
+        $formatosSF = \App\Models\ComparecenciaSinFacultades::paraCitados((int) $id);
+
         return view($viewName, compact(
-            'id', 'audiencia_id', 'solicitudes', 'solicitante', 'conciliador', 
-            'solicitud', 'estados', 'municipios', 'fechaConfirmacion', 'allCentro', 'isExhorto', 'NUE', 'audiencia'
+            'id', 'audiencia_id', 'solicitudes', 'solicitante', 'conciliador',
+            'solicitud', 'estados', 'municipios', 'fechaConfirmacion', 'allCentro', 'isExhorto', 'NUE', 'audiencia', 'formatosSF'
         ) + ($tipo_solicitud == "1" ? compact('representantes') : compact('citados')));
     }
 
@@ -13159,31 +13162,7 @@ class SeerController extends Controller
     }
 
     //PDF COMPARECE REPRESENTANTE LEGAL SIN PODER
-    public function VerPDFCompareceSinPoder($id){
-        $solicitud = SeerPerGeneral::find($id);
-        $conciliador  = User::join("seer_general","seer_general.conciliador_id","=","users.id");
-        $conciliador = $conciliador->where("seer_general.id", "=", $id)
-        ->select('users.name')
-        ->first();
-       
-        $solicitante = SeerPerGeneral::join("seer_solicitante","seer_solicitante.id_solicitud","=","seer_general.id");
-        $solicitante = $solicitante->where("seer_solicitante.id_solicitud", "=", $solicitud["id"])
-        ->first();
-        $citado = SeerCitados::where('id_solicitud', $id)->first();
-        $abogado = Poder::join('seer_citados','seer_citados.id_abogado','abogados.idAbogado')
-        ->where('id_solicitud',$id)
-        ->select('abogados.nombres_patronal','abogados.primer_apellido_patronal','abogados.segundo_apellido_patronal','abogados.descipcion_poder')
-        ->first();
-        $html = view('PDF/Solicitudes/compareceSinPoder', 
-            compact('id', 'solicitud', 'conciliador','solicitante','citado','abogado'))
-            ->render();
-        $pdf = \PDF::loadHTML($html)
-            ->setPaper('a4', 'portrait')
-            ->setOption('isHtml5ParserEnabled', true)
-            ->setOption('isPhpEnabled', true);
-
-        return $pdf->stream('compareceSinPoder.pdf');                   
-    }
+    // VerPDFCompareceSinPoder pasó a ComparecenciaSinFacultadesController::pdf (misma URL /pdfsinPoder/{id}).
     
     //Cumplimiento cuando no comparece el trabajador
     public function cumplimiento_incompa_rati($id){
