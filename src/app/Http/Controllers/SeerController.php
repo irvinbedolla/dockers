@@ -20378,14 +20378,19 @@ class SeerController extends Controller
 
         $audiencia_fecha = Carbon::parse($raw_fecha)->format('Y-m-d');
         $audiencia_hora = Carbon::parse($raw_hora)->format('H:i:s');
+
+        // Si terminó en No conciliación, el final se puede cambiar a "Hubo convenio" (App\Support\CambioFinalizacionAudiencia).
+        $audienciaFinal = Audiencias::where('id_solicitud', $id)->where('id', $audiencia_id)->first();
+        $puedeCambiarFinal = \App\Support\CambioFinalizacionAudiencia::puede($user, $solicitudOriginal, $audienciaFinal);
+
         return view('/audiencias/edita_audienciaConcluida', compact('solicitudOriginal','audienciaAEditar','conciliadorId','audiencia_fecha','audiencia_hora',
-            'conceptos','pagos','deducciones','sede','pagoTotal','montoPena','direccion_convenio','solicitante','id','audiencia_id','manifestaciones'
+            'conceptos','pagos','deducciones','sede','pagoTotal','montoPena','direccion_convenio','solicitante','id','audiencia_id','manifestaciones','puedeCambiarFinal'
         ));
     }
     public function Guarda_edicion_audienciaConcluida(Request $request){
         $data = $request->all();
         $id_solicitud = $data["id"];
-        $audiencia_id = $data["audiencia_id"]; 
+        $audiencia_id = $data["audiencia_id"];
         $monto = 0;
         $fecha_actual = date('y-m-d');
         $id = auth()->user()->id;
@@ -20395,6 +20400,22 @@ class SeerController extends Controller
         $montoTotal = 0;
         $solicitudOriginal = SeerPerGeneral::find($id_solicitud);
         $sede_a_guardar = $solicitudOriginal->delegacion ?? $user->delegacion;
+
+        // Cambio del final: de No conciliación a "Hubo convenio". Se revisa todo antes de guardar nada.
+        $audienciaFinal = Audiencias::where('id_solicitud', $id_solicitud)->where('id', $audiencia_id)->first();
+        $cambioAConvenio = ! empty($data['cambio_final'])
+            && ($data['conclucion'] ?? null) === \App\Support\CambioFinalizacionAudiencia::CONVENIO
+            && $audienciaFinal
+            && $audienciaFinal->estatus === \App\Support\CambioFinalizacionAudiencia::NO_CONCILIACION;
+        if ($cambioAConvenio) {
+            if (! \App\Support\CambioFinalizacionAudiencia::puede($user, $solicitudOriginal, $audienciaFinal)) {
+                return back()->withInput()->withErrors('No puedes cambiar el final de esta audiencia.');
+            }
+            $faltan = \App\Support\CambioFinalizacionAudiencia::faltantes($data, (int) $id_solicitud);
+            if ($faltan) {
+                return back()->withInput()->withErrors($faltan);
+            }
+        }
        //Deducciones
         if (isset($data["monto_deduccion"])) {
             foreach ($data["monto_deduccion"] as $i => $monto) {
@@ -20520,6 +20541,14 @@ class SeerController extends Controller
                     'descripcion' => 'Parcialidad ' . ($index + 1)
                 ]);
             }
+        }
+
+        if ($cambioAConvenio) {
+            $documentos = \App\Support\CambioFinalizacionAudiencia::aplicar($data, $solicitudOriginal->fresh(), $audienciaFinal->fresh(), $user);
+
+            return redirect()->route('todas_audiencias', array_filter(['buscar' => $solicitudOriginal->NUE]))
+                ->with('success', 'La audiencia '.($solicitudOriginal->NUE ?: '').' quedó como convenio. Se registró la incidencia del cambio.')
+                ->with('documentos_convenio', $documentos);
         }
         return redirect()->route('todas_audiencias')->with('success', 'Cambios guardados correctamente.');
     }

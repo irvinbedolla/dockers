@@ -175,6 +175,13 @@
             @if (session('success'))
                 <div class="alert alert-success alert-dismissible fade show mb-3" role="alert">
                     {{ session('success') }}
+                    @if (session('documentos_convenio'))
+                        <div class="mt-2 d-flex flex-wrap gap-2">
+                            @foreach (session('documentos_convenio') as $doc)
+                                <a class="btn btn-sm btn-success" href="{{ $doc['url'] }}" target="_blank" rel="noopener"><i class="bi bi-file-earmark-pdf me-1"></i> {{ $doc['nombre'] }}</a>
+                            @endforeach
+                        </div>
+                    @endif
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
                 </div>
             @endif

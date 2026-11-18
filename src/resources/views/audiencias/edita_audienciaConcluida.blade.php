@@ -204,14 +204,36 @@
                                         <div class="col-xs-12 col-sm-12 col-md-6"><br>
                                             {{--<input type="hidden" name="bandera_regresar" value="{{ $bandera }}">--}}
                                             <label for="name">Final de la audiencia</label>
-                                            <select id="tipo_de_conclucion_visual" class="form-control" disabled>
-                                                <option value="">Seleccione</option>
-                                                <option value="Conciliacion" @selected(old('conclucion', $manifestaciones->conclucion ?? '') == 'Conciliacion')>Hubo Convenio</option>
-                                                <option value="No conciliacion" @selected(old('conclucion', $manifestaciones->conclucion ?? '') == 'No conciliacion')>No Hubo Convenio</option>
-                                                {{--<option value="Reinstalacion" @selected(old('conclucion', $manifestaciones->conclucion ?? '') == 'Reinstalacion')>Reinstalación</option>--}}
-                                            </select>
-                                            <input type="hidden" name="conclucion" id="tipo_de_conclucion" value="{{ old('conclucion', $manifestaciones->conclucion ?? '') }}">
-                                        </div>                                          
+                                            @if ($puedeCambiarFinal ?? false)
+                                                {{-- Terminó en No conciliación: se puede cambiar a "Hubo convenio" (App\Support\CambioFinalizacionAudiencia). --}}
+                                                <select id="tipo_iden" name="conclucion" class="form-control">
+                                                    <option value="No conciliacion" @selected(old('conclucion', 'No conciliacion') === 'No conciliacion')>No Hubo Convenio</option>
+                                                    <option value="Conciliacion" @selected(old('conclucion') === 'Conciliacion')>Hubo Convenio</option>
+                                                </select>
+                                                <input type="hidden" name="cambio_final" value="1">
+                                                <input type="hidden" id="tipo_de_conclucion" value="{{ old('conclucion', 'No conciliacion') }}">
+                                            @else
+                                                <select id="tipo_de_conclucion_visual" class="form-control" disabled>
+                                                    <option value="">Seleccione</option>
+                                                    <option value="Conciliacion" @selected(old('conclucion', $manifestaciones->conclucion ?? '') == 'Conciliacion')>Hubo Convenio</option>
+                                                    <option value="No conciliacion" @selected(old('conclucion', $manifestaciones->conclucion ?? '') == 'No conciliacion')>No Hubo Convenio</option>
+                                                    {{--<option value="Reinstalacion" @selected(old('conclucion', $manifestaciones->conclucion ?? '') == 'Reinstalacion')>Reinstalación</option>--}}
+                                                </select>
+                                                <input type="hidden" name="conclucion" id="tipo_de_conclucion" value="{{ old('conclucion', $manifestaciones->conclucion ?? '') }}">
+                                            @endif
+                                        </div>
+                                        @if ($puedeCambiarFinal ?? false)
+                                            <div class="col-12 mt-3" id="cfMotivoCaja" style="display:none;">
+                                                <div class="alert alert-warning mb-2" style="font-size:14px;">
+                                                    <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                                                    Vas a cambiar el final de <b>No conciliación</b> a <b>Hubo convenio</b>. Agrega abajo los conceptos y los cumplimientos.
+                                                    Al guardar, la audiencia queda como convenio, se generan el acta de audiencia y el convenio, se quitan las multas
+                                                    de la no conciliación y el cambio queda registrado como incidencia.
+                                                </div>
+                                                <label for="cfMotivo">Motivo del cambio <span style="color:red;">(*)</span></label>
+                                                <textarea name="motivo_cambio" id="cfMotivo" class="form-control" rows="2" maxlength="1000" placeholder="Ejemplo: se capturó por error como no conciliación; las partes sí llegaron a un convenio.">{{ old('motivo_cambio') }}</textarea>
+                                            </div>
+                                        @endif                                          
                                     </div>
 
                                     <div id="dias" class="row gx-2 align-items-end">
@@ -429,6 +451,10 @@
 </style>
 
 @section('scripts')
+    <script>
+        // Select "Final de la audiencia" cuando se puede cambiar (si no, null). Lo usan los scripts de abajo.
+        var tipo_iden = document.getElementById('tipo_iden');
+    </script>
     <script src="{{ asset('assets/js/turnos/turnos.js') }}"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <!-- FullCalendar CSS -->
@@ -1502,6 +1528,52 @@
             });
         });
     </script>
+    @if ($puedeCambiarFinal ?? false)
+    <script>
+        // Cambio del final a "Hubo convenio": motivo obligatorio y confirmación antes de guardar.
+        (function () {
+            var sel = document.getElementById('tipo_iden');
+            var espejo = document.getElementById('tipo_de_conclucion');
+            var caja = document.getElementById('cfMotivoCaja');
+            var motivo = document.getElementById('cfMotivo');
+            var form = document.getElementById('form_roles');
+            if (!sel || !form) { return; }
+            var confirmado = false;
+
+            function aplicar() {
+                var convenio = sel.value === 'Conciliacion';
+                espejo.value = sel.value;
+                caja.style.display = convenio ? '' : 'none';
+                motivo.required = convenio;
+            }
+            sel.addEventListener('change', aplicar);
+            aplicar();
+            // Si regresó con errores y ya estaba en convenio, se vuelven a mostrar sus secciones.
+            if (sel.value === 'Conciliacion') { sel.dispatchEvent(new Event('change')); }
+
+            form.addEventListener('submit', function (e) {
+                if (sel.value !== 'Conciliacion' || confirmado) { return; }
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                Swal.fire({
+                    icon: 'warning',
+                    title: '¿Cambiar el final a "Hubo convenio"?',
+                    html: 'La audiencia y la solicitud quedan como <b>convenio</b>, se generan el acta de audiencia y el convenio, '
+                        + 'se quitan las multas de la no conciliación y el cambio queda registrado como incidencia.',
+                    showCancelButton: true,
+                    confirmButtonText: 'Sí, cambiar a convenio',
+                    cancelButtonText: 'Revisar otra vez',
+                    confirmButtonColor: '#496163',
+                    reverseButtons: true
+                }).then(function (r) {
+                    if (!r.isConfirmed) { return; }
+                    confirmado = true;
+                    if (form.requestSubmit) { form.requestSubmit(); } else { form.submit(); }
+                });
+            }, true);
+        })();
+    </script>
+    @endif
 @endsection
 
 <!-- Modal para seleccionar fecha y horario -->
