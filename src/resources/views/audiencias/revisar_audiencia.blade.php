@@ -439,6 +439,8 @@
                                             @foreach($citados as $citado)
                                                 @php
                                                     $esResulte = isset($citado['resulte_responsable']) ? $citado['resulte_responsable'] : (isset($citado->resulte_responsable) ? $citado->resulte_responsable : 'No');
+                                                    $tipoCitado = $citado['tipo_persona'] ?? null;
+                                                    $sinApellidos = $tipoCitado == 'Moral' || ($esResulte == 'Si' && $tipoCitado != 'Fisica');
                                                 @endphp
                                                 {{-- Tarjeta del citado: datos, notificación, representante y documentos juntos. --}}
                                                 <div class="col-12">
@@ -462,16 +464,16 @@
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <div class="col-xs-12 col-sm-6 col-md-4" id="primer_wrap_{{$loop->index}}" style="{{ $esResulte == 'Si' ? 'display:none;' : '' }}">
+                                                <div class="col-xs-12 col-sm-6 col-md-4" id="primer_wrap_{{$loop->index}}" style="{{ $sinApellidos ? 'display:none;' : '' }}">
                                                     <div class="form-group">
                                                        <label for="password">Primer apellido<span style="color:red;"> (*)</span></label>
-                                                       <input type="text" class="form-control" name="primer_apellido[]" value="{{ $citado['primer_apellido'] ?? '' }}" @if($esResulte == 'Si') @else required @endif>
+                                                       <input type="text" class="form-control" name="primer_apellido[]" value="{{ $citado['primer_apellido'] ?? '' }}" @unless($sinApellidos) required @endunless>
                                                        <div class="invalid-feedback">
                                                             El campo primer apellido es obligatorio.
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <div class="col-xs-12 col-sm-6 col-md-4" id="segundo_wrap_{{$loop->index}}" style="{{ $esResulte == 'Si' ? 'display:none;' : '' }}">
+                                                <div class="col-xs-12 col-sm-6 col-md-4" id="segundo_wrap_{{$loop->index}}" style="{{ $sinApellidos ? 'display:none;' : '' }}">
                                                     <div class="form-group">
                                                        <label for="password">Segundo apellido</label>
                                                        <input type="text" class="form-control" name="segundo_apellido[]" value="{{ $citado['segundo_apellido'] ?? '' }}">
@@ -1898,33 +1900,16 @@
                 var primerWrap = primerInput ? primerInput.closest('.form-group').parentElement : null;
                 var segundoWrap = segundoInput ? segundoInput.closest('.form-group').parentElement : null;
 
-                if (sel.value === 'Moral') {
-                    // Tipo de persona moral solo puede visualizar el nombre
-                    if (nombreWrap) nombreWrap.style.display = '';
-                    if (primerWrap) primerWrap.style.display = 'none';
-                    if (segundoWrap) segundoWrap.style.display = 'none';
-                    if (nombreInput) nombreInput.required = true;
-                    if (primerInput) primerInput.required = false;
-                    if (segundoInput) segundoInput.required = false;
-                } else {
-                    // Tipo de persona física visualiza los 3
-                    if (nombreWrap) nombreWrap.style.display = '';
-                    if (primerWrap) primerWrap.style.display = '';
-                    if (segundoWrap) segundoWrap.style.display = '';
-                    if (nombreInput) nombreInput.required = true;
-                    if (primerInput) primerInput.required = true;
-                    if (segundoInput) segundoInput.required = false;
-                }
-                // Si este citado es el 'quien resulte'
-                try {
-                    var resulteFlag = sel.getAttribute('resulte_flag');
-                    if (resulteFlag === 'Si') {
-                        if (primerWrap) primerWrap.style.display = 'none';
-                        if (segundoWrap) segundoWrap.style.display = 'none';
-                        if (primerInput) primerInput.required = false;
-                        if (segundoInput) segundoInput.required = false;
-                    }
-                } catch (err) {}
+                // Moral: solo nombre. Física: nombre y apellidos.
+                var resulteFlag = sel.getAttribute('resulte_flag');
+                var sinApellidos = sel.value === 'Moral' || (resulteFlag === 'Si' && sel.value !== 'Fisica');
+
+                if (nombreWrap) nombreWrap.style.display = '';
+                if (nombreInput) nombreInput.required = true;
+                if (primerWrap) primerWrap.style.display = sinApellidos ? 'none' : '';
+                if (segundoWrap) segundoWrap.style.display = sinApellidos ? 'none' : '';
+                if (primerInput) primerInput.required = !sinApellidos;
+                if (segundoInput) segundoInput.required = false;
             } catch (err) {
                 console.warn('syncTipoCitado error', err);
             }
@@ -1935,6 +1920,20 @@
             selects.forEach(function(sel, idx){
                 syncTipoCitado(idx);
                 sel.addEventListener('change', function(){ syncTipoCitado(idx); });
+            });
+        });
+
+        document.addEventListener('submit', function(e){
+            var form = e.target;
+            if (e.defaultPrevented || !form || !form.querySelectorAll) return;
+            var selects = form.querySelectorAll('select[name="tipo_persona_citado[]"]');
+            if (!selects.length) return;
+            var primeros = form.querySelectorAll('input[name="primer_apellido[]"]');
+            var segundos = form.querySelectorAll('input[name="segundo_apellido[]"]');
+            selects.forEach(function(sel, idx){
+                if (sel.value !== 'Moral') return;
+                if (primeros[idx]) primeros[idx].value = '';
+                if (segundos[idx]) segundos[idx].value = '';
             });
         });
          // Función para convertir todo el texto a mayúsculas
