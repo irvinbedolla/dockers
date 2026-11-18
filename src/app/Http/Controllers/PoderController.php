@@ -20,6 +20,8 @@ use Illuminate\Support\Facades\Storage;
 
 class PoderController extends Controller
 {
+    // Desde cuántos usos (ratificaciones + solicitudes + audiencias) un poder entra a "Más usados".
+    public const USOS_FRECUENTES = 3;
 
     // Inicio de Poderes: a dónde ir (nuevo, vigentes, sin vigencia).
     public function index()
@@ -38,7 +40,11 @@ class PoderController extends Controller
     public function listado(Request $request, string $vigencia)
     {
         $hoy = Carbon::now()->toDateString();
-        $query = $this->filtrarVigencia(Poder::query(), $vigencia, $hoy);
+        // Cada poder trae cuántas veces se ha usado (ver usosPorPoder).
+        $query = $this->filtrarVigencia(Poder::query(), $vigencia, $hoy)
+            ->select('abogados.*')
+            ->leftJoinSub($this->usosPorPoder(), 'uso', 'uso.poder', '=', 'abogados.idAbogado')
+            ->selectRaw('COALESCE(uso.usos, 0) as usos, COALESCE(uso.ratificaciones, 0) as usos_ratificaciones, COALESCE(uso.solicitudes, 0) as usos_solicitudes, COALESCE(uso.audiencias, 0) as usos_audiencias');
 
         $buscar = trim((string) $request->input('buscar'));
         if ($buscar !== '') {
@@ -55,12 +61,16 @@ class PoderController extends Controller
             ->groupBy('estatus')
             ->pluck('total', 'estatus');
         $conteo = [
-            'Pendiente' => (int) ($porEstatus['Pendiente'] ?? 0),
-            'Validado'  => (int) ($porEstatus['Validado'] ?? 0),
+            'Pendiente'  => (int) ($porEstatus['Pendiente'] ?? 0),
+            'Validado'   => (int) ($porEstatus['Validado'] ?? 0),
+            'mas-usados' => (clone $query)->where('uso.usos', '>=', self::USOS_FRECUENTES)->count(),
         ];
 
         $estatus = array_key_exists($request->input('estatus'), $conteo) ? $request->input('estatus') : null;
-        if ($estatus) {
+        if ($estatus === 'mas-usados') {
+            // Los que más se usan primero.
+            $query->where('uso.usos', '>=', self::USOS_FRECUENTES)->orderByDesc('uso.usos');
+        } elseif ($estatus) {
             $query->where('estatus', $estatus);
         }
 
@@ -79,7 +89,25 @@ class PoderController extends Controller
             return $poder;
         });
 
-        return view('poderes.listado', compact('poderes', 'vigencia', 'conteo', 'estatus'));
+        $usosFrecuentes = self::USOS_FRECUENTES;
+
+        return view('poderes.listado', compact('poderes', 'vigencia', 'conteo', 'estatus', 'usosFrecuentes'));
+    }
+
+    /**
+     * Cuántas veces se ha usado cada poder: ratificaciones (turnos), solicitudes
+     * (seer_solicitante) y audiencias donde compareció. Un renglón por poder.
+     */
+    private function usosPorPoder()
+    {
+        $usos = DB::table('turnos')->selectRaw("idAbogado as poder, 'r' as tipo")->whereNotNull('idAbogado')
+            ->unionAll(DB::table('seer_solicitante')->selectRaw("poder_id as poder, 's' as tipo")->whereNotNull('poder_id'))
+            ->unionAll(DB::table('audiencias')->selectRaw("poder_id as poder, 'a' as tipo")->whereNotNull('poder_id'));
+
+        return DB::query()->fromSub($usos, 'u')
+            ->select('poder')
+            ->selectRaw("COUNT(*) as usos, SUM(CASE WHEN tipo = 'r' THEN 1 ELSE 0 END) as ratificaciones, SUM(CASE WHEN tipo = 's' THEN 1 ELSE 0 END) as solicitudes, SUM(CASE WHEN tipo = 'a' THEN 1 ELSE 0 END) as audiencias")
+            ->groupBy('poder');
     }
 
     // Sin fecha de vigencia cuenta como vigente; el día de hoy todavía también.
