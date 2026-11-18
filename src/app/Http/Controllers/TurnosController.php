@@ -982,6 +982,48 @@ class TurnosController extends Controller
 
         return redirect()->route('audiencias.cumplimiento');
     }
+
+    /**
+     * Registra como "Pagado con pena convencional" una parcialidad de ratificación
+     * que antes se marcó como incumplida ("No pagado"), guardando el monto de la pena.
+     */
+    public function pagarConPenaRatificacion(Request $request)
+    {
+        $data = $request->validate([
+            'id'            => 'required|integer|exists:pago_solicitud,id',
+            'observaciones' => 'nullable|string',
+            'monto_pc'      => 'required|numeric|min:0',
+        ]);
+
+        $pago = Pagos::where('id', $data['id'])
+            ->where('tipo_pago', 'Ratificacion')
+            ->where('estatus', 'No pagado')
+            ->first();
+
+        if (!$pago) {
+            return redirect()->back()->with('error', 'Solo se puede pagar con pena convencional una parcialidad de ratificación en No Cumplimiento.');
+        }
+
+        $pago->update([
+            'estatus'          => 'Pagado con pena convencional',
+            'observaciones'    => $data['observaciones'] ?? null,
+            'monto_pc'         => $data['monto_pc'],
+            'user_id'          => auth()->user()->id,
+            'fecha_conclucion' => \Carbon\Carbon::now()->format('Y-m-d'),
+        ]);
+
+        $faltantes = Pagos::where('id_solicitud', $pago->id_solicitud)
+            ->where('tipo_pago', 'Ratificacion')
+            ->where('estatus', 'Pendiente')
+            ->count();
+
+        if ($faltantes == 0) {
+            Turnos::find($pago->id_solicitud)->update(['estatus' => 'Concluida']);
+        }
+
+        return redirect()->route('audiencias.cumplimiento');
+    }
+
     public function pagarTotalRatificacion(Request $request)
     {
         $data = $request->all();

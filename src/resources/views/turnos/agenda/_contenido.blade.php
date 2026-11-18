@@ -41,7 +41,7 @@
             <td>
                 <div class="ag-titulo">{{ $titulo }}</div>
                 <div class="ag-sub">{{ $periodo }}</div>
-                <div class="ag-filtros">{{ $sedesTexto }} · {{ $excepcion }}{{ $pruebas ? ' · con citas de prueba' : '' }}</div>
+                <div class="ag-filtros">{{ $sedesTexto }}{{ !empty($tramite) ? ' · '.$tramite : '' }} · {{ $excepcion }}{{ $pruebas ? ' · con citas de prueba' : '' }}</div>
             </td>
             <td class="ag-generado">
                 Centro de Conciliación Laboral del Estado de Michoacán<br>
