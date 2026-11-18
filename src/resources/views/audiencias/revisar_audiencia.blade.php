@@ -440,7 +440,8 @@
                                                 @php
                                                     $esResulte = isset($citado['resulte_responsable']) ? $citado['resulte_responsable'] : (isset($citado->resulte_responsable) ? $citado->resulte_responsable : 'No');
                                                     $tipoCitado = $citado['tipo_persona'] ?? null;
-                                                    $sinApellidos = $tipoCitado == 'Moral' || ($esResulte == 'Si' && $tipoCitado != 'Fisica');
+                                                    // Moral o 'quien resulte' sin apellidos ni obligatorio.
+                                                    $sinApellidos = $tipoCitado == 'Moral' || $esResulte == 'Si';
                                                 @endphp
                                                 {{-- Tarjeta del citado: datos, notificación, representante y documentos juntos. --}}
                                                 <div class="col-12">
@@ -1900,9 +1901,8 @@
                 var primerWrap = primerInput ? primerInput.closest('.form-group').parentElement : null;
                 var segundoWrap = segundoInput ? segundoInput.closest('.form-group').parentElement : null;
 
-                // Moral: solo nombre. Física: nombre y apellidos.
                 var resulteFlag = sel.getAttribute('resulte_flag');
-                var sinApellidos = sel.value === 'Moral' || (resulteFlag === 'Si' && sel.value !== 'Fisica');
+                var sinApellidos = sel.value === 'Moral' || resulteFlag === 'Si';
 
                 if (nombreWrap) nombreWrap.style.display = '';
                 if (nombreInput) nombreInput.required = true;
