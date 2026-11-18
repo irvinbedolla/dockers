@@ -13,7 +13,7 @@ use Maatwebsite\Excel\Facades\Excel;
 /**
  * Turnos → Todos los turnos → "Descargar agenda": la agenda de un día, una
  * semana o un rango de fechas, de una sede o de todas, y si se elige, sólo
- * la de una persona (quien atiende), en Excel, PDF o imagen
+ * la de una persona (quien atiende) o un trámite, en Excel, PDF o imagen
  * (App\Support\AgendaTurnos). Super Usuario y Directivo de todas las sedes;
  * el Delegado con permiso turnos_ver, de su región.
  */
@@ -38,6 +38,7 @@ class TurnosAgendaController extends Controller
                 }],
             'sede'      => ['nullable', Rule::in($sedes)],
             'persona'   => ['nullable', 'integer', Rule::in(AgendaTurnos::personas($sedes)->pluck('id')->all())],
+            'tipo'      => ['nullable', Rule::in(Recepcion::tramitesVisibles($usuario) ?? TurnosHistorialController::TIPOS)],
             'excepcion' => ['required', Rule::in(array_keys(AgendaTurnos::EXCEPCION))],
             'formato'   => ['required', Rule::in(AgendaTurnos::FORMATOS)],
             'pruebas'   => ['nullable', 'boolean'],
@@ -47,6 +48,7 @@ class TurnosAgendaController extends Controller
             'hasta.required'       => 'Elige hasta qué día.',
             'hasta.after_or_equal' => 'La fecha final no puede ser antes de la inicial.',
             'persona.in'           => 'Esa persona no es de tus sedes.',
+            'tipo.in'              => 'Ese trámite no es válido.',
         ]);
         $f['pruebas'] = ! empty($f['pruebas']) && $usuario->hasRole('Super Usuario');
 

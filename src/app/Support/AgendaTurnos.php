@@ -12,7 +12,7 @@ use Illuminate\Support\Str;
  * Agenda de turnos para descargar (Excel, PDF o imagen) desde Turnos →
  * Todos los turnos: un día, una semana o un rango de fechas, una sede o
  * todas, y opcionalmente sólo los turnos de una persona (quien atiende: el
- * auxiliar u orientador asignado), con hora, módulo, quién llega, quién lo
+ * auxiliar u orientador asignado) o de un trámite (recepcion.tipo), con hora, módulo, quién llega, quién lo
  * atiende, a qué hora llegó y en qué quedó.
  *
  * Sólo Super Usuario y Directivo (lo cuida la ruta). Las citas de prueba
@@ -108,7 +108,7 @@ class AgendaTurnos
     /**
      * Todo lo que necesitan las tres salidas.
      *
-     * @param array{fecha?: ?string, desde?: ?string, hasta?: ?string, periodo: string, sede: ?string, persona?: ?int, excepcion: string, pruebas?: bool} $f
+     * @param array{fecha?: ?string, desde?: ?string, hasta?: ?string, periodo: string, sede: ?string, persona?: ?int, tipo?: ?string, excepcion: string, pruebas?: bool} $f
      */
     public static function armar(array $f, User $usuario): array
     {
@@ -128,7 +128,8 @@ class AgendaTurnos
         $persona = ! empty($f['persona']) ? User::find((int) $f['persona'], ['id', 'name', 'delegacion']) : null;
         $nombre  = $persona ? Str::title(mb_strtolower(trim($persona->name))) : null;
 
-        $filas = self::filas($desde->toDateString(), $hasta->toDateString(), $sedes, $f['excepcion'], ! empty($f['pruebas']), $persona?->id);
+        $tipo  = ! empty($f['tipo']) ? $f['tipo'] : null;
+        $filas = self::filas($desde->toDateString(), $hasta->toDateString(), $sedes, $f['excepcion'], ! empty($f['pruebas']), $persona?->id, $tipo);
 
         // Agrupado por sede (en el orden oficial) y dentro por día.
         $porSede = [];
@@ -150,6 +151,7 @@ class AgendaTurnos
             'persona'    => $nombre,
             'periodo'    => $periodo,
             'sedesTexto' => ! empty($f['sede']) ? $f['sede'] : (count($visibles) >= count(Recepcion::TODAS_LAS_SEDES) ? 'Todas las sedes' : implode(' y ', $visibles)),
+            'tramite'    => $tipo,
             'excepcion'  => self::EXCEPCION[$f['excepcion']],
             'pruebas'    => ! empty($f['pruebas']),
             'desde'      => $desde,
@@ -162,12 +164,13 @@ class AgendaTurnos
             'por'        => $usuario->name,
             'archivo'    => 'agenda_turnos_'.$desde->format('Y-m-d').($desde->isSameDay($hasta) ? '' : '_al_'.$hasta->format('Y-m-d'))
                             .(! empty($f['sede']) ? '_'.Str::slug($f['sede'], '_') : '')
+                            .($tipo ? '_'.Str::slug($tipo, '_') : '')
                             .($nombre ? '_'.Str::slug($nombre, '_') : ''),
         ];
     }
 
     /** Un renglón por turno, ya con los textos listos para imprimir. */
-    public static function filas(string $desde, string $hasta, array $sedes, string $excepcion, bool $pruebas = false, ?int $persona = null): Collection
+    public static function filas(string $desde, string $hasta, array $sedes, string $excepcion, bool $pruebas = false, ?int $persona = null, ?string $tipo = null): Collection
     {
         if ($sedes === []) {
             return collect();
@@ -202,6 +205,7 @@ class AgendaTurnos
             ->whereBetween('r.fecha', [$desde, $hasta])
             ->whereIn('r.delegacion', $nombres)
             ->when($persona, fn ($q) => $q->where('r.auxiliar', $persona))
+            ->when($tipo, fn ($q) => $q->where('r.tipo', $tipo))
             ->when($excepcion === 'excluir', fn ($q) => $q->where(fn ($w) => $w->where('r.exepcion', '!=', 'Si')->orWhereNull('r.exepcion')))
             ->when($excepcion === 'solo', fn ($q) => $q->where('r.exepcion', 'Si'))
             ->when(FlujoCita::migrado() && ! $pruebas, fn ($q) => $q->where(fn ($w) => $w->where('r.es_prueba', 0)->orWhereNull('r.es_prueba')))

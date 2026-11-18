@@ -512,6 +512,15 @@
                                     </select>
                                 </div>
                                 <div class="col-sm-6">
+                                    <label for="agTipo" class="form-label small fw-semibold">Trámite</label>
+                                    <select class="form-select" id="agTipo" name="tipo">
+                                        <option value="">Todos</option>
+                                        @foreach (\App\Support\Recepcion::tramitesVisibles(auth()->user()) ?? \App\Http\Controllers\TurnosHistorialController::TIPOS as $t)
+                                            <option value="{{ $t }}" @selected(($filtros['tipo'] ?? '') === $t)>{{ $t }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-sm-6">
                                     <label for="agExcepcion" class="form-label small fw-semibold">Casos de excepción</label>
                                     <select class="form-select" id="agExcepcion" name="excepcion">
                                         @foreach (['incluir' => 'Incluirlos', 'excluir' => 'Excluirlos', 'solo' => 'Sólo esos casos'] as $valor => $texto)
