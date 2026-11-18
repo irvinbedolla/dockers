@@ -128,6 +128,14 @@ Route::get('/generar-cita/exito',                   [HomeController::class, 'cit
 // justo cuando se despliegue; se puede quitar después.
 Route::permanentRedirect('/generarCita',            '/generar-cita');
 Route::permanentRedirect('/generarCitaExito',       '/generar-cita');
+// Ratificación múltiple (5 o más trabajadores del mismo patrón): solicitud patronal en línea con el Excel (App\Support\RatificacionMultiple).
+Route::get('/ratificacion-multiple',                [App\Http\Controllers\RatificacionMultipleController::class, 'formulario'])->name('ratificacion_multiple');
+Route::get('/ratificacion-multiple/formato',        [App\Http\Controllers\RatificacionMultipleController::class, 'formato'])->name('ratificacion_multiple.formato');
+Route::post('/ratificacion-multiple/revisar',       [App\Http\Controllers\RatificacionMultipleController::class, 'revisar'])->name('ratificacion_multiple.revisar')->middleware('throttle:10,1');
+Route::post('/ratificacion-multiple/confirmar',     [App\Http\Controllers\RatificacionMultipleController::class, 'confirmar'])->name('ratificacion_multiple.confirmar')->middleware('throttle:10,1');
+Route::get('/ratificacion-multiple/listo',          [App\Http\Controllers\RatificacionMultipleController::class, 'exito'])->name('ratificacion_multiple.exito');
+Route::get('/ratificacion-multiple/acuse/{lote}',   [App\Http\Controllers\RatificacionMultipleController::class, 'acuse'])->name('ratificacion_multiple.acuse')
+    ->whereNumber('lote')->middleware('signed');
 Route::post('/turnos_guardar',                      [HomeController::class, 'turnos_publico']);
 // Formulario de atención del trámite de conciliación (público, con el folio de
 // la solicitud; App\Support\AtencionTramite). Con límite de intentos para que

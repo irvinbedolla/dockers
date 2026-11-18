@@ -224,6 +224,9 @@
             var esEmpleador = conTramite && puesto.value === 'empleador';
             if (!esEmpleador) folio.value = '';
             var conFolio = esEmpleador && folio.value === 'si';
+            // Ratificación de un empleador: aviso de la ratificación múltiple (5 o más trabajadores).
+            var cajaMultiple = document.getElementById('gcRatMultiple');
+            if (cajaMultiple) cajaMultiple.hidden = !(esEmpleador && tipo.value === 'Ratificación');
             // Nombre desglosado de la persona trabajadora.
             var desglosado = esEmpleador || (tipo.value === 'Ratificación' && puesto.value === 'trabajador');
             // En la ratificación del propio trabajador su nombre ya va desglosado.

@@ -47,7 +47,11 @@ class RatificacionMultiple
     private const HOJA_OTRAS = 'OTRAS PRESTACIONES';
     private const PRIMER_RENGLON = 13;
 
-    public static function leer(string $ruta): array
+    /**
+     * $folio: el folio de representación que se validó en el formulario; si
+     * el Excel trae otro en E10, no se deja seguir.
+     */
+    public static function leer(string $ruta, ?string $folio = null): array
     {
         $resultado = ['encabezado' => [], 'trabajadores' => [], 'errores' => []];
 
@@ -85,7 +89,12 @@ class RatificacionMultiple
         if ($resultado['encabezado']['empresa'] === '') {
             $resultado['errores'][] = 'Falta el nombre de la empresa o solicitante (celda E6).';
         }
-        if ($resultado['encabezado']['folio'] === '') {
+        $folioExcel = preg_replace('/\D/', '', $resultado['encabezado']['folio']);
+        if ($folio !== null) {
+            if ($folioExcel !== '' && (int) $folioExcel !== (int) $folio) {
+                $resultado['errores'][] = 'El folio de representación del Excel ('.$resultado['encabezado']['folio'].') no es el que escribiste en la solicitud ('.$folio.').';
+            }
+        } elseif ($folioExcel === '') {
             $resultado['errores'][] = 'Falta el folio de representación patronal (celda E10).';
         }
 
@@ -103,6 +112,22 @@ class RatificacionMultiple
                 continue;
             }
             $resultado['trabajadores'][] = self::trabajador($datos, $r, (int) $no ?: count($resultado['trabajadores']) + 1, $otrasPorNumero);
+        }
+
+        // Trabajadores repetidos dentro del mismo archivo.
+        $porNombre = [];
+        foreach ($resultado['trabajadores'] as $i => $t) {
+            if ($t['nombre_completo'] !== '') {
+                $porNombre[self::clave($t['nombre_completo'])][] = $i;
+            }
+        }
+        foreach ($porNombre as $indices) {
+            if (count($indices) > 1) {
+                $nums = implode(', ', array_map(fn ($i) => $resultado['trabajadores'][$i]['numero'], $indices));
+                foreach ($indices as $i) {
+                    $resultado['trabajadores'][$i]['errores'][] = 'Está repetido en el archivo (No. '.$nums.').';
+                }
+            }
         }
 
         $n = count($resultado['trabajadores']);
@@ -217,6 +242,11 @@ class RatificacionMultiple
         if ($total <= 0 && ! $errores) {
             $errores[] = 'El total a pagar es cero.';
         }
+        // La suma de conceptos debe coincidir con el total del convenio que trae el archivo (X).
+        $totalArchivo = self::numero($h->getCell("X$r")->getOldCalculatedValue() ?? null);
+        if ($totalArchivo !== null && abs($totalArchivo - $total) > 1) {
+            $errores[] = 'La suma de los conceptos ($'.number_format($total, 2).') no coincide con el total del archivo ($'.number_format($totalArchivo, 2).').';
+        }
 
         return [
             'renglon'         => $r,
@@ -314,6 +344,12 @@ class RatificacionMultiple
         }
 
         return $r;
+    }
+
+    /** Para comparar nombres sin acentos ni espacios de más. */
+    public static function clave(string $nombre): string
+    {
+        return preg_replace('/\s+/', ' ', trim(mb_strtoupper(\Illuminate\Support\Str::ascii($nombre))));
     }
 
     private static function texto(mixed $v): string
