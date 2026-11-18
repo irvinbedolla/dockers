@@ -7,7 +7,7 @@
 <table>
     <tr><td colspan="9" style="font-size: 16px; font-weight: bold; color: #354647; height: 28px;">{{ $titulo }} · Centro de Conciliación Laboral del Estado de Michoacán</td></tr>
     <tr><td colspan="9" style="font-size: 12px; font-weight: bold; color: #496163;">{{ $periodo }}</td></tr>
-    <tr><td colspan="9" style="color: #5F6B6C;">{{ $sedesTexto }} · {{ $excepcion }}{{ $pruebas ? ' · con citas de prueba' : '' }}</td></tr>
+    <tr><td colspan="9" style="color: #5F6B6C;">{{ $sedesTexto }}{{ !empty($tramite) ? ' · '.$tramite : '' }} · {{ $excepcion }}{{ $pruebas ? ' · con citas de prueba' : '' }}</td></tr>
     <tr><td colspan="9" style="color: #8A9899;">Generado el {{ $generado->format('d/m/Y H:i') }} por {{ $por }}. Cada sede tiene su hoja con un renglón por turno.</td></tr>
     <tr><td colspan="9"></td></tr>
     <tr>
