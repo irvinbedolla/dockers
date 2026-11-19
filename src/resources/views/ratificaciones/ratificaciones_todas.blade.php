@@ -338,6 +338,10 @@
                                                 </a>
                                             @endcan
                                         @endif
+
+                                        @if($solicitud->estatus == "Pendiente")
+                                            <span class="rt-secundario"><i class="bi bi-hourglass-split me-1"></i>En espera de revisión de datos y conclusión de turno.</span>
+                                        @endif
                                     </td>
                                     <td class="text-center">
                                         <div class="rt-acciones">
