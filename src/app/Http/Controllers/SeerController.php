@@ -14691,6 +14691,8 @@ class SeerController extends Controller
                         'extendedProps' => [
                             'estado' => $estado,
                             'audiencias_en_slot' => $audienciasEnSlot,
+                            // Para que el calendario diga si hay empalme (public/assets/js/audiencias/calendario_empalme.js).
+                            'permite_empalme' => $config['permite_empalme'],
                         ]
                     ];
                 }

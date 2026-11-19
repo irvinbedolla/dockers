@@ -392,6 +392,7 @@
                                             </div>
                                             <div class="modal-body">
                                                 <div id="cfCalendarioAviso" class="alert alert-warning" style="display:none;"></div>
+                                                <div id="cfLeyendaReagenda"></div>
                                                 <div id="cfCalendarioReagenda"></div>
                                             </div>
                                             <div class="modal-footer">
@@ -500,6 +501,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/index.global.min.css">
     <!-- FullCalendar JS -->
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/index.global.min.js"></script>
+    <script src="{{ asset('assets/js/audiencias/calendario_empalme.js') }}"></script>
     <script>
        let filaActualParaAgendar = null; 
        let pagosExistentes = {{ $pagos->count() }};
@@ -1657,6 +1659,8 @@
                             });
                         },
                         eventTimeFormat: { hour: '2-digit', minute: '2-digit' },
+                        // Cada horario dice si hay empalme o no (calendario_empalme.js).
+                        eventContent: CalendarioEmpalme.contenido,
                         eventClick: function (info) {
                             var slot = new Date(info.event.start);
                             var estado = info.event.extendedProps && info.event.extendedProps.estado;
@@ -1687,11 +1691,9 @@
                                 Swal.fire({ icon: 'info', title: 'Aviso', html: avisos.join('<br><br>'), confirmButtonColor: '#496163' });
                             }
                         },
-                        eventDidMount: function (info) {
-                            var estado = info.event.extendedProps.estado;
-                            if (estado) { info.el.classList.add('fc-est-' + estado); info.el.classList.add('fc-event-' + estado); }
-                        }
+                        eventDidMount: CalendarioEmpalme.montar
                     });
+                    CalendarioEmpalme.leyenda($('cfLeyendaReagenda'));
                     calendario.render();
                     setTimeout(function () { if (calendario) { calendario.updateSize(); } }, 200);
                 });
