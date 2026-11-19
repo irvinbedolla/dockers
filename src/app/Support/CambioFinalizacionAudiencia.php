@@ -81,6 +81,10 @@ class CambioFinalizacionAudiencia
         }
 
         if (in_array($destino, self::CONVENIOS, true)) {
+            // El convenio se termina en la vista previa del acta (rutas de Conciliador y Super Usuario).
+            if (! $user->hasAnyRole(['Conciliador', 'Super Usuario'])) {
+                $faltan[] = 'El convenio o la reinstalación los registra el conciliador: se terminan en la vista previa del acta de audiencia.';
+            }
             $hayConceptos = ! empty($data['tipo_pago'])
                 || Concepto::where('id_solicitud', $idSolicitud)->where('tipo_pago', 'Audiencia')->exists();
             if (! $hayConceptos) {

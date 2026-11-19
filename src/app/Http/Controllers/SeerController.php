@@ -13414,6 +13414,14 @@ class SeerController extends Controller
         }
         // --------------------------
 
+        // Sin vista previa en sesión (al cambiar el final desde "Editar finalización"): pena y domicilio
+        // salen de la audiencia, para que el convenio y "Terminar" los conserven.
+        if (! session()->has($sessionKey)) {
+            $audienciaDatos = Audiencias::where('id_solicitud', $id)->when(!empty($audiencia_id), fn ($q) => $q->where('id', $audiencia_id))->orderByDesc('id')->first();
+            $conciliadores->pena_convencional = $conciliadores->pena_convencional ?? ($audienciaDatos->pena_convencional ?? null);
+            $conciliadores->direccion_convenio = $conciliadores->direccion_convenio ?? ($audienciaDatos->direccion_convenio ?? null);
+        }
+
         return view('/audiencias/audiencia_revisar',compact('id','conciliadores','representantes','solicitante','conciliador','solicitud','abogados','estados','municipios','conceptos','pagos','deducciones', 'tipo_solicitud'));
     }
 
@@ -13533,6 +13541,14 @@ class SeerController extends Controller
             $conciliadores->direccion_convenio = $sData['direccion_convenio'] ?? null;
         }
         // --------------------------
+
+        // Sin vista previa en sesión (al cambiar el final desde "Editar finalización"): pena y domicilio
+        // salen de la audiencia, para que el convenio y "Terminar" los conserven.
+        if (! session()->has($sessionKey)) {
+            $audienciaDatos = Audiencias::where('id_solicitud', $id)->when(!empty($audiencia_id), fn ($q) => $q->where('id', $audiencia_id))->orderByDesc('id')->first();
+            $conciliadores->pena_convencional = $conciliadores->pena_convencional ?? ($audienciaDatos->pena_convencional ?? null);
+            $conciliadores->direccion_convenio = $conciliadores->direccion_convenio ?? ($audienciaDatos->direccion_convenio ?? null);
+        }
 
         return view('/audiencias/audiencia_revisar_patronal',compact('id','conciliadores','representantes','solicitante','conciliador','solicitud','abogados','estados','municipios','conceptos','pagos','deducciones', 'tipo_solicitud'));
     }
@@ -13883,6 +13899,11 @@ class SeerController extends Controller
                     ];
                     Deducciones::create($data_deduccion);
                 }
+            }
+            // Sin cumplimientos nuevos (p. ej. el convenio ya se capturó en "Editar finalización"):
+            // el monto es el de los cumplimientos ya guardados, para no dejarlo en 0.
+            if (! isset($data["dias_pagos"])) {
+                $monto = (float) Pagos::where('id_solicitud', $data["id"])->whereIn('tipo_pago', ['Audiencia', 'Conciliador'])->sum('monto');
             }
             $conciliadorRecord = SeerPerConciliador::when(!empty($audiencia_id), function ($q) use ($audiencia_id) {
                     return $q->where('audiencia_id', $audiencia_id);
@@ -20563,8 +20584,20 @@ class SeerController extends Controller
                 return back()->withInput()->withErrors($e->getMessage());
             }
 
+            $avisoCambio = 'El final de la audiencia '.($solicitudOriginal->NUE ?: '').' cambió a "'.\App\Support\CambioFinalizacionAudiencia::FINALES[$destinoFinal].'". Se registró la incidencia del cambio.';
+
+            // Convenio o reinstalación: antes de terminar se pasa por la vista previa, como al concluir:
+            // ahí se revisan y editan el acta y el convenio (y la solicitud si hace falta) y se da "Terminar".
+            if (in_array($destinoFinal, \App\Support\CambioFinalizacionAudiencia::CONVENIOS, true)) {
+                return redirect()->route((int) $solicitudOriginal->tipo_solicitud === 2 ? 'vista_previa_patronal' : 'vista_previa', [
+                    'id_solicitud' => $id_solicitud,
+                    'audiencia_id' => $audienciaFinal->id,
+                    'desde'        => 'edicion',
+                ])->with('success', $avisoCambio.' Revisa el acta de audiencia y el convenio; cuando estén bien, da clic en Terminar.');
+            }
+
             return redirect()->route('todas_audiencias', array_filter(['buscar' => $solicitudOriginal->NUE]))
-                ->with('success', 'El final de la audiencia '.($solicitudOriginal->NUE ?: '').' cambió a "'.\App\Support\CambioFinalizacionAudiencia::FINALES[$destinoFinal].'". Se registró la incidencia del cambio.')
+                ->with('success', $avisoCambio)
                 ->with('documentos_convenio', $documentos);
         }
         return redirect()->route('todas_audiencias')->with('success', 'Cambios guardados correctamente.');

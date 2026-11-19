@@ -387,7 +387,8 @@
                                         <br><button id="btn-acta" type="button" class="btn btn-info" name="bandera" value="4">Acta de Audiencia</button>
                                     </div>
                                         <div class="col-xs-12 col-sm-12 col-md-2">
-                                            <br><a href="{{ route('audiencias.parte3', $id) . '?bandera=5&audiencia_id=' . request()->query('audiencia_id') }}" class="btn btn-danger" name="bandera" value="5">Regresar</a>
+                                            <br>{{-- Si viene de "Editar finalización", Regresar vuelve ahí y no a concluir la audiencia. --}}
+                                            <a href="{{ request('desde') === 'edicion' ? route('edicion_audienciaConcluida', ['id' => $id, 'audiencia_id' => request()->query('audiencia_id')]) : route('audiencias.parte3', $id) . '?bandera=5&audiencia_id=' . request()->query('audiencia_id') }}" class="btn btn-danger" name="bandera" value="5">Regresar</a>
                                         </div>
                                 </div>
                             </form>
