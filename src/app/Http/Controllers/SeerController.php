@@ -20401,19 +20401,23 @@ class SeerController extends Controller
         $solicitudOriginal = SeerPerGeneral::find($id_solicitud);
         $sede_a_guardar = $solicitudOriginal->delegacion ?? $user->delegacion;
 
-        // Cambio del final: de No conciliación a "Hubo convenio". Se revisa todo antes de guardar nada.
+        // Cambio del final de una No conciliación (convenio, reinstalación, reagendar o archivar).
+        // Se revisa todo antes de guardar nada (App\Support\CambioFinalizacionAudiencia).
         $audienciaFinal = Audiencias::where('id_solicitud', $id_solicitud)->where('id', $audiencia_id)->first();
-        $cambioAConvenio = ! empty($data['cambio_final'])
-            && ($data['conclucion'] ?? null) === \App\Support\CambioFinalizacionAudiencia::CONVENIO
-            && $audienciaFinal
-            && $audienciaFinal->estatus === \App\Support\CambioFinalizacionAudiencia::NO_CONCILIACION;
-        if ($cambioAConvenio) {
+        $destinoFinal = ($audienciaFinal && $audienciaFinal->estatus === \App\Support\CambioFinalizacionAudiencia::NO_CONCILIACION)
+            ? \App\Support\CambioFinalizacionAudiencia::destino($data)
+            : null;
+        if ($destinoFinal) {
             if (! \App\Support\CambioFinalizacionAudiencia::puede($user, $solicitudOriginal, $audienciaFinal)) {
                 return back()->withInput()->withErrors('No puedes cambiar el final de esta audiencia.');
             }
-            $faltan = \App\Support\CambioFinalizacionAudiencia::faltantes($data, (int) $id_solicitud);
+            $faltan = \App\Support\CambioFinalizacionAudiencia::faltantes($destinoFinal, $data, (int) $id_solicitud, $audienciaFinal, $user);
             if ($faltan) {
                 return back()->withInput()->withErrors($faltan);
+            }
+            if (! in_array($destinoFinal, \App\Support\CambioFinalizacionAudiencia::CONVENIOS, true)) {
+                // Sin convenio no se guardan conceptos, deducciones ni cumplimientos.
+                unset($data['tipo_pago'], $data['monto_pago'], $data['otra_prestacion'], $data['dias_pagos'], $data['monto_deduccion'], $data['descripcion_deduccion']);
             }
         }
        //Deducciones
@@ -20543,11 +20547,16 @@ class SeerController extends Controller
             }
         }
 
-        if ($cambioAConvenio) {
-            $documentos = \App\Support\CambioFinalizacionAudiencia::aplicar($data, $solicitudOriginal->fresh(), $audienciaFinal->fresh(), $user);
+        if ($destinoFinal) {
+            try {
+                $documentos = \App\Support\CambioFinalizacionAudiencia::aplicar($destinoFinal, $data, $solicitudOriginal->fresh(), $audienciaFinal->fresh(), $user,
+                    fn (Request $reagenda) => $this->reagendar_audiencia_parte3ConCandado($reagenda));
+            } catch (\App\Support\AgendaOcupadaException $e) {
+                return back()->withInput()->withErrors($e->getMessage());
+            }
 
             return redirect()->route('todas_audiencias', array_filter(['buscar' => $solicitudOriginal->NUE]))
-                ->with('success', 'La audiencia '.($solicitudOriginal->NUE ?: '').' quedó como convenio. Se registró la incidencia del cambio.')
+                ->with('success', 'El final de la audiencia '.($solicitudOriginal->NUE ?: '').' cambió a "'.\App\Support\CambioFinalizacionAudiencia::FINALES[$destinoFinal].'". Se registró la incidencia del cambio.')
                 ->with('documentos_convenio', $documentos);
         }
         return redirect()->route('todas_audiencias')->with('success', 'Cambios guardados correctamente.');
