@@ -36,6 +36,13 @@
             'roles'  => ['Super Usuario'],
         ],
         [
+            'ruta'   => 'inventario.index',
+            'icono'  => 'bi-pc-display',
+            'titulo' => 'Inventario',
+            'texto'  => 'Dispositivos, resguardantes, verificación y revisión.',
+            'roles'  => ['Super Usuario'],
+        ],
+        [
             'ruta'   => 'configuracion_sedes',
             'icono'  => 'bi-calendar-x',
             'titulo' => 'Días inhábiles',

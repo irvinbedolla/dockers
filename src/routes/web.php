@@ -427,6 +427,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
             // Días bloqueados del conciliador (dias_inhabiles con su user_id, como en Administración → Sedes).
             Route::post('administracion/conciliadores/{id}/bloqueos',    [App\Http\Controllers\ConciliadoresController::class, 'bloquear'])->name('conciliadores.bloqueos.guardar')->whereNumber('id');
             Route::delete('administracion/conciliadores/{id}/bloqueos/{bloqueo}', [App\Http\Controllers\ConciliadoresController::class, 'quitarBloqueo'])->name('conciliadores.bloqueos.quitar')->whereNumber('id')->whereNumber('bloqueo');
+            // Inventario de dispositivos: se corrige en la tabla mientras no tenga el check (App\Http\Controllers\InventarioController).
+            Route::get('administracion/inventario',                      [App\Http\Controllers\InventarioController::class, 'index'])->name('inventario.index');
+            Route::get('administracion/inventario/historial',            [App\Http\Controllers\InventarioController::class, 'historial'])->name('inventario.historial');
+            Route::get('administracion/inventario/exportar',             [App\Http\Controllers\InventarioController::class, 'exportar'])->name('inventario.exportar');
+            Route::post('administracion/inventario',                     [App\Http\Controllers\InventarioController::class, 'guardar'])->name('inventario.guardar');
+            Route::put('administracion/inventario/{id}',                 [App\Http\Controllers\InventarioController::class, 'actualizar'])->name('inventario.actualizar')->whereNumber('id');
+            Route::patch('administracion/inventario/{id}/verificar',     [App\Http\Controllers\InventarioController::class, 'verificar'])->name('inventario.verificar')->whereNumber('id');
+            Route::patch('administracion/inventario/{id}/revision',      [App\Http\Controllers\InventarioController::class, 'revision'])->name('inventario.revision')->whereNumber('id');
         });
         Route::get('administracion/sedes',                  [AdministracionController::class, 'configuracion_sedes'])->name('configuracion_sedes');
         Route::get('administracion/usuarios',               [AdministracionController::class, 'configuracion_usuarios'])->name('configuracion_usuarios');
