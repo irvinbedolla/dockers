@@ -146,6 +146,10 @@
             --au-c: #fff; --au-bg: #1E7B3C; --au-borde: #1E7B3C;
             --au-hover: #186632; --au-activo: #13522A;
         }
+        .au-boton--solicitud {
+            --au-c: #7A5D10; --au-bg: #F8F0DA; --au-borde: #EBDDB4;
+            --au-hover: #9A7A1F; --au-activo: #7A5D10;
+        }
         .au-boton--cumplimiento {
             --au-c: #496163; --au-bg: #E7ECEC; --au-borde: #CED9D9;
             --au-hover: #496163; --au-activo: #3A4E50;
@@ -171,6 +175,13 @@
             @if (session('success'))
                 <div class="alert alert-success alert-dismissible fade show mb-3" role="alert">
                     {{ session('success') }}
+                    @if (session('documentos_convenio'))
+                        <div class="mt-2 d-flex flex-wrap gap-2">
+                            @foreach (session('documentos_convenio') as $doc)
+                                <a class="btn btn-sm btn-success" href="{{ $doc['url'] }}" target="_blank" rel="noopener"><i class="bi bi-file-earmark-pdf me-1"></i> {{ $doc['nombre'] }}</a>
+                            @endforeach
+                        </div>
+                    @endif
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
                 </div>
             @endif
@@ -264,6 +275,7 @@
                                         <th>Solicitante</th>
                                         <th>Conciliador</th>
                                         <th class="text-center">Estatus</th>
+                                        <th class="text-center">Solicitud</th>
                                         @can('audiencias_revisar')
                                             <th class="text-center">Detalles</th>
                                         @endcan
@@ -287,6 +299,15 @@
                                             <td>{{ $audiencia->conciliador_nombre }}</td>
                                             <td class="text-center">
                                                 <span class="tn-estatus {{ $tonoEstatus($estatus) }}">{{ $estatus }}</span>
+                                            </td>
+                                            <td class="text-center">
+                                                {{-- Vista rápida: la solicitud completa en un modal, sin salir del índice. --}}
+                                                <button type="button" class="btn btn-sm au-boton au-boton--solicitud au-ver-solicitud"
+                                                        data-bs-toggle="modal" data-bs-target="#auSolicitud"
+                                                        data-url="{{ route('todas_audiencias.solicitud', $audiencia->id_solicitud) }}"
+                                                        data-nue="{{ $audiencia->NUE }}" data-nombre="{{ $audiencia->nombre }}">
+                                                    <i class="bi bi-file-earmark-text me-1"></i> Ver solicitud
+                                                </button>
                                             </td>
                                             @can('audiencias_revisar')
                                                 <td class="text-center">
@@ -390,6 +411,26 @@
             @endcan
         </div>
     </section>
+
+    <!-- Modal Solicitud completa (vista rápida, sólo consulta) -->
+    <div class="modal fade" id="auSolicitud" tabindex="-1" aria-labelledby="auSolicitudTitulo" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content tn" style="background: #F5F7F7;">
+                <div class="modal-header" style="background: #fff;">
+                    <div>
+                        <h5 class="modal-title" id="auSolicitudTitulo">Solicitud</h5>
+                        <small id="auSolicitudSub" style="color: #8A9899;"></small>
+                    </div>
+                    <span class="ms-3 px-2 py-1 rounded-pill" style="background:#EEF2F2;color:#354647;font-size:11px;font-weight:700;"><i class="bi bi-eye"></i> Sólo consulta</span>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body" id="auSolicitudCuerpo"></div>
+                <div class="modal-footer" style="background: #fff;">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Modal Documentos -->
     <div class="modal fade" id="documentos" tabindex="-1" aria-labelledby="modalLabelCitatorios" aria-hidden="true">
@@ -521,6 +562,36 @@
         const pdfsUrlBase  = "{{ url('solicitud/pdfs') }}";
     </script>
     <script>
+        // Vista rápida de la solicitud: se pide al abrir el modal y se guarda por si se vuelve a abrir.
+        (function () {
+            var modal = document.getElementById('auSolicitud');
+            if (!modal) { return; }
+            document.body.appendChild(modal); // fuera del contenedor para que la página no se quede gris
+            var cuerpo = document.getElementById('auSolicitudCuerpo');
+            var cache = {};
+            var pedido = 0;
+            var cargando = '<div class="text-center py-5" style="color:#8A9899;"><span class="spinner-border spinner-border-sm me-2"></span> Cargando la solicitud…</div>';
+
+            modal.addEventListener('show.bs.modal', function (evento) {
+                var boton = evento.relatedTarget;
+                if (!boton) { return; }
+                var url = boton.getAttribute('data-url');
+                var este = ++pedido;
+                document.getElementById('auSolicitudTitulo').textContent = 'Solicitud ' + (boton.getAttribute('data-nue') || '');
+                document.getElementById('auSolicitudSub').textContent = boton.getAttribute('data-nombre') || '';
+                if (cache[url]) { cuerpo.innerHTML = cache[url]; return; }
+                cuerpo.innerHTML = cargando;
+                fetch(url, { headers: { 'Accept': 'text/html' }, credentials: 'same-origin' })
+                    .then(function (r) { if (!r.ok) { throw new Error(r.status); } return r.text(); })
+                    .then(function (html) { cache[url] = html; if (este === pedido) { cuerpo.innerHTML = html; } })
+                    .catch(function () {
+                        if (este === pedido) {
+                            cuerpo.innerHTML = '<div class="alert alert-warning mb-0">No se pudo cargar la solicitud. Intenta de nuevo.</div>';
+                        }
+                    });
+            });
+        })();
+
         // Elegir un día o un orden ya filtra; no hace falta el botón.
         ['auFecha', 'auOrden'].forEach(function (id) {
             var el = document.getElementById(id);

@@ -9,6 +9,13 @@
     .btn-invisible {
         display: none;
     }
+    .csf-estado { font-size: 12px; color: #1E7B3C; display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+    .csf-estado a { color: #496163; font-weight: 600; text-decoration: none; }
+    #modalComparecenciaSF .modal-header { background: #354647; color: #fff; }
+    #modalComparecenciaSF .csf-seccion { font-size: 13px; font-weight: 800; color: #496163; text-transform: uppercase; letter-spacing: .04em; margin: 6px 0 10px; }
+    #modalComparecenciaSF .form-label { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+    #modalComparecenciaSF .csf-ayuda { font-size: 12px; color: #6B7A7B; }
+    #modalComparecenciaSF .is-invalid + .invalid-feedback { display: block; }
     #modalCitados table.table-striped tbody tr:nth-of-type(odd) {
         background-color: rgba(0, 0, 0, 0.08); /* ajusta el último valor (0.08) para más o menos opacidad */
     }
@@ -157,7 +164,20 @@
                                                     @endif--}}
                                                     @can('audiencia_comparece_sin_facultades')
                                                         @if($representante->id_abogado == null)
-                                                            <a class="btn btn-success mb-1 w-100" href="{{ route('PDFcompareceSP', $solicitud->id) }}" target="_blank">Comparecencia sin Acreditación de Facultades</a>
+                                                            {{-- Se llena (y se vuelve a editar) en un formulario; el PDF sale con lo guardado. --}}
+                                                            @php $fsf = $formatosSF[$representante->id] ?? null; @endphp
+                                                            <button type="button" class="btn btn-success mb-1 w-100 btn-comparecencia-sf"
+                                                                    data-bs-toggle="modal" data-bs-target="#modalComparecenciaSF"
+                                                                    data-citado="{{ $representante->id }}"
+                                                                    data-nombre="{{ trim($representante->nombre.' '.$representante->primer_apellido.' '.$representante->segundo_apellido) }}">
+                                                                <i class="bi bi-pencil-square me-1"></i> Comparecencia sin Acreditación de Facultades
+                                                            </button>
+                                                            <div class="csf-estado" id="csfEstado{{ $representante->id }}">
+                                                                @if ($fsf && $fsf['guardado'])
+                                                                    <span><i class="bi bi-check-circle-fill"></i> Capturada {{ $fsf['actualizado'] }}</span>
+                                                                    <a href="{{ route('PDFcompareceSP', $solicitud->id) }}?citado={{ $representante->id }}" target="_blank" rel="noopener"><i class="bi bi-file-earmark-pdf"></i> Ver PDF</a>
+                                                                @endif
+                                                            </div>
                                                         @else
                                                             <button class="btn btn-secondary mb-1 w-100" disabled title="No hay una comparecencia registrada">Comparecencia sin Acreditación de Facultades</button>
                                                         @endif
@@ -1659,7 +1679,205 @@
     <div class="loader"></div>
 </div>
 
+<!-- Modal Comparecencia sin Acreditación de Facultades (se guarda y se puede volver a editar) -->
+@can('audiencia_comparece_sin_facultades')
+<div class="modal fade" id="modalComparecenciaSF" tabindex="-1" aria-labelledby="csfTitulo" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <form class="modal-content" id="csfForm" novalidate>
+            <input type="hidden" name="solicitud_id" value="{{ $id }}">
+            <input type="hidden" name="audiencia_id" value="{{ $audiencia_id }}">
+            <input type="hidden" name="citado_id" id="csfCitado">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title" id="csfTitulo">Comparecencia sin Acreditación de Facultades</h5>
+                    <small id="csfSub" style="color:#D6E0E0;"></small>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-light border py-2 csf-ayuda" id="csfAviso"></div>
+
+                <div class="csf-seccion">Certificación</div>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label" for="csf_fecha_acta">Fecha de la audiencia <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" name="fecha_acta" id="csf_fecha_acta" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="csf_hora_acta">Hora <span class="text-danger">*</span></label>
+                        <input type="time" class="form-control" name="hora_acta" id="csf_hora_acta" required>
+                    </div>
+                </div>
+
+                <div class="csf-seccion">Quién comparece</div>
+                <div class="row g-3 mb-3">
+                    <div class="col-12">
+                        <label class="form-label" for="csf_compareciente">Nombre completo de quien comparece <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="compareciente" id="csf_compareciente" maxlength="200" oninput="this.value = this.value.toUpperCase()" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="csf_tipo_identificacion">Se identifica con <span class="text-danger">*</span></label>
+                        <select class="form-select" name="tipo_identificacion" id="csf_tipo_identificacion" required>
+                            @foreach (\App\Models\ComparecenciaSinFacultades::IDENTIFICACIONES as $ident)
+                                <option value="{{ $ident }}">{{ $ident }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="csf_num_identificacion">Número de identificación <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="num_identificacion" id="csf_num_identificacion" maxlength="50" oninput="this.value = this.value.toUpperCase()" required>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" for="csf_representa">Dice ser representante legal de la parte citada <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="representa" id="csf_representa" maxlength="255" oninput="this.value = this.value.toUpperCase()" required>
+                    </div>
+                </div>
+
+                <div class="csf-seccion">Documento para acreditar la personería</div>
+                <div class="mb-3">
+                    @foreach (\App\Models\ComparecenciaSinFacultades::DOCUMENTOS as $clave => $texto)
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="documento" id="csf_doc_{{ $clave }}" value="{{ $clave }}">
+                            <label class="form-check-label" for="csf_doc_{{ $clave }}">{{ $texto }}</label>
+                        </div>
+                    @endforeach
+                </div>
+                <div class="mb-3" id="csfDescripcionCaja">
+                    <label class="form-label" for="csf_documento_descripcion">Describe el documento exhibido <span class="text-danger">*</span></label>
+                    <textarea class="form-control" name="documento_descripcion" id="csf_documento_descripcion" rows="3" maxlength="1000" placeholder="Ejemplo: copia simple de carta poder sin firma de testigos de fecha…"></textarea>
+                    <div class="csf-ayuda mt-1">Se anota que se adjunta copia en el expediente para constancia legal.</div>
+                </div>
+
+                <div class="csf-seccion">Notificación de la parte citada</div>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label" for="csf_fecha_notificacion">Fecha en que se notificó</label>
+                        <input type="date" class="form-control" name="fecha_notificacion" id="csf_fecha_notificacion">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="csf_hora_notificacion">Hora en que se notificó</label>
+                        <input type="time" class="form-control" name="hora_notificacion" id="csf_hora_notificacion">
+                        <div class="csf-ayuda mt-1">Si la dejas vacía, en el formato queda la línea para llenarla a mano.</div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" class="btn btn-outline-success" data-ver="0"><i class="bi bi-save me-1"></i> Guardar</button>
+                <button type="submit" class="btn btn-success" data-ver="1"><i class="bi bi-file-earmark-pdf me-1"></i> Guardar y ver PDF</button>
+            </div>
+        </form>
+    </div>
+</div>
+@endcan
+
 @section('scripts')
+    @can('audiencia_comparece_sin_facultades')
+    <script>
+    // Comparecencia sin Acreditación de Facultades: formulario por citado, se guarda y se puede volver a editar.
+    (function () {
+        var modal = document.getElementById('modalComparecenciaSF');
+        if (!modal) { return; }
+        document.body.appendChild(modal);
+        var form = document.getElementById('csfForm');
+        var formatos = @json($formatosSF ?? []);
+        var URL_GUARDAR = @json(route('comparecencia_sf.guardar'));
+        var URL_PDF = @json(route('PDFcompareceSP', $id));
+        var CSRF = @json(csrf_token());
+        var CAMPOS = ['fecha_acta', 'hora_acta', 'compareciente', 'tipo_identificacion', 'num_identificacion', 'representa', 'documento_descripcion', 'fecha_notificacion', 'hora_notificacion'];
+        var verPdf = false;
+
+        function esc(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+        function documento() { var r = form.querySelector('input[name="documento"]:checked'); return r ? r.value : 'ninguno'; }
+        function cajaDescripcion() { document.getElementById('csfDescripcionCaja').style.display = documento() === 'insuficiente' ? '' : 'none'; }
+        function limpiarErrores() {
+            form.querySelectorAll('.is-invalid').forEach(function (el) { el.classList.remove('is-invalid'); });
+            form.querySelectorAll('.invalid-feedback.csf-error').forEach(function (el) { el.remove(); });
+        }
+        function marcar(campo, mensaje) {
+            var el = form.querySelector('[name="' + campo + '"]');
+            if (!el) { return; }
+            el.classList.add('is-invalid');
+            var div = document.createElement('div');
+            div.className = 'invalid-feedback csf-error';
+            div.textContent = mensaje;
+            el.insertAdjacentElement('afterend', div);
+        }
+
+        form.querySelectorAll('input[name="documento"]').forEach(function (r) { r.addEventListener('change', cajaDescripcion); });
+        form.querySelectorAll('button[type="submit"]').forEach(function (b) {
+            b.addEventListener('click', function () { verPdf = b.getAttribute('data-ver') === '1'; });
+        });
+
+        modal.addEventListener('show.bs.modal', function (evento) {
+            var boton = evento.relatedTarget;
+            if (!boton) { return; }
+            var citado = boton.getAttribute('data-citado');
+            var d = formatos[citado] || {};
+            limpiarErrores();
+            document.getElementById('csfCitado').value = citado;
+            document.getElementById('csfSub').textContent = 'Citado: ' + (boton.getAttribute('data-nombre') || '');
+            CAMPOS.forEach(function (c) { var el = form.querySelector('[name="' + c + '"]'); if (el) { el.value = d[c] || ''; } });
+            if (!form.querySelector('[name="tipo_identificacion"]').value) { form.querySelector('[name="tipo_identificacion"]').value = 'Credencial de elector'; }
+            var doc = form.querySelector('input[name="documento"][value="' + (d.documento || 'ninguno') + '"]');
+            if (doc) { doc.checked = true; }
+            cajaDescripcion();
+            document.getElementById('csfAviso').innerHTML = d.guardado
+                ? '<i class="bi bi-pencil"></i> Ya está capturada (última edición ' + esc(d.actualizado) + '). Lo que cambies reemplaza lo anterior. ' +
+                  '<a href="' + esc(URL_PDF + '?citado=' + citado) + '" target="_blank" rel="noopener">Ver el PDF guardado</a>'
+                : '<i class="bi bi-info-circle"></i> Llena los datos de quien comparece. Se guarda y puedes volver a editarlo las veces que haga falta.';
+        });
+
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+            limpiarErrores();
+            var datos = new FormData(form);
+            datos.set('documento', documento());
+            var ventana = verPdf ? window.open('', '_blank') : null; // se abre ya para que el navegador no la bloquee
+            var botones = form.querySelectorAll('button[type="submit"]');
+            botones.forEach(function (b) { b.disabled = true; });
+
+            fetch(URL_GUARDAR, { method: 'POST', body: datos, credentials: 'same-origin', headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' } })
+                .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, status: r.status, j: j }; }); })
+                .then(function (res) {
+                    if (!res.ok) {
+                        if (ventana) { ventana.close(); }
+                        if (res.status === 422 && res.j.errors) {
+                            Object.keys(res.j.errors).forEach(function (c) { marcar(c, res.j.errors[c][0]); });
+                            var primero = form.querySelector('.is-invalid');
+                            if (primero) { primero.focus(); }
+                            return;
+                        }
+                        throw new Error(res.status);
+                    }
+                    var citado = document.getElementById('csfCitado').value;
+                    var d = {};
+                    CAMPOS.forEach(function (c) { d[c] = datos.get(c) || ''; });
+                    d.documento = documento();
+                    d.guardado = true;
+                    d.actualizado = res.j.actualizado;
+                    formatos[citado] = d;
+                    var estado = document.getElementById('csfEstado' + citado);
+                    if (estado) {
+                        estado.innerHTML = '<span><i class="bi bi-check-circle-fill"></i> Capturada ' + esc(res.j.actualizado) + '</span>' +
+                            '<a href="' + esc(res.j.pdf) + '" target="_blank" rel="noopener"><i class="bi bi-file-earmark-pdf"></i> Ver PDF</a>';
+                    }
+                    bootstrap.Modal.getOrCreateInstance(modal).hide();
+                    if (ventana) {
+                        ventana.location = res.j.pdf;
+                    } else {
+                        Swal.fire({ icon: 'success', title: 'Comparecencia guardada', text: 'Puedes volver a editarla cuando haga falta.', confirmButtonColor: '#496163', timer: 2200 });
+                    }
+                })
+                .catch(function () {
+                    if (ventana) { ventana.close(); }
+                    Swal.fire({ icon: 'error', title: 'No se pudo guardar', text: 'Revisa tu conexión e intenta de nuevo.', confirmButtonColor: '#496163' });
+                })
+                .finally(function () { botones.forEach(function (b) { b.disabled = false; }); });
+        });
+    })();
+    </script>
+    @endcan
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css">
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
     <style>
