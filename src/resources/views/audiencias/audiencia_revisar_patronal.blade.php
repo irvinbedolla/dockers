@@ -1047,11 +1047,15 @@
     </script>
 
     <!-- Botones Convenio / Acta en vista patronal: solo abren PDF, no envían el formulario -->
+    <script src="{{ asset('assets/js/audiencias/vista_previa_botones.js') }}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const btnConvenio = document.getElementById('btn-convenio1');
             const btnActa = document.getElementById('btn-acta');
             const btnActaMultiple = document.getElementById('btn-acta-multiple');
+
+            // Terminar y Regresar con spinner; Convenio y Acta con "Generando…" (vista_previa_botones.js).
+            VistaPreviaBotones.iniciar();
 
             if (btnConvenio) {
                 btnConvenio.addEventListener('click', function (e) {
@@ -1062,7 +1066,7 @@
                     if (audienciaId) {
                         urlPdf += '?audiencia_id=' + audienciaId;
                     }
-                    window.open(urlPdf, '_blank');
+                    VistaPreviaBotones.abrirDocumento(btnConvenio, urlPdf);
                 });
             }
 
@@ -1074,7 +1078,7 @@
                     if (audienciaId) {
                         urlPdfActa += '?audiencia_id=' + audienciaId;
                     }
-                    window.open(urlPdfActa, '_blank');
+                    VistaPreviaBotones.abrirDocumento(btnActa, urlPdfActa);
                 });
             }
 

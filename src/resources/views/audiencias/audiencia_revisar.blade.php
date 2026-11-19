@@ -1587,137 +1587,58 @@ function clonarCheckboxes() {
     </script>
 
 
+    <script src="{{ asset('assets/js/audiencias/vista_previa_botones.js') }}"></script>
     <script>
+        // Convenio y Acta: guardan en sesión los citados marcados y abren el PDF; el botón muestra
+        // "Generando…" mientras tanto (vista_previa_botones.js). Terminar y Regresar también.
         document.addEventListener('DOMContentLoaded', function() {
+            VistaPreviaBotones.iniciar();
 
-            // Lógica para el botón CONVENIO con AJAX
-            const btnConvenio = document.getElementById('btn-convenio1');
-            
-            if(btnConvenio){
-                btnConvenio.addEventListener('click', function(e) {
-                    e.preventDefault(); // Prevenir cualquier envío tradicional
-                    
-                    // 1. Obtener ID de la solicitud
-                    // Buscamos el input hidden del form principal. Ajusta el selector si tienes múltiples forms.
-                    // En tu archivo veo <input type="hidden" name="id" value="{{ $id }}"> dentro del form 'form_roles'
-                    let inputId = document.querySelector('#form_roles input[name="id"]');
-                    if(!inputId) { 
-                        alert("No se encontró el ID de la solicitud"); 
-                        return; 
-                    }
-                    let idSolicitud = inputId.value;
+            var idSolicitud = String(@json($id));
+            var audienciaId = String(@json(request()->query('audiencia_id')) || '');
 
-                    let audienciaId = document.querySelector('input[name="audiencia_id"]')?.value || document.querySelector('input[name="id_audiencia_recurso"]')?.value || '{{ request("audiencia_id") }}';
-                    // 2. Recolectar IDs de los checkboxes marcados
-                    let idsSeleccionados = [];
-                    // Buscamos los checkboxes que empiezan con "aparece_convenio" y están marcados
-                    document.querySelectorAll('input[type=checkbox][name^="aparece_convenio"]:checked').forEach(cb => {
-                        // El name es "aparece_convenio[123]". Usamos Regex para sacar el ID (123).
-                        let match = cb.name.match(/\[(\d+)\]/);
-                        if(match && match[1]) {
-                            idsSeleccionados.push(match[1]);
-                        }
-                    });
-
-                    if(idsSeleccionados.length === 0 && tipoSolicitud === "1"){
-                        Swal.fire({
-                            icon: 'warning',
-                            title: 'Atención',
-                            text: 'Debes seleccionar al menos un citado para generar el convenio.'
-                        });
-                        return;
-                    }
-
-                    // 3. Enviar a Laravel vía AJAX (Fetch) para guardar en sesión
-                    fetch("{{ route('guardar_seleccion_convenio') }}", {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                        },
-                        body: JSON.stringify({
-                            id_solicitud: idSolicitud,
-                            ids_seleccionados: idsSeleccionados
-                        })
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if(data.status === 'success') {
-                            // 4. Si se guardó en sesión exitosamente, abrimos el PDF en nueva pestaña
-                            // Convenio: si la conclusión es Reinstalacion, usamos su PDF específico
-                            // Ajusta la URL base si tu ruta tiene prefijos
-                            let urlPdf = "{{ $tienePTU ? route('PDFconvenioPTU_SI_S', ':id') : ((($conciliadores["conclucion"] ?? null) === 'Reinstalacion') ? route('PDFconvenioreinstalacion', ':id') : route('PDFconveniosolicitud', ':id')) }}";
-                            urlPdf = urlPdf.replace(':id', idSolicitud);
-                            if (typeof audienciaId !== 'undefined' && audienciaId) {
-                                urlPdf += '?audiencia_id=' + audienciaId;
-                            }
-                            
-                            window.open(urlPdf, "_blank");
-                        } else {
-                            Swal.fire('Error', 'No se pudo procesar la selección.', 'error');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        Swal.fire('Error', 'Ocurrió un error de conexión.', 'error');
-                    });
+            function seleccionados() {
+                var ids = [];
+                document.querySelectorAll('input[type=checkbox][name^="aparece_convenio"]:checked').forEach(function (cb) {
+                    var m = cb.name.match(/\[(\d+)\]/);
+                    if (m && m[1]) { ids.push(m[1]); }
                 });
+                return ids;
             }
 
-            // Lógica para el botón ACTA con AJAX (igual que convenio pero abre VerPDFAudiencia)
-            const btnActa = document.getElementById('btn-acta');
-            if (btnActa) {
-                btnActa.addEventListener('click', function (e) {
+            // Guarda la selección en sesión; si falla, rechaza para que el botón avise.
+            function guardarSeleccion(ruta, ids) {
+                return fetch(ruta, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ id_solicitud: idSolicitud, ids_seleccionados: ids })
+                })
+                .then(function (r) { if (!r.ok) { throw new Error('El servidor respondió ' + r.status + '.'); } return r.json(); })
+                .then(function (data) { if (!data || data.status !== 'success') { throw new Error('No se pudo procesar la selección de citados.'); } return true; });
+            }
+
+            function boton(id, ruta, url, documento) {
+                var btn = document.getElementById(id);
+                if (!btn) { return; }
+                btn.addEventListener('click', function (e) {
                     e.preventDefault();
-
-                    // Obtener id de la solicitud
-                    let inputId = document.querySelector('#form_roles input[name="id"]');
-                    if(!inputId) { 
-                        alert("No se encontró el ID de la solicitud");
-                        return; 
-                    }
-                    let idSolicitud = inputId.value;
-
-                    // Recolectar IDs marcados
-                    let idsSeleccionados = [];
-                    document.querySelectorAll('input[type=checkbox][name^="aparece_convenio"]:checked').forEach(cb => {
-                        let match = cb.name.match(/\[(\d+)\]/);
-                        if(match && match[1]) idsSeleccionados.push(match[1]);
-                    });
-
-                    if (idsSeleccionados.length === 0 && tipoSolicitud === "1") {
-                        Swal.fire({
-                            icon: 'warning',
-                            title: 'Atención',
-                            text: 'Debes seleccionar al menos un citado para generar el acta.'
-                        });
+                    var ids = seleccionados();
+                    if (ids.length === 0 && tipoSolicitud === "1") {
+                        VistaPreviaBotones.aviso('warning', 'Atención', 'Debes seleccionar al menos un citado para generar ' + documento + '.');
                         return;
                     }
-
-                    // Guardar en sesión
-                    fetch("{{ route('guardar_seleccion_acta') }}", {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                        },
-                        body: JSON.stringify({ id_solicitud: idSolicitud, ids_seleccionados: idsSeleccionados })
-                    })
-                    .then(resp => resp.json())
-                    .then(data => {
-                        if (data.status === 'success') {
-                            let urlPdf = "{{ route('VerPDFAudiencia', ':id') . '?audiencia_id=' . request()->query('audiencia_id') }}";
-                            urlPdf = urlPdf.replace(':id', idSolicitud);
-                            window.open(urlPdf, '_blank');
-                        } else {
-                            Swal.fire('Error', 'No se pudo procesar la selección.', 'error');
-                        }
-                    })
-                    .catch(err => {
-                        Swal.fire('Error', 'No se pudo procesar la selección.', 'error');
-                    });
+                    VistaPreviaBotones.abrirDocumento(btn, url, function () { return guardarSeleccion(ruta, ids); });
                 });
             }
+
+            // Convenio: si la conclusión es Reinstalación se usa su PDF específico.
+            var urlConvenio = "{{ $tienePTU ? route('PDFconvenioPTU_SI_S', ':id') : ((($conciliadores["conclucion"] ?? null) === 'Reinstalacion') ? route('PDFconvenioreinstalacion', ':id') : route('PDFconveniosolicitud', ':id')) }}".replace(':id', idSolicitud)
+                + (audienciaId ? '?audiencia_id=' + audienciaId : '');
+            var urlActa = "{{ route('VerPDFAudiencia', ':id') }}".replace(':id', idSolicitud) + (audienciaId ? '?audiencia_id=' + audienciaId : '');
+
+            boton('btn-convenio1', "{{ route('guardar_seleccion_convenio') }}", urlConvenio, 'el convenio');
+            boton('btn-acta', "{{ route('guardar_seleccion_acta') }}", urlActa, 'el acta');
         });
     </script>
 
