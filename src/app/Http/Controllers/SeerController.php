@@ -6436,9 +6436,12 @@ class SeerController extends Controller
 
         $viewName = ($tipo_solicitud == "1") ? 'audiencias.audiencias' : 'audiencias.audienciasPatronal';
 
+        // Formato "Comparecencia sin Acreditación de Facultades": lo guardado (o lo propuesto) por citado.
+        $formatosSF = \App\Models\ComparecenciaSinFacultades::paraCitados((int) $id);
+
         return view($viewName, compact(
-            'id', 'audiencia_id', 'solicitudes', 'solicitante', 'conciliador', 
-            'solicitud', 'estados', 'municipios', 'fechaConfirmacion', 'allCentro', 'isExhorto', 'NUE', 'audiencia'
+            'id', 'audiencia_id', 'solicitudes', 'solicitante', 'conciliador',
+            'solicitud', 'estados', 'municipios', 'fechaConfirmacion', 'allCentro', 'isExhorto', 'NUE', 'audiencia', 'formatosSF'
         ) + ($tipo_solicitud == "1" ? compact('representantes') : compact('citados')));
     }
 
@@ -13159,31 +13162,7 @@ class SeerController extends Controller
     }
 
     //PDF COMPARECE REPRESENTANTE LEGAL SIN PODER
-    public function VerPDFCompareceSinPoder($id){
-        $solicitud = SeerPerGeneral::find($id);
-        $conciliador  = User::join("seer_general","seer_general.conciliador_id","=","users.id");
-        $conciliador = $conciliador->where("seer_general.id", "=", $id)
-        ->select('users.name')
-        ->first();
-       
-        $solicitante = SeerPerGeneral::join("seer_solicitante","seer_solicitante.id_solicitud","=","seer_general.id");
-        $solicitante = $solicitante->where("seer_solicitante.id_solicitud", "=", $solicitud["id"])
-        ->first();
-        $citado = SeerCitados::where('id_solicitud', $id)->first();
-        $abogado = Poder::join('seer_citados','seer_citados.id_abogado','abogados.idAbogado')
-        ->where('id_solicitud',$id)
-        ->select('abogados.nombres_patronal','abogados.primer_apellido_patronal','abogados.segundo_apellido_patronal','abogados.descipcion_poder')
-        ->first();
-        $html = view('PDF/Solicitudes/compareceSinPoder', 
-            compact('id', 'solicitud', 'conciliador','solicitante','citado','abogado'))
-            ->render();
-        $pdf = \PDF::loadHTML($html)
-            ->setPaper('a4', 'portrait')
-            ->setOption('isHtml5ParserEnabled', true)
-            ->setOption('isPhpEnabled', true);
-
-        return $pdf->stream('compareceSinPoder.pdf');                   
-    }
+    // VerPDFCompareceSinPoder pasó a ComparecenciaSinFacultadesController::pdf (misma URL /pdfsinPoder/{id}).
     
     //Cumplimiento cuando no comparece el trabajador
     public function cumplimiento_incompa_rati($id){
@@ -14712,6 +14691,8 @@ class SeerController extends Controller
                         'extendedProps' => [
                             'estado' => $estado,
                             'audiencias_en_slot' => $audienciasEnSlot,
+                            // Para que el calendario diga si hay empalme (public/assets/js/audiencias/calendario_empalme.js).
+                            'permite_empalme' => $config['permite_empalme'],
                         ]
                     ];
                 }
@@ -15523,33 +15504,8 @@ class SeerController extends Controller
             });
         }
 
-        // 2. Mapeo de delegaciones regionales (Gobierno de Michoacán)
-        $mapaDelegaciones = [
-            'Morelia' => ['Morelia', 'Zitácuaro'],
-            'Uruapan' => ['Uruapan', 'Lázaro Cárdenas'],
-            'Zamora'  => ['Sahuayo', 'Zamora'],
-        ];
-
-        // 3. Filtros de Rol de Usuario (Incluyendo Auxiliar)
-        if ($userRole === "Conciliador") {
-            $query->where('id_conciliador', $user->id);
-            $permisos = PermisosConciliador::where('id_conciliador', $user->id)->select('tipo')->first();
-            
-            //if ($permisos && $permisos->tipo === "Ambos") {
-                $delegaciones = $mapaDelegaciones[$user->delegacion] ?? [$user->delegacion];
-                $query->whereIn('delegacion', \App\Support\SedesConciliador::sumarSedes($user, $delegaciones));
-            /*} else {
-                $query->where('delegacion', $user->delegacion);
-            }*/
-        } 
-        elseif ($userRole === "Delegado") {
-            $delegaciones = $mapaDelegaciones[$user->delegacion] ?? [$user->delegacion];
-            $query->whereIn('delegacion', $delegaciones);
-        }
-        // NUEVO: Filtro restrictivo para personal Auxiliar
-        elseif ($userRole === "Auxiliar") {
-            $query->where('delegacion', $user->delegacion);
-        }
+        // 2 y 3. Delegaciones y filtros por rol (los mismos para la vista rápida de la solicitud).
+        $this->filtrarAudienciasPorRol($query, $user, $userRole);
 
         // PArámetro de día, si no se pasa se visualizan todas
         $fecha = $request->input('fecha');
@@ -15589,6 +15545,51 @@ class SeerController extends Controller
         });
         
         return view('audiencias.todas_audiencias', compact('audiencias', 'isAudiencia', 'fecha', 'orden'));
+    }
+
+    /**
+     * Índice de audiencias: lo que cada rol alcanza a ver. Conciliador, sus
+     * audiencias en sus sedes; Delegado, las sedes de su delegación regional;
+     * Auxiliar, su sede. Los demás roles ven todas.
+     */
+    private function filtrarAudienciasPorRol($query, $user, ?string $userRole)
+    {
+        // Mapeo de delegaciones regionales (Gobierno de Michoacán)
+        $mapaDelegaciones = [
+            'Morelia' => ['Morelia', 'Zitácuaro'],
+            'Uruapan' => ['Uruapan', 'Lázaro Cárdenas'],
+            'Zamora'  => ['Sahuayo', 'Zamora'],
+        ];
+
+        if ($userRole === "Conciliador") {
+            $query->where('id_conciliador', $user->id);
+            $delegaciones = $mapaDelegaciones[$user->delegacion] ?? [$user->delegacion];
+            $query->whereIn('delegacion', \App\Support\SedesConciliador::sumarSedes($user, $delegaciones));
+        } elseif ($userRole === "Delegado") {
+            $delegaciones = $mapaDelegaciones[$user->delegacion] ?? [$user->delegacion];
+            $query->whereIn('delegacion', $delegaciones);
+        } elseif ($userRole === "Auxiliar") {
+            $query->where('delegacion', $user->delegacion);
+        }
+
+        return $query;
+    }
+
+    /**
+     * Vista rápida de la solicitud completa desde el índice de audiencias
+     * (modal, sólo consulta): el HTML de solicitudes/_vista. Sólo si quien
+     * pregunta alcanza a ver alguna audiencia de esa solicitud en el índice.
+     */
+    public function todas_audiencias_solicitud(Request $request, int $id)
+    {
+        $user = $request->user();
+        abort_unless($user->can('audiencias_consultar'), 403);
+
+        $visible = $this->filtrarAudienciasPorRol(Audiencias::where('id_solicitud', $id), $user, $user->roles->first()->name ?? null)->exists();
+        $datos = $visible ? \App\Support\VistaSolicitud::datos($id) : null;
+        abort_unless($datos, 404);
+
+        return view('solicitudes._vista', $datos);
     }
 
     public function todos_complimientos(Request $request) {
@@ -20379,14 +20380,25 @@ class SeerController extends Controller
 
         $audiencia_fecha = Carbon::parse($raw_fecha)->format('Y-m-d');
         $audiencia_hora = Carbon::parse($raw_hora)->format('H:i:s');
+
+        // Si terminó en No conciliación, el final se puede cambiar a "Hubo convenio" (App\Support\CambioFinalizacionAudiencia).
+        $audienciaFinal = Audiencias::where('id_solicitud', $id)->where('id', $audiencia_id)->first();
+        $puedeCambiarFinal = \App\Support\CambioFinalizacionAudiencia::puede($user, $solicitudOriginal, $audienciaFinal);
+        // Calendario de "Se desea reagendar": los mismos datos que al concluir (audienciaParte3).
+        $reagenda = $puedeCambiarFinal ? [
+            'sede'               => $solicitudOriginal->delegacion,
+            'conciliador'        => (int) ($solicitudOriginal->conciliador_id ?: $audienciaFinal->id_conciliador),
+            'fecha_confirmacion' => $solicitudOriginal->fecha_confirmacion ? Carbon::parse($solicitudOriginal->fecha_confirmacion)->format('Y-m-d') : now()->format('Y-m-d'),
+        ] : null;
+
         return view('/audiencias/edita_audienciaConcluida', compact('solicitudOriginal','audienciaAEditar','conciliadorId','audiencia_fecha','audiencia_hora',
-            'conceptos','pagos','deducciones','sede','pagoTotal','montoPena','direccion_convenio','solicitante','id','audiencia_id','manifestaciones'
+            'conceptos','pagos','deducciones','sede','pagoTotal','montoPena','direccion_convenio','solicitante','id','audiencia_id','manifestaciones','puedeCambiarFinal','reagenda'
         ));
     }
     public function Guarda_edicion_audienciaConcluida(Request $request){
         $data = $request->all();
         $id_solicitud = $data["id"];
-        $audiencia_id = $data["audiencia_id"]; 
+        $audiencia_id = $data["audiencia_id"];
         $monto = 0;
         $fecha_actual = date('y-m-d');
         $id = auth()->user()->id;
@@ -20396,6 +20408,26 @@ class SeerController extends Controller
         $montoTotal = 0;
         $solicitudOriginal = SeerPerGeneral::find($id_solicitud);
         $sede_a_guardar = $solicitudOriginal->delegacion ?? $user->delegacion;
+
+        // Cambio del final de una No conciliación (convenio, reinstalación, reagendar o archivar).
+        // Se revisa todo antes de guardar nada (App\Support\CambioFinalizacionAudiencia).
+        $audienciaFinal = Audiencias::where('id_solicitud', $id_solicitud)->where('id', $audiencia_id)->first();
+        $destinoFinal = ($audienciaFinal && $audienciaFinal->estatus === \App\Support\CambioFinalizacionAudiencia::NO_CONCILIACION)
+            ? \App\Support\CambioFinalizacionAudiencia::destino($data)
+            : null;
+        if ($destinoFinal) {
+            if (! \App\Support\CambioFinalizacionAudiencia::puede($user, $solicitudOriginal, $audienciaFinal)) {
+                return back()->withInput()->withErrors('No puedes cambiar el final de esta audiencia.');
+            }
+            $faltan = \App\Support\CambioFinalizacionAudiencia::faltantes($destinoFinal, $data, (int) $id_solicitud, $audienciaFinal, $user);
+            if ($faltan) {
+                return back()->withInput()->withErrors($faltan);
+            }
+            if (! in_array($destinoFinal, \App\Support\CambioFinalizacionAudiencia::CONVENIOS, true)) {
+                // Sin convenio no se guardan conceptos, deducciones ni cumplimientos.
+                unset($data['tipo_pago'], $data['monto_pago'], $data['otra_prestacion'], $data['dias_pagos'], $data['monto_deduccion'], $data['descripcion_deduccion']);
+            }
+        }
        //Deducciones
         if (isset($data["monto_deduccion"])) {
             foreach ($data["monto_deduccion"] as $i => $monto) {
@@ -20521,6 +20553,19 @@ class SeerController extends Controller
                     'descripcion' => 'Parcialidad ' . ($index + 1)
                 ]);
             }
+        }
+
+        if ($destinoFinal) {
+            try {
+                $documentos = \App\Support\CambioFinalizacionAudiencia::aplicar($destinoFinal, $data, $solicitudOriginal->fresh(), $audienciaFinal->fresh(), $user,
+                    fn (Request $reagenda) => $this->reagendar_audiencia_parte3ConCandado($reagenda));
+            } catch (\App\Support\AgendaOcupadaException $e) {
+                return back()->withInput()->withErrors($e->getMessage());
+            }
+
+            return redirect()->route('todas_audiencias', array_filter(['buscar' => $solicitudOriginal->NUE]))
+                ->with('success', 'El final de la audiencia '.($solicitudOriginal->NUE ?: '').' cambió a "'.\App\Support\CambioFinalizacionAudiencia::FINALES[$destinoFinal].'". Se registró la incidencia del cambio.')
+                ->with('documentos_convenio', $documentos);
         }
         return redirect()->route('todas_audiencias')->with('success', 'Cambios guardados correctamente.');
     }
