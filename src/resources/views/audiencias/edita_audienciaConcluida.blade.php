@@ -224,13 +224,34 @@
                                             @endif
                                         </div>
                                         @if ($puedeCambiarFinal ?? false)
+                                            <style>
+                                                /* Cambio del final (CambioFinalizacionAudiencia): aviso y bloques legibles. */
+                                                .cf-aviso { background: #FFFBEF; border: 1px solid #EED9A0; border-left: 5px solid #C99400; border-radius: 10px; padding: 14px 18px; color: #2E3C3D; margin-bottom: 14px; }
+                                                .cf-aviso__titulo { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+                                                .cf-aviso__titulo .cf-de { color: #6B7A7B; font-weight: 600; text-decoration: line-through; }
+                                                .cf-aviso__titulo .cf-a { color: #1E5B3A; background: #E5F3EA; border-radius: 999px; padding: 2px 12px; }
+                                                .cf-aviso ul { margin: 0; padding-left: 20px; font-size: 14.5px; line-height: 1.55; }
+                                                .cf-aviso li + li { margin-top: 2px; }
+                                                .cf-etiqueta { font-weight: 700; font-size: 14px; color: #2E3C3D; margin-bottom: 4px; }
+                                                .cf-bloque { background: #F7F9F9; border: 1px solid #DDE3E3; border-radius: 12px; padding: 14px 16px 6px; margin: 12px 0 4px; }
+                                                .cf-bloque label { font-size: 13px !important; font-weight: 600; color: #2E3C3D !important; }
+                                                .cf-bloque br { display: none; }
+                                                .cf-bloque .btn { margin: 4px 0; }
+                                                .cf-bloque .form-group { margin-bottom: 10px; }
+                                                .cf-titulo { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 800; color: #354647; margin: 18px 0 2px; }
+                                                .cf-titulo + p { font-size: 13.5px; color: #5E6E6F; margin: 0 0 4px; }
+                                            </style>
                                             <div class="col-12 mt-3" id="cfMotivoCaja" style="display:none;">
-                                                <div class="alert alert-warning mb-2" style="font-size:14px;">
-                                                    <i class="bi bi-exclamation-triangle-fill me-1"></i>
-                                                    Vas a cambiar el final de <b>No conciliación</b> a <b id="cfDestino"></b>. <span id="cfExplica"></span>
-                                                    Se quitan las multas de la no conciliación y el cambio queda registrado como incidencia.
+                                                <div class="cf-aviso" role="status">
+                                                    <div class="cf-aviso__titulo">
+                                                        <i class="bi bi-arrow-left-right" style="color:#C99400;"></i> Cambio de final:
+                                                        <span class="cf-de">No Hubo Convenio</span>
+                                                        <i class="bi bi-arrow-right"></i>
+                                                        <span class="cf-a" id="cfDestino"></span>
+                                                    </div>
+                                                    <ul id="cfPasos"></ul>
                                                 </div>
-                                                <label for="cfMotivo">Motivo del cambio <span style="color:red;">(*)</span></label>
+                                                <label for="cfMotivo" class="cf-etiqueta">Motivo del cambio <span style="color:red;">(*)</span></label>
                                                 <textarea name="motivo_cambio" id="cfMotivo" class="form-control" rows="2" maxlength="1000" placeholder="Ejemplo: se capturó por error como no conciliación.">{{ old('motivo_cambio') }}</textarea>
                                             </div>
                                             {{-- Reagendar: la nueva audiencia se elige en el calendario de audiencias, como al concluir. --}}
@@ -247,6 +268,12 @@
                                         @endif                                          
                                     </div>
 
+                                    @if ($puedeCambiarFinal ?? false)
+                                        <div id="cfTituloConvenio" style="display:none;">
+                                            <div class="cf-titulo"><i class="bi bi-file-earmark-text"></i> <span id="cfTituloConvenioTexto">Datos del convenio</span></div>
+                                            <p>Estos datos aparecen en el convenio. Después agrega los conceptos, las deducciones y los cumplimientos.</p>
+                                        </div>
+                                    @endif
                                     <div id="dias" class="row gx-2 align-items-end">
                                         <div class="col-xs-12 col-sm-12 col-md-2"><br>
                                             <div class="form-group">
@@ -1580,12 +1607,28 @@
             var form = document.getElementById('form_roles');
             if (!sel || !form) { return; }
             var FINALES = @json(\App\Support\CambioFinalizacionAudiencia::FINALES);
-            var EXPLICA = {
-                'Conciliacion': 'Agrega abajo los conceptos y los cumplimientos; se generan el acta de audiencia y el convenio.',
-                'Reinstalacion': 'Agrega abajo los conceptos y los cumplimientos; se generan el acta de audiencia y el convenio de reinstalación.',
-                'Reagendar': 'Esta audiencia queda como no conciliación reagendada y se crea la nueva en la fecha que elijas.',
-                'Archivar': 'La audiencia y la solicitud quedan archivadas; se genera el acta de archivo.'
+            // Qué pasa con cada final (aviso y confirmación).
+            var PASOS = {
+                'Conciliacion': [
+                    'Llena abajo los <b>datos del convenio</b> y agrega los <b>conceptos</b> y los <b>cumplimientos</b>.',
+                    'La audiencia y la solicitud quedan como <b>convenio</b>.',
+                    'Se generan el <b>acta de audiencia</b> y el <b>convenio</b>.'
+                ],
+                'Reinstalacion': [
+                    'Llena abajo los <b>datos del convenio de reinstalación</b> y agrega los <b>conceptos</b> y los <b>cumplimientos</b>.',
+                    'La audiencia y la solicitud quedan como <b>reinstalación</b>.',
+                    'Se generan el <b>acta de audiencia</b> y el <b>convenio de reinstalación</b>.'
+                ],
+                'Reagendar': [
+                    'Elige en el calendario la <b>fecha y hora</b> de la nueva audiencia.',
+                    'Esta audiencia queda como <b>no conciliación reagendada</b> y se crea la nueva.'
+                ],
+                'Archivar': [
+                    'Escribe abajo el <b>motivo del archivo</b>.',
+                    'La audiencia y la solicitud quedan <b>archivadas</b> y se genera el <b>acta de archivo</b>.'
+                ]
             };
+            var PASOS_SIEMPRE = ['Se quitan las multas de la no conciliación.', 'El cambio queda registrado como <b>incidencia</b>.'];
             var $ = function (id) { return document.getElementById(id); };
             var confirmado = false;
 
@@ -1717,7 +1760,13 @@
                 mostrar('cfMotivoCaja', cambio);
                 $('cfMotivo').required = cambio;
                 $('cfDestino').textContent = FINALES[v] || '';
-                $('cfExplica').textContent = EXPLICA[v] || '';
+                $('cfPasos').innerHTML = (PASOS[v] || []).concat(cambio ? PASOS_SIEMPRE : []).map(function (t) { return '<li>' + t + '</li>'; }).join('');
+
+                // Datos del convenio: título y bloques en tarjeta, campos en renglón.
+                mostrar('cfTituloConvenio', convenio);
+                $('cfTituloConvenioTexto').textContent = v === 'Reinstalacion' ? 'Datos del convenio de reinstalación' : 'Datos del convenio';
+                ['dias', 'pagos'].forEach(function (id) { var el = $(id); if (el) { el.classList.toggle('cf-bloque', convenio); } });
+                if (convenio && $('dias')) { $('dias').style.display = 'flex'; }
 
                 mostrar('cfReagenda', v === 'Reagendar');
                 if ($('cfMotivoArchivo')) { $('cfMotivoArchivo').required = v === 'Archivar'; }
@@ -1757,7 +1806,9 @@
                 Swal.fire({
                     icon: 'warning',
                     title: '¿Cambiar el final a "' + destino + '"?',
-                    html: (EXPLICA[sel.value] || '') + extra + '<br>Se quitan las multas de la no conciliación y el cambio queda registrado como incidencia.',
+                    html: '<ul style="text-align:left;margin:0;padding-left:20px;line-height:1.6;">'
+                        + (PASOS[sel.value] || []).slice(1).concat(PASOS_SIEMPRE).map(function (t) { return '<li>' + t + '</li>'; }).join('')
+                        + '</ul>' + extra,
                     showCancelButton: true,
                     confirmButtonText: 'Sí, cambiar',
                     cancelButtonText: 'Revisar otra vez',
