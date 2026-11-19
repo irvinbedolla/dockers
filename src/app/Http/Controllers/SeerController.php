@@ -20382,9 +20382,15 @@ class SeerController extends Controller
         // Si terminó en No conciliación, el final se puede cambiar a "Hubo convenio" (App\Support\CambioFinalizacionAudiencia).
         $audienciaFinal = Audiencias::where('id_solicitud', $id)->where('id', $audiencia_id)->first();
         $puedeCambiarFinal = \App\Support\CambioFinalizacionAudiencia::puede($user, $solicitudOriginal, $audienciaFinal);
+        // Calendario de "Se desea reagendar": los mismos datos que al concluir (audienciaParte3).
+        $reagenda = $puedeCambiarFinal ? [
+            'sede'               => $solicitudOriginal->delegacion,
+            'conciliador'        => (int) ($solicitudOriginal->conciliador_id ?: $audienciaFinal->id_conciliador),
+            'fecha_confirmacion' => $solicitudOriginal->fecha_confirmacion ? Carbon::parse($solicitudOriginal->fecha_confirmacion)->format('Y-m-d') : now()->format('Y-m-d'),
+        ] : null;
 
         return view('/audiencias/edita_audienciaConcluida', compact('solicitudOriginal','audienciaAEditar','conciliadorId','audiencia_fecha','audiencia_hora',
-            'conceptos','pagos','deducciones','sede','pagoTotal','montoPena','direccion_convenio','solicitante','id','audiencia_id','manifestaciones','puedeCambiarFinal'
+            'conceptos','pagos','deducciones','sede','pagoTotal','montoPena','direccion_convenio','solicitante','id','audiencia_id','manifestaciones','puedeCambiarFinal','reagenda'
         ));
     }
     public function Guarda_edicion_audienciaConcluida(Request $request){

@@ -233,22 +233,16 @@
                                                 <label for="cfMotivo">Motivo del cambio <span style="color:red;">(*)</span></label>
                                                 <textarea name="motivo_cambio" id="cfMotivo" class="form-control" rows="2" maxlength="1000" placeholder="Ejemplo: se capturó por error como no conciliación.">{{ old('motivo_cambio') }}</textarea>
                                             </div>
-                                            {{-- Reagendar: la nueva audiencia, como en la reagenda al concluir. --}}
+                                            {{-- Reagendar: la nueva audiencia se elige en el calendario de audiencias, como al concluir. --}}
                                             <div class="col-12 mt-3" id="cfReagenda" style="display:none;">
-                                                <div class="row g-3 align-items-end">
-                                                    <div class="col-md-4">
-                                                        <label for="cfReagendaFecha">Fecha de la nueva audiencia <span style="color:red;">(*)</span></label>
-                                                        <input type="date" name="reagenda_fecha" id="cfReagendaFecha" class="form-control" min="{{ now()->addDay()->toDateString() }}" value="{{ old('reagenda_fecha') }}">
-                                                    </div>
-                                                    <div class="col-md-3">
-                                                        <label for="cfReagendaHora">Hora <span style="color:red;">(*)</span></label>
-                                                        <input type="time" name="reagenda_hora" id="cfReagendaHora" class="form-control" value="{{ old('reagenda_hora') }}">
-                                                    </div>
-                                                    <div class="col-md-5">
-                                                        <button type="submit" class="btn btn-primary">Guardar</button>
-                                                    </div>
+                                                <input type="hidden" name="reagenda_fecha" id="cfReagendaFecha" value="{{ old('reagenda_fecha') }}">
+                                                <input type="hidden" name="reagenda_hora" id="cfReagendaHora" value="{{ old('reagenda_hora') }}">
+                                                <div class="d-flex flex-wrap align-items-center gap-2 p-3 rounded" style="background:#F5F7F7;border:1px solid #DDE3E3;">
+                                                    <i class="bi bi-calendar-event" style="font-size:20px;color:#496163;"></i>
+                                                    <span id="cfReagendaResumen" class="flex-grow-1">Todavía no eliges la fecha de la nueva audiencia.</span>
+                                                    <button type="button" class="btn btn-outline-secondary" id="cfReagendaAbrir"><i class="bi bi-calendar3 me-1"></i> Elegir en el calendario</button>
+                                                    <button type="submit" class="btn btn-primary" id="cfReagendaGuardar" disabled>Guardar</button>
                                                 </div>
-                                                <small class="text-muted d-block mt-1">Se revisa que el conciliador no tenga otra audiencia a esa hora; los citados se copian a la nueva audiencia como en la reagenda normal.</small>
                                             </div>
                                         @endif                                          
                                     </div>
@@ -387,6 +381,28 @@
                                     </div>
                                 </div>
                             </form>
+                            @if ($puedeCambiarFinal ?? false)
+                                {{-- Calendario de reagenda (el mismo de audiencias/parte3). --}}
+                                <div class="modal fade" id="cfModalReagenda" tabindex="-1" aria-labelledby="cfModalReagendaTitulo" aria-hidden="true">
+                                    <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title" id="cfModalReagendaTitulo">Fecha de la reagenda</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <div id="cfCalendarioAviso" class="alert alert-warning" style="display:none;"></div>
+                                                <div id="cfCalendarioReagenda"></div>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <span class="me-auto text-muted" id="cfSeleccion">Elige un horario disponible.</span>
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                                                <button type="button" class="btn btn-success" id="cfConfirmarReagenda" disabled>Usar este horario</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endif
                         </div>
                     </div>
                 </div>
@@ -1571,6 +1587,123 @@
             var $ = function (id) { return document.getElementById(id); };
             var confirmado = false;
 
+            // ---- Calendario de reagenda (misma lógica que audiencias/parte3) ----
+            var REAGENDA = @json($reagenda);
+            var modalCal = $('cfModalReagenda');
+            if (modalCal) { document.body.appendChild(modalCal); }
+            var calendario = null, eleccion = null;
+
+            function ymd(dt) { return dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0'); }
+            function textoReagenda() {
+                var f = $('cfReagendaFecha').value, h = $('cfReagendaHora').value;
+                if (!f) { return ''; }
+                var d = new Date(f + 'T12:00:00');
+                return d.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) + ' a las ' + h.substring(0, 5) + ' hrs.';
+            }
+            function pintarReagenda() {
+                var hay = !!$('cfReagendaFecha').value;
+                $('cfReagendaResumen').innerHTML = hay ? 'Nueva audiencia: <b>' + textoReagenda() + '</b>' : 'Todavía no eliges la fecha de la nueva audiencia.';
+                $('cfReagendaAbrir').innerHTML = '<i class="bi bi-calendar3 me-1"></i> ' + (hay ? 'Cambiar fecha' : 'Elegir en el calendario');
+                $('cfReagendaGuardar').disabled = !hay;
+            }
+            // Plazo: 46 días naturales desde la confirmación, sin contar días inhábiles del centro.
+            async function fechaLimite() {
+                var inhabiles = [];
+                try {
+                    var r = await fetch(@json(url('/api/dias-inhabiles-centro')) + '?centro=' + encodeURIComponent(REAGENDA.sede) + '&fecha_confirmacion=' + encodeURIComponent(REAGENDA.fecha_confirmacion));
+                    inhabiles = await r.json();
+                } catch (e) { console.error('Días inhábiles', e); }
+                var p = REAGENDA.fecha_confirmacion.split('-').map(Number), dt = new Date(p[0], p[1] - 1, p[2]), n = 0;
+                while (n < 46) {
+                    dt.setDate(dt.getDate() + 1);
+                    var s = ymd(dt), inhabil = false;
+                    for (var i = 0; i < inhabiles.length; i++) { if (s >= inhabiles[i].fecha_inicio && s <= inhabiles[i].fecha_final) { inhabil = true; break; } }
+                    if (!inhabil) { n++; }
+                }
+                return ymd(dt);
+            }
+            function abrirCalendario() {
+                if (!modalCal || !REAGENDA) { return; }
+                bootstrap.Modal.getOrCreateInstance(modalCal).show();
+            }
+            if (modalCal) {
+                modalCal.addEventListener('shown.bs.modal', async function () {
+                    eleccion = null;
+                    $('cfConfirmarReagenda').disabled = true;
+                    $('cfSeleccion').textContent = 'Elige un horario disponible.';
+                    if (calendario) { calendario.destroy(); calendario = null; }
+                    var hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+                    var minima = new Date(hoy); minima.setDate(minima.getDate() + 1);
+                    var minimaStr = ymd(minima);
+                    var lunes = new Date(minima); lunes.setDate(lunes.getDate() - ((lunes.getDay() + 6) % 7));
+                    var limite = await fechaLimite();
+                    var aviso = $('cfCalendarioAviso');
+                    aviso.style.display = limite <= minimaStr ? '' : 'none';
+                    aviso.textContent = 'El plazo para reagendar (46 días desde la confirmación, sin días inhábiles) terminó el ' + limite.split('-').reverse().join('/') + '.';
+
+                    calendario = new FullCalendar.Calendar($('cfCalendarioReagenda'), {
+                        locale: 'es',
+                        firstDay: 1,
+                        initialDate: minimaStr,
+                        initialView: window.innerWidth < 768 ? 'listWeek' : 'dayGridWeek',
+                        headerToolbar: { left: 'prev,next today', center: 'title', right: '' },
+                        validRange: { start: ymd(lunes), end: limite },
+                        events: function (info, ok, falla) {
+                            jQuery.ajax({
+                                url: @json(url('/api/obtenerAudienciasParte2')),
+                                data: { sede: REAGENDA.sede, start: info.startStr, end: info.endStr, conciliador: REAGENDA.conciliador },
+                                success: ok,
+                                error: function () { falla('No se pudieron cargar los horarios'); }
+                            });
+                        },
+                        eventTimeFormat: { hour: '2-digit', minute: '2-digit' },
+                        eventClick: function (info) {
+                            var slot = new Date(info.event.start);
+                            var estado = info.event.extendedProps && info.event.extendedProps.estado;
+                            var titulo = String(info.event.title || '');
+                            var conAudiencia = /audiencia\s*\(/i.test(titulo);
+                            var seleccionable = (estado === 'disponible' || estado === 'ocupado' || conAudiencia) && slot > new Date() && ymd(slot) >= minimaStr;
+                            if (!seleccionable) {
+                                Swal.fire({ icon: 'warning', title: 'Ups...', text: 'Horario no disponible', confirmButtonColor: '#496163' });
+                                return;
+                            }
+                            document.querySelectorAll('#cfCalendarioReagenda .fc-event-selected').forEach(function (el) { el.classList.remove('fc-event-selected'); });
+                            info.el.classList.add('fc-event-selected');
+                            eleccion = { fecha: ymd(slot), hora: slot.toTimeString().substring(0, 5) };
+                            $('cfConfirmarReagenda').disabled = false;
+                            $('cfSeleccion').innerHTML = 'Elegiste: <b>' + eleccion.fecha.split('-').reverse().join('/') + ' ' + eleccion.hora + ' hrs.</b>';
+
+                            var avisos = [];
+                            if (estado === 'ocupado' || conAudiencia) {
+                                var enSlot = (info.event.extendedProps && info.event.extendedProps.audiencias_en_slot) || 1;
+                                avisos.push('Este horario ya tiene ' + (enSlot > 1 ? '<b>' + enSlot + ' audiencias</b> programadas' : '<b>una audiencia</b> programada') + '. Si continúas, la <b>audiencia se empalmará</b>.');
+                            }
+                            var fin = info.event.end ? new Date(info.event.end) : null;
+                            var minutos = fin ? (fin - slot) / 60000 : null;
+                            if (minutos !== null && minutos <= 45) {
+                                avisos.push('El horario dura máximo <b>' + minutos + ' minutos</b>; se sugiere para audiencias de <b>rápido desahogo</b>.');
+                            }
+                            if (avisos.length) {
+                                Swal.fire({ icon: 'info', title: 'Aviso', html: avisos.join('<br><br>'), confirmButtonColor: '#496163' });
+                            }
+                        },
+                        eventDidMount: function (info) {
+                            var estado = info.event.extendedProps.estado;
+                            if (estado) { info.el.classList.add('fc-est-' + estado); info.el.classList.add('fc-event-' + estado); }
+                        }
+                    });
+                    calendario.render();
+                    setTimeout(function () { if (calendario) { calendario.updateSize(); } }, 200);
+                });
+                $('cfConfirmarReagenda').addEventListener('click', function () {
+                    if (!eleccion) { return; }
+                    $('cfReagendaFecha').value = eleccion.fecha;
+                    $('cfReagendaHora').value = eleccion.hora;
+                    pintarReagenda();
+                    bootstrap.Modal.getOrCreateInstance(modalCal).hide();
+                });
+            }
+
             function mostrar(id, si) { var el = $(id); if (el) { el.style.display = si ? '' : 'none'; } }
             function requerido(selector, si) { document.querySelectorAll(selector).forEach(function (el) { el.required = si; if (!si) { el.classList.remove('is-invalid'); } }); }
 
@@ -1585,7 +1718,6 @@
                 $('cfExplica').textContent = EXPLICA[v] || '';
 
                 mostrar('cfReagenda', v === 'Reagendar');
-                requerido('#cfReagendaFecha, #cfReagendaHora', v === 'Reagendar');
                 if ($('cfMotivoArchivo')) { $('cfMotivoArchivo').required = v === 'Archivar'; }
 
                 if (v === 'Reagendar' || v === 'Archivar') {
@@ -1600,16 +1732,25 @@
                 }
             }
             sel.addEventListener('change', aplicar);
+            // "Se desea reagendar" abre el calendario de audiencias.
+            sel.addEventListener('change', function () { if (sel.value === 'Reagendar' && !$('cfReagendaFecha').value) { abrirCalendario(); } });
+            $('cfReagendaAbrir').addEventListener('click', abrirCalendario);
+            pintarReagenda();
             // Si regresó con errores, se vuelven a mostrar las secciones del final que se había elegido.
             if (sel.value !== 'No conciliacion') { sel.dispatchEvent(new Event('change')); } else { aplicar(); }
 
             form.addEventListener('submit', function (e) {
+                if (sel.value === 'Reagendar' && !$('cfReagendaFecha').value) {
+                    e.preventDefault(); e.stopImmediatePropagation();
+                    abrirCalendario();
+                    return;
+                }
                 if (sel.value === 'No conciliacion' || confirmado) { return; }
                 e.preventDefault();
                 e.stopImmediatePropagation();
                 var destino = FINALES[sel.value];
                 var extra = sel.value === 'Reagendar' && $('cfReagendaFecha').value
-                    ? '<br>Nueva audiencia: <b>' + $('cfReagendaFecha').value.split('-').reverse().join('/') + ' ' + $('cfReagendaHora').value + '</b>'
+                    ? '<br>Nueva audiencia: <b>' + textoReagenda() + '</b>'
                     : '';
                 Swal.fire({
                     icon: 'warning',
