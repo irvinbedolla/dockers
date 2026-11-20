@@ -29,10 +29,10 @@ class RecepcionController extends Controller
     public function turnos_guardar(Request $request){
         // Validamos que los campos esenciales existan en la petición
         if (!$request->has('delegacion') || empty($request->input('delegacion'))) {
-            return redirect()->back()->with('error', 'Es necesario seleccionar una sede (delegación).');
+            return redirect()->back()->withInput()->with('error', 'Es necesario seleccionar una sede (delegación).');
         }
         if (!$request->has('tipo') || empty($request->input('tipo'))) {
-            return redirect()->back()->with('error', 'Es necesario seleccionar el Tipo de Trámite.');
+            return redirect()->back()->withInput()->with('error', 'Es necesario seleccionar el Tipo de Trámite.');
         }
         // Cada recepción agenda sólo sus trámites (App\Support\Recepcion::CREA).
         $tramitesPermitidos = \App\Support\Recepcion::tramitesQuePuedeCrear(auth()->user());
@@ -40,11 +40,17 @@ class RecepcionController extends Controller
             return redirect()->back()->withInput()->with('error', 'Tu cuenta sólo puede agendar: '.implode(', ', $tramitesPermitidos).'.');
         }
         if (!$request->filled('fecha_turno') || !$request->filled('hora_turno')) {
-            return redirect()->back()->with('error', 'Es necesario seleccionar la fecha y el horario del turno en el calendario.');
+            return redirect()->back()->withInput()->with('error', 'Es necesario seleccionar la fecha y el horario del turno en el calendario.');
         }
 
-        // CURP y domicilio del flujo nuevo (sólo si el formulario los pidió).
-        [$camposFlujo, $errorFlujo] = \App\Support\FlujoCita::camposDeCita($request);
+        if (!$request->filled('municipio_solicitante')) {
+            return redirect()->back()->withInput()->with('error', 'Es necesario seleccionar el municipio.');
+        }
+
+        // Formulario corto de ventanilla: quien solicita (trabajador o empleador)
+        // y su nombre completo. El resto lo captura el auxiliar en Mi módulo
+        // (App\Support\CitaPatronal::camposVentanilla).
+        [$camposFlujo, $errorFlujo] = \App\Support\CitaPatronal::camposVentanilla($request);
         if ($errorFlujo) {
             return back()->withInput()->with('error', $errorFlujo);
         }
@@ -56,7 +62,9 @@ class RecepcionController extends Controller
         $hora_turno = $data["hora_turno"];
         $id_auxiliar = auth()->user()->id;
         $hora_fin =$hora_turno;
+        // Interruptor "Canalizar a casos de excepción" del formulario de ventanilla.
         $esExcepcion = $request->input('excepcion') === 'Si';
+        $data["excepcion"] = $esExcepcion ? 'Si' : 'No';
 
         $todas_direcciones = [
             'Morelia' => 'BLVD. GARCÍA DE LEÓN NO. 1575, COL. CHAPULTEPEC ORIENTE, C.P. 58260, MORELIA, MICHOACÁN',
@@ -71,7 +79,7 @@ class RecepcionController extends Controller
 
         // El horario seleccionado en el calendario ya no debe estar ocupado ni caer en un día/horario inhábil
         if (!$this->turnoSlotDisponible($sede, $tipoTramite, $fecha_asignada_str, $hora_turno, $data["excepcion"] ?? null)) {
-            return redirect()->back()->with('error', 'El horario seleccionado ya no está disponible. Por favor selecciona otro.');
+            return redirect()->back()->withInput()->with('error', 'El horario seleccionado ya no está disponible. Por favor selecciona otro.');
         }
 
         // 3. SOLUCIÓN AL ERROR: Validar si los campos múltiples vienen como array o como string
@@ -85,7 +93,7 @@ class RecepcionController extends Controller
             if (\App\Support\AsignadorModulos::hayModulosExcepcion($sede)) {
                 $elegido = \App\Support\AsignadorModulos::elegirExcepcion($sede, $fecha_asignada_str, $hora_turno);
                 if (!$elegido) {
-                    return redirect()->back()->with('error', 'No se ha podido completar la cita. No hay quien atienda casos de excepción en ese horario; elige otro.');
+                    return redirect()->back()->withInput()->with('error', 'No se ha podido completar la cita. No hay quien atienda casos de excepción en ese horario; elige otro.');
                 }
                 $modulo    = $elegido->nombre;
                 $modulo_id = $elegido->id;
@@ -99,7 +107,7 @@ class RecepcionController extends Controller
             // Catálogo de módulos: Administración → Módulos.
             $elegido = \App\Support\AsignadorModulos::elegir($sede, $tipoTramite, $fecha_asignada_str, $hora_turno);
             if (!$elegido) {
-                return redirect()->back()->with('error', 'No se ha podido completar tu cita. No se ha encontrado auxiliar disponible.');
+                return redirect()->back()->withInput()->with('error', 'Ese horario se ocupó mientras llenabas el formulario: ya no hay auxiliar libre a esa hora. Vuelve a abrir los horarios y elige otro.');
             }
             $id_aux    = $elegido->user_id;
             $modulo    = $elegido->nombre;
@@ -115,7 +123,7 @@ class RecepcionController extends Controller
             DB::transaction(function () use (
                 $sede, $fecha_asignada_str, $hora_turno, $hora_fin, $id_aux, 
                 $tipoTramite, $modulo, $modulo_id, $data, $tipo_caso, $prestacionSS, 
-                $vulnerables, $camposFlujo, &$numero_consecutivo, &$cita
+                $vulnerables, $camposFlujo, $esExcepcion, &$numero_consecutivo, &$cita
             ) {
                 $ultimoTurno = Recepcion::where('delegacion', $sede) 
                     ->lockForUpdate()
@@ -137,7 +145,8 @@ class RecepcionController extends Controller
                     'exepcion'        => $data["excepcion"] ?? 'No',
                     'edad'            => $data["edad"] ?? null,
                     'sexo'            => $data["sexo"] ?? null,
-                    'tipo_caso'       => $tipo_caso,
+                    // Sin pregunta de motivos: el caso de excepción lo clasifica quien lo atiende.
+                    'tipo_caso'       => $tipo_caso ?? ($esExcepcion ? null : 'Ninguno'),
                     // Motivo exacto del caso de excepción (CasosExcepcion::MOTIVOS).
                     ...(\App\Support\CasosExcepcion::conMotivo()
                         ? ['motivo_excepcion' => \App\Support\CasosExcepcion::motivoValido($data['motivo_excepcion'] ?? null)]
@@ -145,15 +154,16 @@ class RecepcionController extends Controller
                     'prestacionSS'    => $prestacionSS,
                     'vulnerables'     => $vulnerables,
                     'conflicto'       => $data["conflicto"] ?? null,
-                    'solicitante'     => $data["nombre"] ?? null,
+                    'solicitante'     => $camposFlujo['solicitante'] ?? ($data["nombre"] ?? null),
                     'estatus'         => 'pendiente',
                     'orientacion'     => $data["orientacion"] ?? 'No',
                     'delegacion'      => $sede,
                     'folio'           => $data["folio"] ?? null,
                     'INS'             => $data["INS"] ?? null,
                     'resultado'       => null,
-                    'telefono'        => $data["telefono"],
-                    'correo'          => $data["correo"],
+                    // Ventanilla ya no pide teléfono ni correo (se capturan en Mi módulo).
+                    'telefono'        => $data["telefono"] ?? null,
+                    'correo'          => $data["correo"] ?? null,
                     'municipio'       => $data["municipio_solicitante"],
                 ] + $camposFlujo);
             }); 
@@ -164,7 +174,7 @@ class RecepcionController extends Controller
         
         }
         catch (\Throwable $e) { 
-            return redirect()->back()->with('error', 'No se ha podrido completar tu cita.'); 
+            return redirect()->back()->withInput()->with('error', 'No se ha podido completar tu cita.'); 
         }
     }
 
@@ -878,9 +888,27 @@ class RecepcionController extends Controller
             ? \App\Support\AsignadorModulos::modulosExcepcion($sede)
             : null;
         $minutosReserva = $esExcepcion && ! $publico ? max(HorarioCitas::TOLERANCIA_RESERVA, (int) $config->duracion - 1) : HorarioCitas::TOLERANCIA_RESERVA;
-        $cupo = fn (string $hora) => $modulosExcepcion !== null
-            ? \App\Support\AsignadorModulos::capacidadExcepcion($sede, $publico ? 'linea' : 'ventanilla', $hora, $modulosExcepcion)
+        $cupo = fn (string $hora, ?string $dia = null) => $modulosExcepcion !== null
+            ? \App\Support\AsignadorModulos::capacidadExcepcion($sede, $publico ? 'linea' : 'ventanilla', $hora, $modulosExcepcion, $dia)
             : HorarioCitas::capacidad($config, $hora);
+
+        // Aunque quede cupo en Horarios, la hora se bloquea si no hay ningún
+        // módulo libre a quien asignar la cita (comida, pausa, persona inactiva
+        // u ocupada con otra cita). Mismas reglas que AsignadorModulos::elegir.
+        // Esa hora sale como "Sin auxiliar" (gris), no como "Ocupado".
+        // Las sedes sin módulo de excepción (Departamento) siguen como antes.
+        $hayModuloLibre = (! $esExcepcion || $modulosExcepcion !== null)
+            ? \App\Support\AsignadorModulos::disponibilidadEnRango(
+                $sede,
+                $esExcepcion ? \App\Support\AsignadorModulos::TRAMITE_EXCEPCION : $tipo,
+                $fecha_inicio_str,
+                $fecha_fin_str,
+                $publico,
+                // Reagenda: sólo módulos que aceptan citas movidas, sin contar la que se mueve.
+                $request->boolean('reasignacion'),
+                $request->filled('excepto') ? (int) $request->input('excepto') : null
+            )
+            : fn () => true;
 
         $ahora = now();
         $eventos = [];
@@ -890,12 +918,19 @@ class RecepcionController extends Controller
         $colores = [
             'ocupado' => '#DA0909', 'inhabil' => '#3B78DB',
             'expirado' => '#8a959e', 'disponible' => '#26c03a',
-            'turnos' => '#26c03a',
+            'turnos' => '#26c03a', 'sin_auxiliar' => '#8a959e',
         ];
         $titulos = [
             'ocupado' => 'Ocupado', 'inhabil' => 'Inhábil',
             'expirado' => 'No disponible', 'disponible' => 'Disponible',
+            'sin_auxiliar' => 'Sin auxiliar',
         ];
+        // Por qué no hay lugar, para que la ventanilla lo pueda decir (turnos._cita_scripts).
+        $motivoGeneral = match (true) {
+            $enPausa => 'pausa',
+            ! $esExcepcion && ! \App\Support\AsignadorModulos::hayQuienReciba(\App\Support\AsignadorModulos::deSede($sede, true), $tipo) => 'sin_modulo',
+            default => null,
+        };
 
         while ($fecha <= $fin) {
             if ((int) $fecha->format('N') < 6) { // Saltar fines de semana
@@ -917,12 +952,18 @@ class RecepcionController extends Controller
 
                     $cantidadOcupados = $ocupadosCount[$slotStart] ?? 0;
                     $tolerancia = Carbon::parse($slotStart)->addMinutes($minutosReserva);
-                    $capacidad = $cupo($hora);
+                    $capacidad = $cupo($hora, $dia);
 
+                    $motivo = null;
                     if ($enPausa || $lleno || $esInhabil || $ahora > $tolerancia || $capacidad === 0) {
                         $estado = 'expirado';
+                        $motivo = $motivoGeneral;
                     } elseif ($cantidadOcupados >= $capacidad) {
                         $estado = 'ocupado';
+                    } elseif (! $hayModuloLibre($dia, $hora)) {
+                        // Hay cupo, pero ningún módulo puede recibirla: ocupados, en comida o inactivos.
+                        $estado = 'sin_auxiliar';
+                        $motivo = $motivoGeneral ?? 'ocupados';
                     } elseif ($cantidadOcupados > 0) {
                         $estado = 'turnos';
                     } else {
@@ -933,7 +974,7 @@ class RecepcionController extends Controller
                         'title' => $estado === 'turnos' ? 'Disponible' : $titulos[$estado],
                         'start' => $slotStart,
                         'color' => $colores[$estado],
-                        'extendedProps' => ['estado' => $estado],
+                        'extendedProps' => array_filter(['estado' => $estado, 'motivo' => $motivo]),
                     ];
                 }
             }
@@ -960,7 +1001,7 @@ class RecepcionController extends Controller
         $delDia = HorarioCitas::citasQueOcupan($sede, $tipo, $esExcepcion)->where('fecha', $fecha);
 
         $capacidad = $esExcepcion
-            ? (\App\Support\AsignadorModulos::capacidadExcepcion($sede, $publico ? 'linea' : 'ventanilla', $hora) ?? HorarioCitas::capacidad($config, $hora))
+            ? (\App\Support\AsignadorModulos::capacidadExcepcion($sede, $publico ? 'linea' : 'ventanilla', $hora, null, $fecha) ?? HorarioCitas::capacidad($config, $hora))
             : HorarioCitas::capacidad($config, $hora);
         if ((clone $delDia)->where('hora', $hora)->count() >= $capacidad) {
             return false;

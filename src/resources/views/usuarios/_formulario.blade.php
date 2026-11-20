@@ -198,6 +198,8 @@
     $agendaInicio = old('conciliador_inicio', $agenda['inicio']);
     $agendaFin    = old('conciliador_fin', $agenda['fin']);
     $subsedes     = ['Morelia' => 'Zitácuaro', 'Uruapan' => 'Lázaro Cárdenas', 'Zamora' => 'Sahuayo'];
+    // Con agenda por sede, aquí sólo se muestra: se edita en Administración → Conciliadores.
+    $agendaPorSede = ! $esNuevo && \App\Support\SedesConciliador::configurado($user->id);
 @endphp
 <div class="tn-tarjeta uf-seccion" id="ufAgenda" @if (! in_array('Conciliador', (array) old('roles', $rolesActuales), true)) hidden @endif>
     <h5 class="uf-seccion__titulo"><span class="uf-seccion__num"><i class="bi bi-calendar-week"></i></span> Audiencias del conciliador</h5>
@@ -207,6 +209,18 @@
             <strong style="color:#8A6A12;">Todavía no tiene agenda: hoy no recibe audiencias.</strong>
         @endif
     </p>
+    @if ($agendaPorSede)
+        <div class="alert alert-light border mb-0">
+            <strong><i class="bi bi-diagram-3-fill" style="color:#A9842A;"></i> Agenda por sede:</strong>
+            {{ \App\Support\SedesConciliador::resumen($user) }}.
+            Sus sedes, días y horarios se cambian en
+            @if (auth()->user()->hasRole('Super Usuario'))
+                <a href="{{ route('conciliadores.editar', $user->id) }}">Administración → Conciliadores</a>.
+            @else
+                Administración → Conciliadores (Super Usuario).
+            @endif
+        </div>
+    @else
     <div class="row g-3">
         <div class="col-12">
             <label>Qué audiencias recibe <span class="req">*</span></label>
@@ -253,6 +267,7 @@
             <div class="form-text mt-0">Las vacaciones y permisos de un día se bloquean en Administración → bloqueo de conciliadores; aquí va su horario normal.</div>
         </div>
     </div>
+    @endif
 </div>
 
 {{-- 3. Contraseña --}}

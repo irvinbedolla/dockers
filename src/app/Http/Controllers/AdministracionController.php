@@ -1329,7 +1329,10 @@ class AdministracionController extends Controller{
         $conciliadores = User::role('Conciliador')
             ->whereIn('delegacion', $delegacionesConciliadores)
             ->orderBy('name')
-            ->get();
+            ->get()
+            // Más quien viene de otra delegación con agenda por sede en esta sede.
+            ->concat(\App\Support\SedesConciliador::conciliadoresDeSedes([$sede->nombre]))
+            ->unique('id')->sortBy('name')->values();
 
         // Jornada semanal de cada conciliador, para sombrear en el calendario las
         // horas en las que de entrada no atiende. Se manda completa a la vista
@@ -1341,7 +1344,8 @@ class AdministracionController extends Controller{
         $jornadas = [];
 
         foreach ($conciliadores as $con) {
-            $jornadas[$con->id] = $this->jornadaSemanal($horarios->get($con->id));
+            // Con agenda por sede, la de ESTA sede (sus días aquí); si no, la de siempre.
+            $jornadas[$con->id] = $this->jornadaSemanal(\App\Support\SedesConciliador::filaDeSede($con->id, $sede->nombre) ?? $horarios->get($con->id));
         }
 
         // Aquí se consultaban todos los bloqueos de la sede para pasárselos a la

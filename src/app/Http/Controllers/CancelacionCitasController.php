@@ -205,12 +205,25 @@ class CancelacionCitasController extends Controller
             return back()->with('error', 'Ese horario ya no tiene lugar'.($cambiaSede || $cambiaTipo ? " en {$sede} para {$tipo}" : '').'. Elige otro.');
         }
 
-        // Como al agendar: el primer módulo libre a esa hora. Si no hay, se queda en
-        // el que tenía; si cambió de sede o de trámite, ese ya no le toca: queda sin módulo.
-        // Es una cita que se mueve: cuenta como reasignación (no a módulos que no la aceptan).
-        $modulo = $excepcion ? null : AsignadorModulos::elegir($sedeReal, $tipoReal, $datos['fecha'], $hora, false, true);
-        // Tampoco se queda en el suyo si ese módulo ya no acepta citas movidas a esa
-        // fecha (pausa total o "Acepta reasignaciones" apagado).
+        // Como al agendar: un módulo libre a esa hora (puede ser el mismo que tenía).
+        // Es una cita que se mueve: cuenta como reasignación (no a módulos que no la
+        // aceptan) y no choca consigo misma. Si no hay módulo libre no se mueve: antes
+        // se quedaba en el suyo sin revisar si estaba ocupado, o sin módulo.
+        // Los módulos se buscan con los nombres del catálogo ($sede, $tipo): hay
+        // citas guardadas sin acento. Excepción en una sede sin módulo de excepción
+        // (Departamento): sigue como antes, conserva a quien la tenía.
+        $tramiteModulo = $excepcion
+            ? (AsignadorModulos::hayModulosExcepcion($sede) ? AsignadorModulos::TRAMITE_EXCEPCION : null)
+            : $tipo;
+        $modulo = $tramiteModulo
+            ? AsignadorModulos::elegir($sede, $tramiteModulo, $datos['fecha'], $hora, false, true, $cita->id)
+            : null;
+        if ($tramiteModulo && ! $modulo) {
+            return back()->with('error', 'No hay un módulo libre que pueda recibir la cita el '
+                .Carbon::parse($datos['fecha'])->format('d/m/Y').' a las '.substr($hora, 0, 5).'. Elige otro horario.');
+        }
+        // Sólo aplica al Departamento (sin módulo): no se queda con quien la tenía si
+        // ese módulo ya no acepta citas movidas a esa fecha (pausa total o "Acepta reasignaciones" apagado).
         $conservaModulo = ! $cambiaSede && ! $cambiaTipo
             && ! ($cita->modulo_id && ($suModulo = \App\Models\Modulo::find($cita->modulo_id)) && ! $suModulo->aceptaReasignacion($datos['fecha']));
         $antes  = $cita->fecha->format('d/m/Y').' '.substr($cita->getRawOriginal('hora'), 0, 5)

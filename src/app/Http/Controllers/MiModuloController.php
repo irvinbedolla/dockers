@@ -220,10 +220,10 @@ class MiModuloController extends Controller
             'ausente'  => 'Folio '.$folio.' marcado como no presentado.',
         ];
 
+        // Con turno se revisa; sin turno (se agendó en /generar-cita o en
+        // ventanilla) se captura con lo que se dio al agendar y se crea al guardar.
         if (self::esRatificacion($cita) && $accion === 'atender') {
-            return response()->json($turno
-                ? ['ok' => true, 'mensaje' => $mensajes[$accion], 'ir' => route('mi_modulo.ratificacion', ['id' => $cita->id])]
-                : ['ok' => true, 'mensaje' => $mensajes[$accion], 'aviso' => $this->avisoSinRatificacion($cita)]);
+            return response()->json(['ok' => true, 'mensaje' => $mensajes[$accion], 'ir' => route('mi_modulo.ratificacion', ['id' => $cita->id])]);
         }
         if ($confirmarTurno) {
             $mensajes['terminar'] .=' La ratificación quedó confirmada: revísala en Ratificaciones → Confirmadas.';
@@ -233,8 +233,10 @@ class MiModuloController extends Controller
     }
 
     /**
-     * Ratificación en atención: el formulario de citas/{origen} con los datos
-     * de su turno (turnos.recepcion_id) para revisarlos y corregirlos.
+     * Ratificación en atención: el formulario de citas/{origen}. Con turno
+     * (turnos.recepcion_id), sus datos para revisarlos y corregirlos; sin
+     * turno, lo que se capturó al agendar (PrellenadoCita::ratificacion): el
+     * folio patronal si lo dio el empleador y la persona trabajadora.
      */
     public function ratificacion(Request $request, int $id)
     {
@@ -246,13 +248,27 @@ class MiModuloController extends Controller
             'origen'     => 'modulo',
             'turno'      => $turno,
             'cita'       => $cita,
+            'prellenadoCita' => $turno ? null : \App\Support\PrellenadoCita::ratificacion($cita),
         ]);
     }
 
-    /** "Finalizar" del formulario: guarda los cambios y regresa a Mi módulo para terminar. */
+    /**
+     * "Finalizar" del formulario: guarda los cambios (o crea el turno, si la
+     * cita no tenía) y regresa a Mi módulo para terminar.
+     */
     public function guardarRatificacion(Request $request, int $id)
     {
         [$cita, $turno] = $this->ratificacionEnAtencion($request, $id);
+
+        // Sin turno se crea con el folio de representante patronal (como /citas/externo).
+        $poder = null;
+        if (! $turno) {
+            $request->validate(['folio' => 'required'], ['folio.required' => 'Escribe el folio de representante patronal.']);
+            [$poder, $errorFolio] = \App\Support\CitaPatronal::poderElegible($request->input('folio'));
+            if ($errorFolio) {
+                return back()->withInput()->withErrors(['folio' => $errorFolio]);
+            }
+        }
 
         $request->validate([
             'primero_trabajador'      => 'required',
@@ -324,22 +340,81 @@ class MiModuloController extends Controller
             'Especifique'         => $prestacion('Otras') ? $request->input('Especifique') : null,
         ];
 
-        // Los documentos sólo se reemplazan si suben uno nuevo (mismos nombres que store_publico).
-        $curp = $cambios['trabajador_curp'];
-        if ($request->hasFile('documentoidentificacion')) {
-            $cambios['documentoidentificacion'] = $curp.'_IDENTIFICACION.pdf';
-            \Illuminate\Support\Facades\Storage::disk('s3')->putFileAs('documentos_ratificacion/'.$turno->id, $request->file('documentoidentificacion'), $cambios['documentoidentificacion']);
-        }
-        if ($request->hasFile('cuantificacion')) {
-            $cambios['documentoCuanti'] = $curp.'_CUANTIFICACION.pdf';
-            \Illuminate\Support\Facades\Storage::disk('s3')->putFileAs('documentos_ratificacion/'.$turno->id, $request->file('cuantificacion'), $cambios['documentoCuanti']);
+        $nuevo = ! $turno;
+        if ($nuevo) {
+            $turno = $this->crearTurno($cita, $poder, $cambios);
         }
 
-        \App\Services\HistorialRatificacionRecorder::actualizar($turno, $cambios,
-            'Revisión de datos en Mi módulo (folio '.FolioCita::mostrar($cita).')');
+        // Los documentos sólo se reemplazan si suben uno nuevo (mismos nombres que store_publico).
+        $curp = $cambios['trabajador_curp'];
+        $documentos = [];
+        if ($request->hasFile('documentoidentificacion')) {
+            $documentos['documentoidentificacion'] = $curp.'_IDENTIFICACION.pdf';
+            \Illuminate\Support\Facades\Storage::disk('s3')->putFileAs('documentos_ratificacion/'.$turno->id, $request->file('documentoidentificacion'), $documentos['documentoidentificacion']);
+        }
+        if ($request->hasFile('cuantificacion')) {
+            $documentos['documentoCuanti'] = $curp.'_CUANTIFICACION.pdf';
+            \Illuminate\Support\Facades\Storage::disk('s3')->putFileAs('documentos_ratificacion/'.$turno->id, $request->file('cuantificacion'), $documentos['documentoCuanti']);
+        }
+
+        if ($nuevo) {
+            if ($documentos) {
+                $turno->update($documentos);
+            }
+        } else {
+            \App\Services\HistorialRatificacionRecorder::actualizar($turno, $cambios + $documentos,
+                'Revisión de datos en Mi módulo (folio '.FolioCita::mostrar($cita).')');
+        }
 
         return redirect()->route('mi_modulo', ['modulo' => $cita->modulo_id])
             ->with('success', 'Datos de la ratificación del folio '.FolioCita::mostrar($cita).' guardados. Da clic en "Terminar" para confirmarla.');
+    }
+
+    /**
+     * Turno (ratificación) de una cita que no tenía: los datos del formulario
+     * y la parte patronal del folio, como el folio de /citas/externo
+     * (TurnosController::store_publico), ligado a la cita (recepcion_id).
+     * Queda Pendiente; "Terminar" en Mi módulo la confirma.
+     */
+    private function crearTurno(\App\Models\Recepcion $cita, \App\Models\Poder $poder, array $cambios): \App\Models\Turnos
+    {
+        $fisica = $poder->tipo === 'Fisica';
+        $anio   = (int) now()->format('Y');
+        $ine    = $fisica
+            ? $poder->nombre_patronal.$poder->primer_apellido_patronal.$poder->segundo_apellido_patronal.'-'.$poder->empresa.'_IDENTIFICACION.pdf'
+            : $poder->nombres_patronal.'_IDENTIFICACION.pdf';
+
+        return DB::transaction(function () use ($cita, $poder, $cambios, $fisica, $anio, $ine) {
+            $ultimo = \App\Models\Turnos::where('delegacion', $cita->delegacion)->where('año', $anio)
+                ->lockForUpdate()->max('consecutivo');
+
+            return \App\Models\Turnos::create($cambios + [
+                'consecutivo'             => ((int) $ultimo) + 1,
+                'empresa'                 => $poder->nombres_patronal,
+                'primero_empresa'         => $poder->primer_apellido_patronal,
+                'segundo_empresa'         => $poder->segundo_apellido_patronal,
+                'nombre_empresa'          => $poder->nombres_patronal,
+                'email'                   => $fisica ? $poder->email_patronal : $poder->correo_representante,
+                'telefono'                => $fisica ? $poder->telefono_patronal : $poder->numero_representante,
+                'curp_solicitante'        => $fisica ? $poder->curp_patronal : $poder->curp_representante,
+                'idAbogado'               => $poder->idAbogado,
+                'id_historial'            => \App\Models\HistorialAbogado::where('id_abogado', $poder->idAbogado)->latest()->value('id'),
+                'ine'                     => $ine,
+                'representacion'          => '',
+                'documentoidentificacion' => 'Sin documento',
+                'auxiliar'                => $cita->auxiliar ?? 0,
+                'lugar_auxiliar'          => $cita->lugar_auxiliar ?: 'Recepción',
+                'delegacion'              => $cita->delegacion,
+                'fecha'                   => $cita->fecha ? $cita->fecha->format('Y-m-d') : now()->toDateString(),
+                'hora'                    => $cita->hora ? $cita->hora->format('H:i') : now()->format('H:i'),
+                'hora_fin'                => $cita->hora_fin ?? ($cita->hora ? $cita->hora->format('H:i') : now()->format('H:i')),
+                'estatus'                 => 'Pendiente',
+                'exepcion'                => 'No',
+                'user_id'                 => auth()->id() ?? 0,
+                'año'                     => $anio,
+                'recepcion_id'            => $cita->id,
+            ]);
+        });
     }
 
     public function descartar(Request $request)
@@ -410,9 +485,9 @@ class MiModuloController extends Controller
 
     /**
      * La cita de ratificación de su módulo, vigente y ya en atención, con su
-     * turno; si no hay turno ligado, regresa a Mi módulo.
+     * turno (null si todavía no tiene).
      *
-     * @return array{0: \App\Models\Recepcion, 1: \App\Models\Turnos}
+     * @return array{0: \App\Models\Recepcion, 1: ?\App\Models\Turnos}
      */
     private function ratificacionEnAtencion(Request $request, int $id): array
     {
@@ -425,28 +500,8 @@ class MiModuloController extends Controller
         abort_unless(in_array($cita->estatus, self::VIGENTES, true) && $cita->atencion_inicio_at, 422,
             'Primero inicia la atención de la cita en Mi módulo.');
 
-        $turno = $this->turnoDeCita($cita);
-        if (! $turno) {
-            abort(redirect()->route('mi_modulo', ['modulo' => $cita->modulo_id])
-                ->with('aviso_ratificacion', $this->avisoSinRatificacion($cita)));
-        }
-
-        return [$cita, $turno];
-    }
-
-    /**
-     * Aviso de Mi módulo cuando la cita de ratificación no tiene turno ligado:
-     * se agendó sin el formulario (p. ej. desde recepción), así que no hay
-     * datos que revisar y hay que capturarla en Ratificaciones → Nueva Ratificación.
-     */
-    private function avisoSinRatificacion(\App\Models\Recepcion $cita): array
-    {
-        return [
-            'folio'    => FolioCita::mostrar($cita),
-            'urlNueva' => request()->user()?->can('ratificaciones_crear')
-                ? route('create_cita', ['origen' => 'interno'])
-                : null,
-        ];
+        // Sin turno ligado se captura en el mismo formulario y se crea al guardar.
+        return [$cita, $this->turnoDeCita($cita)];
     }
 
     /** Otra cita del mismo módulo ya llamada y sin terminar (se atiende de una en una). */
@@ -531,6 +586,7 @@ class MiModuloController extends Controller
                 ...(FlujoCita::conSeguimiento() ? ['r.confirmada_at'] : []),
                 ...(FlujoCita::conTardias() ? ['r.llego_tarde'] : []),
                 ...(MotivoTermino::migrado() ? ['r.motivo_termino', 'r.motivo_termino_texto'] : []),
+                ...(\App\Support\CitaPatronal::migrado() ? ['r.poder_folio', 'r.citado', 'r.calidad'] : []),
                 'mu.nombre as municipio',
             ])
             ->map(function ($c) use ($ahora, $hoy, $aviso, $actualId, $sigueId) {
@@ -559,6 +615,13 @@ class MiModuloController extends Controller
                     'motivo'      => trim((string) ($c->conflicto ?: $c->observaciones)),
                     'caso'        => $c->tipo_caso,
                     'vulnerables' => $c->vulnerables,
+                    // Quién agendó y, si fue el empleador, su folio y la persona trabajadora (App\Support\CitaPatronal).
+                    'empleador'   => \App\Support\CitaPatronal::esEmpleador($c),
+                    // Formulario corto de ventanilla: quién solicita y si recepción lo canalizó a excepción.
+                    'calidad'     => match ($c->calidad ?? null) { 'trabajador' => 'Trabajador', 'empleador' => 'Empleador', default => null },
+                    'excepcion'   => $c->exepcion === 'Si',
+                    'folioPatronal' => \App\Support\CitaPatronal::esPatronal($c) ? (string) $c->poder_folio : null,
+                    'citado'      => \App\Support\CitaPatronal::nombreCitado($c),
                     'minutos'     => $minutos,
                     'porLlegar'   => $vigente && $minutos >= 0 && $minutos <= $aviso,
                     'esActual'    => $c->id === $actualId,

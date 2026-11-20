@@ -22,10 +22,24 @@
             'roles'  => ['Super Usuario'],
         ],
         [
+            'ruta'   => 'conciliadores.index',
+            'icono'  => 'bi-diagram-3',
+            'titulo' => 'Conciliadores',
+            'texto'  => 'Sedes que atiende cada uno, presencial o virtual, días y horario.',
+            'roles'  => ['Super Usuario'],
+        ],
+        [
             'ruta'   => 'horarios.index',
             'icono'  => 'bi-clock-history',
             'titulo' => 'Horarios de citas',
             'texto'  => 'Intervalos, cupo por horario y límite diario por sede.',
+            'roles'  => ['Super Usuario'],
+        ],
+        [
+            'ruta'   => 'inventario.index',
+            'icono'  => 'bi-pc-display',
+            'titulo' => 'Inventario',
+            'texto'  => 'Dispositivos, resguardantes, verificación y revisión.',
             'roles'  => ['Super Usuario'],
         ],
         [

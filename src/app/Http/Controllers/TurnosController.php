@@ -568,6 +568,12 @@ class TurnosController extends Controller
     }
 
     public function create_publico($origen){
+        // /citas/interno es para el personal: sin sesión, al login (y de
+        // regreso aquí después de entrar). /citas/externo sigue siendo público.
+        if ($origen === 'interno' && ! auth()->check()) {
+            return redirect()->guest(route('login'));
+        }
+
         $estados = Estados::all();
         $municipios = Municipios::all();
         return view('citas', compact('estados','municipios', 'origen'));
@@ -976,6 +982,48 @@ class TurnosController extends Controller
 
         return redirect()->route('audiencias.cumplimiento');
     }
+
+    /**
+     * Registra como "Pagado con pena convencional" una parcialidad de ratificación
+     * que antes se marcó como incumplida ("No pagado"), guardando el monto de la pena.
+     */
+    public function pagarConPenaRatificacion(Request $request)
+    {
+        $data = $request->validate([
+            'id'            => 'required|integer|exists:pago_solicitud,id',
+            'observaciones' => 'nullable|string',
+            'monto_pc'      => 'required|numeric|min:0',
+        ]);
+
+        $pago = Pagos::where('id', $data['id'])
+            ->where('tipo_pago', 'Ratificacion')
+            ->where('estatus', 'No pagado')
+            ->first();
+
+        if (!$pago) {
+            return redirect()->back()->with('error', 'Solo se puede pagar con pena convencional una parcialidad de ratificación en No Cumplimiento.');
+        }
+
+        $pago->update([
+            'estatus'          => 'Pagado con pena convencional',
+            'observaciones'    => $data['observaciones'] ?? null,
+            'monto_pc'         => $data['monto_pc'],
+            'user_id'          => auth()->user()->id,
+            'fecha_conclucion' => \Carbon\Carbon::now()->format('Y-m-d'),
+        ]);
+
+        $faltantes = Pagos::where('id_solicitud', $pago->id_solicitud)
+            ->where('tipo_pago', 'Ratificacion')
+            ->where('estatus', 'Pendiente')
+            ->count();
+
+        if ($faltantes == 0) {
+            Turnos::find($pago->id_solicitud)->update(['estatus' => 'Concluida']);
+        }
+
+        return redirect()->route('audiencias.cumplimiento');
+    }
+
     public function pagarTotalRatificacion(Request $request)
     {
         $data = $request->all();
@@ -1350,9 +1398,8 @@ class TurnosController extends Controller
             $deduccionesTexto[$deduccion->id] = $this->convertirNumerosALetras($deduccion->monto);
         }
 
-        $totalPrestaciones = $prestaciones->sum('monto');
-        $totalDeducciones = $deducciones->sum('monto');
-        $pagoTotal = $totalPrestaciones - $totalDeducciones;
+        // Neto a pagar y monto de las cláusulas QUINTA y SEXTA (ver montoConvenio()).
+        [$pagoTotal, $montoConvenio] = $this->montoConvenio($prestaciones, $deducciones, $solicitud->monto);
 
         $dias_descanso = $solicitud->dias !== null ? 7 - $solicitud->dias : null;
         $salario_diario = $this->calcularSalarioDiario($solicitud->salario, $solicitud->frecuencia);
@@ -1360,7 +1407,7 @@ class TurnosController extends Controller
 
         $diarioTexto = $this->convertirNumerosALetras($salario_diario);
         $mensualTexto = $this->convertirNumerosALetras($salario_mensual);
-        $montoTexto = $this->convertirNumerosALetras($solicitud->monto);
+        $montoTexto = $this->convertirNumerosALetras($montoConvenio);
 
         // Obtener el número de pagos
         $pagosDif = Pagos::join("turnos", "turnos.id", "=", "pago_solicitud.id_solicitud")
@@ -1388,7 +1435,7 @@ class TurnosController extends Controller
                 'diarioTexto', 'mensualTexto', 'montoTexto', 'conceptosTexto', 'deduccionesTexto', 
                 'pagosDif', 'conciliador', 'abogado', 'municipioEmpresa', 'estadoEmpresa', 'pagoTotal', 
                 'descripcionIdentificacionS', 'descripcionIdentificacionP','prestaciones','deducciones','delegado',
-                'inicialesConcluye', 'etiquetaIniciales'
+                'inicialesConcluye', 'etiquetaIniciales', 'montoConvenio'
             )
         )->render();
 
@@ -1413,6 +1460,25 @@ class TurnosController extends Controller
             default:
                 return 0;
         }
+    }
+
+    /**
+     * Monto del convenio de una ratificación: el neto de lo que se capturó al
+     * concluir (prestaciones menos deducciones), redondeado a centavos. Es lo
+     * mismo que la tabla "Neto a pagar", así que las cláusulas, la letra y la
+     * tabla siempre dicen la misma cantidad.
+     *
+     * turnos.monto es el "monto total del convenio" que se capturó en la
+     * solicitud y no se actualiza si al concluir cambian los conceptos o se
+     * agregan deducciones; sólo se usa si la ratificación no tiene conceptos.
+     *
+     * @return array{0: float, 1: float} [neto a pagar, monto del convenio]
+     */
+    private function montoConvenio($prestaciones, $deducciones, $montoCapturado): array
+    {
+        $neto = round((float) $prestaciones->sum('monto') - (float) $deducciones->sum('monto'), 2);
+
+        return [$neto, $prestaciones->isNotEmpty() ? $neto : round((float) $montoCapturado, 2)];
     }
 
     private function convertirNumerosALetras($valor) {
@@ -3162,10 +3228,8 @@ class TurnosController extends Controller
             $deduccionesTexto[$deduccion->id] = $this->convertirNumerosALetras($deduccion->monto);
         }
 
-        $totalPrestaciones = $prestaciones->sum('monto');
-        $totalDeducciones = $deducciones->sum('monto');
-        //Total a pagar
-        $pagoTotal= $totalPrestaciones-$totalDeducciones;
+        // Neto a pagar y monto de las cláusulas (ver montoConvenio()).
+        [$pagoTotal, $montoConvenio] = $this->montoConvenio($prestaciones, $deducciones, $ratificacion->monto);
         $conciliador  = User::join("turnos","turnos.id_conciliador","=","users.id");
         $conciliador = $conciliador->where("turnos.id", "=", $id)
         ->select('users.name')
@@ -3183,7 +3247,7 @@ class TurnosController extends Controller
         $salario_mensual = $salario_diario * 30;
         $diarioTexto = $this->convertirNumerosALetras($salario_diario);
         $mensualTexto = $this->convertirNumerosALetras($salario_mensual);
-        $montoTexto = $this->convertirNumerosALetras($ratificacion->monto);
+        $montoTexto = $this->convertirNumerosALetras($montoConvenio);
         
         $pagosDif  = Pagos::join("turnos","turnos.id","=","pago_solicitud.id_solicitud");
         $pagosDif = $pagosDif->where("pago_solicitud.id_solicitud", "=", $id)
@@ -3202,10 +3266,10 @@ class TurnosController extends Controller
 
         if($ratificacion->fecha_termino){
             $html = view('PDF/convenioPTUNoLaboraRati', compact('id','ratificacion','conciliador','prestaciones','deducciones','deduccionesTexto','pagoTotal','descripcionIdentificacionS','salario_mensual','mensualTexto',
-            'descripcionIdentificacionP','abogado','conceptosTexto','municipioEmpresa','estadoEmpresa','montoTexto','pagosDif','pagos','delegado', 'inicialesConcluye','etiquetaIniciales'))->render();
+            'descripcionIdentificacionP','abogado','conceptosTexto','municipioEmpresa','estadoEmpresa','montoTexto','pagosDif','pagos','delegado', 'inicialesConcluye','etiquetaIniciales','montoConvenio'))->render();
         } else {
             $html = view('PDF/convenioPTULaboraRati', compact('id','ratificacion','conciliador','prestaciones','deducciones','deduccionesTexto','pagoTotal','descripcionIdentificacionS','salario_mensual','mensualTexto',
-            'descripcionIdentificacionP','abogado','conceptosTexto','municipioEmpresa','estadoEmpresa','montoTexto','pagosDif','pagos','delegado', 'inicialesConcluye','etiquetaIniciales'))->render();
+            'descripcionIdentificacionP','abogado','conceptosTexto','municipioEmpresa','estadoEmpresa','montoTexto','pagosDif','pagos','delegado', 'inicialesConcluye','etiquetaIniciales','montoConvenio'))->render();
         }
 
         $pdf = \PDF::loadHTML($html)

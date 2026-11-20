@@ -67,8 +67,14 @@
                                     <div style="background-color:#D2D3D5; width:100%; height:40px;">
                                         <h3 class="text-center" style="color:black">Datos del Solicitante Patronal</h3>
                                     </div>    
+                                    {{-- Cita patronal: folio de representante ya puesto (App\Support\CitaPatronal). --}}
+                                    @include('solicitudes.auxiliares._prellenado_patronal', [
+                                        'clave' => 'datos',
+                                        'form'  => 'frmSolicitanteP',
+                                        'texto' => 'El folio de representante patronal viene de la cita: confírmalo con la persona.',
+                                    ])
                                     <!--Se realiza el envío de datos con formulario de Laravel Collective-->
-                                    <form class="needs-validation" novalidate method="POST" action="{{route('guardaSolicitanteAP')}}" enctype='multipart/form-data'>
+                                    <form id="frmSolicitanteP" class="needs-validation" novalidate method="POST" action="{{route('guardaSolicitanteAP')}}" enctype='multipart/form-data'>
                                         @csrf
                                         <input type="hidden" name="id" value="{{$id}}">
                                         <input type="hidden" name="draft_id" value="{{ $draftId }}">

@@ -1,97 +1,160 @@
 @extends('layouts.app')
 @section('title', 'Revisar Solicitud')
 
+@section('page_css')
 <style>
-    /* Style the tab */
-    .tab {
-        overflow: hidden;
-        border: 1px solid #ccc;
-        background-color: #f1f1f1;
+    /* Estilo tomado de audiencias/revisar_audiencia (pestañas, secciones, tarjetas y botones). */
+    select[name="vialidad"] option,
+    select[name="estado_citado"] option,
+    select[name="municipio_citado"] option { text-transform: uppercase; }
+
+    .was-validated .form-control:invalid ~ .invalid-feedback,
+    .was-validated select.form-control:invalid ~ .invalid-feedback,
+    .was-validated .form-select:invalid ~ .invalid-feedback {
+        display: block;
     }
-    
-    /* Style the buttons that are used to open the tab content */
-    .tab button {
-        background-color: inherit;
-        float: left;
-        border: none;
-        outline: none;
-        cursor: pointer;
-        padding: 14px 16px;
-        transition: 0.3s;
+
+    /* Pestañas: blancas con borde; la abierta en verde obscuro con línea dorada. */
+    .tab { display: flex; flex-wrap: wrap; gap: 6px; border: 0; background: transparent; overflow: visible; }
+    html body .tab a.btn.ra-tab { display: inline-flex; align-items: center; gap: 6px; border-radius: 10px 10px 0 0; border: 1px solid #C3CFCF !important; border-bottom: 0 !important; background: #fff !important; color: #354647 !important; font-weight: 700; padding: 9px 18px; box-shadow: inset 0 3px 0 transparent; transition: background-color .15s, color .15s, box-shadow .15s; }
+    html body .tab a.btn.ra-tab i { color: #829A9C; transition: color .15s; }
+    html body .tab a.btn.ra-tab:not(.active):hover { background: #EEF3F3 !important; border-color: #A9BBBB !important; color: #1D2B2C !important; box-shadow: inset 0 3px 0 #829A9C; }
+    html body .tab a.btn.ra-tab:not(.active):hover i { color: #496163; }
+    html body .tab a.btn.ra-tab.active,
+    html body .tab a.btn.ra-tab.active:hover,
+    html body .tab a.btn.ra-tab.active:focus { background: #354647 !important; border-color: #354647 !important; color: #fff !important; box-shadow: inset 0 3px 0 #CEA845; cursor: default; }
+    html body .tab a.btn.ra-tab.active i { color: #CEA845; }
+    .tabcontent { display: none; padding: 12px 14px; border: 1px solid #D5DDDD; border-radius: 0 12px 12px 12px; }
+
+    /* Encabezado fijo con las acciones (Confirmar, Prevención, Guardar, Regresar). */
+    .ra-hueco { height: 0; }
+    .ra-reserva { height: 0; }
+    .ra-barra {
+        display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px 16px;
+        background: #fff; border: 1px solid #E3E8E8; border-left: 4px solid #CEA845; border-radius: 12px;
+        padding: 12px 16px; margin-bottom: 14px; z-index: 900;
     }
-    
-    /* Change background color of buttons on hover */
-    .tab button:hover {
-        background-color: #ddd;
+    .ra-barra.is-fija { position: fixed; box-shadow: 0 6px 18px rgba(46, 60, 61, .14); border-radius: 0 0 12px 12px; }
+    .ra-barra__caso { min-width: 0; }
+    .ra-barra__titulo { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; }
+    .ra-barra__titulo b { font-size: 18px; color: #2E3C3D; }
+    .ra-barra__datos { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 4px; font-size: 13px; color: #5E6E6F; }
+    .ra-barra__datos i { color: #829A9C; margin-right: 3px; }
+    .ra-barra.is-fija .ra-barra__datos { display: none; }
+    .ra-chip { display: inline-block; padding: 2px 10px; border-radius: 999px; background: #EEF2F2; color: #496163; font-size: 12px; font-weight: 700; white-space: nowrap; }
+    .ra-chip--audiencia { background: #E3EEF9; color: #1F4E79; }
+    .ra-chip--prevencion { background: #FBEDEA; color: #9A3A22; }
+    .ra-acciones { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: flex-end; }
+    .ra-acciones .btn { border-radius: 10px; font-weight: 700; }
+    /* Avisos que los scripts agregan dentro de las acciones (motivos, teléfonos, imagen 1). */
+    .ra-acciones > div, .ra-nota-acciones { flex-basis: 100%; text-align: right; font-size: 12px; color: #8A9899; margin-top: 0 !important; }
+    @media (max-width: 768px) {
+        .ra-barra.is-fija .ra-barra__titulo .ra-chip { display: none; }
+        .ra-acciones .btn { padding: 6px 10px; font-size: 13px; }
     }
-    
-    /* Create an active/current tablink class */
-    .tab button.active {
-        background-color: #ccc;
+
+    /* Modo lectura: los datos se ven como texto hasta dar clic en "Editar datos" o en el dato. */
+    .ra-seccion__cambios { font-size: 12px; font-weight: 700; color: #B4532A; }
+    .ra-seccion__falta { font-size: 12px; font-weight: 700; color: #9A3A22; background: #FBEDE8; border-radius: 999px; padding: 2px 10px; }
+    .btn.ra-editar { font-weight: 700; border-radius: 8px; }
+    .ra-parte.is-editando { border-color: #CEA845; box-shadow: 0 0 0 3px rgba(206, 168, 69, .15); }
+    .ra-lectura input:not([type=hidden]):not([type=file]):not([type=checkbox]):not([type=radio]),
+    .ra-lectura select,
+    .ra-lectura textarea {
+        border-color: transparent !important; background: transparent !important; box-shadow: none !important;
+        padding-left: 0 !important; color: #2E3C3D !important; font-weight: 600; pointer-events: none;
+        -webkit-appearance: none; -moz-appearance: none; appearance: none; resize: none; text-overflow: ellipsis;
     }
-    
-    /* Style the tab content */
-    .tabcontent {
-        display: none;
-        padding: 6px 12px;
-        border: 1px solid #ccc;
-        border-top: none;
+    .ra-lectura input[type=file], .ra-lectura .ra-solo-edicion, .ra-lectura .eliminar, .ra-lectura .invalid-feedback { display: none !important; }
+    .ra-lectura label { font-size: 12px; color: #8A9899; font-weight: 700; margin-bottom: 0; }
+    .ra-lectura label span[style*="red"] { display: none; }
+    .ra-lectura .form-group { margin-bottom: 6px; }
+    html body .ra-seccion input.ra-fijo,
+    html body .ra-seccion input.ra-fijo:focus { border-color: transparent !important; background: transparent !important; box-shadow: none !important;
+        padding-left: 0 !important; color: #2E3C3D !important; font-weight: 600; pointer-events: none; cursor: default; }
+    .ra-fijo__candado { font-size: 11px; color: #A2AFAF; margin-left: 2px; }
+    .ra-lectura.ra-editable .form-group { position: relative; cursor: pointer; border-radius: 8px; transition: background-color .12s, box-shadow .12s; }
+    .ra-lectura.ra-editable .form-group:hover { background-color: #F2F6F6; box-shadow: 0 0 0 6px #F2F6F6; }
+    .ra-lectura.ra-editable .form-group:hover::after {
+        content: "\F4CB"; font-family: bootstrap-icons; position: absolute; top: 2px; right: 4px;
+        font-size: 12px; color: #496163; pointer-events: none;
     }
-    
-body {font-family: Arial;}
+    .ra-lectura.ra-editable .form-group:hover label { color: #496163; }
+    .ra-lectura.ra-editable .form-group:has(.ra-fijo) { cursor: default; }
+    .ra-lectura.ra-editable .form-group:has(.ra-fijo):hover { background-color: transparent; box-shadow: none; }
+    .ra-lectura.ra-editable .form-group:has(.ra-fijo):hover::after { content: none; }
+    /* Datos deshabilitados (representante): no se abren con clic. */
+    .ra-lectura.ra-editable .form-group:has(:disabled):not(:has(:enabled:not([type=hidden]))) { cursor: default; }
+    .ra-lectura.ra-editable .form-group:has(:disabled):not(:has(:enabled:not([type=hidden]))):hover { background-color: transparent; box-shadow: none; }
+    .ra-lectura.ra-editable .form-group:has(:disabled):not(:has(:enabled:not([type=hidden]))):hover::after { content: none; }
 
-/* Style the tab */
-.tab {
-  overflow: hidden;
-  border: 1px solid #ccc;
-  background-color: #f1f1f1;
-}
+    /* Editar: azul petróleo. Suave en reposo; sólido al pasar por la sección y mientras se edita ("Listo"). */
+    html body .btn.ra-editar { background-color: #E3EFF3 !important; border: 1px solid #A9CBD7 !important; color: #1D5F73 !important; font-weight: 700; box-shadow: none; }
+    html body .btn.ra-editar:not(.btn-social):hover, html body .btn.ra-editar:not(.btn-social):focus,
+    html body .ra-seccion.ra-lectura.ra-editable:hover > .ra-seccion__cab .btn.ra-editar,
+    html body .ra-seccion.ra-lectura.ra-editable:hover > .ra-parte__cab .btn.ra-editar { background-color: #1D5F73 !important; border-color: #1D5F73 !important; color: #fff !important; }
+    html body .ra-seccion.is-editando > .ra-seccion__cab .btn.ra-editar,
+    html body .ra-seccion.is-editando > .ra-parte__cab .btn.ra-editar { background-color: #1D5F73 !important; border-color: #1D5F73 !important; color: #fff !important; box-shadow: 0 2px 6px rgba(29, 95, 115, .3); }
+    html body .ra-seccion.is-editando > .ra-seccion__cab .btn.ra-editar:not(.btn-social):hover,
+    html body .ra-seccion.is-editando > .ra-parte__cab .btn.ra-editar:not(.btn-social):hover { background-color: #164B5B !important; border-color: #164B5B !important; }
+    .tabcontent.ra-seccion.is-editando { border-color: #A9CBD7; }
 
-/* Style the buttons inside the tab */
-.tab button {
-  background-color: inherit;
-  float: left;
-  border: none;
-  outline: none;
-  cursor: pointer;
-  padding: 14px 16px;
-  transition: 0.3s;
-  font-size: 17px;
-}
+    /* Encabezado de cada sección y subtítulos. */
+    .ra-seccion__cab { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 4px 0 10px; margin-bottom: 10px; border-bottom: 1px solid #EEF2F2; }
+    .ra-seccion__titulo { margin: 0; font-size: 16px; font-weight: 800; color: #2E3C3D; }
+    .ra-seccion__nota { display: block; font-size: 12px; color: #8A9899; }
+    .ra-seccion__herr { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .ra-seccion h4.text-center { text-align: left !important; font-size: 12.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: #829A9C; margin: 12px 0 4px; }
+    .ra-seccion h5.text-center { text-align: left !important; font-size: 13px; font-weight: 800; color: #496163; margin: 8px 0 4px; }
 
-/* Change background color of buttons on hover */
-.tab button:hover {
-  background-color: #ddd;
-}
+    /* Tarjeta por citado. */
+    .ra-parte { border: 1px solid #E3E8E8; border-radius: 12px; padding: 12px 16px; margin: 6px 0 16px; background: #fff; }
+    .ra-parte__cab { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px; padding-bottom: 10px; margin-bottom: 6px; border-bottom: 1px solid #EEF2F2; }
+    .ra-parte__quien { display: flex; gap: 10px; align-items: flex-start; min-width: 0; }
+    .ra-parte__num { width: 28px; height: 28px; border-radius: 50%; background: #354647; color: #fff; font-weight: 800; display: grid; place-items: center; flex: 0 0 auto; }
+    .ra-parte__nombre { font-size: 16px; font-weight: 800; color: #2E3C3D; }
+    .ra-parte__chips { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 4px; }
+    .ra-et { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 700; background: #EEF2F2; color: #496163; }
+    .ra-et--info { background: #E3EEF9; color: #1F4E79; }
+    .ra-et--resulte { background: #F1EFF8; color: #4B3F7A; }
 
-/* Create an active/current tablink class */
-.tab button.active {
-  background-color: #ccc;
-}
+    /* Botones. */
+    html body .btn { transition: background-color .15s, border-color .15s, color .15s, box-shadow .15s; }
 
-/* Style the tab content */
-.tabcontent {
-  display: none;
-  padding: 6px 12px;
-  border: 1px solid #ccc;
-  border-top: none;
-}
-select[name="vialidad"] option {
-    text-transform: uppercase;
-}
-select[name="estado_citado"] option {
-    text-transform: uppercase;
-}
-select[name="municipio_citado"] option {
-    text-transform: uppercase;
-}
+    /* Guardar / Confirmar: dorado. */
+    html body .btn.btn-primary { background-color: #CEA845 !important; border: 1px solid #CEA845 !important; color: #fff !important; font-weight: 700; box-shadow: 0 2px 6px rgba(206, 168, 69, .35); }
+    html body .btn.btn-primary:not(.btn-social):hover, html body .btn.btn-primary:not(.btn-social):focus { background-color: #B8952F !important; border-color: #B8952F !important; color: #fff !important; }
+    html body .btn.btn-primary:not(.btn-social):active { background-color: #A6852A !important; border-color: #A6852A !important; color: #fff !important; }
 
-.was-validated .form-control:invalid ~ .invalid-feedback,
-.was-validated select.form-control:invalid ~ .invalid-feedback,
-.was-validated .form-select:invalid ~ .invalid-feedback {
-    display: block;
-}
+    /* Agregar: verde suave. */
+    html body .btn.ra-btn-agregar { background-color: #E5F3EA !important; border: 1px solid #A8D5B6 !important; color: #1E7B3C !important; font-weight: 700; box-shadow: none; }
+    html body .btn.ra-btn-agregar:not(.btn-social):hover, html body .btn.ra-btn-agregar:not(.btn-social):focus { background-color: #1E7B3C !important; border-color: #1E7B3C !important; color: #fff !important; }
+
+    /* Ver documento: contorno verde institucional, se rellena al pasar. */
+    html body .btn.btn-info,
+    html body .btn.btn-success,
+    html body .btn.btn-outline-info,
+    html body .btn.btn-outline-secondary { background-color: #fff !important; border: 1px solid #829A9C !important; color: #496163 !important; font-weight: 600; box-shadow: none; }
+    html body .btn.btn-info:not(.btn-social):hover, html body .btn.btn-info:not(.btn-social):focus,
+    html body .btn.btn-success:not(.btn-social):hover, html body .btn.btn-success:not(.btn-social):focus,
+    html body .btn.btn-outline-info:not(.btn-social):hover, html body .btn.btn-outline-info:not(.btn-social):focus,
+    html body .btn.btn-outline-secondary:not(.btn-social):hover, html body .btn.btn-outline-secondary:not(.btn-social):focus { background-color: #496163 !important; border-color: #496163 !important; color: #fff !important; }
+
+    /* Regresar / Cerrar: gris neutro. */
+    html body .btn.btn-secondary { background-color: #E3EAEA !important; border: 1px solid #E3EAEA !important; color: #496163 !important; font-weight: 600; box-shadow: none; }
+    html body .btn.btn-secondary:not(.btn-social):not(:disabled):not(.disabled):hover { background-color: #D2DCDC !important; border-color: #D2DCDC !important; color: #354647 !important; }
+
+    /* Borrar / Prevención: rojo apagado. */
+    html body .btn.btn-danger,
+    html body .btn.btn-outline-danger { background-color: #fff !important; border: 1px solid #C9A49A !important; color: #9A3A22 !important; box-shadow: none; }
+    html body .btn.btn-danger:not(.btn-social):hover, html body .btn.btn-danger:not(.btn-social):focus,
+    html body .btn.btn-outline-danger:not(.btn-social):hover, html body .btn.btn-outline-danger:not(.btn-social):focus { background-color: #9A3A22 !important; border-color: #9A3A22 !important; color: #fff !important; }
+
+    /* Sin archivo / deshabilitado: apagado. */
+    html body .btn.disabled,
+    html body .btn:disabled { background-color: #F4F6F6 !important; border: 1px dashed #D5DDDD !important; color: #8A9899 !important; box-shadow: none; opacity: 1; }
 </style>
+@endsection
 
 @section('content')
     <section class="section">
@@ -131,25 +194,89 @@ select[name="municipio_citado"] option {
                                 </div>
                             @endif
 
-                                <form class="needs-validation" novalidate method="POST" action="{{route('confirmar_solicitud')}}" enctype="multipart/form-data">
+                                <form id="formSolicitud" class="needs-validation" novalidate method="POST" action="{{route('confirmar_solicitud')}}" enctype="multipart/form-data">
                                     @csrf
                                     <input type="hidden" name="id" value="{{$id}}">
                                     <input type="hidden" name="consecutivo" value="{{ $general['consecutivo'] ?? '' }}">
-                                    <div class="tab">
-                                        <a class="btn btn-info" onclick="openCity(event, 'detalles')">Detalles</a>
-                                        <a class="btn btn-info" onclick="openCity(event, 'solicitante')">Solicitante</a>
-                                        <a class="btn btn-info" onclick="openCity(event, 'documentos')">Citado(s)</a>
-                                        <a class="btn btn-info" onclick="openCity(event, 'observaciones')">Observaciones</a>
-                                        <a class="btn btn-info" onclick="openCity(event, 'citados')">Documentos</a>
-                                        <a class="btn btn-success" onclick="openCity(event, 'confirmacion')">Acciones</a>
+
+                                    @php
+                                        $primerSolicitante = $solicitantes->first();
+                                        $nombreSolicitante = $primerSolicitante->nombre ?? '';
+                                        $citadosCount = isset($citados)
+                                            ? (is_countable($citados) ? count($citados) : (method_exists($citados, 'count') ? $citados->count() : 0))
+                                            : 0;
+                                        $estatusEditable = $general['estatus'] == 'Prevencion' || $general['estatus'] == 'Pendiente';
+                                        if ($general->tipo_generacion == 0) {
+                                            $origenSolicitud = 'Solicitud en línea';
+                                        } elseif ($general->tipo_generacion == 1000) {
+                                            $origenSolicitud = 'Solicitud en tablet';
+                                        } else {
+                                            $origenSolicitud = 'Personal Centro';
+                                        }
+                                    @endphp
+                                    {{-- Encabezado con las acciones siempre a la vista (antes, pestaña "Acciones"). Se queda fijo arriba al bajar. --}}
+                                    <div class="ra-hueco"></div>
+                                    <div class="ra-barra" id="raBarra">
+                                        <div class="ra-barra__caso">
+                                            <div class="ra-barra__titulo">
+                                                <b>{{ $general->NUE ?: ($nombreSolicitante !== '' ? $nombreSolicitante : 'Solicitud') }}</b>
+                                                <span class="ra-chip">{{ $general->tipo_solicitud == 2 ? 'Solicita el patrón' : 'Solicita el trabajador' }}</span>
+                                                <span class="ra-chip {{ $general['estatus'] == 'Prevencion' ? 'ra-chip--prevencion' : 'ra-chip--audiencia' }}">{{ $general['estatus'] }}</span>
+                                            </div>
+                                            <div class="ra-barra__datos">
+                                                @if (filled($general['fecha'] ?? null))
+                                                    <span><i class="bi bi-calendar-event"></i> Capturada el {{ \Illuminate\Support\Carbon::parse($general['fecha'])->format('d/m/Y') }}</span>
+                                                @endif
+                                                @if ($general->NUE && $nombreSolicitante !== '')
+                                                    <span><i class="bi bi-person"></i> {{ $nombreSolicitante }}</span>
+                                                @endif
+                                                <span><i class="bi bi-people"></i> {{ $citadosCount }} {{ $citadosCount == 1 ? 'citado' : 'citados' }}</span>
+                                                <span><i class="bi bi-display"></i> {{ $origenSolicitud }}</span>
+                                            </div>
+                                        </div>
+                                        {{-- id="tabla_confirmar": lo usan los scripts de motivos, teléfonos e imagen de referencia. --}}
+                                        <div class="ra-acciones" id="tabla_confirmar">
+                                            @can('solicitudes_validar')
+                                                @if($estatusEditable)
+                                                    @if($citadosCount > 0)
+                                                        <button id="btnConfirmarSolicitud" type="submit" class="btn btn-primary" name="toquen" value="1"><i class="bi bi-check2-circle"></i> Confirmar solicitud</button>
+                                                    @else
+                                                        <button type="button" class="btn btn-secondary" disabled title="Agregue al menos un citado para poder guardar."  name="toquen" value="1">Confirmar solicitud</button>
+                                                    @endif
+                                                    <button type="button" class="btn btn-danger open-modal" data-bs-toggle="modal" data-bs-target="#exampleModal" data-id="{{ $general->id }}"><i class="bi bi-exclamation-triangle"></i> Prevención</button>
+                                                @endif
+                                            @endcan
+                                            @if(!$estatusEditable)
+                                                <button type="submit" class="btn btn-primary" name="toquen" value="2"><i class="bi bi-save"></i> Guardar</button>
+                                            @endif
+                                            <a class="btn btn-secondary" id="raRegresar" href="{{ route('cancelar_edicion', ['redirect_to' => 'solicitudes_pendientes']) }}"><i class="bi bi-arrow-left"></i> Regresar</a>
+                                            @can('solicitudes_validar')
+                                                @if($estatusEditable)
+                                                    @if($citadosCount > 0)
+                                                        <div id="msgRefImg1" class="ra-nota-acciones" style="display:none;">Debe subir la <strong>Referencia Imagen 1</strong> de todos los citados para poder confirmar.</div>
+                                                    @else
+                                                        <div class="ra-nota-acciones">Debe agregar al menos un citado para poder guardar.</div>
+                                                    @endif
+                                                @endif
+                                            @endcan
+                                        </div>
                                     </div>
 
-                                    <div id="detalles" class="tabcontent">
+                                    <div class="tab">
+                                        <a class="btn ra-tab tablinks" onclick="openCity(event, 'detalles')"><i class="bi bi-card-text" aria-hidden="true"></i> Detalles</a>
+                                        <a class="btn ra-tab tablinks" onclick="openCity(event, 'solicitante')"><i class="bi bi-person" aria-hidden="true"></i> {{ $general->tipo_solicitud == 2 ? 'Solicitante (patrón)' : 'Solicitante' }}</a>
+                                        <a class="btn ra-tab tablinks" onclick="openCity(event, 'documentos')"><i class="bi bi-people" aria-hidden="true"></i> Citado(s)</a>
+                                        <a class="btn ra-tab tablinks" onclick="openCity(event, 'observaciones')"><i class="bi bi-chat-left-text" aria-hidden="true"></i> Observaciones</a>
+                                        <a class="btn ra-tab tablinks" onclick="openCity(event, 'citados')"><i class="bi bi-folder2-open" aria-hidden="true"></i> Documentos</a>
+                                    </div>
+
+                                    <div id="detalles" class="tabcontent ra-seccion">
+                                        @include('audiencias._revisar_seccion_cab', ['titulo' => 'Datos de la solicitud', 'puedeEditar' => true])
                                         <div id="tabla_detalles" class="row">
                                             <div class="col-xs-12 col-sm-6 col-md-3">
                                                 <div class="form-group">
-                                                    <label for="name">Fecha de registro</label>
-                                                    <input type="date" class="form-control" value="<?=$general["fecha"];?>" readonly>
+                                                    <label>Fecha de registro <i class="bi bi-lock ra-fijo__candado" title="No se puede editar"></i></label>
+                                                    <input type="text" class="form-control ra-fijo" value="{{ filled($general['fecha'] ?? null) ? \Illuminate\Support\Carbon::parse($general['fecha'])->format('d/m/Y') : '—' }}" readonly tabindex="-1" aria-readonly="true">
                                                 </div>
                                             </div>
                                             <div class="col-xs-12 col-sm-6 col-md-9">
@@ -198,7 +325,7 @@ select[name="municipio_citado"] option {
                                                 </table>
                                             </div>
                                        
-                                            <div class="col-xs-6 col-sm-6 col-md-6">
+                                            <div class="col-xs-6 col-sm-6 col-md-6 ra-solo-edicion">
                                                 <div class="form-group">
                                                     <label for="name">Agregar otro motivo a la solicitud</label>
                                                     <select  class="form-control" id="motivo_solicitud">
@@ -213,7 +340,7 @@ select[name="municipio_citado"] option {
                                                 </div>
                                             </div>
 
-                                            <div id="div1"  class="col-xs-12 col-sm-12 col-md-12"><br>
+                                            <div id="div1"  class="col-xs-12 col-sm-12 col-md-12 ra-solo-edicion"><br>
                                                 <table id="tabla" name="motivo_solicitud[]" class="table table-striped mt-1" style="margin: 0 center; text-align:center;">
                                                     <thead style="background-color: #D2D3D5;">
                                                         <th style="color: black;">Objeto de la Solicitud</th>
@@ -224,13 +351,9 @@ select[name="municipio_citado"] option {
                                             </div>
                                         </div>
                                     </div>
-                                    <div id="solicitante" class="tabcontent">
+                                    <div id="solicitante" class="tabcontent ra-seccion">
+                                        @include('audiencias._revisar_seccion_cab', ['titulo' => 'Solicitante', 'puedeEditar' => true])
                                         <div id="tabla_solicitante" class="row">
-                                            <div class="col-xs-12 col-sm-12 col-md-12">
-                                                <div class="form-group">
-                                                    <h4 class="text-center">Solicitante</h4>
-                                                </div>
-                                            </div>
                                             @foreach($solicitantes as $solicitante)
                                                 <div class="col-xs-12 col-sm-6 col-md-12">
                                                     <div class="form-group">
@@ -688,7 +811,7 @@ select[name="municipio_citado"] option {
                                                                     <label>*Acta Constitutiva</label><br>
                                                                 @endif
                                                                 @if(!empty($solicitante->poder->ineDocumento))
-                                                                    <a target="_blank" class="btn btn-primary" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->ineDocumento]) }}">Existente</a>
+                                                                    <a target="_blank" class="btn btn-sm btn-outline-secondary" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->ineDocumento]) }}"><i class="bi bi-eye"></i> Existente</a>
                                                                 @endif
                                                                 <div class="invalid-feedback">
                                                                     La Identificación es obligatoria.
@@ -699,7 +822,7 @@ select[name="municipio_citado"] option {
                                                             <div class="form-group">
                                                                 <label>*Identificación del Representante Legal</label><br>
                                                                 @if($solicitante->poder->representacionDocumento != NULL)
-                                                                    <a target="_blank" class="btn btn-primary" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->representacionDocumento]) }}">Existente</a>
+                                                                    <a target="_blank" class="btn btn-sm btn-outline-secondary" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->representacionDocumento]) }}"><i class="bi bi-eye"></i> Existente</a>
                                                                 @endif
                                                                 <div class="invalid-feedback">
                                                                     El documento de representación es obligatorio.
@@ -710,7 +833,7 @@ select[name="municipio_citado"] option {
                                                             <div class="form-group">
                                                                 <label>*Documento que acredite la personería</label><br>
                                                                 @if($solicitante->poder->cedulaDocumento != NULL)
-                                                                    <a target="_blank" class="btn btn-primary" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->cedulaDocumento]) }}">Existente</a>
+                                                                    <a target="_blank" class="btn btn-sm btn-outline-secondary" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->cedulaDocumento]) }}"><i class="bi bi-eye"></i> Existente</a>
                                                                 @endif
                                                             </div>
                                                         </div>
@@ -718,7 +841,7 @@ select[name="municipio_citado"] option {
                                                             <div class="form-group">
                                                                 <label>Anexo (Documentos Complementarios)</label><br>
                                                                 @if($solicitante->poder->anexo_documeto != "Sin anexo")
-                                                                    <a target="_blank" class="btn btn-primary" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->anexo_documeto]) }}">Existente</a>
+                                                                    <a target="_blank" class="btn btn-sm btn-outline-secondary" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->anexo_documeto]) }}"><i class="bi bi-eye"></i> Existente</a>
                                                                 @else
                                                                     <a class="btn btn-secondary disabled" href="#" tabindex="-1" aria-disabled="true">Sin anexo</a>
                                                                 @endif
@@ -735,7 +858,7 @@ select[name="municipio_citado"] option {
                                                             <div class="form-group">
                                                                 <label>*Identificación del Empleador</label><br>
                                                                 @if(!empty($solicitante->poder->ineDocumento))
-                                                                    <a target="_blank" class="btn btn-primary" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->ineDocumento]) }}">Existente</a>
+                                                                    <a target="_blank" class="btn btn-sm btn-outline-secondary" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->ineDocumento]) }}"><i class="bi bi-eye"></i> Existente</a>
                                                                 @endif
                                                                 <div class="invalid-feedback">
                                                                     La Identificación es obligatoria.
@@ -747,7 +870,7 @@ select[name="municipio_citado"] option {
                                                             <div class="form-group">
                                                                 <label>Anexo (Documentos Complementarios)</label><br>
                                                                 @if($solicitante->poder->anexo_documeto != "Sin anexo")
-                                                                    <a target="_blank" class="btn btn-primary" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->anexo_documeto]) }}">Existente</a>
+                                                                    <a target="_blank" class="btn btn-sm btn-outline-secondary" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->anexo_documeto]) }}"><i class="bi bi-eye"></i> Existente</a>
                                                                 @else
                                                                     <a class="btn btn-secondary disabled" href="#" tabindex="-1" aria-disabled="true">Sin anexo</a>
                                                                 @endif
@@ -853,7 +976,7 @@ select[name="municipio_citado"] option {
                                                     <div class="col-xs-12 col-sm-12 col-md-12">
                                                         <div class="form-group">
                                                             <label for="name">Describe brevemente el motivo de tu solicitud <span style="color:red;">(*)</span></label>
-                                                            <textarea class="form-control" name="descripcionSolicitud" required>{{ $solicitante["descripcionSolicitud"] ?? '' }}</textarea>
+                                                            <textarea class="form-control js-autoalto" name="descripcionSolicitud" required>{{ $solicitante["descripcionSolicitud"] ?? '' }}</textarea>
                                                             <div class="invalid-feedback">
                                                                 El campo descripción del motivo de la solicitud es obligatorio.
                                                             </div>
@@ -868,27 +991,52 @@ select[name="municipio_citado"] option {
                                         </div>
                                     </div>
                                     <div id="documentos" class="tabcontent">
-                                        <div id="tabla_documentos" class="row"><br>
-                                            
+                                        <div class="ra-seccion__cab">
+                                            <div><h4 class="ra-seccion__titulo">Citado(s)</h4></div>
+                                        </div>
+                                        <div id="tabla_documentos" class="row">
+
                                             @if ($general->tipo_solicitud == 1)
                                                 <div class="col-xs-12 col-sm-12 col-md-12">
-                                                    <a type="button" class="btn btn-warning open-modal mb-3" data-bs-toggle="modal" 
-                                                        data-bs-target="#exampleModal1" data-id="{{ $id }}">Agregar Citado</a>
-                                                    <a type="button" class="btn btn-warning open-modal mb-3" data-bs-toggle="modal" 
-                                                        data-bs-target="#exampleModal2" data-id="{{ $id }}">Borrar Citado</a>
+                                                    <a type="button" class="btn ra-btn-agregar open-modal mb-3" data-bs-toggle="modal"
+                                                        data-bs-target="#exampleModal1" data-id="{{ $id }}"><i class="bi bi-person-plus"></i> Agregar Citado</a>
+                                                    <a type="button" class="btn btn-outline-danger open-modal mb-3" data-bs-toggle="modal"
+                                                        data-bs-target="#exampleModal2" data-id="{{ $id }}"><i class="bi bi-person-dash"></i> Borrar Citado</a>
                                                 </div>
                                             @endif
 
                                             @foreach($citados as $citado)
                                                 @php
                                                     $esResulte = isset($citado['resulte_responsable']) ? $citado['resulte_responsable'] : (isset($citado->resulte_responsable) ? $citado->resulte_responsable : 'No');
+                                                    $nombreCitado = trim(($citado['nombre'] ?? '').' '.($citado['primer_apellido'] ?? '').' '.($citado['segundo_apellido'] ?? ''));
                                                 @endphp
-                                                <div class="col-xs-12 col-sm-12 col-md-12" style="background-color:#D2D3D5; width:100%; height:30px;">
-                                                    <div class="form-group">
-                                                        <h4 class="text-center">Citado</h4>
+                                                {{-- Tarjeta del citado (mismo estilo que Revisar audiencia). --}}
+                                                <div class="col-12">
+                                                <div class="ra-parte ra-seccion">
+                                                <div class="ra-parte__cab">
+                                                    <div class="ra-parte__quien">
+                                                        <span class="ra-parte__num">{{ $loop->iteration }}</span>
+                                                        <div>
+                                                            <div class="ra-parte__nombre">{{ $nombreCitado !== '' ? $nombreCitado : 'Citado' }}</div>
+                                                            <div class="ra-parte__chips">
+                                                                @if (!empty($citado['tipo_persona']))
+                                                                    <span class="ra-et">Persona {{ $citado['tipo_persona'] == 'Fisica' ? 'física' : 'moral' }}</span>
+                                                                @endif
+                                                                @if ($esResulte == 'Si')
+                                                                    <span class="ra-et ra-et--resulte">Quien resulte responsable</span>
+                                                                @endif
+                                                                @if (!empty($citado['notificacion']))
+                                                                    <span class="ra-et ra-et--info"><i class="bi bi-envelope"></i> Notifica: {{ $citado['notificacion'] == 'Centro' ? 'Centro de conciliación' : 'Solicitante' }}</span>
+                                                                @endif
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="ra-seccion__herr">
+                                                        <span class="ra-seccion__cambios" hidden><i class="bi bi-dot"></i> Cambios sin guardar</span>
+                                                        <button type="button" class="btn btn-sm ra-editar"><i class="bi bi-pencil"></i> <span>Editar datos</span></button>
                                                     </div>
                                                 </div>
-                                                
+                                                <div class="row">
                                                 <div class="col-xs-12 col-sm-12 col-md-12">
                                                     <div class="form-group mt-2">
                                                         <h4 class="text-center">Datos personales del citado</h4>
@@ -1126,7 +1274,7 @@ select[name="municipio_citado"] option {
                                                         $hasRefImg1 = (!empty($citado->imagen_domicilio1) && $citado->imagen_domicilio1 !== 'Sin documento');
                                                     @endphp
                                                     @if ($hasRefImg1)
-                                                        <a target="_blank" href="{{ signedDocRoute('documentos.ver_imagen', ['id_solicitud' => $citado->id_solicitud ?? $id, 'filename' => $citado->imagen_domicilio1]) }}">VER IMAGEN</a><br>
+                                                        <a target="_blank" class="btn btn-sm btn-outline-secondary mb-1" href="{{ signedDocRoute('documentos.ver_imagen', ['id_solicitud' => $citado->id_solicitud ?? $id, 'filename' => $citado->imagen_domicilio1]) }}"><i class="bi bi-image"></i> Ver imagen</a><br>
                                                     @else
                                                         <span class="text-muted">No se subió imagen</span>
                                                     @endif
@@ -1138,7 +1286,7 @@ select[name="municipio_citado"] option {
                                                 <div class="col-xs-12 col-sm-12 col-md-5">
                                                     <label for="password">Referencia Imagen 2</label><br>
                                                     @if (!empty($citado->imagen_domicilio2) && $citado->imagen_domicilio2 !== 'Sin documento')
-                                                        <a target='_blank' href="{{ signedDocRoute('documentos.ver', ['tipo' => 'solicitud', 'id' => $general->id, 'archivo' => $citado->imagen_domicilio2]) }}">VER IMAGEN</a><br>
+                                                        <a target='_blank' class="btn btn-sm btn-outline-secondary mb-1" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'solicitud', 'id' => $general->id, 'archivo' => $citado->imagen_domicilio2]) }}"><i class="bi bi-image"></i> Ver imagen</a><br>
                                                     @else
                                                         <span class="text-muted">No se subió imagen</span>
                                                     @endif
@@ -1244,7 +1392,7 @@ select[name="municipio_citado"] option {
                                                         <div class="col-xs-12 col-sm-12 col-md-12">
                                                             <div class="form-group">
                                                                 <label for="name">Describe brevemente el motivo de tu solicitud <span style="color:red;">(*)</span></label>
-                                                                <textarea class="form-control" name="descripcionSolicitud" required>{{ $solicitante["descripcionSolicitud"] ?? '' }}</textarea>
+                                                                <textarea class="form-control js-autoalto" name="descripcionSolicitud" required>{{ $solicitante["descripcionSolicitud"] ?? '' }}</textarea>
                                                                 <div class="invalid-feedback">
                                                                     El campo descripción del motivo de la solicitud es obligatorio.
                                                                 </div>
@@ -1252,25 +1400,24 @@ select[name="municipio_citado"] option {
                                                         </div>
                                                     @endforeach
                                                 @endif
+                                                </div>{{-- /row --}}
+                                                </div>{{-- /ra-parte --}}
+                                                </div>{{-- /col-12 --}}
                                             @endforeach
-                                            
+
                                         </div>
                                     </div>
 
-                                    <div id="citados" class="tabcontent">
+                                    <div id="citados" class="tabcontent ra-seccion">
+                                        @include('audiencias._revisar_seccion_cab', ['titulo' => 'Documentos', 'puedeEditar' => true])
                                         <div id="tabla_citados" class="row">
-                                            <div class="col-xs-12 col-sm-12 col-md-12">
-                                                <div class="form-group">
-                                                    <h4 class="text-center">Documentos</h4>
-                                                </div>
-                                            </div><br>
                                                 @if($general->tipo_solicitud == 1)
                                                     <div class="col-xs-12 col-sm-12 col-md-6">
                                                         <label for="password">Identificación Oficial <span style="color:red;">(*)</span></label><br>
                                                         <a class="btn btn-info" target="_blank" href="{{ signedDocRoute('documento_identificacion_solicitante_ver', $id) }}">Visualizar</a>
                                                     </div>
     
-                                                    <div class="col-xs-12 col-sm-12 col-md-6">
+                                                    <div class="col-xs-12 col-sm-12 col-md-6 ra-solo-edicion">
                                                         <label for="password">Reemplazar Identificación Oficial</label><br>
                                                         <input type="file" name="documentoIdentificacion" accept=".pdf" class="form-control">
                                                     </div>
@@ -1285,7 +1432,7 @@ select[name="municipio_citado"] option {
                                                                     <label>*Acta Constitutiva</label><br>
                                                                 @endif
                                                                 @if(!empty($solicitante->poder->ineDocumento))
-                                                                    <a target="_blank" class="btn btn-primary" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->ineDocumento]) }}">Existente</a>
+                                                                    <a target="_blank" class="btn btn-sm btn-outline-secondary" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->ineDocumento]) }}"><i class="bi bi-eye"></i> Existente</a>
                                                                 @endif
                                                                 <div class="invalid-feedback">
                                                                     La Identificación es obligatoria.
@@ -1296,7 +1443,7 @@ select[name="municipio_citado"] option {
                                                             <div class="form-group">
                                                                 <label>*Identificación del Representante Legal</label><br>
                                                                 @if($solicitante->poder->representacionDocumento != NULL)
-                                                                    <a target="_blank" class="btn btn-primary" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->representacionDocumento]) }}">Existente</a>
+                                                                    <a target="_blank" class="btn btn-sm btn-outline-secondary" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->representacionDocumento]) }}"><i class="bi bi-eye"></i> Existente</a>
                                                                 @endif
                                                                 <div class="invalid-feedback">
                                                                     El documento de representación es obligatorio.
@@ -1307,7 +1454,7 @@ select[name="municipio_citado"] option {
                                                             <div class="form-group">
                                                                 <label>*Documento que acredite la personería</label><br>
                                                                 @if($solicitante->poder->cedulaDocumento != NULL)
-                                                                    <a target="_blank" class="btn btn-primary" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->cedulaDocumento]) }}">Existente</a>
+                                                                    <a target="_blank" class="btn btn-sm btn-outline-secondary" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->cedulaDocumento]) }}"><i class="bi bi-eye"></i> Existente</a>
                                                                 @endif
                                                             </div>
                                                         </div>
@@ -1315,7 +1462,7 @@ select[name="municipio_citado"] option {
                                                             <div class="form-group">
                                                                 <label>Anexo (Documentos Complementarios)</label><br>
                                                                 @if($solicitante->poder->anexo_documeto != "Sin anexo")
-                                                                    <a target="_blank" class="btn btn-primary" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->anexo_documeto]) }}">Existente</a>
+                                                                    <a target="_blank" class="btn btn-sm btn-outline-secondary" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->anexo_documeto]) }}"><i class="bi bi-eye"></i> Existente</a>
                                                                 @else
                                                                     <a class="btn btn-secondary disabled" href="#" tabindex="-1" aria-disabled="true">Sin anexo</a>
                                                                 @endif
@@ -1332,7 +1479,7 @@ select[name="municipio_citado"] option {
                                                             <div class="form-group">
                                                                 <label>*Identificación del Empleador</label><br>
                                                                 @if(!empty($solicitante->poder->ineDocumento))
-                                                                    <a target="_blank" class="btn btn-primary" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->ineDocumento]) }}">Existente</a>
+                                                                    <a target="_blank" class="btn btn-sm btn-outline-secondary" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->ineDocumento]) }}"><i class="bi bi-eye"></i> Existente</a>
                                                                 @endif
                                                                 <div class="invalid-feedback">
                                                                     La Identificación es obligatoria.
@@ -1344,7 +1491,7 @@ select[name="municipio_citado"] option {
                                                             <div class="form-group">
                                                                 <label>Anexo (Documentos Complementarios)</label><br>
                                                                 @if($solicitante->poder->anexo_documeto != "Sin anexo")
-                                                                    <a target="_blank" class="btn btn-primary" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->anexo_documeto]) }}">Existente</a>
+                                                                    <a target="_blank" class="btn btn-sm btn-outline-secondary" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $solicitante->poder->idAbogado, 'archivo' => $solicitante->poder->anexo_documeto]) }}"><i class="bi bi-eye"></i> Existente</a>
                                                                 @else
                                                                     <a class="btn btn-secondary disabled" href="#" tabindex="-1" aria-disabled="true">Sin anexo</a>
                                                                 @endif
@@ -1393,13 +1540,9 @@ select[name="municipio_citado"] option {
                                         </div>
                                     </div>
 
-                                    <div id="observaciones" class="tabcontent">
+                                    <div id="observaciones" class="tabcontent ra-seccion">
+                                        @include('audiencias._revisar_seccion_cab', ['titulo' => 'Observaciones', 'nota' => 'Sólo lectura', 'puedeEditar' => false])
                                         <div id="tabla_citados" class="row">
-                                            <div class="col-xs-12 col-sm-12 col-md-12">
-                                                <div class="form-group">
-                                                    <h4 class="text-center">Observaciones</h4>
-                                                </div>
-                                            </div><br>
 
                                             <div class="col-xs-12 col-sm-6 col-md-12">
                                                 <div class="form-group">
@@ -1414,32 +1557,6 @@ select[name="municipio_citado"] option {
                                         </div>
                                     </div>
 
-                                    <div id="confirmacion" class="tabcontent">
-                                        <div id="tabla_confirmar" class="row">
-                                            <div class="col-xs-12 col-sm-12 col-md-12"><br>
-                                                @php
-                                                    $citadosCount = isset($citados)
-                                                        ? (is_countable($citados) ? count($citados) : (method_exists($citados, 'count') ? $citados->count() : 0))
-                                                        : 0;
-                                                @endphp
-                                                @can('solicitudes_validar')
-                                                    @if($general['estatus'] == 'Prevencion' || $general['estatus'] == 'Pendiente')
-                                                        @if($citadosCount > 0)
-                                                            <button id="btnConfirmarSolicitud" type="submit" class="btn btn-primary" style="background-color:#CEA845; border-color:#CEA845;" name="toquen" value="1">Confirmar</button>
-                                                            <div id="msgRefImg1" class="text-muted mt-2" style="display:none;">Debe subir la <strong>Referencia Imagen 1</strong> de todos los citados para poder confirmar.</div>
-                                                        @else
-                                                            <button type="button" class="btn btn-secondary" disabled title="Agregue al menos un citado para poder guardar."  name="toquen" value="1">Confirmar</button>
-                                                            <div class="text-muted mt-2">Debe agregar al menos un citado para poder guardar.</div>
-                                                        @endif
-                                                        <button type="button" class="btn btn-danger open-modal" data-bs-toggle="modal" data-bs-target="#exampleModal" data-id="{{ $general->id }}"> Prevención </button>
-                                                    @endif
-                                                @endcan
-                                                @if($general['estatus'] != 'Prevencion' && $general['estatus'] != 'Pendiente')
-                                                    <button type="submit" class="btn btn-primary" name="toquen" value="2">Guardar</button>
-                                                @endif
-                                            </div>
-                                        </div>
-                                    </div>
                                 </div>
                             </form>
                         </div>
@@ -1513,6 +1630,7 @@ select[name="municipio_citado"] option {
 @endsection
 
 
+@push('modals')
 <!-- Modal -->
 <div class="modal fade" id="exampleModal1" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
     <form class='needs-validation novalidate'  method='POST' action="{{route('agregar_citado_edicion')}}" enctype="multipart/form-data">
@@ -1891,6 +2009,7 @@ select[name="municipio_citado"] option {
         </div>
     </form>
 </div>
+@endpush
 
 @section('scripts')
     <script src="{{ asset('assets/js/estadistica/estadisticaConfirmar.js') }}"></script>
@@ -2322,7 +2441,223 @@ select[name="municipio_citado"] option {
             });
         });
     </script>
-    
+    <script>
+        // Igual que Revisar audiencia: pestaña "Detalles" abierta al entrar y
+        // encabezado con las acciones fijo arriba al bajar.
+        document.addEventListener('DOMContentLoaded', function () {
+            var boton = document.querySelector('.tab a[onclick*="\'detalles\'"]');
+            if (boton) { boton.click(); }
+
+            // El layout tiene overflow-x: hidden, así que position: sticky no
+            // funciona: al pasar el encabezado se fija con JS. .ra-hueco es una
+            // marca de 0 px arriba del encabezado; .ra-reserva ocupa su lugar
+            // mientras está fijo para que el contenido no brinque.
+            var barra = document.getElementById('raBarra');
+            var marca = document.querySelector('.ra-hueco');
+            if (!barra || !marca) { return; }
+            var reserva = document.createElement('div');
+            reserva.className = 'ra-reserva';
+            barra.parentNode.insertBefore(reserva, barra.nextSibling);
+            var nav = document.querySelector('.main-navbar');
+            var arriba = function () { return nav ? Math.max(0, nav.getBoundingClientRect().bottom) : 0; };
+            var fija = false, pendiente = false;
+
+            function acomodar() {
+                var r = reserva.getBoundingClientRect();
+                barra.style.top = arriba() + 'px';
+                barra.style.left = r.left + 'px';
+                barra.style.width = r.width + 'px';
+            }
+            function soltar() {
+                fija = false;
+                barra.classList.remove('is-fija');
+                barra.style.top = barra.style.left = barra.style.width = '';
+                reserva.style.height = '0px';
+            }
+            function revisar() {
+                pendiente = false;
+                var debe = marca.getBoundingClientRect().top < arriba();
+                if (debe && !fija) {
+                    var margen = parseFloat(getComputedStyle(barra).marginBottom) || 0;
+                    reserva.style.height = (barra.offsetHeight + margen) + 'px';
+                    fija = true;
+                    barra.classList.add('is-fija');
+                    acomodar();
+                } else if (!debe && fija) {
+                    soltar();
+                } else if (fija) {
+                    acomodar();
+                }
+            }
+            function pedir() {
+                if (!pendiente) { pendiente = true; window.requestAnimationFrame(revisar); }
+            }
+            document.addEventListener('scroll', pedir, { passive: true, capture: true });
+            window.addEventListener('resize', function () { if (fija) { soltar(); } pedir(); });
+            revisar();
+        });
+    </script>
+    <script>
+        // Igual que Revisar audiencia: cada sección se ve en modo lectura y se
+        // abre con "Editar datos" o con clic en el dato. Los campos siguen en
+        // el formulario (readonly), así que se envían igual que antes; al
+        // enviar se abren todas un momento para que la validación revise los
+        // campos obligatorios (un campo readonly no se valida).
+        document.addEventListener('DOMContentLoaded', function () {
+            var form = document.getElementById('formSolicitud');
+            if (!form) { return; }
+            var secciones = Array.prototype.slice.call(form.querySelectorAll('.ra-seccion'));
+            if (!secciones.length) { return; }
+            var conErrores = {{ $errors->any() ? 'true' : 'false' }};
+            // Citados agregados/borrados o motivos quitados que siguen pendientes en la sesión.
+            var pendientesServidor = {{ (!empty(session('citados_edicion_new')) || !empty(session('citados_edicion_delete')) || !empty(session('motivos_edicion_delete'))) ? 'true' : 'false' }};
+            // .ra-fijo: datos que no se editan (fecha de registro).
+            var CAMPOS = 'input:not([type=hidden]):not([type=file]):not([type=checkbox]):not([type=radio]):not([type=button]):not([type=submit]):not(.ra-fijo), select, textarea';
+            var cambios = false;
+
+            function lectura(sec, si) {
+                sec.classList.toggle('ra-lectura', si);
+                sec.classList.toggle('is-editando', !si);
+                sec.querySelectorAll(CAMPOS).forEach(function (el) {
+                    if (si) {
+                        if (!el.hasAttribute('data-ra-orig')) {
+                            el.setAttribute('data-ra-orig', JSON.stringify({ ro: el.readOnly, ti: el.getAttribute('tabindex'), ph: el.getAttribute('placeholder') }));
+                        }
+                        if (el.tagName !== 'SELECT') { el.readOnly = true; }
+                        el.setAttribute('tabindex', '-1');
+                        if (el.tagName !== 'SELECT' && !el.value) { el.setAttribute('placeholder', '—'); }
+                    } else if (el.hasAttribute('data-ra-orig')) {
+                        var o = JSON.parse(el.getAttribute('data-ra-orig'));
+                        if (el.tagName !== 'SELECT') { el.readOnly = o.ro; }
+                        if (o.ti === null) { el.removeAttribute('tabindex'); } else { el.setAttribute('tabindex', o.ti); }
+                        if (o.ph === null) { el.removeAttribute('placeholder'); } else { el.setAttribute('placeholder', o.ph); }
+                    }
+                });
+                var txt = sec.querySelector('.ra-editar span');
+                if (txt) { txt.textContent = si ? 'Editar datos' : 'Listo'; }
+                var ico = sec.querySelector('.ra-editar i');
+                if (ico) { ico.className = si ? 'bi bi-pencil' : 'bi bi-check2'; }
+            }
+
+            // Oculto dentro de la sección (no cuenta que la pestaña esté cerrada).
+            function oculto(el, sec) {
+                for (var n = el; n && n !== sec; n = n.parentElement) {
+                    if (n.hidden || getComputedStyle(n).display === 'none') { return true; }
+                }
+                return false;
+            }
+
+            // Falta un obligatorio (incluye la Referencia Imagen 1 sin subir).
+            function faltaAlgo(sec) {
+                return Array.prototype.some.call(sec.querySelectorAll(CAMPOS + ', input[type=file][required]'), function (el) {
+                    var vacio = el.type === 'file' ? !(el.files && el.files.length) : !el.value;
+                    return el.required && !el.disabled && vacio && !oculto(el, sec);
+                });
+            }
+
+            secciones.forEach(function (sec) {
+                var editable = !!sec.querySelector('.ra-editar');
+                // Se abre sola si viene de un error o le falta un dato obligatorio.
+                var falta = editable && faltaAlgo(sec);
+                lectura(sec, !(editable && (conErrores || falta)));
+                if (falta) {
+                    var herr = sec.querySelector('.ra-seccion__herr');
+                    if (herr) {
+                        var aviso = document.createElement('span');
+                        aviso.className = 'ra-seccion__falta';
+                        aviso.textContent = 'Falta un dato obligatorio';
+                        herr.insertBefore(aviso, herr.firstChild);
+                    }
+                }
+                if (editable) {
+                    sec.classList.add('ra-editable');
+                    sec.querySelector('.ra-editar').addEventListener('click', function () {
+                        var abrir = sec.classList.contains('ra-lectura');
+                        lectura(sec, !abrir);
+                        if (abrir) {
+                            var primero = Array.prototype.find.call(sec.querySelectorAll(CAMPOS), function (el) { return !el.disabled && !oculto(el, sec); });
+                            if (primero) { try { primero.focus({ preventScroll: true }); } catch (e) {} }
+                        }
+                    });
+                }
+                var marcar = function (e) {
+                    if (!e.isTrusted || !e.target.matches || !e.target.matches(CAMPOS + ', input[type=file]')) { return; }
+                    if (e.target.id === 'motivo_solicitud') { return; }
+                    cambios = true;
+                    sec.querySelectorAll('.ra-seccion__cambios').forEach(function (m) { m.hidden = false; });
+                };
+                sec.addEventListener('input', marcar);
+                sec.addEventListener('change', marcar);
+            });
+
+            // Clic directo en un dato (modo lectura): abre su sección y deja el
+            // cursor en ese campo. Los campos en lectura no reciben el clic
+            // (pointer-events: none), así que se toma el .form-group que lo envuelve.
+            form.addEventListener('click', function (e) {
+                var grupo = e.target.closest && e.target.closest('.form-group');
+                var sec = grupo && grupo.closest('.ra-seccion');
+                if (!sec || !sec.classList.contains('ra-lectura') || !sec.classList.contains('ra-editable')) { return; }
+                if (e.target.closest('a, button, .btn, [data-bs-toggle], input[type=file]')) { return; }
+                var campo = Array.prototype.find.call(grupo.querySelectorAll(CAMPOS), function (el) { return !el.disabled && !oculto(el, grupo); });
+                if (!campo) { return; } // dato fijo o deshabilitado: no abre la edición
+                lectura(sec, false);
+                try { campo.focus({ preventScroll: true }); } catch (err) {}
+                if (campo.tagName === 'SELECT' && typeof campo.showPicker === 'function') {
+                    try { campo.showPicker(); } catch (err) {}
+                }
+            });
+
+            // Al enviar: se abren todas para que la validación vea los obligatorios;
+            // si algo falta, se queda abierta sólo la sección con el problema.
+            form.addEventListener('submit', function () {
+                var antes = secciones.map(function (sec) { return sec.classList.contains('ra-lectura'); });
+                secciones.forEach(function (sec) { lectura(sec, false); });
+                setTimeout(function () {
+                    if (form.checkValidity()) { return; }
+                    secciones.forEach(function (sec, i) {
+                        if (antes[i] && !sec.querySelector(':invalid')) { lectura(sec, true); }
+                    });
+                }, 0);
+            }, true);
+
+            // Si un campo inválido está en una sección en lectura, se abre.
+            form.addEventListener('invalid', function (e) {
+                var sec = e.target.closest && e.target.closest('.ra-seccion');
+                if (sec && sec.classList.contains('ra-lectura')) { lectura(sec, false); }
+            }, true);
+
+            // Regresar: si hay cambios sin guardar, se pregunta antes de salir.
+            var regresar = document.getElementById('raRegresar');
+            if (regresar) {
+                regresar.addEventListener('click', function (e) {
+                    var motivosNuevos = form.querySelectorAll('input[type=hidden][name="motivo_solicitud[]"]').length > 0;
+                    if (!cambios && !motivosNuevos && !pendientesServidor) { return; }
+                    e.preventDefault();
+                    var destino = regresar.href;
+                    var texto = 'Hiciste cambios que todavía no se guardan. Si sales ahora, se pierden.';
+                    if (typeof swal === 'function') {
+                        swal({
+                            title: '¿Salir sin guardar?',
+                            text: texto,
+                            type: 'warning',
+                            showCancelButton: true,
+                            confirmButtonText: 'Seguir editando',
+                            cancelButtonText: 'Salir sin guardar',
+                            confirmButtonColor: '#496163',
+                            closeOnConfirm: true,
+                            closeOnCancel: true
+                        }, function (seguir) {
+                            if (!seguir) { window.location.href = destino; }
+                        });
+                    } else if (window.confirm(texto + ' ¿Salir de todos modos?')) {
+                        window.location.href = destino;
+                    }
+                });
+            }
+        });
+    </script>
+
+    @include('partials.general._textarea_autoalto')
 @endsection
 
 

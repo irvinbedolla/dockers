@@ -1,89 +1,233 @@
 @extends('layouts.app')
 @section('title', 'Revisar Audiencia')
 
-<style>
-    /* Style the tab */
-    .tab {
-        overflow: hidden;
-        border: 1px solid #ccc;
-        background-color: #f1f1f1;
-    }
-    
-    /* Style the buttons that are used to open the tab content */
-    .tab button {
-        background-color: inherit;documentos.ver
-        float: left;
-        border: none;
-        outline: none;
-        cursor: pointer;
-        padding: 14px 16px;
-        transition: 0.3s;
-    }
-    
-    /* Change background color of buttons on hover */
-    .tab button:hover {
-        background-color: #ddd;
-    }
-    
-    /* Create an active/current tablink class */
-    .tab button.active {
-        background-color: #ccc;
-    }
-    
-    /* Style the tab content */
-    .tabcontent {
-        display: none;
-        padding: 6px 12px;
-        border: 1px solid #ccc;
-        border-top: none;
-    }
+@section('page_css')
+    <style>
+        /* Revisar audiencia (Fase 1): encabezado fijo, lista de revisión y pestañas. */
+        .ra-hueco { height: 0; }
+        .ra-reserva { height: 0; }
+        .ra-barra {
+            display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px 16px;
+            background: #fff; border: 1px solid #E3E8E8; border-left: 4px solid #CEA845; border-radius: 12px;
+            padding: 12px 16px; margin-bottom: 14px; z-index: 900;
+        }
+        .ra-barra.is-fija { position: fixed; box-shadow: 0 6px 18px rgba(46, 60, 61, .14); border-radius: 0 0 12px 12px; }
+        .ra-barra__caso { min-width: 0; }
+        .ra-barra__titulo { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; }
+        .ra-barra__titulo b { font-size: 18px; color: #2E3C3D; }
+        .ra-barra__datos { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 4px; font-size: 13px; color: #5E6E6F; }
+        .ra-barra__datos i { color: #829A9C; margin-right: 3px; }
+        .ra-chip { display: inline-block; padding: 2px 10px; border-radius: 999px; background: #EEF2F2; color: #496163; font-size: 12px; font-weight: 700; white-space: nowrap; }
+        .ra-chip--audiencia { background: #E3EEF9; color: #1F4E79; }
+        .ra-chip--cerrado { background: #F1F1F1; color: #6B6B6B; }
+        .ra-acciones { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        .ra-acciones .btn { border-radius: 10px; font-weight: 700; }
+        .ra-nota-acciones { width: 100%; text-align: right; font-size: 12px; color: #8A9899; margin-top: -8px; }
+        .ra-barra.is-fija .ra-barra__datos { display: none; }
 
-    body {font-family: Arial;}
+        .ra-lista { background: #fff; border: 1px solid #E3E8E8; border-radius: 12px; margin-bottom: 16px; }
+        .ra-lista > summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; padding: 12px 16px; }
+        .ra-lista > summary::-webkit-details-marker { display: none; }
+        .ra-lista__titulo { font-size: 15px; font-weight: 800; color: #2E3C3D; }
+        .ra-lista.is-lista .ra-lista__titulo { color: #1E7B3C; }
+        .ra-lista__cuentas { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+        .ra-lista__ver { font-size: 12px; color: #496163; font-weight: 700; margin-left: 4px; }
+        .ra-lista[open] .ra-lista__ver::after { content: ' ▲'; }
+        .ra-lista:not([open]) .ra-lista__ver::after { content: ' ▼'; }
+        .ra-cuenta { padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+        .ra-cuenta--falta { background: #FBEDEA; color: #9A3A22; }
+        .ra-cuenta--aviso { background: #FBF4E1; color: #7A5D10; }
+        .ra-cuenta--ok { background: #E9F5EE; color: #1E7B3C; }
+        .ra-puntos { list-style: none; margin: 0; padding: 0 16px 8px; border-top: 1px solid #EEF2F2; }
+        .ra-punto { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid #F3F5F5; font-size: 13.5px; color: #3E4C4D; }
+        .ra-punto:last-child { border-bottom: 0; }
+        .ra-punto > i { font-size: 16px; margin-top: 1px; }
+        .ra-punto--falta > i { color: #C0392B; }
+        .ra-punto--aviso > i { color: #D9A93A; }
+        .ra-punto--ok > i { color: #1E7B3C; }
+        .ra-punto--info > i { color: #5B7DB1; }
+        .ra-punto__texto { flex: 1 1 auto; min-width: 0; }
+        .ra-punto__texto b { color: #2E3C3D; margin-right: 4px; }
+        .ra-ir { font-size: 12px; font-weight: 700; color: #496163; white-space: nowrap; text-decoration: none; }
+        .ra-ir:hover { color: #2E3C3D; text-decoration: underline; }
+        .ra-llegadas { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; padding: 10px 16px 14px; border-top: 1px solid #EEF2F2; font-size: 13px; }
+        .ra-llegadas__titulo { width: 100%; font-weight: 800; color: #2E3C3D; }
+        .ra-llegadas__vacio { color: #8A9899; }
+        .ra-llego { padding: 3px 10px; border-radius: 999px; background: #E9F5EE; color: #1E7B3C; font-weight: 700; }
+        .ra-llego small { color: #4F7F5F; font-weight: 400; }
+        .ra-obs { padding: 3px 10px; border-radius: 999px; background: #FBEDEA; color: #8C1D40; font-weight: 700; }
 
-    /* Style the tab */
-    .tab {
-        overflow: hidden;
-        border: 1px solid #ccc;
-        background-color: #f1f1f1;
-    }
+        /* Pestañas: ahora se marca la que está abierta. */
+        .tab { display: flex; flex-wrap: wrap; gap: 6px; border: 0; background: transparent; overflow: visible; }
+        /* style.css le da a todo .btn fondo blanco al pasar el mouse (y con
+           !important borde transparente): la pestaña activa, con texto blanco,
+           se "borraba". Por eso estos selectores llevan html body y !important. */
+        /* Navegación: blancas con borde marcado; la abierta, en el verde
+           obscuro del encabezado de tablas con una línea dorada arriba. */
+        html body .tab a.btn.ra-tab { display: inline-flex; align-items: center; gap: 6px; border-radius: 10px 10px 0 0; border: 1px solid #C3CFCF !important; border-bottom: 0 !important; background: #fff !important; color: #354647 !important; font-weight: 700; padding: 9px 18px; box-shadow: inset 0 3px 0 transparent; transition: background-color .15s, color .15s, box-shadow .15s; }
+        html body .tab a.btn.ra-tab i { color: #829A9C; transition: color .15s; }
+        html body .tab a.btn.ra-tab:not(.active):hover { background: #EEF3F3 !important; border-color: #A9BBBB !important; color: #1D2B2C !important; box-shadow: inset 0 3px 0 #829A9C; }
+        html body .tab a.btn.ra-tab:not(.active):hover i { color: #496163; }
+        html body .tab a.btn.ra-tab.active,
+        html body .tab a.btn.ra-tab.active:hover,
+        html body .tab a.btn.ra-tab.active:focus { background: #354647 !important; border-color: #354647 !important; color: #fff !important; box-shadow: inset 0 3px 0 #CEA845; cursor: default; }
+        html body .tab a.btn.ra-tab.active i { color: #CEA845; }
+        .tabcontent { display: none; padding: 12px 14px; border: 1px solid #D5DDDD; border-radius: 0 12px 12px 12px; scroll-margin-top: 170px; }
 
-    /* Style the buttons inside the tab */
-    .tab button {
-        background-color: inherit;
-        float: left;
-        border: none;
-        outline: none;
-        cursor: pointer;
-        padding: 14px 16px;
-        transition: 0.3s;
-        font-size: 17px;
-    }
+        .was-validated .form-control:invalid ~ .invalid-feedback,
+        .was-validated select.form-control:invalid ~ .invalid-feedback,
+        .was-validated .form-select:invalid ~ .invalid-feedback {
+            display: block;
+        }
 
-    /* Change background color of buttons on hover */
-    .tab button:hover {
-    background-color: #ddd;
-    }
+        @media (max-width: 768px) {
+            .ra-barra.is-fija .ra-barra__titulo .ra-chip { display: none; }
+            .ra-acciones .btn { padding: 6px 10px; font-size: 13px; }
+        }
+        /* Fase 2: secciones en modo lectura (Editar para cambiar) y una tarjeta por citado. */
+        .ra-seccion__cab { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 4px 0 10px; margin-bottom: 10px; border-bottom: 1px solid #EEF2F2; }
+        .ra-seccion__titulo { margin: 0; font-size: 16px; font-weight: 800; color: #2E3C3D; }
+        .ra-seccion__nota { display: block; font-size: 12px; color: #8A9899; }
+        .ra-seccion__herr { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+        .ra-seccion__cambios { font-size: 12px; font-weight: 700; color: #B4532A; }
+        .ra-seccion__falta { font-size: 12px; font-weight: 700; color: #9A3A22; background: #FBEDE8; border-radius: 999px; padding: 2px 10px; }
+        .btn.ra-editar { font-weight: 700; border-radius: 8px; }
+        .ra-parte.is-editando { border-color: #CEA845; box-shadow: 0 0 0 3px rgba(206, 168, 69, .15); }
 
-    /* Create an active/current tablink class */
-    .tab button.active {
-        background-color: #ccc;
-    }
+        .ra-lectura input:not([type=hidden]):not([type=file]):not([type=checkbox]):not([type=radio]),
+        .ra-lectura select,
+        .ra-lectura textarea {
+            border-color: transparent !important; background: transparent !important; box-shadow: none !important;
+            padding-left: 0 !important; color: #2E3C3D !important; font-weight: 600; pointer-events: none;
+            -webkit-appearance: none; -moz-appearance: none; appearance: none; resize: none; text-overflow: ellipsis;
+        }
+        .ra-lectura input[type=file], .ra-lectura .ra-solo-edicion, .ra-lectura .eliminar, .ra-lectura .invalid-feedback { display: none !important; }
+        .ra-lectura label { font-size: 12px; color: #8A9899; font-weight: 700; margin-bottom: 0; }
+        .ra-lectura label span[style*="red"] { display: none; }
+        .ra-lectura .form-group { margin-bottom: 6px; }
 
-    /* Style the tab content */
-    .tabcontent {
-        display: none;
-        padding: 6px 12px;
-        border: 1px solid #ccc;
-        border-top: none;
-    }
+        /* Se puede editar dando clic en el dato: al pasar el mouse el dato se
+           sombrea y sale un lápiz; el clic abre la sección en ese campo. */
+        /* Datos que no se editan (fechas, número de expediente): siempre como
+           texto, también con la sección en edición, para que no parezcan campos. */
+        html body .ra-seccion input.ra-fijo,
+        html body .ra-seccion input.ra-fijo:focus { border-color: transparent !important; background: transparent !important; box-shadow: none !important;
+            padding-left: 0 !important; color: #2E3C3D !important; font-weight: 600; pointer-events: none; cursor: default; }
+        .ra-fijo__candado { font-size: 11px; color: #A2AFAF; margin-left: 2px; }
+        .ra-lectura.ra-editable .form-group:has(.ra-fijo) { cursor: default; }
+        .ra-lectura.ra-editable .form-group:has(.ra-fijo):hover { background-color: transparent; box-shadow: none; }
+        .ra-lectura.ra-editable .form-group:has(.ra-fijo):hover::after { content: none; }
+        .ra-lectura.ra-editable .form-group { position: relative; cursor: pointer; border-radius: 8px; transition: background-color .12s, box-shadow .12s; }
+        .ra-lectura.ra-editable .form-group:hover { background-color: #F2F6F6; box-shadow: 0 0 0 6px #F2F6F6; }
+        .ra-lectura.ra-editable .form-group:hover::after {
+            content: "\F4CB"; font-family: bootstrap-icons; position: absolute; top: 2px; right: 4px;
+            font-size: 12px; color: #496163; pointer-events: none;
+        }
+        .ra-lectura.ra-editable .form-group:hover label { color: #496163; }
 
-    .was-validated .form-control:invalid ~ .invalid-feedback,
-    .was-validated select.form-control:invalid ~ .invalid-feedback,
-    .was-validated .form-select:invalid ~ .invalid-feedback {
-        display: block;
-    }
+        .ra-parte { border: 1px solid #E3E8E8; border-radius: 12px; padding: 12px 16px; margin: 6px 0 16px; background: #fff; }
+        .ra-parte__cab { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px; padding-bottom: 10px; margin-bottom: 6px; border-bottom: 1px solid #EEF2F2; }
+        .ra-parte__quien { display: flex; gap: 10px; align-items: flex-start; min-width: 0; }
+        .ra-parte__num { width: 28px; height: 28px; border-radius: 50%; background: #354647; color: #fff; font-weight: 800; display: grid; place-items: center; flex: 0 0 auto; }
+        .ra-parte__nombre { font-size: 16px; font-weight: 800; color: #2E3C3D; }
+        .ra-parte__chips { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 4px; }
+        .ra-et { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 700; background: #EEF2F2; color: #496163; }
+        .ra-et--multa, .ra-et--falta { background: #FBEDEA; color: #9A3A22; }
+        .ra-et--aviso, .ra-et--nuevo { background: #FBF4E1; color: #7A5D10; }
+        .ra-et--ok { background: #E9F5EE; color: #1E7B3C; }
+        .ra-et--info, .ra-et--solicitante { background: #E3EEF9; color: #1F4E79; }
+        .ra-et--resulte { background: #F1EFF8; color: #4B3F7A; }
+        .ra-seccion h4.text-center { text-align: left !important; font-size: 12.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: #829A9C; margin: 12px 0 4px; }
+        .ra-subtitulo { font-size: 12.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: #829A9C; margin: 8px 0 6px; }
+        .ra-tabla-docs td, .ra-tabla-docs th { vertical-align: middle; }
+        /* Fase 3: varios solicitantes y representantes con su poder (pestaña Documentos). */
+        .ra-sol__titulo { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 800; color: #2E3C3D; margin: 14px 0 6px; padding-top: 10px; border-top: 1px solid #EEF2F2; }
+        .ra-rep { border: 1px solid #E3E8E8; border-radius: 12px; padding: 12px 16px; margin: 6px 0 12px; background: #fff; }
+        .ra-rep__cab { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 8px 12px; padding-bottom: 8px; border-bottom: 1px solid #EEF2F2; }
+        .ra-rep__nombre { font-size: 15px; font-weight: 800; color: #2E3C3D; }
+        .ra-rep__partes { font-size: 12.5px; color: #5E6E6F; }
+        .ra-rep__datos { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px 16px; margin: 10px 0; }
+        .ra-rep__datos dt { font-size: 12px; color: #8A9899; font-weight: 700; margin: 0; }
+        .ra-rep__datos dd { margin: 0; color: #2E3C3D; font-weight: 600; word-break: break-word; }
+        .ra-rep__ancho { grid-column: 1 / -1; }
+        .ra-rep__docs { display: flex; flex-wrap: wrap; gap: 6px; }
+        .ra-rep-resumen { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; background: #F7F9F9; border: 1px solid #E3E8E8; border-radius: 10px; padding: 10px 14px; margin: 8px 0 12px; font-size: 13.5px; }
+        
+        html body .btn { transition: background-color .15s, border-color .15s, color .15s, box-shadow .15s; }
 
-</style>
+        /* Guardar: dorado. */
+        html body .btn.btn-primary { background-color: #CEA845 !important; border: 1px solid #CEA845 !important; color: #fff !important; font-weight: 700; box-shadow: 0 2px 6px rgba(206, 168, 69, .35); }
+        html body .btn.btn-primary:not(.btn-social):hover, html body .btn.btn-primary:not(.btn-social):focus { background-color: #B8952F !important; border-color: #B8952F !important; color: #fff !important; }
+        html body .btn.btn-primary:not(.btn-social):active { background-color: #A6852A !important; border-color: #A6852A !important; color: #fff !important; }
+
+        /* Guardar e iniciar audiencia: verde (el mismo de "Iniciar" en el índice). */
+        html body .btn.ra-btn-iniciar { background-color: #1E7B3C !important; border: 1px solid #1E7B3C !important; color: #fff !important; font-weight: 700; box-shadow: 0 2px 6px rgba(30, 123, 60, .3); }
+        html body .btn.ra-btn-iniciar:not(.btn-social):hover, html body .btn.ra-btn-iniciar:not(.btn-social):focus { background-color: #186632 !important; border-color: #186632 !important; color: #fff !important; }
+        html body .btn.ra-btn-iniciar:not(.btn-social):active { background-color: #13522A !important; border-color: #13522A !important; color: #fff !important; }
+
+        /* Agregar: verde suave. */
+        html body .btn.ra-btn-agregar { background-color: #E5F3EA !important; border: 1px solid #A8D5B6 !important; color: #1E7B3C !important; font-weight: 700; box-shadow: none; }
+        html body .btn.ra-btn-agregar:not(.btn-social):hover, html body .btn.ra-btn-agregar:not(.btn-social):focus { background-color: #1E7B3C !important; border-color: #1E7B3C !important; color: #fff !important; }
+
+        /* Editar: azul petróleo. Suave en reposo; sólido al pasar por la
+           sección (invita a dar clic) y mientras se edita ("Listo"). */
+        html body .btn.ra-editar,
+        html body .btn.ra-btn-editar { background-color: #E3EFF3 !important; border: 1px solid #A9CBD7 !important; color: #1D5F73 !important; font-weight: 700; box-shadow: none; }
+        html body .btn.ra-editar:not(.btn-social):hover, html body .btn.ra-editar:not(.btn-social):focus,
+        html body .btn.ra-btn-editar:not(.btn-social):hover, html body .btn.ra-btn-editar:not(.btn-social):focus,
+        html body .ra-seccion.ra-lectura.ra-editable:hover > .ra-seccion__cab .btn.ra-editar,
+        html body .ra-seccion.ra-lectura.ra-editable:hover > .ra-parte__cab .btn.ra-editar { background-color: #1D5F73 !important; border-color: #1D5F73 !important; color: #fff !important; }
+        html body .ra-seccion.is-editando > .ra-seccion__cab .btn.ra-editar,
+        html body .ra-seccion.is-editando > .ra-parte__cab .btn.ra-editar { background-color: #1D5F73 !important; border-color: #1D5F73 !important; color: #fff !important; box-shadow: 0 2px 6px rgba(29, 95, 115, .3); }
+        html body .ra-seccion.is-editando > .ra-seccion__cab .btn.ra-editar:not(.btn-social):hover,
+        html body .ra-seccion.is-editando > .ra-parte__cab .btn.ra-editar:not(.btn-social):hover { background-color: #164B5B !important; border-color: #164B5B !important; }
+        .tabcontent.ra-seccion.is-editando { border-color: #A9CBD7; }
+
+        /* Ver documento: contorno verde institucional, se rellena al pasar. */
+        html body .btn.btn-info,
+        html body .btn.btn-success:not(.ra-btn-iniciar),
+        html body .btn.btn-outline-info,
+        html body .btn.btn-outline-secondary { background-color: #fff !important; border: 1px solid #829A9C !important; color: #496163 !important; font-weight: 600; box-shadow: none; }
+        html body .btn.btn-info:not(.btn-social):hover, html body .btn.btn-info:not(.btn-social):focus,
+        html body .btn.btn-success:not(.ra-btn-iniciar):not(.btn-social):hover, html body .btn.btn-success:not(.ra-btn-iniciar):not(.btn-social):focus,
+        html body .btn.btn-outline-info:not(.btn-social):hover, html body .btn.btn-outline-info:not(.btn-social):focus,
+        html body .btn.btn-outline-secondary:not(.btn-social):hover, html body .btn.btn-outline-secondary:not(.btn-social):focus { background-color: #496163 !important; border-color: #496163 !important; color: #fff !important; }
+
+        /* Regresar / Cerrar: gris neutro. */
+        html body .btn.btn-secondary { background-color: #E3EAEA !important; border: 1px solid #E3EAEA !important; color: #496163 !important; font-weight: 600; box-shadow: none; }
+        html body .btn.btn-secondary:not(.btn-social):not(:disabled):not(.disabled):hover { background-color: #D2DCDC !important; border-color: #D2DCDC !important; color: #354647 !important; }
+
+        /* Borrar: rojo apagado. */
+        html body .btn.btn-danger,
+        html body .btn.btn-outline-danger { background-color: #fff !important; border: 1px solid #C9A49A !important; color: #9A3A22 !important; box-shadow: none; }
+        html body .btn.btn-danger:not(.btn-social):hover, html body .btn.btn-danger:not(.btn-social):focus,
+        html body .btn.btn-outline-danger:not(.btn-social):hover, html body .btn.btn-outline-danger:not(.btn-social):focus { background-color: #9A3A22 !important; border-color: #9A3A22 !important; color: #fff !important; }
+
+        /* "Guardar edición" mientras no hay cambios: gris, no dorado. */
+        html body .btn.btn-primary.ra-guardar--espera,
+        html body .btn.btn-primary.ra-guardar--espera:disabled { background-color: #E3EAEA !important; border-color: #E3EAEA !important; color: #8A9899 !important; box-shadow: none; opacity: 1; }
+        .ra-guardar-aviso { font-size: 12px; color: #8A9899; }
+        .ra-guardar-aviso b { color: #1D5F73; }
+
+        /* Sin archivo / sin generar: apagado, de cualquier tipo. */
+        html body .btn.disabled,
+        html body .btn:disabled:not(.ra-guardar--espera) { background-color: #F4F6F6 !important; border: 1px dashed #D5DDDD !important; color: #8A9899 !important; box-shadow: none; opacity: 1; }
+
+        /* Documentos: se comprueba que exista el archivo (script de data-doc). */
+        a.ra-doc-revisando { opacity: .6; }
+        .ra-doc-falta { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: 12.5px; font-weight: 700; color: #9A3A22; background: #FBEDE8; border-radius: 8px; padding: 4px 4px 4px 10px; }
+        .ra-doc-falta .btn { font-size: 12px; padding: 2px 8px; }
+        input.ra-doc-subir { border-color: #CEA845 !important; box-shadow: 0 0 0 3px rgba(206, 168, 69, .2) !important; }
+        /* Confirmación de borrar citado */
+        .ra-confirmar__datos { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; background: #F7F9F9; border: 1px solid #E3E8E8; border-radius: 10px; padding: 10px 14px; margin: 0 0 12px; }
+        .ra-confirmar__datos dt { font-size: 12px; color: #8A9899; font-weight: 700; margin: 0; }
+        .ra-confirmar__datos dd { margin: 0; color: #2E3C3D; font-weight: 600; word-break: break-word; }
+        .ra-confirmar__nota { font-size: 13px; color: #5E6E6F; }
+        .ra-confirmar__aviso { font-size: 13px; color: #9A3A22; background: #FBEDEA; border-radius: 8px; padding: 8px 10px; }
+        @media (max-width: 480px) { .ra-confirmar__datos { grid-template-columns: 1fr; } }
+        .ra-varios { background: #FBF4E1; color: #7A5D10; border-radius: 10px; padding: 8px 12px; font-size: 13px; margin-bottom: 10px; }
+    </style>
+@endsection
 
 @section('content')
     <section class="section">
@@ -133,32 +277,38 @@
                                     <input type="hidden" name="isAudiencia" value="1">
                                     <input type="hidden" name="esAudiencia" value="{{ $isAudiencia }}">
                                     <input type="hidden" name="audiencia_id" value="{{ request()->query('audiencia_id') }}">
+
+                                    @include('audiencias._revisar_encabezado')
+                                    @include('audiencias._revisar_lista')
+
+                                    {{-- Las acciones ya no son pestaña: están en el encabezado. Los id de "Citado(s)" y "Documentos" están cruzados desde antes; se dejan así. --}}
                                     <div class="tab">
-                                        <a class="btn btn-info" onclick="openCity(event, 'detalles')">Detalles</a>
-                                        <a class="btn btn-info" onclick="openCity(event, 'solicitante')">Solicitante</a>
-                                        <a class="btn btn-info" onclick="openCity(event, 'documentos')">Citado(s)</a>
-                                        <a class="btn btn-info" onclick="openCity(event, 'citados')">Documentos</a>
-                                        <a class="btn btn-success" onclick="openCity(event, 'confirmacion')">Acciones</a>
+                                        <a class="btn ra-tab tablinks" onclick="openCity(event, 'detalles')"><i class="bi bi-card-text" aria-hidden="true"></i> Detalles</a>
+                                        <a class="btn ra-tab tablinks" onclick="openCity(event, 'solicitante')"><i class="bi bi-person" aria-hidden="true"></i> {{ $general->tipo_solicitud == 2 ? 'Solicitante (patrón)' : 'Solicitante' }}</a>
+                                        <a class="btn ra-tab tablinks" onclick="openCity(event, 'documentos')"><i class="bi bi-people" aria-hidden="true"></i> Citado(s)</a>
+                                        <a class="btn ra-tab tablinks" onclick="openCity(event, 'citados')"><i class="bi bi-folder2-open" aria-hidden="true"></i> Documentos</a>
                                     </div>
 
-                                    <div id="detalles" class="tabcontent">
+                                    <div id="detalles" class="tabcontent ra-seccion">
+                                        @include('audiencias._revisar_seccion_cab', ['titulo' => 'Datos de la solicitud'])
                                         <div id="tabla_detalles" class="row">
                                             <div class="col-xs-12 col-sm-6 col-md-2">
                                                 <div class="form-group">
-                                                    <label for="name">Fecha de Registro</label>
-                                                    <input type="date" class="form-control" value="<?=$general["fecha"];?>" readonly>
+                                                    <label>Fecha de Registro <i class="bi bi-lock ra-fijo__candado" title="No se puede editar"></i></label>
+                                                    <input type="text" class="form-control ra-fijo" value="{{ filled($general['fecha'] ?? null) ? \Illuminate\Support\Carbon::parse($general['fecha'] ?? null)->format('d/m/Y') : '—' }}" readonly tabindex="-1" aria-readonly="true">
                                                 </div>
                                             </div>
                                             <div class="col-xs-12 col-sm-6 col-md-3">
                                                 <div class="form-group">
-                                                    <label for="name">Fecha de Confirmación</label>
-                                                    <input type="date" class="form-control" value="{{ $general['fecha_confirmacion'] ?? '' }}" readonly>
+                                                    <label>Fecha de Confirmación <i class="bi bi-lock ra-fijo__candado" title="No se puede editar"></i></label>
+                                                    <input type="text" class="form-control ra-fijo" value="{{ filled($general['fecha_confirmacion'] ?? null) ? \Illuminate\Support\Carbon::parse($general['fecha_confirmacion'] ?? null)->format('d/m/Y') : '—' }}" readonly tabindex="-1" aria-readonly="true">
                                                 </div>
                                             </div>
                                             <div class="col-xs-12 col-sm-6 col-md-3">
                                                 <div class="form-group">
-                                                    <label for="password">Número de Expediente</label>
-                                                    <input type="text" name="actividad_economica" class="form-control" value="{{ $general['NUE'] ?? '' }}" readonly>
+                                                    <label>Número de Expediente <i class="bi bi-lock ra-fijo__candado" title="No se puede editar"></i></label>
+                                                    {{-- Sin name: antes llevaba name="actividad_economica" y competía con el campo real de actividad. --}}
+                                                    <input type="text" class="form-control ra-fijo" value="{{ $general['NUE'] ?? '—' }}" readonly tabindex="-1" aria-readonly="true">
                                                 </div>
                                             </div>
 
@@ -211,7 +361,7 @@
                                                 </table>
                                             </div>
                                        
-                                            <div class="col-xs-6 col-sm-6 col-md-6">
+                                            <div class="col-xs-6 col-sm-6 col-md-6 ra-solo-edicion">
                                                 <div class="form-group">
                                                     <label for="name">Agregar Otro Motivo a la Solicitud</label>
                                                     @can('audiencias_agregar_motivo')
@@ -228,7 +378,7 @@
                                                 </div>
                                             </div>
 
-                                            <div id="div1"  class="col-xs-12 col-sm-12 col-md-12"><br>
+                                            <div id="div1"  class="col-xs-12 col-sm-12 col-md-12 ra-solo-edicion"><br>
                                                 <table id="tabla" name="motivo_solicitud[]" class="table table-striped mt-1" style="margin: 0 center; text-align:center;">
                                                     <thead style="background-color: #D2D3D5;">
                                                         <th style="color: black;">Objeto de la Solicitud</th>
@@ -264,630 +414,24 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <div id="solicitante" class="tabcontent">
+                                    <div id="solicitante" class="tabcontent ra-seccion">
+                                        @include('audiencias._revisar_seccion_cab', ['titulo' => 'Solicitante'])
                                         <div id="tabla_solicitante" class="row">
-                                            <div class="col-xs-12 col-sm-12 col-md-12">
-                                                <div class="form-group">
-                                                    <h4 class="text-center">Solicitante</h4>
-                                                </div>
-                                            </div>
                                             @foreach($solicitantes as $solicitante)
-                                                <div class="col-xs-12 col-sm-6 col-md-12">
-                                                    <div class="form-group">
-                                                        <label for="password">Nombre<span style="color:red;"> (*)</span></label>
-                                                        <input type="text" class="form-control" name="nombre_solicitante" value="<?=$solicitante["nombre"];?>" required>
-                                                        <div class="invalid-feedback">
-                                                            El campo nombre es obligatorio.
-                                                        </div>   
-                                                    </div>                                                    
-                                                </div>
-                                                <div class="col-xs-12 col-sm-6 col-md-3" hidden>
-                                                    <div class="form-group">
-                                                        <label for="confirm-password">Tipo de persona<span style="color:red;"> (*)</span></label>
-                                                        <select name="tipo_persona_solicitante" class="form-control" required>
-                                                            <option value="Fisica" {{ $solicitante["tipo_persona"] == 'Fisica' ? "selected" : '' }}>Física</option>
-                                                            <option value="Moral"  {{ $solicitante['tipo_persona'] == 'Moral' ? "selected" : '' }}>Moral</option>
-                                                        </select>
-                                                        <div class="invalid-feedback">
-                                                            El campo tipo de persona es obligatorio.
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div class="col-xs-12 col-sm-6 col-md-6">
-                                                    <div class="form-group">
-                                                        <label for="confirm-password">CURP<span style="color:red;"> (*)</span></label>
-                                                        <input type="text" class="form-control" name="curp_solicitante" value="<?=$solicitante["curp"];?>" required>
-                                                        <div class="invalid-feedback">
-                                                            El campo curp es obligatorio.
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                
-                                                <div class="col-xs-12 col-sm-6 col-md-3">
-                                                    <div class="form-group">
-                                                        <label for="password">RFC</label>
-                                                        <input type="text" class="form-control" name="rfc_solicitante" value="<?=$solicitante["rfc"];?>">   
-                                                    </div>
-                                                </div>
-                                                <div class="col-xs-12 col-sm-6 col-md-3">
-                                                    <div class="form-group">
-                                                        <label for="confirm-password">Sexo<span style="color:red;"> (*)</span></label>
-                                                        <select name="sexo_solicitante" class="form-control" required>
-                                                            <option value="H" {{ $solicitante["sexo"] == 'H' ? "selected" : '' }}>Hombre</option>
-                                                            <option value="M"  {{ $solicitante['sexo'] == 'M' ? "selected" : '' }}>Mujer</option>
-                                                            <option value="NB"  {{ $solicitante['sexo'] == 'NB' ? "selected" : '' }}>No Binario</option>
-                                                            <option value="LGBTTTIQ"  {{ $solicitante['sexo'] == 'LGBTTTIQ' ? "selected" : '' }}>LGBTTTIQ+</option>
-                                                        </select>
-                                                        <div class="invalid-feedback">
-                                                            El campo curp es obligatorio.
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div class="col-xs-12 col-sm-6 col-md-3">
-                                                    <div class="form-group">
-                                                        <label for="confirm-password">Nacionalidad<span style="color:red;"> (*)</span></label>
-                                                        <select name="nacionalidad_solicitante" class="form-control" required>
-                                                            <option value="Mexicana" {{ $solicitante["sexo"] == 'Mexicana' ? "selected" : '' }}>Mexicana</option>
-                                                            <option value="Otra"  {{ $solicitante['sexo'] == 'Otra' ? "selected" : '' }}>Otra</option>
-                                                        </select>
-                                                        <div class="invalid-feedback">
-                                                            El campo nacionalidad es obligatorio.
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                
-                                                <div class="col-xs-12 col-sm-6 col-md-3">
-                                                    <div class="form-group">
-                                                        <label for="password">Email<span style="color:red;"> (*)</span></label>
-                                                        <input type="email" class="form-control" name="email_solicitante" value="<?=$solicitante["email"];?>" required>
-                                                        <div class="invalid-feedback">
-                                                            El campo email es obligatorio.
-                                                        </div>   
-                                                    </div>
-                                                </div>
-                                                <div class="col-xs-12 col-sm-6 col-md-3">
-                                                    <div class="form-group">
-                                                        <label for="password">Fecha nacimiento<span style="color:red;"> (*)</span></label>
-                                                        <input type="date" class="form-control" name="fecha_nacimiento_solicitante" value="<?=$solicitante["fecha_nacimiento"];?>" required>
-                                                        <div class="invalid-feedback">
-                                                            El fecha nacimiento es obligatorio.
-                                                        </div>   
-                                                    </div>
-                                                </div>
-                                                <div class="col-xs-12 col-sm-6 col-md-3">
-                                                    <div class="form-group">
-                                                        <label for="password">Edad<span style="color:red;"> (*)</span></label>
-                                                        <input type="text" class="form-control" name="edad_solicitante" value="<?=$solicitante["edad"];?>" required>
-                                                        <div class="invalid-feedback">
-                                                            El campo edad es obligatorio.
-                                                        </div>   
-                                                    </div>
-                                                </div>
-                                                <div class="col-xs-12 col-sm-6 col-md-3">
-                                                    <div class="form-group">
-                                                        <label for="password">Teléfono<span style="color:red;"> (*)</span></label>
-                                                        <input type="number" id="telefono1_solicitante" class="form-control" name="telefono1_solicitante" value="<?=$solicitante["telefono1"];?>" required inputmode="numeric" maxlength="10">
-                                                        <div class="invalid-feedback">
-                                                            El teléfono es obligatorio y debe contener 10 dígitos.
-                                                        </div>   
-                                                    </div>
-                                                </div>
-                                                <div class="col-xs-12 col-sm-6 col-md-3">
-                                                    <div class="form-group">
-                                                            <label for="password">Teléfono (Opcional)</label>
-                                                            <input type="number" id="telefono2_solicitante" class="form-control" name="telefono2_solicitante" value="<?=$solicitante["telefono2"];?>" inputmode="numeric" maxlength="10">   
-                                                        </div>
-                                                </div>
-                                                <div class="col-xs-12 col-sm-6 col-md-3">
-                                                    <div class="form-group">
-                                                        <label for="confirm-password">Requiere traductor<span style="color:red;"> (*)</span></label>
-                                                        <select name="traductor_solicitante" id="needsLanguageSolicitante" class="form-control" required>
-                                                            <option value="Si" {{ $solicitante["traductor"] == 'Si' ? "selected" : '' }}>SI</option>
-                                                            <option value="No"  {{ $solicitante['traductor'] == 'No' ? "selected" : '' }}>NO</option>
-                                                        </select>
-                                                    </div>
-                                                </div>
-                                                <div class="col-xs-12 col-sm-6 col-md-3" id="languageRequired" hidden>
-                                                    <div class="form-group">
-                                                        <label for="password">Lenguaje requerido<span style="color:red;"> (*)</span></label>
-                                                        <input type="text" class="form-control" name="lenguaje_solicitante" id="languageValueSolicitante" value="<?=$solicitante["lenguaje"];?>">   
-                                                    </div>
-                                                </div>
-                                                <div class="col-xs-12 col-sm-6 col-md-3">
-                                                    <div class="form-group">
-                                                        <label for="confirm-password">Tiene discapacidad<span style="color:red;"> (*)</span></label>
-                                                        <select name="discapacidad_solicitante" id="hasDisabilitySolicitante" class="form-control" required>
-                                                            <option value="Si" {{ $solicitante["discapacidad"] == 'Si' ? "selected" : '' }}>SI</option>
-                                                            <option value="No"  {{ $solicitante['discapacidad'] == 'No' ? "selected" : '' }}>NO</option>
-                                                        </select>
-                                                    </div>
-                                                </div>
-                                                <div class="col-xs-12 col-sm-6 col-md-3" id="disabilityRequired" hidden>
-                                                    <div class="form-group">
-                                                        <label for="password">Discapacidad<span style="color:red;"> (*)</span></label>
-                                                        <input type="text" class="form-control" name="disc_solicitante" id="disabilityValueSolicitante" value="<?=$solicitante["tipo_discapacidad"];?>">   
-                                                    </div>
-                                                </div>
-
-                                                <div class="col-xs-12 col-sm-12 col-md-12">
-                                                    <div class="form-group">
-                                                        <h4 class="text-center">Dirección del solicitante</h4>
-                                                    </div>
-                                                </div>
-                                                
-                                                <div class="col-xs-12 col-sm-6 col-md-3">
-                                                    <div class="form-group">
-                                                        <label for="password">Entidad Federativa<span style="color:red;"> (*)</span></label>
-                                                        <select id="estado_solicitante" class="form-control" name="estado_solicitante" required>
-                                                            @foreach($estados as $est)
-                                                                <option value="{{$est['id']}}" {{ $solicitante['estado'] == $est['id'] ? "selected" : '' }}>{{$est['nombre']}}</option>
-                                                            @endforeach
-                                                        </select>
-                                                        <div class="invalid-feedback">
-                                                            El campo entidad federativa es obligatorio.
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                
-                                                <div class="col-xs-12 col-sm-6 col-md-3">
-                                                    <div class="form-group">
-                                                        <label for="password">Municipio<span style="color:red;"> (*)</span></label>
-                                                        <select class="form-control" name="municipio_solicitante" required>
-                                                            @foreach($municipios as $mun)
-                                                                <option value="{{$mun['id']}}" {{ $solicitante['municipio_domicilio'] == $mun['id'] ? "selected" : '' }}>{{$mun['nombre']}}</option>
-                                                            @endforeach
-                                                        </select>
-                                                        <div class="invalid-feedback">
-                                                            El campo municipio es obligatorio.
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                <div class="col-xs-12 col-sm-6 col-md-3">
-                                                    <div class="form-group">
-                                                        <label for="password">Tipo de vialidad<span style="color:red;"> (*)</span></label>
-                                                        <!--input type="text" class="form-control" name="tipo_vialidad" value="<?=$solicitante["tipo_vialidad"];?>" required-->
-                                                        <select name="tipo_vialidad" class="form-control" required>
-                                                            <option value="">SELECCIONE</option>
-                                                            <option value="CALLE"          {{ $solicitante['tipo_vialidad'] == 'CALLE' ? "selected" : '' }}   >Calle</option>
-                                                            <option value="AVENIDA"        {{ $solicitante['tipo_vialidad'] == 'AVENIDA' ? "selected" : '' }} >Avenida</option>
-                                                            <option value="CALZADA"        {{ $solicitante['tipo_vialidad'] == 'CALZADA' ? "selected" : '' }} >Calzada</option>
-                                                            <option value="BOULEVARD"      {{ $solicitante['tipo_vialidad'] == 'BOULEVARD' ? "selected" : '' }} >Boulevard</option>
-                                                            <option value="AMPLIACIÓN"     {{ $solicitante['tipo_vialidad'] == 'AMPLIACIÓN' ? "selected" : '' }} >Ampliación</option>
-                                                            <option value="ANDADOR"        {{ $solicitante['tipo_vialidad'] == 'ANDADOR' ? "selected" : '' }} >Andador</option>
-                                                            <option value="AUTOPISTA"      {{ $solicitante['tipo_vialidad'] == 'AUTOPISTA' ? "selected" : '' }} >Autopista</option>
-                                                            <option value="CALLEJÓN"       {{ $solicitante['tipo_vialidad'] == 'CALLEJÓN' ? "selected" : '' }}>Callejón</option>
-                                                            <option value="CARRETERA"      {{ $solicitante['tipo_vialidad'] == 'CARRETERA' ? "selected" : '' }}   >Carretera</option>
-                                                            <option value="CERRADA"        {{ $solicitante['tipo_vialidad'] == 'CERRADA' ? "selected" : '' }} >Cerrada</option>
-                                                            <option value="CIRCUITO"       {{ $solicitante['tipo_vialidad'] == 'CIRCUITO' ? "selected" : '' }} >Circuito</option>
-                                                            <option value="CIRCUNVALACIÓN" {{ $solicitante['tipo_vialidad'] == 'CIRCUNVALACIÓN' ? "selected" : '' }} >Circunvalación</option>
-                                                            <option value="CONTINUACIÓN"   {{ $solicitante['tipo_vialidad'] == 'CONTINUACIÓN' ? "selected" : '' }} >Continuación</option>
-                                                            <option value="CORREDOR"       {{ $solicitante['tipo_vialidad'] == 'CORREDOR' ? "selected" : '' }} >Corredor</option>
-                                                            <option value="DIAGONAL"       {{ $solicitante['tipo_vialidad'] == 'DIAGONAL' ? "selected" : '' }} >Diagonal</option>
-                                                            <option value="EJE VIAL"       {{ $solicitante['tipo_vialidad'] == 'EJE VIAL' ? "selected" : '' }}>Eje vial</option>
-                                                            <option value="PERIFÉRICO"     {{ $solicitante['tipo_vialidad'] == 'PERIFÉRICO' ? "selected" : '' }}   >Periférico</option>
-                                                            <option value="PRIVADA"        {{ $solicitante['tipo_vialidad'] == 'PRIVADA' ? "selected" : '' }} >Privada</option>
-                                                            <option value="PROLONGACIÓN"   {{ $solicitante['tipo_vialidad'] == 'PROLONGACIÓN' ? "selected" : '' }} >Prolongación</option>
-                                                            <option value="RETORNO"        {{ $solicitante['tipo_vialidad'] == 'RETORNO' ? "selected" : '' }} >Retorno</option>
-                                                            <option value="VIADUCTO"       {{ $solicitante['tipo_vialidad'] == 'VIADUCTO' ? "selected" : '' }} >Viaducto</option>
-                                                            <option value="PASEO"       {{ $solicitante['tipo_vialidad'] == 'PASEO' ? "selected" : '' }} >Paseo</option>
-                                                        </select>
-                                                        <div class="invalid-feedback">
-                                                            El campo tipo de vialidad es obligatorio.
-                                                        </div>   
-                                                    </div>
-                                                </div>
-
-                                                <div class="col-xs-12 col-sm-6 col-md-3">
-                                                    <div class="form-group">
-                                                        <label for="password">Nombre de la vialidad<span style="color:red;"> (*)</span></label>
-                                                        <input type="text" class="form-control" name="calle_solicitante" value="<?=$solicitante["calle"];?>" required>
-                                                        <div class="invalid-feedback">
-                                                            El campo nombre de la vialidad es obligatorio.
-                                                        </div>   
-                                                    </div>
-                                                </div>
-                                                <div class="col-xs-12 col-sm-6 col-md-3">
-                                                    <div class="form-group">
-                                                        <label for="password">Núm. Ext.<span style="color:red;"> (*)</span></label>
-                                                        <input type="text" class="form-control" name="num_ext_solicitante" value="<?=$solicitante["num_ext"];?>" required>
-                                                        <div class="invalid-feedback">
-                                                            El campo Núm. Ext. es obligatorio.
-                                                        </div>   
-                                                    </div>
-                                                </div>
-                                                <div class="col-xs-12 col-sm-6 col-md-3">
-                                                    <div class="form-group">
-                                                        <label for="password">Núm. Int.</label>
-                                                        <input type="text" class="form-control" name="num_int_solicitante" value="<?=$solicitante["num_int"];?>">   
-                                                    </div>
-                                                </div>
-
-                                                <div class="col-xs-12 col-sm-6 col-md-3">
-                                                    <div class="form-group">
-                                                        <label for="password">Colonia<span style="color:red;"> (*)</span></label>
-                                                        <input type="text" class="form-control" name="colonia_solicitante" value="<?=$solicitante["colonia"];?>" required>
-                                                        <div class="invalid-feedback">
-                                                            El campo colonia es obligatorio.
-                                                        </div>   
-                                                    </div>
-                                                </div>
-
-                                                <div class="col-xs-12 col-sm-6 col-md-3">
-                                                    <div class="form-group">
-                                                        <label for="password">Código postal<span style="color:red;"> (*)</span></label>
-                                                        <input type="text" class="form-control" name="codigo_postal_solicitante" value="<?=$solicitante["codigo_postal"];?>" required>
-                                                        <div class="invalid-feedback">
-                                                            El campo código postal es obligatorio.
-                                                        </div>   
-                                                    </div>
-                                                </div>
-
-                                                <div class="col-xs-12 col-sm-6 col-md-4">
-                                                    <div class="form-group">
-                                                        <label for="password">Referencia</label>
-                                                        <input type="text" class="form-control" name="referencia_solicitante" value="<?=$solicitante["referencia"];?>">   
-                                                    </div>
-                                                </div>
-                                                
-                                                <div class="col-xs-12 col-sm-6 col-md-4">
-                                                    <div class="form-group">
-                                                        <label for="password">Entre calle</label>
-                                                        <input type="text" class="form-control" name="calle2_solicitante" value="<?=$solicitante["calle2"];?>">   
-                                                    </div>
-                                                </div>
-                                                <div class="col-xs-12 col-sm-6 col-md-4">
-                                                    <div class="form-group">
-                                                        <label for="password">Y calle</label>
-                                                        <input type="text" class="form-control" name="calle3_solicitante" value="<?=$solicitante["calle3"];?>">   
-                                                    </div>
-                                                </div>
-
-                                                @if($general->tipo_solicitud == 2)
-                                                    @if(optional($audienciaCurrent->poder)->reprecentante == 'Si')
-                                                        <div class="col-xs-12 col-sm-12 col-md-12">
-                                                            <div class="form-group">
-                                                                <h4 class="text-center">Datos del representante</h4>
-                                                            </div>
-                                                        </div>
-
-                                                        <div class="col-xs-12 col-sm-12 col-md-12">
-                                                            <div class="form-group">
-                                                                <h5 class="text-center" style="color:#CEA845">Información del Representante Legal</h5>
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-xs-12 col-sm-12 col-md-12">
-                                                            <div class="form-group">
-                                                                <h5 class="text-center">Datos de identificación</h5>
-                                                            </div>
-                                                        </div>
-
-                                                        <div class="col-xs-12 col-sm-12 col-md-6">
-                                                            <div class="form-group">
-                                                                <label for="name">Nombre(s) del representante<span style="color:red;">(*)</span></label>
-                                                                <input type="text" class="form-control" value="{{ $audienciaCurrent->poder->nombre_representante }}" disabled>
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-xs-12 col-sm-12 col-md-6">
-                                                            <div class="form-group">
-                                                                <label for="name">Primer apellido <span style="color:red;">(*)</span></label>
-                                                                <input type="text" class="form-control" value="{{ $audienciaCurrent->poder->primer_apellido_representante }}" disabled>
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-xs-12 col-sm-12 col-md-6">
-                                                            <div class="form-group">
-                                                                <label for="name">Segundo apellido <span style="color:red;">(*)</span></label>
-                                                                <input type="text" class="form-control" value="{{ $audienciaCurrent->poder->segundo_apellido_representante }}" disabled>
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-xs-12 col-sm-12 col-md-6">
-                                                            <div class="form-group">
-                                                                <label for="">CURP</label>
-                                                                <input type="text" class="form-control" value="{{ $audienciaCurrent->poder->curp_representante }}" disabled>
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-xs-12 col-sm-12 col-md-6">
-                                                            <div class="form-group">
-                                                                <label for="name">Sexo <span style="color:red;">(*)</span></label>
-                                                                <select class="form-control" disabled>
-                                                                    <option value="">Seleccione</option>
-                                                                    <option value="Femenino"    {{ $audienciaCurrent->poder["sexo_representante"] == "Femenino" ? "selected" : '' }}>Femenino</option>
-                                                                    <option value="Masculino"   {{ $audienciaCurrent->poder["sexo_representante"] == "Masculino" ? "selected" : '' }}>Masculino</option>
-                                                                    <option value="Prefiero no responder">Prefiero no responder</option>
-                                                                </select>
-                                                            </div>
-                                                        </div>
-
-                                                        <div class="col-xs-12 col-sm-12 col-md-12">
-                                                            <div class="form-group">
-                                                                <h5 class="text-center">Datos de contacto</h5>
-                                                            </div>
-                                                        </div>
-
-                                                        <div class="col-xs-12 col-sm-12 col-md-6">
-                                                            <div class="form-group">
-                                                                <label for="">Correo electrónico <span style="color:red;">(*)</span></label>
-                                                                <input type="email" class="form-control" value="{{ $audienciaCurrent->poder->correo_representante }}" disabled>
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-xs-12 col-sm-12 col-md-6">
-                                                            <div class="form-group">
-                                                                <label for="">Teléfono <span style="color:red;">(*)</span></label>
-                                                                <input type="text" class="form-control" value="{{ $audienciaCurrent->poder->numero_representante }}" disabled>
-                                                            </div>
-                                                        </div>
-
-                                                        <div class="col-xs-12 col-sm-12 col-md-6">
-                                                            <div class="form-group">
-                                                                <label for="name">Identificación Oficial<span style="color:red;">(*)</span></label>
-                                                                <select class="form-control" disabled>
-                                                                    <option value="">Seleccione el tipo de indentificación</option>
-                                                                    <option value="Credencial de elector" {{ $audienciaCurrent->poder["tipo_identificacion"] == "Credencial de elector" ? "selected" : '' }} >Credencial de Elector</option>
-                                                                    <option value="Pasaporte" {{ $audienciaCurrent->poder["tipo_identificacion"] == "Pasaporte" ? "selected" : '' }}>Pasaporte</option>
-                                                                    <option value="Cédula profesional" {{ $audienciaCurrent->poder["tipo_identificacion"] == "Cédula profesional" ? "selected" : '' }}>Cédula Profesional</option>
-                                                                    <option value="Licencia de conducir" {{ $audienciaCurrent->poder["tipo_identificacion"] == "Licencia de conducir" ? "selected" : '' }}>Licencia de Conducir</option>
-                                                                    <option value="Credencial de inapam" {{ $audienciaCurrent->poder["tipo_identificacion"] == "Credencial de inapam" ? "selected" : '' }}>Credencial de INAPAM</option>
-                                                                    <option value="Cartilla militar" {{ $audienciaCurrent->poder["tipo_identificacion"] == "Cartilla militar" ? "selected" : '' }}>Cartilla Militar</option>
-                                                                    <option value="Documento migratorio" {{ $audienciaCurrent->poder["tipo_identificacion"] == "Documento migratorio" ? "selected" : '' }}>Documento Migratorio</option>
-                                                                    <option value="Constancia de identidad" {{ $audienciaCurrent->poder["tipo_identificacion"] == "Constancia de identidad" ? "selected" : '' }}>Constancia de Identidad</option>
-                                                                    <option value="Otro" {{ $audienciaCurrent->poder["tipo_identificacion"] == "Otro" ? "selected" : '' }}>Otros</option>
-                                                                </select>
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-xs-12 col-sm-12 col-md-6">
-                                                            <div class="form-group">
-                                                                <label for="name">Núm de identificación <span style="color:red;">(*)</span></label>
-                                                                <input type="text" class="form-control" value="{{ $audienciaCurrent->poder->num_identificacion }}" disabled>
-                                                            </div>
-                                                        </div>
-
-                                                        <div class="col-xs-12 col-sm-12 col-md-12">
-                                                            <div class="form-group">
-                                                                <h5 class="text-center" style="color:#CEA845">Datos de la documentación que acredite la personeria</h5>
-                                                            </div>
-                                                        </div>
-
-                                                        <div class="col-xs-12 col-sm-12 col-md-4">  
-                                                            <div class="form-group">
-                                                                <label for="name">Tipo de documento <span style="color:red;">(*)</span></label>
-                                                                <select name="tipo_documento_pF" id="tipo_documento_pF" class="form-control" disabled>
-                                                                    <option value="">Seleccione</option>
-                                                                    <option value="Carta Poder" {{ $audienciaCurrent->poder["tipo_documento_representante"] == "Carta Poder" ? "selected" : '' }}>Carta Poder</option>
-                                                                    <option value="Instrumento Notarial" {{ $audienciaCurrent->poder["tipo_documento_representante"] == "Instrumento Notarial" ? "selected" : '' }}>Instrumento Notarial</option>
-                                                                </select>
-                                                                <div class="invalid-feedback">
-                                                                    El campo es obligatorio.
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-xs-12 col-sm-12 col-md-4">
-                                                            <div class="form-group">
-                                                                <label for="">Fecha expedición <span style="color:red;">(*)</span></label>
-                                                                <input type="date" class="form-control" name="fecha_expedicion_pF" value="{{$audienciaCurrent->poder->fechaRegistro }}" disabled>
-                                                                <div class="invalid-feedback">
-                                                                    La fecha es obligatoria.
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-xs-12 col-sm-12 col-md-4">
-                                                            <div class="form-group">
-                                                                <label for="">Fecha vigencia</label>
-                                                                <input type="date" class="form-control" name="fecha_vigencia_pF" value="{{$audienciaCurrent->poder->fechaVigencia }}" disabled>
-                                                                <div class="invalid-feedback">
-                                                                    La fecha es obligatoria.
-                                                                </div>
-                                                            </div>
-                                                        </div>  
-                                                        <div class="col-xs-12 col-sm-12 col-md-12">
-                                                            <div class="form-group">
-                                                                <label for="">Descripción del documento que acredite la personaria</label>
-                                                                <textarea class="form-control" aria-describedby="basic-addon1" name="descripcion_pF" disabled>{{$audienciaCurrent->poder->descipcion_poder}}</textarea>
-                                                                <div class="invalid-feedback">
-                                                                    La descripción es obligatoria.
-                                                                </div>
-                                                            </div>
-                                                        </div>
-
-                                                        <div class="col-xs-12 col-sm-12 col-md-12">
-                                                            <div class="form-group">
-                                                                <h5 class="text-center" style="color:#CEA845">Documentos del Solicitante</h5>
-                                                            </div>
-                                                        </div>
-
-                                                        <div class="col-xs-12 col-sm-12 col-md-6">
-                                                            <div class="form-group">
-                                                                @if($audienciaCurrent->poder->tipo == 'Fisica')
-                                                                    <label>*Identificación del Empleador</label><br>
-                                                                @else
-                                                                    <label>*Acta Constitutiva</label><br>
-                                                                @endif
-                                                                @if(!empty($audienciaCurrent->poder->ineDocumento))
-                                                                    <a target="_blank" class="btn btn-primary" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $audienciaCurrent->poder->idAbogado, 'archivo' => $audienciaCurrent->poder->ineDocumento]) }}">Existente</a>
-                                                                @endif
-                                                                <div class="invalid-feedback">
-                                                                    La Identificación es obligatoria.
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-xs-12 col-sm-12 col-md-6">
-                                                            <div class="form-group">
-                                                                <label>*Identificación del Representante Legal</label><br>
-                                                                @if($audienciaCurrent->poder->representacionDocumento != NULL)
-                                                                    <a target="_blank" class="btn btn-primary" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $audienciaCurrent->poder->idAbogado, 'archivo' => $audienciaCurrent->poder->representacionDocumento]) }}">Existente</a>
-                                                                @endif
-                                                                <div class="invalid-feedback">
-                                                                    El documento de representación es obligatorio.
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-xs-12 col-sm-12 col-md-6">
-                                                            <div class="form-group">
-                                                                <label>*Documento que acredite la personería</label><br>
-                                                                @if($audienciaCurrent->poder->cedulaDocumento != NULL)
-                                                                    <a target="_blank" class="btn btn-primary" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $audienciaCurrent->poder->idAbogado, 'archivo' => $audienciaCurrent->poder->cedulaDocumento]) }}">Existente</a>
-                                                                @endif
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-xs-12 col-sm-12 col-md-6">
-                                                            <div class="form-group">
-                                                                <label>Anexo (Documentos Complementarios)</label><br>
-                                                                @if($audienciaCurrent->poder->anexo_documeto != "Sin anexo")
-                                                                    <a target="_blank" class="btn btn-primary" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $audienciaCurrent->poder->idAbogado, 'archivo' => $audienciaCurrent->poder->anexo_documeto]) }}">Existente</a>
-                                                                @else
-                                                                    <a class="btn btn-secondary disabled" href="#" tabindex="-1" aria-disabled="true">Sin anexo</a>
-                                                                @endif
-                                                            </div>
-                                                        </div>
-                                                    @else
-                                                        <div class="col-xs-12 col-sm-12 col-md-12">
-                                                            <div class="form-group">
-                                                                <h4 class="text-center">Documentos del representante</h4>
-                                                            </div>
-                                                        </div>
-
-                                                        <div class="col-xs-12 col-sm-12 col-md-6">
-                                                            <div class="form-group">
-                                                                <label>*Identificación del Empleador</label><br>
-                                                                @if(!empty($audienciaCurrent->poder->ineDocumento))
-                                                                    <a target="_blank" class="btn btn-primary" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $audienciaCurrent->poder->idAbogado, 'archivo' => $audienciaCurrent->poder->ineDocumento]) }}">Existente</a>
-                                                                @endif
-                                                                <div class="invalid-feedback">
-                                                                    La Identificación es obligatoria.
-                                                                </div>
-                                                            </div>
-                                                        </div>
-
-                                                        <div class="col-xs-12 col-sm-12 col-md-6">
-                                                            <div class="form-group">
-                                                                <label>Anexo (Documentos Complementarios)</label><br>
-                                                                @if($audienciaCurrent->poder->anexo_documeto != "Sin anexo")
-                                                                    <a target="_blank" class="btn btn-primary" href="{{ signedDocRoute('documentos.ver', ['tipo' => 'poder', 'id' => $audienciaCurrent->poder->idAbogado, 'archivo' => $audienciaCurrent->poder->anexo_documeto]) }}">Existente</a>
-                                                                @else
-                                                                    <a class="btn btn-secondary disabled" href="#" tabindex="-1" aria-disabled="true">Sin anexo</a>
-                                                                @endif
-                                                            </div>
-                                                        </div>
-
-                                                    @endif
-                                                @endif
-                                                
-                                                @if ($general->tipo_solicitud == 1) 
-                                                    <div class="col-xs-12 col-sm-12 col-md-12">
-                                                        <div class="form-group">
-                                                            <h4 class="text-center">Datos Laborales</h4>
-                                                        </div>
-                                                    </div>
-                                                        
-                                                    <div class="col-xs-12 col-sm-6 col-md-3">
-                                                        <div class="form-group">
-                                                            <label for="password">Seguro Social</label>
-                                                            <input type="text" class="form-control" name="nss" value="<?=$solicitante["nss"];?>">   
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-xs-12 col-sm-6 col-md-3">
-                                                        <div class="form-group">
-                                                            <label for="password">Puesto<span style="color:red;"> (*)</span></label>
-                                                            <input type="text" class="form-control" name="puesto" value="<?=$solicitante["puesto"];?>" required>
-                                                            <div class="invalid-feedback">
-                                                                El campo puesto es obligatorio.
-                                                            </div>   
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-xs-12 col-sm-12 col-md-3">
-                                                        <div class="form-group">
-                                                            <label for="name">Periodo de pago<span style="color:red;"> (*)</span></label>
-                                                            <select name="periodo_pago" class="form-control" required>
-                                                                <option value="">SELECCIONE</option>
-                                                                <option value="Semanal"      {{ $solicitante['periodo_pago'] == 'Semanal' ? "selected" : '' }}>SEMANAL</option>
-                                                                <option value="Quincenal"   {{ $solicitante['periodo_pago'] == 'Quincenal' ? "selected" : '' }}>QUINCENAL</option>
-                                                                <option value="Mensual"     {{ $solicitante['periodo_pago'] == 'Mensual' ? "selected" : '' }}>MENSUAL</option>
-                                                                <option value="Diario"      {{ $solicitante['periodo_pago'] == 'Diario' ? "selected" : '' }}>DIARIO</option>
-                                                            </select>
-                                                            <div class="invalid-feedback">
-                                                                El campo periodo de pago es obligatorio.
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-xs-12 col-sm-6 col-md-3">
-                                                        <div class="form-group">
-                                                            <label for="password">Sueldo<span style="color:red;"> (*)</span></label>
-                                                            <input type="text" class="form-control" name="pago" value="<?=$solicitante["pago"];?>" required>
-                                                            <div class="invalid-feedback">
-                                                                El campo sueldo es obligatorio.
-                                                            </div>   
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-xs-12 col-sm-6 col-md-2">
-                                                        <div class="form-group">
-                                                            <label for="password">Fecha de ingreso<span style="color:red;"> (*)</span></label>
-                                                            <input type="date" class="form-control" name="fecha_ingreso" value="<?=$solicitante["fecha_ingreso"];?>" required>
-                                                            <div class="invalid-feedback">
-                                                                El campo fecha de ingreso es obligatorio.
-                                                            </div>   
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-xs-12 col-sm-6 col-md-2" id= "fechaSalida" hidden>
-                                                        <div class="form-group">
-                                                            <label for="password">Fecha de salida</label>
-                                                            <input type="date" class="form-control" name="fecha_salida" value="<?=$solicitante["fecha_salida"];?>">   
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-xs-12 col-sm-12 col-md-4">
-                                                        <div class="form-group">
-                                                            <label for="name">Horario laboral<span style="color:red;"> (*)</span></label>
-                                                            <input type="text" name="jornada" class="form-control" value="<?=$solicitante["jornada"];?>" required>
-                                                            <div class="invalid-feedback">
-                                                                El campo horario laboral es obligatoria.
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    
-                                                    <div class="col-xs-12 col-sm-6 col-md-2">
-                                                        <div class="form-group">
-                                                            <label for="password">Horas trabajadas a la semana<span style="color:red;"> (*)</span></label>
-                                                            <input type="number" class="form-control" min="0" name="horas_semana" value="<?=$solicitante["horas_semana"];?>" required>
-                                                            <div class="invalid-feedback">
-                                                                El campo horas trabajadas es obligatorio.
-                                                            </div>   
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-xs-12 col-sm-6 col-md-2">
-                                                        <div class="form-group">
-                                                            <label for="password">Labora actualmente<span style="color:red;"> (*)</span></label>
-                                                            <!--input type="text" class="form-control" name="labora" id="laboraActualmenteValue" value="<?=$solicitante["labora"];?>" required-->
-                                                            <select name="labora" id="laboraActualmenteValue" class="form-control" required>
-                                                                <option value="Si" {{ $solicitante["labora"] == 'Si' ? "selected" : '' }}>SI</option>
-                                                                <option value="No"  {{ $solicitante['labora'] == 'No' ? "selected" : '' }}>NO</option>
-                                                            </select>
-                                                            <div class="invalid-feedback">
-                                                                El campo labora actualmente es obligatorio.
-                                                            </div>   
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-xs-12 col-sm-12 col-md-12">
-                                                        <div class="form-group">
-                                                            <label for="name">Describe brevemente el motivo de tu solicitud <span style="color:red;">(*)</span></label>
-                                                            <textarea class="form-control" name="descripcionSolicitud" required>{{ $solicitante["descripcionSolicitud"] ?? '' }}</textarea>
-                                                            <div class="invalid-feedback">
-                                                                El campo descripción del motivo de la solicitud es obligatorio.
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                @endif
-
+                                                @include('audiencias._revisar_solicitante', ['i' => $loop->index, 'sfx' => $loop->index ? '_'.$loop->index : ''])
                                             @endforeach
                                         </div>
                                     </div>
                                     <div id="documentos" class="tabcontent">
                                         <div id="tabla_documentos" class="row">
                                             
-                                            @if((($general->estatus !== "Conciliacion") || ($general->estatus !== "No conciliacion") || ($general->estatus !== "Archivada")) && $general->tipo_solicitud == 1)
+                                            @if($edicionAbierta && $general->tipo_solicitud == 1)
                                                 @can('audiencias_borrar_citados')
                                                     <div class="col-xs-12 col-sm-12 col-md-12"><br>
-                                                        <a type="button" class="btn btn-warning open-modal mb-3" data-bs-toggle="modal" 
-                                                        data-bs-target="#exampleModal1" data-id="{{ $id }}">Agregar Citado</a>
-                                                        <a type="button" class="btn btn-warning open-modal mb-3" data-bs-toggle="modal" 
-                                                        data-bs-target="#exampleModal2" data-id="{{ $id }}">Borrar Citado</a>
+                                                        <a type="button" class="btn ra-btn-agregar open-modal mb-3" data-bs-toggle="modal"
+                                                        data-bs-target="#exampleModal1" data-id="{{ $id }}"><i class="bi bi-person-plus"></i> Agregar Citado</a>
+                                                        <a type="button" class="btn btn-outline-danger open-modal mb-3" data-bs-toggle="modal"
+                                                        data-bs-target="#exampleModal2" data-id="{{ $id }}"><i class="bi bi-person-dash"></i> Borrar Citado</a>
                                                     </div>
                                                 @endcan
                                             @endif<br>
@@ -895,22 +439,18 @@
                                             @foreach($citados as $citado)
                                                 @php
                                                     $esResulte = isset($citado['resulte_responsable']) ? $citado['resulte_responsable'] : (isset($citado->resulte_responsable) ? $citado->resulte_responsable : 'No');
+                                                    $tipoCitado = $citado['tipo_persona'] ?? null;
+                                                    // Moral o 'quien resulte' sin apellidos ni obligatorio.
+                                                    $sinApellidos = $tipoCitado == 'Moral' || $esResulte == 'Si';
                                                 @endphp
-                                                <div class="col-xs-12 col-sm-12 col-md-12" style="background-color:#D2D3D5; width:100%; height:30px;">
-                                                    <div class="form-group">
-                                                        @if($citado->tipo_notificacion == 'Multa')
-                                                            <h4 class="text-center">Multa <i class="bi bi-exclamation-triangle-fill text-danger"></i></h4>
-                                                        @elseif ($citado->tipo_notificacion == 'Citatorio' && $citado->notificacion == 'Centro')
-                                                            <h4 class="text-center">Citado por el Centro  <i class="bi bi-bank"></i></h4>
-                                                        @elseif ($citado->tipo_notificacion == 'Citatorio' && $citado->notificacion == 'Trabajador')
-                                                            <h4 class="text-center">Citado por el Solicitante  <i class="bi bi-person-fill"></i></h4>
-                                                        @endif
-                                                    </div>
-                                                </div>
-                                                
+                                                {{-- Tarjeta del citado: datos, notificación, representante y documentos juntos. --}}
+                                                <div class="col-12">
+                                                <div class="ra-parte ra-seccion">
+                                                @include('audiencias._revisar_citado_cab', ['tj' => $tarjetas[$loop->index] ?? null, 'n' => $loop->iteration])
+                                                <div class="row">
                                                 <div class="col-xs-12 col-sm-12 col-md-12">
-                                                    <div class="form-group mt-3">
-                                                        <h4 class="text-center">Dirección del citado</h4>
+                                                    <div class="form-group mt-1">
+                                                        <h4 class="text-center">Datos del citado</h4>
                                                     </div>
                                                 </div>
                                                 
@@ -925,16 +465,16 @@
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <div class="col-xs-12 col-sm-6 col-md-4" id="primer_wrap_{{$loop->index}}" style="{{ $esResulte == 'Si' ? 'display:none;' : '' }}">
+                                                <div class="col-xs-12 col-sm-6 col-md-4" id="primer_wrap_{{$loop->index}}" style="{{ $sinApellidos ? 'display:none;' : '' }}">
                                                     <div class="form-group">
                                                        <label for="password">Primer apellido<span style="color:red;"> (*)</span></label>
-                                                       <input type="text" class="form-control" name="primer_apellido[]" value="{{ $citado['primer_apellido'] ?? '' }}" @if($esResulte == 'Si') @else required @endif>
+                                                       <input type="text" class="form-control" name="primer_apellido[]" value="{{ $citado['primer_apellido'] ?? '' }}" @unless($sinApellidos) required @endunless>
                                                        <div class="invalid-feedback">
                                                             El campo primer apellido es obligatorio.
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <div class="col-xs-12 col-sm-6 col-md-4" id="segundo_wrap_{{$loop->index}}" style="{{ $esResulte == 'Si' ? 'display:none;' : '' }}">
+                                                <div class="col-xs-12 col-sm-6 col-md-4" id="segundo_wrap_{{$loop->index}}" style="{{ $sinApellidos ? 'display:none;' : '' }}">
                                                     <div class="form-group">
                                                        <label for="password">Segundo apellido</label>
                                                        <input type="text" class="form-control" name="segundo_apellido[]" value="{{ $citado['segundo_apellido'] ?? '' }}">
@@ -1180,20 +720,20 @@
                                                         ])
                                                         : null;
                                                 @endphp
-                                                <div class="col-xs-12 col-sm-12 col-md-5">
+                                                <div class="col-xs-12 col-sm-12 col-md-5" data-doc-grupo>
                                                     <label for="password">Referencia Imagen 1<span style="color:red;"> (*)</span></label><br>
                                                     @if ($urlImg1)
-                                                        <a href="{{ $urlImg1 }}" target="_blank" class="btn btn-outline-info">Ver Imagen Existente</a>
+                                                        <a href="{{ $urlImg1 }}" target="_blank" class="btn btn-outline-info" data-doc>Ver Imagen Existente</a>
                                                     @else
                                                         <span class="text-muted">No se subió imagen</span>
                                                     @endif
                                                     <input type="file" name="foto1[]" accept="image/*" class="form-control">
                                                     <input type="hidden" name="imagen_domicilio1[]" value="{{ $citado->imagen_domicilio1 }}">
                                                 </div>
-                                                <div class="col-xs-12 col-sm-12 col-md-5">
+                                                <div class="col-xs-12 col-sm-12 col-md-5" data-doc-grupo>
                                                     <label for="password">Referencia Imagen 2</label><br>
                                                     @if ($urlImg2)
-                                                        <a target='_blank' href="{{ $urlImg2 }}">VER IMAGEN</a><br>
+                                                        <a target='_blank' href="{{ $urlImg2 }}" class="btn btn-outline-info" data-doc>Ver Imagen Existente</a>
                                                     @else
                                                         <span class="text-muted">No se subió imagen</span>
                                                     @endif
@@ -1202,117 +742,28 @@
                                                 </div>
                                                 <div class="col-xs-12 col-sm-12 col-md-12"><br></div>
                                                 
-                                                @if ($general->tipo_solicitud == 2)
-                                                    @foreach($solicitantes as $solicitante)
-                                                        <div class="col-xs-12 col-sm-12 col-md-12">
-                                                            <div class="form-group">
-                                                                <h4 class="text-center">Datos laborales del citado</h4>
-                                                            </div>
-                                                        </div>
-                                                        
-                                                        <div class="col-xs-12 col-sm-6 col-md-3">
-                                                            <div class="form-group">
-                                                                <label for="password">Seguro Social</label>
-                                                                <input type="text" class="form-control" name="nss" value="<?=$solicitante["nss"];?>">   
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-xs-12 col-sm-6 col-md-3">
-                                                            <div class="form-group">
-                                                                <label for="password">Puesto<span style="color:red;"> (*)</span></label>
-                                                                <input type="text" class="form-control" name="puesto" value="<?=$solicitante["puesto"];?>" required>
-                                                                <div class="invalid-feedback">
-                                                                    El campo puesto es obligatorio.
-                                                                </div>   
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-xs-12 col-sm-12 col-md-3">
-                                                            <div class="form-group">
-                                                                <label for="name">Periodo de pago<span style="color:red;"> (*)</span></label>
-                                                                <select name="periodo_pago" class="form-control" required>
-                                                                    <option value="">SELECCIONE</option>
-                                                                    <option value="Semanal"      {{ $solicitante['periodo_pago'] == 'Semanal' ? "selected" : '' }}>SEMANAL</option>
-                                                                    <option value="Quincenal"   {{ $solicitante['periodo_pago'] == 'Quincenal' ? "selected" : '' }}>QUINCENAL</option>
-                                                                    <option value="Mensual"     {{ $solicitante['periodo_pago'] == 'Mensual' ? "selected" : '' }}>MENSUAL</option>
-                                                                    <option value="Diario"      {{ $solicitante['periodo_pago'] == 'Diario' ? "selected" : '' }}>DIARIO</option>
-                                                                </select>
-                                                                <div class="invalid-feedback">
-                                                                    El campo periodo de pago es obligatorio.
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-xs-12 col-sm-6 col-md-3">
-                                                            <div class="form-group">
-                                                                <label for="password">Sueldo<span style="color:red;"> (*)</span></label>
-                                                                <input type="text" class="form-control" name="pago" value="<?=$solicitante["pago"];?>" required>
-                                                                <div class="invalid-feedback">
-                                                                    El campo sueldo es obligatorio.
-                                                                </div>   
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-xs-12 col-sm-6 col-md-2">
-                                                            <div class="form-group">
-                                                                <label for="password">Fecha de ingreso<span style="color:red;"> (*)</span></label>
-                                                                <input type="date" class="form-control" name="fecha_ingreso" value="<?=$solicitante["fecha_ingreso"];?>" required>
-                                                                <div class="invalid-feedback">
-                                                                    El campo fecha de ingreso es obligatorio.
-                                                                </div>   
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-xs-12 col-sm-6 col-md-2" id= "fechaSalida" hidden>
-                                                            <div class="form-group">
-                                                                <label for="password">Fecha de salida</label>
-                                                                <input type="date" class="form-control" name="fecha_salida" value="<?=$solicitante["fecha_salida"];?>">   
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-xs-12 col-sm-12 col-md-4">
-                                                            <div class="form-group">
-                                                                <label for="name">Horario laboral<span style="color:red;"> (*)</span></label>
-                                                                <input type="text" name="jornada" class="form-control" value="<?=$solicitante["jornada"];?>" required>
-                                                                <div class="invalid-feedback">
-                                                                    El campo horario laboral es obligatoria.
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    
-                                                        <div class="col-xs-12 col-sm-6 col-md-2">
-                                                            <div class="form-group">
-                                                                <label for="password">Horas trabajadas a la semana<span style="color:red;"> (*)</span></label>
-                                                                <input type="number" class="form-control" min="0" name="horas_semana" value="<?=$solicitante["horas_semana"];?>" required>
-                                                                <div class="invalid-feedback">
-                                                                    El campo horas trabajadas es obligatorio.
-                                                                </div>   
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-xs-12 col-sm-6 col-md-2">
-                                                            <div class="form-group">
-                                                                <label for="password">Labora actualmente<span style="color:red;"> (*)</span></label>
-                                                                <!--input type="text" class="form-control" name="labora" id="laboraActualmenteValue" value="<?=$solicitante["labora"];?>" required-->
-                                                                <select name="labora" id="laboraActualmenteValue" class="form-control" required>
-                                                                    <option value="Si" {{ $solicitante["labora"] == 'Si' ? "selected" : '' }}>SI</option>
-                                                                    <option value="No"  {{ $solicitante['labora'] == 'No' ? "selected" : '' }}>NO</option>
-                                                                </select>
-                                                                <div class="invalid-feedback">
-                                                                    El campo labora actualmente es obligatorio.
-                                                                </div>   
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-xs-12 col-sm-12 col-md-12">
-                                                            <div class="form-group">
-                                                                <label for="name">Describe brevemente el motivo de tu solicitud <span style="color:red;">(*)</span></label>
-                                                                <textarea class="form-control" name="descripcionSolicitud" required>{{ $solicitante["descripcionSolicitud"] ?? '' }}</textarea>
-                                                                <div class="invalid-feedback">
-                                                                    El campo descripción del motivo de la solicitud es obligatorio.
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    @endforeach
-                                                @endif
 
+                                                </div>{{-- .row --}}
+                                                </div>{{-- .ra-parte --}}
+                                                </div>{{-- .col-12 --}}
                                             @endforeach
+
+                                            @if ($general->tipo_solicitud == 2 && $solicitantes->isNotEmpty())
+                                                <div class="col-12">
+                                                <div class="ra-parte ra-seccion">
+                                                    @include('audiencias._revisar_seccion_cab', ['titulo' => 'Relación laboral', 'nota' => 'Datos del trabajador citado con el patrón que solicita; se capturan una sola vez.'])
+                                                    <div class="row">
+                                                        <input type="hidden" name="sol[0][id]" value="{{ $solicitantes->first()->id }}">
+                                                        @include('audiencias._revisar_laboral', ['solicitante' => $solicitantes->first(), 'i' => 0, 'sfx' => '_lab'])
+                                                    </div>
+                                                </div>
+                                                </div>
+                                            @endif
                                             
                                         </div>
                                     </div>
-                                    <div id="citados" class="tabcontent">
+                                    <div id="citados" class="tabcontent ra-seccion">
+                                        @include('audiencias._revisar_seccion_cab', ['titulo' => 'Documentos', 'nota' => 'Para reemplazar la identificación del solicitante, da clic en Editar.'])
                                         <div id="tabla_citatorio" class="row">
                                             <div class="col-xs-12 col-sm-12 col-md-12">
                                                 <div class="form-group">
@@ -1321,7 +772,7 @@
                                             </div><br>
                                             <div class="col-xs-12 col-sm-12 col-md-6">
                                                 <label for="password">Identificación Oficial</label><br>
-                                                <a class="btn btn-info" target="_blank" href="{{ signedDocRoute('documento_identificacion_solicitante_ver', $id) }}">Visualizar</a>
+                                                <a class="btn btn-info" target="_blank" href="{{ signedDocRoute('documento_identificacion_solicitante_ver', $id) }}" data-doc @if ($general->tipo_solicitud != 2) data-doc-subir="indetificacion" @endif>Visualizar</a>
                                             </div>
                                             @if($general->tipo_solicitud != 2)
                                             <div class="col-xs-12 col-sm-12 col-md-6">
@@ -1329,124 +780,8 @@
                                                 <input type="file" name="indetificacion" accept=".pdf" class="form-control">
                                             </div>
                                             @endif
-                                            <div class="col-xs-12 col-sm-12 col-md-12">
-                                                <div class="row">
-
-                                                    <div class="col-xs-12 col-sm-12 col-md-6">
-                                                        <h4 class="text-center">Citatorios</h4>
-                                                        <hr>
-                                                        <div class="form-group">
-                                                                @foreach($citados as $citado) 
-                                                                    <div class="row" style="margin-bottom: 5px; border-bottom: 1px dotted #ccc; padding: 5px 0;">
-                                                                        <div class="col-sm-4">
-                                                                            <label>Nombre Citado</label><br>
-                                                                            <strong>{{ $citado->nombre }} {{ $citado->primer_apellido ?? ''}} {{ $citado->segundo_apellido ?? ''}}</strong>
-                                                                        </div>
-                                                
-                                                                        <div class="col-sm-4">
-                                                                            <label>Notificacion: {{ $citado->notificacion }}</label><br>
-                                                                            @if(!empty($citado->id))
-                                                                                <a class="btn btn-success btn-xs"
-                                                                                href="{{ route('pdfCitatorioAudiencia', [
-                                                                                    'id' => $citado->id,
-                                                                                ]) }}"
-                                                                                target="_blank">
-                                                                                    Visualizar
-                                                                                </a>
-                                                                            @else
-                                                                                <button type="button" class="btn btn-secondary btn-xs" disabled
-                                                                                    title="Guarda la audiencia/solicitud para generar el citatorio">
-                                                                                    Visualizar
-                                                                                </button>
-                                                                            @endif
-                                                                        </div>
-
-                                                                        <div class="col-sm-4">
-                                                                            <label>Comparece en Audiencia</label><br>
-                                                                            @if($general->tipo_solicitud == 1)
-                                                                                @if($citado->id_abogado)
-                                                                                <b>Si</b>
-                                                                                @else
-                                                                                <b>No</b>
-                                                                                @endif
-                                                                            @else
-                                                                                @if($citado->comparecencia == 'Si')
-                                                                                <b>Si</b>
-                                                                                @else
-                                                                                <b>No</b>
-                                                                                @endif
-                                                                            @endif
-                                                                        </div>
-                                                                    </div>
-                                                                @endforeach
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-xs-12 col-sm-12 col-md-6">
-                                                        <h4 class="text-center">Notificaciones</h4>
-                                                        <hr>
-                                                        <div class="form-group">
-                                                            @foreach($citados as $citado)
-                                                                @php
-                                                                    $notificado = $notificaciones->get($citado->id);
-                                                                @endphp
-                                                                
-                                                                <div class="row" style="margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px;">
-                                                                    <div class="col-sm-6">
-                                                                        <label>Nombre Citado</label><br>
-                                                                        <span>{{ $citado->nombre }} {{ $citado->primer_apellido }} {{ $citado->segundo_apellido }}</span>
-                                                                    </div>
-                                                                    
-                                                                    <div class="col-sm-3">
-                                                                        <label>Estado de la Notificación</label><br>
-                                                                        @if($notificado)
-                                                                            @if($notificado->notificacion === "Trabajador")
-                                                                                <span style="color:blue">Notificación Entregada por el Solicitante</span>
-                                                                            @elseif($notificado->estatus === "No exitosa se constituye")
-                                                                                <span style="color:blue">Se Constituye</span>
-                                                                            @elseif($notificado->estatus === "Finalizado exitosamente")
-                                                                                <span style="color:blue">Notificado Exitosamente</span>
-                                                                            @elseif($notificado->estatus === "Exitosa por Instructivo")
-                                                                                <span style="color:blue">Exitosa por Instructivo</span>
-                                                                            @elseif($notificado->estatus === "No notificada")
-                                                                                <span style="color:blue">No Notificado</span>
-                                                                            @elseif($notificado->estatus === "No exitosa no se constituye")
-                                                                                <span style="color:blue">No se Constituye</span>
-                                                                            @elseif($notificado->estatus === "Notificada en Audiencia")
-                                                                            <span style="color:blue">Notificada en Audiencia</span>
-                                                                            @else
-                                                                                <span style="color:blue">Sin Notificar</span>
-                                                                            @endif
-                                                                        @else
-                                                                            <span style="color:blue">Sin Notificar</span>
-                                                                        @endif
-                                                                    </div>
-
-                                                                    <div class="col-sm-3">
-                                                                        <label>Notificación</label><br>
-                                                                        @if($notificado)
-                                                                            @if($notificado->notificacion === "Trabajador")
-                                                                                <a class="btn btn-secondary btn-xs" disabled>Visualizar</a>
-                                                                            @elseif($notificado->estatus === "No exitosa se constituye")
-                                                                                <a class="btn btn-success btn-xs" href="{{ route('VerPDFNoExitConstituye', ['id' => $citado->id, 'id_solicitud' => $citado->id_solicitud]) }}" target="_blank">Visualizar</a>
-                                                                            @elseif($notificado->estatus === "Finalizado exitosamente" || $notificado->estatus === "Recibe pero no firma")
-                                                                                <a class="btn btn-success btn-xs" href="{{ route('PDFRazonNoticacion', ['id' => $citado->id, 'id_solicitud' => $citado->id_solicitud]) }}" target="_blank">Visualizar</a>
-                                                                            @elseif($notificado->estatus === "No notificada" || $notificado->estatus === "Exitosa por Instructivo")
-                                                                                <a class="btn btn-success btn-xs" href="{{ route('PDFInstructivo', ['id' => $citado->id, 'id_solicitud' => $citado->id_solicitud]) }}" target="_blank">Visualizar</a>
-                                                                            @elseif($notificado->estatus === "No exitosa no se constituye")
-                                                                                <a class="btn btn-success btn-xs" href="{{ route('PDFnotificadoNoexitosaNS', ['id' => $citado->id, 'id_solicitud' => $citado->id_solicitud]) }}" target="_blank">Visualizar</a>
-                                                                            @else
-                                                                                <a class="btn btn-secondary btn-xs" disabled>Visualizar</a>
-                                                                            @endif
-                                                                        @else
-                                                                            <a class="btn btn-secondary btn-xs" disabled>Visualizar</a>
-                                                                        @endif
-                                                                    </div>
-                                                                </div>
-                                                            @endforeach
-                                                        </div>
-                                                    </div>
-                                                    </div>
-                                                </div>
+                                            @include('audiencias._revisar_docs_citados')
+                                            @include('audiencias._revisar_docs_representantes')
                                             {{--<div class="col-xs-12 col-sm-12 col-md-6">
                                                 <label for="password">Identificación Oficial</label><br>
                                                 <a target='_blank' href="../storage/app/documentosSolicitud/{{$solicitante->documentoCurp}}">PDF</a><br>
@@ -1520,7 +855,7 @@
                                                     <div class="col-sm-1">
                                                         <label>Notificación</label><br>
                                                         @if($notificado->notificacion === "Trabajador")
-                                                            <a class="btn btn-secondary" disabled>Visualizar</a>
+                                                            <span class="btn btn-secondary disabled" aria-disabled="true">Visualizar</span>
 
                                                         {{-- No exitosa se constituye --}}
                                                         {{--@elseif($notificado->estatus === "No exitosa se constituye")
@@ -1539,7 +874,7 @@
                                                             <a class="btn btn-success" href="{{ route('PDFNoExitosaInt', ['id' => $citado->id, 'id_solicitud' => $citado->id_solicitud]) }}"target="_blank">Visualizar</a>
                                                         
                                                         @else
-                                                            <a class="btn btn-secondary" disabled>Visualizar</a>
+                                                            <span class="btn btn-secondary disabled" aria-disabled="true">Visualizar</span>
                                                         @endif
                                                     </div>
                                                   
@@ -1702,83 +1037,11 @@
                                             @endforeach--}}
                                             
                                             <!--div class="col-xs-12 col-sm-12 col-md-12">
-                                                @if(($general->estatus !== "Conciliacion") || ($general->estatus !== "No conciliacion") || ($general->estatus !== "Archivada"))
+                                                @if($edicionAbierta)
                                                     <button type="submit" class="btn btn-primary" style="background-color:#CEA845; border-color:#CEA845;">Guardar</button>
                                                 @endif
                                                 <a href="{{ route('todas_audiencias') }}" class="btn btn-primary" style="background-color:#CEA845; border-color:#CEA845;">Regresar</a>
                                             </!--div-->
-                                        </div>
-                                    </div>
-                                    <div id="confirmacion" class="tabcontent">
-                                        <div id="tabla_confirmar" class="row">
-                                            <div class="col-xs-12 col-sm-12 col-md-12"><br>
-                                                @php
-                                                    $citadosCount = isset($citados)
-                                                        ? (is_countable($citados) ? count($citados) : (method_exists($citados, 'count') ? $citados->count() : 0))
-                                                        : 0;
-                                                @endphp
-                                                @can('audiencias_guardar_edicion')
-                                                    @if(($general->estatus !== "Conciliacion") || ($general->estatus !== "No conciliacion") || ($general->estatus !== "Archivada"))
-                                                        @if($citadosCount > 0)
-
-                                                            @if($isAudiencia == 'No' && $general->estatus == 'Pendiente')
-                                                                <button type="submit" class="btn btn-primary" name="toquen" value="1">Guardar Edición</button>
-                                                            @elseif($fecha_actual->isSameDay($general->fecha_confirmacion) && auth()->user()->hasAnyRole(['Auxiliar', 'Orientador']))
-                                                            
-                                                                @hasanyrole('Auxiliar|Orientador')
-                                                                    <button type="submit" class="btn btn-primary" name="toquen" value="1">Guardar Edición</button>
-                                                                @endhasanyrole
-                                                            @elseif($isAudiencia == 'Si' && auth()->user()->hasRole('Conciliador'))
-                                                                <button type="submit" class="btn btn-primary" name="toquen" value="1">Guardar Edición</button>
-                                                            @else
-                                                                @auth
-                                                                    @hasanyrole('Enlace|Super Usuario|Orientador')
-                                                                        <button type="submit" class="btn btn-primary" name="toquen" value="1">Guardar Edición</button>
-                                                                        {{--@if(in_array($general->estatus, ["No conciliacion", "Conciliacion", "Reinstalacion"])
-                                                                            && $isAudiencia != 'Si')
-                                                                            @hasanyrole('Enlace|Conciliador|Super Usuario')
-                                                                                @if(auth()->user()->hasAnyRole(['Super Usuario']) || Carbon\Carbon::today()->equalTo(\Carbon\Carbon::parse($general->fecha_confirmacion)))
-                                                                                    <a class="btn btn-danger"
-                                                                                        href="{{ route('edicion_solConcluida', ['id' => $general->id, 'audiencia_id' => $audiencia->id]) }}" target="_blank">
-                                                                                        Editar finalización de audiencia
-                                                                                    </a>
-                                                                                @endif
-                                                                            @endhasanyrole
-                                                                        @endif--}}
-                                                                    @endhasanyrole
-                                                                @endauth
-                                                            @endif
-
-                                                            @if( $isAudiencia == 'Si' && $ultimaEstatus == 'Pendiente' && auth()->user()->hasRole('Conciliador'))
-                                                                <button type="submit" class="btn btn-success" name="toquen" value="iniciar_audiencia"> Guardar e Iniciar Audiencia </button>
-                                                                {{--<a class="btn btn-success" href="{{ route('inicioAudiencia', $audiencia->id_solicitud, 'Confirmado') }}" value="1">Guardar e Iniciar Audiencia</button>--}}
-                                                            @endif
-                                                        @else
-                                                            <button type="button" class="btn btn-secondary" disabled title="Agregue al menos un citado para poder guardar."  name="toquen" value="1">Guardar Edición</button>
-                                                            <div class="text-muted mt-2">Debe agregar al menos un citado para poder guardar.</div>
-                                                        @endif
-                                                    @endif
-                                                    @if( $isAudiencia == 'Si')
-                                                    <a type="button" class="btn btn-primary" style="background-color:#CEA845; border-color:#CEA845;" href="{{ route('cancelar_edicion', ['redirect_to' => 'todas_audiencias']) }}"> Regresar </a>
-                                                        @auth
-                                                            @hasanyrole('Enlace|Super Usuario|Conciliador')                                                               
-                                                                @if(in_array($audienciaCurrent->estatus, ["No conciliacion", "Conciliacion", "Reinstalacion"]) && $isAudiencia == 'Si')                                                                    
-                                                                        @if(auth()->user()->hasAnyRole(['Super Usuario']) || Carbon\Carbon::today()->equalTo(\Carbon\Carbon::parse($general->fecha_terminacion)))
-                                                                            <a class="btn btn-danger"
-                                                                                href="{{ route('edicion_audienciaConcluida', ['id' => $general->id, 'audiencia_id' => $audiencia->id]) }}" target="_blank">
-                                                                                Editar finalización de audiencia
-                                                                            </a>
-                                                                        @endif
-                                                                @endif
-                                                            @endhasanyrole
-                                                        @endauth
-                                                    @else
-                                                
-                                                    <a type="button" class="btn btn-primary" style="background-color:#CEA845; border-color:#CEA845;" href="{{ route('cancelar_edicion', ['redirect_to' => 'todas_solicitudes']) }}"> Regresar </a>
-                                                    @endif
-                                                @endcan
-
-                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -1854,6 +1117,7 @@
 @endsection
 
 
+@push('modals')
 <!-- Modal -->
 <div class="modal fade" id="exampleModal1" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
     <form class='needs-validation novalidate' method='POST' action="{{route('agregar_citado_edicion')}}" enctype="multipart/form-data">
@@ -2196,14 +1460,17 @@
                                     @else
                                     <td>{{$citado->notificacion}}</td>
                                     @endif
-                                    <td>{{$citado->colonia}}." ".{{$citado->calle}}</td>
+                                    <td>{{ $citado->colonia }} {{ $citado->calle }}</td>
                                     <td>
                                         <form method="POST" action="{{ route('borrar_citado_edicion') }} ">
                                             @csrf
                                             <input type="hidden" name="_method" value="DELETE">
                                             <input type="hidden" name="id" value="{{$id}}">
                                             <input type="hidden" name="borrar" value="{{$citado->id}}">
-                                            <button class="btn btn-danger" onclick=editar_rol(); type="submit">Eliminar</button>
+                                            <button type="button" class="btn btn-danger ra-borrar-citado"
+                                                data-nombre="{{ trim(preg_replace('/\s+/', ' ', $citado->nombre.' '.$citado->primer_apellido.' '.$citado->segundo_apellido)) }}"
+                                                data-notificacion="{{ $citado->tipo_notificacion == 'Multa' ? 'Multa' : ['Centro' => 'La hace el Centro', 'Trabajador' => 'La entrega el solicitante', 'Exhorto' => 'Por exhorto'][$citado->notificacion] ?? ($citado->notificacion ?: '—') }}"
+                                                data-direccion="{{ trim($citado->calle.' '.$citado->n_ext.', '.$citado->colonia, ' ,') }}"><i class="bi bi-trash"></i> Eliminar</button>
                                         </form>
                                     </td>   
                                 </tr>
@@ -2224,8 +1491,108 @@
     <div class="loader"></div>
 </div>
 
+{{-- Confirmación antes de borrar un citado (botón Eliminar de "Borrar citado"). --}}
+<div class="modal fade" id="raConfirmarBorrar" tabindex="-1" aria-labelledby="raConfirmarBorrarTitulo" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="raConfirmarBorrarTitulo"><i class="bi bi-exclamation-triangle" style="color:#9A3A22"></i> ¿Borrar este citado?</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2">Vas a quitar de la solicitud a <b data-ra-nombre></b>.</p>
+                <dl class="ra-confirmar__datos">
+                    <div><dt>Notificación</dt><dd data-ra-notificacion></dd></div>
+                    <div><dt>Dirección</dt><dd data-ra-direccion></dd></div>
+                </dl>
+                <p class="ra-confirmar__nota mb-0"><i class="bi bi-info-circle"></i> Se borra definitivamente al dar <b>Guardar edición</b>; si no guardas, el citado se queda.</p>
+                <p class="ra-confirmar__aviso mb-0 mt-2" data-ra-cambios hidden><i class="bi bi-exclamation-circle"></i> Tienes cambios sin guardar en el formulario: la página se recarga al borrar y esos cambios se perderán. Si los necesitas, cancela y guarda primero.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" data-ra-confirmar><i class="bi bi-trash"></i> Sí, borrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+@endpush
 
 @section('scripts')
+    <script>
+        // Documentos que ya no existen en el servidor de archivos: cada enlace
+        // con data-doc se comprueba con una petición HEAD (no descarga nada;
+        // SeerController::verPDF y documento_identificacion_solicitante_ver
+        // responden 200 o 404). Si falta, el botón cambia por "No se encontró
+        // el archivo" y, donde se puede, "Subir de nuevo".
+        // Los enlaces van firmados por 60 minutos: si la página lleva más
+        // tiempo abierta, al dar clic se avisa que hay que recargar.
+        document.addEventListener('DOMContentLoaded', function () {
+            var cargada = Date.now(), VIGENCIA = 55 * 60 * 1000;
+            var enlaces = Array.prototype.slice.call(document.querySelectorAll('a[data-doc]'));
+            if (!enlaces.length) { return; }
+
+            function subirDe(a) {
+                var nombre = a.getAttribute('data-doc-subir');
+                if (nombre) { return document.querySelector('input[type=file][name="' + nombre + '"]'); }
+                var grupo = a.closest('[data-doc-grupo]');
+                return grupo ? grupo.querySelector('input[type=file]') : null;
+            }
+
+            function falta(a) {
+                var aviso = document.createElement('span');
+                aviso.className = 'ra-doc-falta';
+                aviso.innerHTML = '<i class="bi bi-exclamation-triangle-fill"></i> No se encontró el archivo';
+                aviso.title = 'El archivo está registrado pero ya no está en el servidor de archivos.';
+                var input = subirDe(a);
+                if (input) {
+                    var boton = document.createElement('button');
+                    boton.type = 'button';
+                    boton.className = 'btn btn-sm btn-outline-secondary ra-doc-subir-btn';
+                    boton.innerHTML = '<i class="bi bi-upload"></i> Subir de nuevo';
+                    boton.addEventListener('click', function () {
+                        if (window.raSubirDeNuevo) { window.raSubirDeNuevo(input); } else { input.click(); }
+                    });
+                    aviso.appendChild(boton);
+                }
+                a.replaceWith(aviso);
+            }
+
+            // De 4 en 4 para no saturar el servidor de archivos.
+            var cola = enlaces.slice();
+            function siguiente() {
+                var a = cola.shift();
+                if (!a) { return; }
+                a.classList.add('ra-doc-revisando');
+                fetch(a.href, { method: 'HEAD', credentials: 'same-origin' })
+                    .then(function (r) {
+                        a.classList.remove('ra-doc-revisando');
+                        if (r.status === 404) { falta(a); }
+                    })
+                    .catch(function () { a.classList.remove('ra-doc-revisando'); })
+                    .then(siguiente);
+            }
+            for (var i = 0; i < 4; i++) { siguiente(); }
+
+            document.addEventListener('click', function (e) {
+                var a = e.target.closest && e.target.closest('a[data-doc]');
+                if (!a || Date.now() - cargada < VIGENCIA) { return; }
+                e.preventDefault();
+                var recargar = function () { window.raSaltarAvisoSalida = true; location.reload(); };
+                if (typeof Swal === 'undefined') {
+                    if (confirm('Los enlaces a los documentos caducaron (la página lleva más de una hora abierta). ¿Recargar la página?')) { recargar(); }
+                    return;
+                }
+                Swal.fire({
+                    icon: 'info', title: 'Hay que recargar la página',
+                    text: 'Los enlaces a los documentos duran una hora y esta página lleva más tiempo abierta. Si tienes cambios sin guardar, guárdalos primero.',
+                    showCancelButton: true, confirmButtonText: 'Recargar', cancelButtonText: 'Cancelar',
+                    reverseButtons: true, confirmButtonColor: '#496163'
+                }).then(function (r) { if (r.isConfirmed) { recargar(); } });
+            });
+        });
+    </script>
+    {{-- SweetAlert2 (como en el resto de Administración): confirmación al salir sin guardar. --}}
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <script src="{{ asset('assets/js/estadistica/estadistica.js') }}"></script>
     <script>
@@ -2296,55 +1663,31 @@
                     actualizarTipoPersona();
                 }
 
-                const needsLanguage = document.getElementById('needsLanguageSolicitante');
-                const languageDiv = document.getElementById('languageRequired');
-                const languageInput = document.getElementById('languageValueSolicitante');
-
-                const hasDisability = document.getElementById('hasDisabilitySolicitante');
-                const disabilityDiv = document.getElementById('disabilityRequired');
-                const disabilityInput = document.getElementById('disabilityValueSolicitante');
-
-                const laboraActualmente = document.getElementById('laboraActualmenteValue');
-                const fechaSalida = document.getElementById('fechaSalida')
-
-                function updateLanguageVisibility() {
-                    if (!languageDiv || !needsLanguage) return;
-                    if (needsLanguage.value === 'Si') {
-                        languageDiv.hidden = false;
-                        if (languageInput) languageInput.required = true;
-                    } else {
-                        languageDiv.hidden = true;
-                        if (languageInput) languageInput.required = false;
-                    }
+                // Traductor, discapacidad y fecha de salida de cada solicitante. Los id
+                // llevan sufijo: '' el primero, _1, _2… los demás y _lab la relación
+                // laboral cuando solicita el patrón.
+                function alternar(sel, div, input, valor) {
+                    if (!sel || !div) return;
+                    var aplicar = function () {
+                        var ver = sel.value === valor;
+                        div.hidden = !ver;
+                        if (input) input.required = ver;
+                    };
+                    sel.addEventListener('change', aplicar);
+                    aplicar();
                 }
-
-                function updateDisabilityVisibility() {
-                    if (!disabilityDiv || !hasDisability) return;
-                    if (hasDisability.value === 'Si') {
-                        disabilityDiv.hidden = false;
-                        if (disabilityInput) disabilityInput.required = true;
-                    } else {
-                        disabilityDiv.hidden = true;
-                        if (disabilityInput) disabilityInput.required = false;
-                    }
-                }
-
-                function updateFechaSalidaVisibility() {
-                    if (!laboraActualmente || !fechaSalida) return;
-                    if (laboraActualmente.value === 'Si') {
-                        fechaSalida.hidden = true;
-                    } else {
-                        fechaSalida.hidden = false;
-                    }
-                }
-
-                if (needsLanguage) needsLanguage.addEventListener('change', updateLanguageVisibility);
-                if (hasDisability) hasDisability.addEventListener('change', updateDisabilityVisibility);
-                if (laboraActualmente) laboraActualmente.addEventListener('change', updateFechaSalidaVisibility)
-
-                updateLanguageVisibility();
-                updateDisabilityVisibility();
-                updateFechaSalidaVisibility();
+                document.querySelectorAll('[id^="needsLanguageSolicitante"]').forEach(function (sel) {
+                    var sfx = sel.id.slice('needsLanguageSolicitante'.length);
+                    alternar(sel, document.getElementById('languageRequired' + sfx), document.getElementById('languageValueSolicitante' + sfx), 'Si');
+                });
+                document.querySelectorAll('[id^="hasDisabilitySolicitante"]').forEach(function (sel) {
+                    var sfx = sel.id.slice('hasDisabilitySolicitante'.length);
+                    alternar(sel, document.getElementById('disabilityRequired' + sfx), document.getElementById('disabilityValueSolicitante' + sfx), 'Si');
+                });
+                document.querySelectorAll('[id^="laboraActualmenteValue"]').forEach(function (sel) {
+                    var sfx = sel.id.slice('laboraActualmenteValue'.length);
+                    alternar(sel, document.getElementById('fechaSalida' + sfx), null, 'No');
+                });
 
                 // Traductor y lenguaje en modal Agregar Citado (sincroniza visibilidad y required)
                 var tradModal = document.getElementById('traductor_modal');
@@ -2395,8 +1738,8 @@
                     // Función para validar teléfonos en tiempo real
                     function updateTelefonoState(form){
                         try{
-                            var tel1 = form.querySelector('input[name="telefono1_solicitante"]');
-                            var tel2 = form.querySelector('input[name="telefono2_solicitante"]');
+                            var tel1 = form.querySelector('input[name$="[telefono1_solicitante]"]');
+                            var tel2 = form.querySelector('input[name$="[telefono2_solicitante]"]');
                             var validTel1 = true;
                             var validTel2 = true;
 
@@ -2448,15 +1791,15 @@
 
                     forms.forEach(function(form) {
                         // Validación en tiempo real: escuchar inputs de teléfono
-                        var tel1input = form.querySelector('input[name="telefono1_solicitante"]');
-                        var tel2input = form.querySelector('input[name="telefono2_solicitante"]');
+                        var tel1input = form.querySelector('input[name$="[telefono1_solicitante]"]');
+                        var tel2input = form.querySelector('input[name$="[telefono2_solicitante]"]');
                         if(tel1input){ tel1input.addEventListener('input', function(){ updateTelefonoState(form); }); tel1input.addEventListener('blur', function(){ updateTelefonoState(form); }); }
                         if(tel2input){ tel2input.addEventListener('input', function(){ updateTelefonoState(form); }); tel2input.addEventListener('blur', function(){ updateTelefonoState(form); }); }
 
                         form.addEventListener('submit', function(e) {
                             var valid = true;
-                            var tel1 = form.querySelector('input[name="telefono1_solicitante"]');
-                            var tel2 = form.querySelector('input[name="telefono2_solicitante"]');
+                            var tel1 = form.querySelector('input[name$="[telefono1_solicitante]"]');
+                            var tel2 = form.querySelector('input[name$="[telefono2_solicitante]"]');
                             if (tel1 && tel1.value.replace(/\D/g, '').length !== 10) {
                                 if (typeof swal === 'function') { swal("Error", "El teléfono celular debe tener exactamente 10 dígitos.", "error"); } else { try { alert('El teléfono celular debe tener exactamente 10 dígitos.'); } catch(e){} }
                                 try { tel1.focus(); } catch(e){}
@@ -2558,33 +1901,15 @@
                 var primerWrap = primerInput ? primerInput.closest('.form-group').parentElement : null;
                 var segundoWrap = segundoInput ? segundoInput.closest('.form-group').parentElement : null;
 
-                if (sel.value === 'Moral') {
-                    // Tipo de persona moral solo puede visualizar el nombre
-                    if (nombreWrap) nombreWrap.style.display = '';
-                    if (primerWrap) primerWrap.style.display = 'none';
-                    if (segundoWrap) segundoWrap.style.display = 'none';
-                    if (nombreInput) nombreInput.required = true;
-                    if (primerInput) primerInput.required = false;
-                    if (segundoInput) segundoInput.required = false;
-                } else {
-                    // Tipo de persona física visualiza los 3
-                    if (nombreWrap) nombreWrap.style.display = '';
-                    if (primerWrap) primerWrap.style.display = '';
-                    if (segundoWrap) segundoWrap.style.display = '';
-                    if (nombreInput) nombreInput.required = true;
-                    if (primerInput) primerInput.required = true;
-                    if (segundoInput) segundoInput.required = false;
-                }
-                // Si este citado es el 'quien resulte'
-                try {
-                    var resulteFlag = sel.getAttribute('resulte_flag');
-                    if (resulteFlag === 'Si') {
-                        if (primerWrap) primerWrap.style.display = 'none';
-                        if (segundoWrap) segundoWrap.style.display = 'none';
-                        if (primerInput) primerInput.required = false;
-                        if (segundoInput) segundoInput.required = false;
-                    }
-                } catch (err) {}
+                var resulteFlag = sel.getAttribute('resulte_flag');
+                var sinApellidos = sel.value === 'Moral' || resulteFlag === 'Si';
+
+                if (nombreWrap) nombreWrap.style.display = '';
+                if (nombreInput) nombreInput.required = true;
+                if (primerWrap) primerWrap.style.display = sinApellidos ? 'none' : '';
+                if (segundoWrap) segundoWrap.style.display = sinApellidos ? 'none' : '';
+                if (primerInput) primerInput.required = !sinApellidos;
+                if (segundoInput) segundoInput.required = false;
             } catch (err) {
                 console.warn('syncTipoCitado error', err);
             }
@@ -2595,6 +1920,20 @@
             selects.forEach(function(sel, idx){
                 syncTipoCitado(idx);
                 sel.addEventListener('change', function(){ syncTipoCitado(idx); });
+            });
+        });
+
+        document.addEventListener('submit', function(e){
+            var form = e.target;
+            if (e.defaultPrevented || !form || !form.querySelectorAll) return;
+            var selects = form.querySelectorAll('select[name="tipo_persona_citado[]"]');
+            if (!selects.length) return;
+            var primeros = form.querySelectorAll('input[name="primer_apellido[]"]');
+            var segundos = form.querySelectorAll('input[name="segundo_apellido[]"]');
+            selects.forEach(function(sel, idx){
+                if (sel.value !== 'Moral') return;
+                if (primeros[idx]) primeros[idx].value = '';
+                if (segundos[idx]) segundos[idx].value = '';
             });
         });
          // Función para convertir todo el texto a mayúsculas
@@ -2629,5 +1968,419 @@
         });
         // FIN Función para convertir todo el texto a mayúsculas
     </script>
+    <script>
+        // Revisar audiencia (Fase 1): pestaña abierta al entrar, enlaces de la
+        // lista a su pestaña y encabezado fijo al bajar.
+        document.addEventListener('DOMContentLoaded', function () {
+            function abrir(id) {
+                var boton = document.querySelector('.tab a[onclick*="\'' + id + '\'"]');
+                if (boton) { boton.click(); }
+            }
+            // Antes no se abría ninguna pestaña: la página se veía vacía.
+            abrir('detalles');
+
+            document.querySelectorAll('.ra-ir').forEach(function (enlace) {
+                enlace.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    var id = enlace.getAttribute('data-pestana');
+                    abrir(id);
+                    var destino = document.getElementById(id);
+                    if (destino) { destino.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+                });
+            });
+
+            // El layout tiene overflow-x: hidden, así que position: sticky no
+            // funciona: al pasar el encabezado se fija con JS.
+            // .ra-hueco es una marca de 0 px justo arriba del encabezado que nunca
+            // cambia de alto (antes se le daba el alto del encabezado y se
+            // observaba a sí misma: al fijarse dejaba de estar "fuera", se
+            // soltaba, volvía a quedar fuera... y la página brincaba y se trababa).
+            // .ra-reserva, justo debajo, ocupa el lugar del encabezado fijo con
+            // su alto y su margen, así el contenido no se mueve.
+            var barra = document.getElementById('raBarra');
+            var marca = document.querySelector('.ra-hueco');
+            if (!barra || !marca) { return; }
+            var reserva = document.createElement('div');
+            reserva.className = 'ra-reserva';
+            barra.parentNode.insertBefore(reserva, barra.nextSibling);
+            var nav = document.querySelector('.main-navbar');
+            var arriba = function () { return nav ? Math.max(0, nav.getBoundingClientRect().bottom) : 0; };
+            var fija = false, pendiente = false;
+
+            function acomodar() {
+                var r = reserva.getBoundingClientRect();
+                barra.style.top = arriba() + 'px';
+                barra.style.left = r.left + 'px';
+                barra.style.width = r.width + 'px';
+            }
+
+            function soltar() {
+                fija = false;
+                barra.classList.remove('is-fija');
+                barra.style.top = barra.style.left = barra.style.width = '';
+                reserva.style.height = '0px';
+            }
+
+            function revisar() {
+                pendiente = false;
+                var debe = marca.getBoundingClientRect().top < arriba();
+                if (debe && !fija) {
+                    var margen = parseFloat(getComputedStyle(barra).marginBottom) || 0;
+                    reserva.style.height = (barra.offsetHeight + margen) + 'px';
+                    fija = true;
+                    barra.classList.add('is-fija');
+                    acomodar();
+                } else if (!debe && fija) {
+                    soltar();
+                } else if (fija) {
+                    acomodar();
+                }
+            }
+
+            function pedir() {
+                if (!pendiente) { pendiente = true; window.requestAnimationFrame(revisar); }
+            }
+
+            // capture: también llega si el que se desplaza es un contenedor del layout.
+            document.addEventListener('scroll', pedir, { passive: true, capture: true });
+            // Al cambiar el ancho, el encabezado puede ocupar otro alto: se suelta y se vuelve a medir.
+            window.addEventListener('resize', function () { if (fija) { soltar(); } pedir(); });
+            revisar();
+        });
+    </script>
+    <script>
+        // Borrar citado: el botón Eliminar pide confirmación en su propio modal.
+        // Se cierra la lista, se confirma y, si se cancela, la lista vuelve a abrirse.
+        document.addEventListener('DOMContentLoaded', function () {
+            var lista = document.getElementById('exampleModal2');
+            var confirmar = document.getElementById('raConfirmarBorrar');
+            if (!lista || !confirmar || typeof bootstrap === 'undefined') { return; }
+            var modalConfirmar = bootstrap.Modal.getOrCreateInstance(confirmar);
+            var boton = confirmar.querySelector('[data-ra-confirmar]');
+            var formulario = null, regresarALista = false;
+
+            document.querySelectorAll('.ra-borrar-citado').forEach(function (b) {
+                b.addEventListener('click', function () {
+                    formulario = b.closest('form');
+                    confirmar.querySelector('[data-ra-nombre]').textContent = b.getAttribute('data-nombre') || 'este citado';
+                    confirmar.querySelector('[data-ra-notificacion]').textContent = b.getAttribute('data-notificacion') || '—';
+                    confirmar.querySelector('[data-ra-direccion]').textContent = b.getAttribute('data-direccion') || '—';
+                    confirmar.querySelector('[data-ra-cambios]').hidden = !document.querySelector('.ra-seccion__cambios:not([hidden])');
+                    regresarALista = true;
+                    var abierta = bootstrap.Modal.getInstance(lista);
+                    if (abierta && lista.classList.contains('show')) {
+                        lista.addEventListener('hidden.bs.modal', function abrir() {
+                            lista.removeEventListener('hidden.bs.modal', abrir);
+                            modalConfirmar.show();
+                        });
+                        abierta.hide();
+                    } else {
+                        modalConfirmar.show();
+                    }
+                });
+            });
+
+            boton.addEventListener('click', function () {
+                if (!formulario) { return; }
+                regresarALista = false;
+                boton.disabled = true;
+                boton.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Borrando…';
+                window.raSaltarAvisoSalida = true;
+                var carga = document.getElementById('menu_carga');
+                if (carga) { carga.style.display = ''; }
+                formulario.submit();
+            });
+
+            confirmar.addEventListener('hidden.bs.modal', function () {
+                if (regresarALista) { bootstrap.Modal.getOrCreateInstance(lista).show(); }
+                regresarALista = false;
+            });
+        });
+    </script>
+    <script>
+        // Revisar audiencia (Fase 2): cada sección se ve en modo lectura y se
+        // abre con "Editar". Los campos siguen en el formulario (readonly), así
+        // que se guardan igual que antes; al enviar se abren todas un momento
+        // para que la validación revise los campos obligatorios.
+        document.addEventListener('DOMContentLoaded', function () {
+            var form = document.querySelector('form.needs-validation');
+            var secciones = Array.prototype.slice.call(document.querySelectorAll('.ra-seccion'));
+            if (!form || !secciones.length) { return; }
+            var puedeEditar = {{ $puedeEditar ? 'true' : 'false' }};
+            var conErrores = {{ $errors->any() ? 'true' : 'false' }};
+            // .ra-fijo: datos que no se editan (fechas, expediente); no entran al modo edición.
+            var CAMPOS = 'input:not([type=hidden]):not([type=file]):not([type=checkbox]):not([type=radio]):not([type=button]):not([type=submit]):not(.ra-fijo), select, textarea';
+            var cambios = false, enviando = false;
+
+            function lectura(sec, si) {
+                sec.classList.toggle('ra-lectura', si);
+                sec.classList.toggle('is-editando', !si);
+                sec.querySelectorAll(CAMPOS).forEach(function (el) {
+                    if (si) {
+                        if (!el.hasAttribute('data-ra-orig')) {
+                            el.setAttribute('data-ra-orig', JSON.stringify({ ro: el.readOnly, ti: el.getAttribute('tabindex'), ph: el.getAttribute('placeholder') }));
+                        }
+                        if (el.tagName !== 'SELECT') { el.readOnly = true; }
+                        el.setAttribute('tabindex', '-1');
+                        if (el.tagName !== 'SELECT' && !el.value) { el.setAttribute('placeholder', '—'); }
+                    } else if (el.hasAttribute('data-ra-orig')) {
+                        var o = JSON.parse(el.getAttribute('data-ra-orig'));
+                        if (el.tagName !== 'SELECT') { el.readOnly = o.ro; }
+                        if (o.ti === null) { el.removeAttribute('tabindex'); } else { el.setAttribute('tabindex', o.ti); }
+                        if (o.ph === null) { el.removeAttribute('placeholder'); } else { el.setAttribute('placeholder', o.ph); }
+                    }
+                });
+                var txt = sec.querySelector('.ra-editar span');
+                if (txt) { txt.textContent = si ? 'Editar datos' : 'Listo'; }
+                var ico = sec.querySelector('.ra-editar i');
+                if (ico) { ico.className = si ? 'bi bi-pencil' : 'bi bi-check2'; }
+            }
+
+            // Oculto dentro de la sección (no cuenta que la pestaña esté cerrada).
+            function oculto(el, sec) {
+                for (var n = el; n && n !== sec; n = n.parentElement) {
+                    if (n.hidden || getComputedStyle(n).display === 'none') { return true; }
+                }
+                return false;
+            }
+
+            function faltaAlgo(sec) {
+                return Array.prototype.some.call(sec.querySelectorAll(CAMPOS), function (el) {
+                    return el.required && !el.disabled && !el.value && !oculto(el, sec);
+                });
+            }
+
+            secciones.forEach(function (sec) {
+                // Se abre sola si viene de un error o le falta un dato obligatorio.
+                var falta = puedeEditar && faltaAlgo(sec);
+                lectura(sec, !(puedeEditar && (conErrores || falta)));
+                if (falta) {
+                    var herr = sec.querySelector('.ra-seccion__herr');
+                    if (herr) {
+                        var aviso = document.createElement('span');
+                        aviso.className = 'ra-seccion__falta';
+                        aviso.textContent = 'Falta un dato obligatorio';
+                        herr.insertBefore(aviso, herr.firstChild);
+                    }
+                }
+                var boton = sec.querySelector('.ra-editar');
+                if (boton) {
+                    boton.addEventListener('click', function () {
+                        var abrir = sec.classList.contains('ra-lectura');
+                        lectura(sec, !abrir);
+                        if (abrir) {
+                            var primero = sec.querySelector(CAMPOS);
+                            if (primero) { try { primero.focus({ preventScroll: true }); } catch (e) {} }
+                        }
+                    });
+                }
+                var marcar = function (e) {
+                    if (!e.target.matches || !e.target.matches(CAMPOS + ', input[type=file]')) { return; }
+                    if (e.target.id === 'motivo_solicitud') { return; }
+                    cambios = true;
+                    sec.setAttribute('data-ra-editada', '');
+                    sec.querySelectorAll('.ra-seccion__cambios').forEach(function (m) { m.hidden = false; });
+                };
+                sec.addEventListener('input', marcar);
+                sec.addEventListener('change', marcar);
+            });
+
+            // Clic directo en un dato (modo lectura): abre su sección y deja el
+            // cursor en ese campo. Los campos en lectura no reciben el clic
+            // (pointer-events: none), así que se toma el .form-group que lo envuelve.
+            if (puedeEditar) {
+                secciones.forEach(function (sec) {
+                    if (sec.querySelector('.ra-editar')) { sec.classList.add('ra-editable'); }
+                });
+                form.addEventListener('click', function (e) {
+                    var grupo = e.target.closest && e.target.closest('.form-group');
+                    var sec = grupo && grupo.closest('.ra-seccion');
+                    if (!sec || !sec.classList.contains('ra-lectura') || !sec.classList.contains('ra-editable')) { return; }
+                    if (e.target.closest('a, button, .btn, [data-bs-toggle], input[type=file]')) { return; }
+                    if (grupo.querySelector('.ra-fijo') && !grupo.querySelector(CAMPOS)) { return; } // dato fijo: no abre la edición
+                    var campo = Array.prototype.find.call(grupo.querySelectorAll(CAMPOS), function (el) { return !oculto(el, grupo); });
+                    lectura(sec, false);
+                    if (campo) {
+                        try { campo.focus({ preventScroll: true }); } catch (err) {}
+                        if (campo.tagName === 'SELECT' && typeof campo.showPicker === 'function') {
+                            try { campo.showPicker(); } catch (err) {}
+                        }
+                    }
+                });
+            }
+
+            // Al enviar: se abren todas para que la validación vea los obligatorios;
+            // si algo falta, se queda abierta sólo la sección con el problema.
+            form.addEventListener('submit', function () {
+                var antes = secciones.map(function (sec) { return sec.classList.contains('ra-lectura'); });
+                secciones.forEach(function (sec) { lectura(sec, false); });
+                enviando = true;
+                setTimeout(function () {
+                    if (form.checkValidity()) { return; }
+                    enviando = false;
+                    secciones.forEach(function (sec, i) {
+                        if (antes[i] && !sec.querySelector(':invalid')) { lectura(sec, true); }
+                    });
+                }, 0);
+            }, true);
+
+            // Si un campo inválido está en una sección en lectura, se abre.
+            form.addEventListener('invalid', function (e) {
+                var sec = e.target.closest && e.target.closest('.ra-seccion');
+                if (sec && sec.classList.contains('ra-lectura')) { lectura(sec, false); }
+            }, true);
+
+            // Recargar o cerrar la pestaña: el navegador sólo permite su aviso
+            // propio (no se puede cambiar por uno de la página).
+            var porFormulario = false;
+            document.addEventListener('submit', function (e) { if (!e.defaultPrevented) { porFormulario = true; } });
+            window.addEventListener('beforeunload', function (e) {
+                var hay = porFormulario ? hayCambiosLocales() : hayCambios();
+                if (hay && !enviando && !window.raSaltarAvisoSalida) { e.preventDefault(); e.returnValue = ''; }
+            });
+
+            // "Subir de nuevo" (archivo que no existe): abre la sección y el selector de archivo.
+            window.raSubirDeNuevo = function (input) {
+                var sec = input.closest('.ra-seccion');
+                if (sec && sec.classList.contains('ra-lectura')) { lectura(sec, false); }
+                input.classList.add('ra-doc-subir');
+                input.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                input.click();
+            };
+
+            // Salir por un enlace (Regresar, menú lateral, etc.) o con el botón
+            // Atrás del navegador: confirmación con SweetAlert en vez del aviso
+            // nativo. Cuenta como cambio lo que marcan las secciones y lo que
+            function hayCambiosLocales() { return cambios || !!window.raCambiosLocales; }
+            function hayCambios() { return hayCambiosLocales() || !!window.raCambioDetectado || !!window.raPendientesServidor; }
+
+            function preguntarSalida() {
+                if (typeof Swal === 'undefined') {
+                    return Promise.resolve(window.confirm('Tienes cambios sin guardar. ¿Salir de todos modos?'));
+                }
+                return Swal.fire({
+                    icon: 'warning',
+                    title: '¿Salir sin guardar?',
+                    html: 'Hiciste cambios que <b>todavía no se guardan</b>. Si sales ahora, se pierden.<br>Para conservarlos, quédate y da clic en <b>Guardar edición</b>.',
+                    showCancelButton: true,
+                    confirmButtonText: 'Seguir editando',
+                    cancelButtonText: 'Salir sin guardar',
+                    reverseButtons: true,
+                    focusConfirm: true,
+                    confirmButtonColor: '#496163',
+                    cancelButtonColor: '#9A3A22',
+                }).then(function (r) { return r.dismiss === Swal.DismissReason.cancel; });
+            }
+
+            function salir(destino) {
+                window.raSaltarAvisoSalida = true;
+                destino();
+            }
+
+            document.addEventListener('click', function (e) {
+                var a = e.target.closest && e.target.closest('a[href]');
+                if (!a || !hayCambios() || enviando || window.raSaltarAvisoSalida) { return; }
+                var href = a.getAttribute('href') || '';
+                if (e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) { return; }
+                if (a.target === '_blank' || a.hasAttribute('download') || a.hasAttribute('data-bs-toggle')
+                    || href === '' || href.charAt(0) === '#' || href.indexOf('javascript:') === 0) { return; }
+                if (a.classList.contains('eliminar') && !hayCambiosLocales()) { return; }
+                e.preventDefault();
+                preguntarSalida().then(function (si) {
+                    if (si) { salir(function () { window.location.href = a.href; }); }
+                });
+            }, true);
+
+            // Botón Atrás: se agrega una entrada al historial en el primer
+            // cambio; al regresar se pregunta y, si se queda, se vuelve a poner.
+            var trampa = false;
+            function ponerTrampa() {
+                if (trampa || !window.history || !history.pushState) { return; }
+                trampa = true;
+                history.pushState({ raCambios: true }, '');
+            }
+            form.addEventListener('input', function (e) { if (e.isTrusted) { ponerTrampa(); } }, true);
+            form.addEventListener('change', function (e) { if (e.isTrusted) { ponerTrampa(); } }, true);
+            // Citados o motivos pendientes en la sesión
+            if (window.raPendientesServidor) { ponerTrampa(); }
+            window.addEventListener('popstate', function () {
+                if (!trampa) { return; }
+                if (!hayCambios() || enviando || window.raSaltarAvisoSalida) { trampa = false; history.back(); return; }
+                preguntarSalida().then(function (si) {
+                    if (si) {
+                        salir(function () { trampa = false; history.back(); });
+                    } else {
+                        history.pushState({ raCambios: true }, '');
+                    }
+                });
+            });
+        });
+    </script>
+    <script>
+        // Citados agregados o borrados y motivos ya guardados que se quitaron: la página se recarga y quedan pendientes en la sesión hasta dar "Guardar edición"
+        window.raPendientesServidor = {{ (!empty(session('citados_edicion_new')) || !empty(session('citados_edicion_delete')) || !empty(session('motivos_edicion_delete'))) ? 'true' : 'false' }};
+        // "Guardar e iniciar audiencia" no se toca: se puede iniciar sin editar.
+        document.addEventListener('DOMContentLoaded', function () {
+            var boton = document.querySelector('[data-ra-guardar]');
+            var form = boton && boton.form;
+            if (!form || {{ $errors->any() ? 'true' : 'false' }}) { return; }
+            var aviso = document.querySelector('[data-ra-guardar-aviso]');
+            var selectorMotivo = document.getElementById('motivo_solicitud');
+            var secMotivos = selectorMotivo && selectorMotivo.closest('.ra-seccion');
+            var editoCampos = false;
+
+            function esperar(si) {
+                boton.disabled = si;
+                boton.classList.toggle('ra-guardar--espera', si);
+                boton.title = si ? 'Aún no has cambiado nada. Da clic en Editar en la sección que quieras corregir.' : '';
+                if (aviso) { aviso.hidden = !si; }
+            }
+
+            // Motivos agregados en esta pantalla (aún no guardados).
+            function motivosNuevos() {
+                return document.querySelectorAll('input[type=hidden][name="motivo_solicitud[]"]').length > 0;
+            }
+
+            function revisar() {
+                var nuevos = motivosNuevos();
+                window.raCambiosLocales = editoCampos || nuevos;
+                window.raCambioDetectado = window.raCambiosLocales || !!window.raPendientesServidor;
+                esperar(!window.raCambioDetectado);
+                // Marca "cambios" de la sección de motivos: sigue si se editó otro campo de ella.
+                if (secMotivos) {
+                    var marcar = nuevos || secMotivos.hasAttribute('data-ra-editada');
+                    secMotivos.querySelectorAll('.ra-seccion__cambios').forEach(function (m) { m.hidden = !marcar; });
+                }
+            }
+            function activar() { editoCampos = true; revisar(); }
+
+            function cambio(e) {
+                var t = e.target;
+                if (!e.isTrusted || !t.matches || !t.matches('input, select, textarea') || t.type === 'hidden') { return; }
+                // El selector de motivos no se envía: lo que cuenta es la lista de motivos (abajo).
+                if (t === selectorMotivo) { return; }
+                activar();
+            }
+            form.addEventListener('input', cambio, true);
+            form.addEventListener('change', cambio, true);
+            // Agregar o quitar un motivo nuevo: se recalcula cuando cambia la lista.
+            if (typeof MutationObserver !== 'undefined') {
+                new MutationObserver(revisar).observe(form, { childList: true, subtree: true });
+            }
+
+            // Enter en un campo sin cambios no debe mandar el siguiente botón
+            // activo ("Guardar e iniciar audiencia") en lugar de Guardar edición.
+            form.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' && boton.disabled && e.target.matches && e.target.matches('input')) { e.preventDefault(); }
+            }, true);
+
+            // Para otros scripts que cambien datos del formulario por su cuenta.
+            window.raMarcarCambio = activar;
+            revisar();
+        });
+    </script>
+
+    {{-- "Describe brevemente el motivo de tu solicitud" crece hasta verse completo. --}}
+    @include('partials.general._textarea_autoalto')
 @endsection
 

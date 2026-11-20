@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\BloqueoCita;
 use App\Models\Modulo;
 use App\Models\Recepcion;
 use App\Models\User;
@@ -126,6 +127,9 @@ class ModulosController extends Controller
             'enLineaMigrado' => $enLineaMigrado,
             'ventanillaMigrada' => Modulo::pausaVentanillaMigrada(),
             'reasignacionMigrada' => Modulo::reasignacionMigrada(),
+            // "Días bloqueados" de cada tarjeta (App\Models\BloqueoCita), por persona.
+            'bloqueosMigrado' => BloqueoCita::migrado(),
+            'bloqueos'        => BloqueoCita::proximos($modulos->pluck('user_id')->filter()->map(fn ($id) => (int) $id)->unique()->values()->all()),
             'excepcionSinModulo' => AsignadorModulos::hayModulosExcepcion($sede) ? self::excepcionSinModulo($sede)->count() : 0,
             'sinEnLinea'     => $enLineaMigrado ? self::tramitesEnPausa($sede, 'linea', $modulos) : [],
             'sinVentanilla'  => $enLineaMigrado ? self::tramitesEnPausa($sede, 'ventanilla', $modulos) : [],
@@ -208,6 +212,113 @@ class ModulosController extends Controller
      * (fila de hoy u otra fecha) cuando no es caso de excepción: levanta ella
      * misma la solicitud (FormatoExcepcion::siguientesPosibles).
      */
+    /**
+     * "Días bloqueados" en la tarjeta del módulo: bloquea un día o un rango
+     * (sin sábados ni domingos) en el calendario de su persona. Esos días no
+     * se le asignan citas en línea ni de ventanilla ni se le mueven citas.
+     * Las que ya tiene agendadas esos días no se mueven solas: se avisa.
+     */
+    public function bloquearDias(Request $request, Modulo $modulo)
+    {
+        if (! BloqueoCita::migrado()) {
+            return $this->volver($request, $modulo->delegacion)
+                ->with('error', 'Falta correr la migración de días bloqueados (php artisan migrate).');
+        }
+        if (! $modulo->user_id) {
+            return $this->volver($request, $modulo->delegacion)
+                ->with('error', "{$modulo->nombre} no tiene persona asignada: no hay a quién bloquearle días.");
+        }
+
+        $hoy = Carbon::today()->toDateString();
+        $d = $request->validate([
+            'bloqueo_desde'  => ['required', 'date_format:Y-m-d', 'after_or_equal:'.$hoy],
+            'bloqueo_hasta'  => ['nullable', 'date_format:Y-m-d', 'after_or_equal:bloqueo_desde'],
+            'bloqueo_motivo' => ['nullable', 'string', 'max:120'],
+        ], [
+            'bloqueo_desde.required'       => 'Elige el día que se bloquea.',
+            'bloqueo_desde.after_or_equal' => 'No se puede bloquear un día que ya pasó.',
+            'bloqueo_hasta.after_or_equal' => 'La fecha "hasta" no puede ser antes de "desde".',
+        ]);
+
+        $desde = Carbon::parse($d['bloqueo_desde']);
+        $hasta = Carbon::parse($d['bloqueo_hasta'] ?? $d['bloqueo_desde']);
+        if ($desde->diffInDays($hasta) >= BloqueoCita::MAX_DIAS) {
+            return $this->volver($request, $modulo->delegacion)
+                ->with('error', 'Se pueden bloquear hasta '.BloqueoCita::MAX_DIAS.' días de una vez.');
+        }
+
+        $dias = [];
+        for ($dia = $desde->copy(); $dia->lte($hasta); $dia->addDay()) {
+            if (! $dia->isWeekend()) {
+                $dias[] = $dia->toDateString();
+            }
+        }
+        if (! $dias) {
+            return $this->volver($request, $modulo->delegacion)
+                ->with('error', 'En esas fechas sólo hay sábado y domingo: no hay citas que bloquear.');
+        }
+
+        $motivo = filled($d['bloqueo_motivo'] ?? null) ? trim($d['bloqueo_motivo']) : null;
+        DB::transaction(function () use ($dias, $modulo, $motivo, $request) {
+            foreach ($dias as $dia) {
+                BloqueoCita::updateOrCreate(
+                    ['user_id' => $modulo->user_id, 'fecha' => $dia],
+                    ['motivo' => $motivo, 'modulo_id' => $modulo->id, 'creado_por' => $request->user()->id]
+                );
+            }
+        });
+        BloqueoCita::olvidar();
+
+        Log::info('Días bloqueados (citas)', [
+            'modulo' => $modulo->id, 'persona' => $modulo->user_id, 'dias' => $dias, 'motivo' => $motivo, 'por' => $request->user()->id,
+        ]);
+
+        $persona = optional($modulo->persona)->name ?? $modulo->nombre;
+        $texto = count($dias) === 1
+            ? 'el '.Carbon::parse($dias[0])->locale('es')->isoFormat('dddd D [de] MMMM')
+            : count($dias).' días ('.Carbon::parse($dias[0])->format('d/m').' al '.Carbon::parse(end($dias))->format('d/m').')';
+
+        // Lo que ya tenía agendado esos días no se mueve solo.
+        $agendadas = DB::table('recepcion')
+            ->whereIn('fecha', $dias)
+            ->whereIn('estatus', ['pendiente', 'confirmada'])
+            ->where(fn ($q) => $q->where('modulo_id', $modulo->id)->orWhere('auxiliar', $modulo->user_id))
+            ->count();
+
+        return $this->volver($request, $modulo->delegacion)
+            ->with('success', (count($dias) === 1 ? 'Se bloqueó ' : 'Se bloquearon ')."{$texto} a {$persona}: ".(count($dias) === 1 ? 'ese día' : 'esos días')." no recibe citas en línea ni de ventanilla, ni reasignaciones.")
+            ->with('warning', $agendadas
+                ? "Ojo: ya tiene {$agendadas} ".($agendadas === 1 ? 'cita agendada' : 'citas agendadas').' en esos días. Siguen a su nombre: muévelas con "Reasignar" en cada cita.'
+                : null);
+    }
+
+    /** Quita un día bloqueado (fecha) o todos los próximos (todos=1) de la persona del módulo. */
+    public function quitarBloqueo(Request $request, Modulo $modulo)
+    {
+        if (! BloqueoCita::migrado() || ! $modulo->user_id) {
+            return $this->volver($request, $modulo->delegacion);
+        }
+        $d = $request->validate([
+            'fecha' => ['nullable', 'date_format:Y-m-d'],
+            'todos' => ['nullable', 'boolean'],
+        ]);
+
+        $quitados = BloqueoCita::where('user_id', $modulo->user_id)
+            ->when(! empty($d['todos']), fn ($q) => $q->where('fecha', '>=', Carbon::today()->toDateString()),
+                fn ($q) => $q->whereDate('fecha', $d['fecha'] ?? '0000-00-00'))
+            ->delete();
+        BloqueoCita::olvidar();
+
+        Log::info('Días desbloqueados (citas)', ['modulo' => $modulo->id, 'persona' => $modulo->user_id,
+            'fecha' => $d['fecha'] ?? null, 'todos' => ! empty($d['todos']), 'quitados' => $quitados, 'por' => $request->user()->id]);
+
+        $persona = optional($modulo->persona)->name ?? $modulo->nombre;
+
+        return $this->volver($request, $modulo->delegacion)->with('success', $quitados
+            ? ($quitados === 1 ? "Se desbloqueó 1 día a {$persona}." : "Se desbloquearon {$quitados} días a {$persona}.")
+            : 'Ese día ya no estaba bloqueado.');
+    }
+
     public function turnar(Request $request, Modulo $modulo)
     {
         abort_unless($modulo->esDeExcepcion(), 404);

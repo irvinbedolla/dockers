@@ -35,7 +35,7 @@
             // Flujo nuevo cita → solicitud: sólo si el interruptor lo habilita para esta persona.
             ['route' => 'mi_modulo',                  'label' => 'Mi módulo',               'icon' => 'bi bi-person-workspace',    'roles' => '*',
                 'si' => fn () => \App\Http\Controllers\MiModuloController::puedeVer(auth()->user())],
-            // Llegadas hoy: la recepción (Morelia 02) marca quién llegó; el conciliador sólo consulta.
+            // Llegadas hoy: la recepción (Morelia 02 y la General) marca quién llegó; el conciliador sólo consulta.
             ['route' => 'llegadas.index',             'label' => 'Llegadas hoy',            'icon' => 'bi bi-person-check',        'roles' => \App\Support\LlegadasHoy::roles(),
                 'si' => fn () => \App\Support\LlegadasHoy::puedeVer(auth()->user())],
             ['route' => 'configuracion',              'label' => 'Administración',          'icon' => 'bi bi-lock-fill',           'roles' => ['Super Usuario', 'Delegado', 'Enlace', 'Directivo']],
@@ -72,6 +72,8 @@
             ['route' => 'index_notificaciones',       'label' => 'Notificaciones',          'icon' => 'bi bi-envelope',            'roles' => ['Super Usuario', 'Enlace', 'Directivo','Excepcion','Notificador', 'Delegado']],
             ['route' => 'create_asesoria',            'label' => 'Asesorías',               'icon' => 'bi bi-person-check-fill',   'roles' => ['Super Usuario', 'Orientador', 'Delegado', 'Auxiliar'], 'especialidad' => 'asesoria_crear'],
             ['route' => 'estadisticas.index',        'label' => 'Panel estadístico',       'icon' => 'bi bi-bar-chart-line-fill', 'roles' => ['Super Usuario', 'Estadistica', 'Directivo'], 'activo' => 'estadisticas.*'],
+            // Estadística lo tiene en el menú; Super Usuario y Directivo, como botón en el Panel estadístico.
+            ['route' => 'datos_referencia.index',     'label' => 'Datos de referencia',     'icon' => 'bi bi-database-fill-gear',  'roles' => ['Estadistica'], 'activo' => 'datos_referencia.*'],
             ['route' => 'seer.estadistica',           'label' => 'Estadísticas',            'icon' => 'bi bi-clipboard-data-fill', 'roles' => ['Super Usuario', 'Auxiliar', 'Orientador', 'Administrador', 'Enlace', 'Estadistica', 'Directivo', 'Notificador', 'Delegado','Excepcion', 'Cumplimientos']],
             ['route' => 'reportes_conciliador',       'label' => 'Estadísticas',            'icon' => 'bi bi-clipboard-data-fill', 'roles' => ['Conciliador']],
             ['route' => 'misestadisticas',            'label' => 'Estadísticas',            'icon' => 'bi bi-clipboard-data-fill', 'roles' => ['Cumplimientos']],

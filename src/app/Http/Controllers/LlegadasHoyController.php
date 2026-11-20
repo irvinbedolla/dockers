@@ -10,7 +10,8 @@ use Illuminate\Support\Facades\Log;
  * "Llegadas hoy" (App\Support\LlegadasHoy): audiencias, ratificaciones y
  * cumplimientos del día con quién ya llegó.
  *
- *   - La recepción de audiencias (Morelia 02) y el Super Usuario marcan.
+ *   - La recepción (Morelia 02 y la General, cada una en sus sedes) y el
+ *     Super Usuario marcan.
  *   - El conciliador sólo consulta; por omisión ve lo suyo.
  *   - Al conciliador asignado le llega el aviso con sonido (avisos(), que
  *     consulta llegadas/_avisos desde el layout).
