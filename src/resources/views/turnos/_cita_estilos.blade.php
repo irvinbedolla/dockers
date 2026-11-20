@@ -60,6 +60,9 @@
             font-size: 13px;
             font-weight: 800;
         }
+        /* Ratificación: sin el paso "Tu caso" (lo controla _cita_scripts). */
+        .gc-pasos.is-tres { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .gc-pasos li[hidden], .gc-seccion[hidden] { display: none; }
         .gc-pasos__texto { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .gc-pasos li.is-listo { background: #E3F4E8; color: #1E7B3C; }
         .gc-pasos li.is-listo .gc-pasos__num { background: #1E7B3C; color: #fff; font-size: 0; }

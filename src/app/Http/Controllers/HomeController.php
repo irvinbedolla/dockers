@@ -260,6 +260,7 @@ class HomeController extends Controller
         $data = $request->all();
         $sede = $data["delegacion"];
         $tipo = $data["tipo"];
+        $sinDatosPersonales = \App\Support\CitaPatronal::sinDatosPersonales($request);
         // Casos de excepción: el formulario público ya no lo pregunta (se usaba
         // mal). Sólo recepción canaliza a excepción desde /turnos/nuevo, así que
         // aquí se ignora lo que llegue en el POST.
@@ -359,13 +360,15 @@ class HomeController extends Controller
             'delegacion'    => $sede,
             'estatus'       => "pendiente",
             'exepcion'      => $excepcion,
-            'edad'          => $data["edad"],
-            'sexo'          => $data["sexo"],
-            'vulnerables'   => $data["vulnerables"],
+            // Ratificación del empleador: sin edad, sexo ni grupo prioritario;
+            // en cualquier ratificación, sin "Tu caso" (CitaPatronal::sinDatosPersonales).
+            'edad'          => $sinDatosPersonales ? null : ($data["edad"] ?? null),
+            'sexo'          => $sinDatosPersonales ? null : ($data["sexo"] ?? null),
+            'vulnerables'   => $sinDatosPersonales ? 'No aplica' : ($data["vulnerables"] ?? 'No aplica'),
             'municipio'     => $data["municipio_citado"],
             'correo'        => $data["email"],
             'telefono'      => $data["telefono"],
-            'observaciones' => $data["conflicto"]
+            'observaciones' => $tipo === 'Ratificación' ? null : ($data["conflicto"] ?? null)
         ) + $camposFlujo;
 
         // Desde qué conexión y navegador se agendó (estadísticas y límite de citas).
