@@ -45,6 +45,15 @@ class CitaPatronal
         return $listo ??= \Illuminate\Support\Facades\Schema::hasColumn('recepcion', 'calidad');
     }
 
+    /**
+     * Ratificación que agenda el empleador (con o sin folio): el formulario no
+     * pide edad, sexo, grupo prioritario, CURP ni domicilio de la persona.
+     */
+    public static function sinDatosPersonales(Request $request): bool
+    {
+        return $request->input('tipo') === 'Ratificación' && $request->input('calidad') === 'empleador';
+    }
+
     /** ¿La cita la agendó el empleador (con o sin folio)? */
     public static function esEmpleador(object $cita): bool
     {
@@ -115,7 +124,8 @@ class CitaPatronal
         }
 
         // CURP y domicilio (de quien agenda o, si es el empleador, del trabajador).
-        [$flujo, $error] = FlujoCita::camposDeCita($request);
+        // En la ratificación del empleador no se piden.
+        [$flujo, $error] = self::sinDatosPersonales($request) ? [[], null] : FlujoCita::camposDeCita($request);
         if ($error) {
             return [[], $error];
         }
