@@ -121,6 +121,9 @@ class ModulosController extends Controller
             'opciones'  => $opciones,
             'personal'  => $personal,
             'personalExcepcion' => $personalExcepcion,
+            'tramitesApoyo' => AsignadorModulos::TRAMITES_APOYO,
+            'apoyoMigrado'  => Modulo::apoyoMigrado(),
+            'switchesPorClase' => Modulo::SWITCHES_POR_CLASE,
             'tramites'  => AsignadorModulos::TRAMITES,
             'limite'    => LimiteCitas::config(),
             'limiteHoy' => LimiteCitas::hoy(),
@@ -487,25 +490,35 @@ class ModulosController extends Controller
     public function guardar(Request $request, ?Modulo $modulo = null)
     {
         $sede = $modulo?->delegacion ?? $request->input('delegacion');
-        // Módulo normal o de casos de excepción (en cada sede, aparte de los normales).
+        // Módulo normal, de casos de excepción (en cada sede, aparte de los
+        // normales) o de apoyo (no recibe citas nuevas, sólo reasignadas).
         $esExcepcion = $request->input('clase') === 'excepcion';
+        $esApoyo     = $request->input('clase') === 'apoyo';
+
+        if (! Modulo::apoyoMigrado() && ($esApoyo || $request->has('asigna_citas') && ! $request->boolean('asigna_citas') || $request->has('acepta_retorno') && ! $request->boolean('acepta_retorno'))) {
+            return back()->withInput()->withErrors(['clase' => 'Falta correr la migración de módulos (php artisan migrate) para los módulos de apoyo y los switches «Asignar en línea» y «Retornar».']);
+        }
 
         $datos = $request->validate([
-            'clase'       => ['nullable', Rule::in(['normal', 'excepcion'])],
+            'clase'       => ['nullable', Rule::in(array_keys(Modulo::SWITCHES_POR_CLASE))],
+            'asigna_citas'   => ['nullable', 'boolean'],
+            'acepta_retorno' => ['nullable', 'boolean'],
             'delegacion'  => [$modulo ? 'nullable' : 'required', Rule::in(RecepcionRoles::TODAS_LAS_SEDES)],
             'nombre'      => ['required', 'string', 'max:60',
                 Rule::unique('modulos', 'nombre')->where('delegacion', $sede)->ignore($modulo?->id)],
             'user_id'     => ['nullable', 'integer', 'exists:users,id'],
             'tramites'    => [$esExcepcion ? 'nullable' : 'required', 'array'],
-            'tramites.*'  => [Rule::in(AsignadorModulos::TRAMITES)],
+            // Módulo de apoyo: sólo solicitudes (orientadores) y ratificaciones (auxiliares).
+            'tramites.*'  => [Rule::in($esApoyo ? AsignadorModulos::TRAMITES_APOYO : AsignadorModulos::TRAMITES)],
             'respaldo'    => ['nullable', 'array'],
-            'respaldo.*'  => [Rule::in(AsignadorModulos::TRAMITES)],
+            'respaldo.*'  => [Rule::in($esApoyo ? AsignadorModulos::TRAMITES_APOYO : AsignadorModulos::TRAMITES)],
             'hora_comida' => ['nullable', 'date_format:H:i'],
             'activo'      => ['nullable', 'boolean'],
             'orden'       => ['nullable', 'integer', 'min:0', 'max:999'],
         ], [
             'tramites.required' => 'Marca al menos un trámite que reciba el módulo.',
-            'tramites.*.in'     => 'Ese trámite no lo recibe un módulo normal.',
+            'tramites.*.in'     => $esApoyo ? 'Un módulo de apoyo sólo recibe Solicitud y Ratificación.' : 'Ese trámite no lo recibe un módulo normal.',
+            'respaldo.*.in'     => $esApoyo ? 'Un módulo de apoyo sólo recibe Solicitud y Ratificación.' : 'Ese trámite no lo recibe un módulo normal.',
             'nombre.unique'     => 'Ya hay un módulo con ese nombre en la sede.',
         ]);
 
@@ -519,6 +532,17 @@ class ModulosController extends Controller
         }
         AsignadorModulos::olvidarExcepcion();
 
+        // Switches "Asignar en línea" y "Retornar": si el formulario no los manda
+        // (pestaña vieja), los que trae el tipo de módulo.
+        $clase    = $esExcepcion ? 'excepcion' : ($esApoyo ? 'apoyo' : 'normal');
+        $switches = Modulo::SWITCHES_POR_CLASE[$clase];
+        $asigna   = $request->has('asigna_citas') ? $request->boolean('asigna_citas') : $switches['asigna_citas'];
+        $retorno  = $request->has('acepta_retorno') ? $request->boolean('acepta_retorno') : $switches['acepta_retorno'];
+        // Un módulo de apoyo, por definición, no recibe citas nuevas.
+        if ($esApoyo) {
+            $asigna = false;
+        }
+
         $valores = [
             'nombre'      => trim($datos['nombre']),
             'user_id'     => $datos['user_id'] ?? null,
@@ -529,6 +553,9 @@ class ModulosController extends Controller
             'activo'      => $request->boolean('activo'),
             'orden'       => $datos['orden'] ?? ($modulo?->orden ?? Modulo::where('delegacion', $sede)->max('orden') + 1),
         ];
+        if (Modulo::apoyoMigrado()) {
+            $valores += ['apoyo' => $esApoyo, 'asigna_citas' => $asigna, 'acepta_retorno' => $retorno];
+        }
 
         if (! $modulo) {
             $modulo = Modulo::create($valores + ['delegacion' => $sede]);
