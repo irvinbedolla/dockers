@@ -114,6 +114,9 @@
         .md-chip--inactivo { background: #F6E4EA; color: #8C1D40; }
         .md-chip--excepcion { background: #EDE7F6; color: #5B3F99; }
         .md-modulo.is-excepcion { border-top: 3px solid #7B5EA7; }
+        .md-chip--apoyo { background: #E3F0FA; color: #1F5F8B; }
+        .md-modulo.is-apoyo { border-top: 3px solid #2E7DB5; }
+        .md-switches { display: flex; flex-wrap: wrap; gap: 6px 24px; }
         .md-clase { display: flex; flex-wrap: wrap; gap: 6px 16px; }
 
         /* Switch "Recibe citas" de cada módulo y qué se pausa. */
@@ -335,10 +338,12 @@
                             'tramites' => $modulo->tramites ?? [], 'respaldo' => $modulo->respaldo ?? [],
                             'hora_comida' => $modulo->hora_comida ? substr($modulo->hora_comida, 0, 5) : '',
                             'activo' => $modulo->activo, 'orden' => $modulo->orden,
+                            'clase' => $modulo->clase(),
+                            'asigna_citas' => $modulo->asignaCitas(), 'acepta_retorno' => $modulo->aceptaRetorno(),
                             'accion' => route('modulos.actualizar', $modulo),
                         ];
                     @endphp
-                    <article class="tn-tarjeta md-modulo {{ $modulo->activo ? '' : 'is-inactivo' }} {{ $modulo->esDeExcepcion() ? 'is-excepcion' : '' }}">
+                    <article class="tn-tarjeta md-modulo {{ $modulo->activo ? '' : 'is-inactivo' }} {{ $modulo->esDeExcepcion() ? 'is-excepcion' : '' }} {{ $modulo->esDeApoyo() ? 'is-apoyo' : '' }}">
                         <header class="md-cabeza">
                             <div class="md-cabeza__fila">
                                 <div>
@@ -371,6 +376,14 @@
 
                             <div class="md-chips">
                                 @if (! $modulo->activo)<span class="md-chip md-chip--inactivo">Inactivo</span>@endif
+                                @if ($modulo->esDeApoyo())
+                                    <span class="md-chip md-chip--apoyo" title="No recibe citas nuevas; sí se le reasignan solicitudes y ratificaciones, sin que se encimen."> Módulo de apoyo</span>
+                                @elseif (! $modulo->asignaCitas())
+                                    <span class="md-chip md-chip--inactivo" title="Switch «Asignar en línea» apagado (edita el módulo)">Sin citas nuevas</span>
+                                @endif
+                                @if (! $modulo->aceptaRetorno())
+                                    <span class="md-chip md-chip--respaldo" title="Switch «Retornar» apagado (edita el módulo): no se le reasignan citas">Sin retornos</span>
+                                @endif
                                 @foreach ($modulo->tramites ?? [] as $t)
                                     @if ($t === \App\Support\AsignadorModulos::TRAMITE_EXCEPCION)
                                         <span class="md-chip md-chip--excepcion" title="Recibe los casos de excepción de {{ $modulo->delegacion }}"><i class="bi bi-shield-heart"></i> Casos de excepción</span>
@@ -387,7 +400,13 @@
                                 @endforeach
                             </div>
 
-                            @if ($enLineaMigrado)
+                            @if ($enLineaMigrado && ! $modulo->asignaCitas())
+                                <div class="md-linea is-programada">
+                                    <span class="md-linea__nota">
+                                        {{ $modulo->esDeApoyo() ? 'Módulo de apoyo: no' : 'No' }} se le asignan citas en línea ni internas{{ $modulo->aceptaRetorno() ? '; sólo las que se le reasignan' : '' }}.
+                                    </span>
+                                </div>
+                            @elseif ($enLineaMigrado)
                                 @php $pausa = $modulo->pausa(); @endphp
                                 {{-- Apagado: desde ese momento no se le asignan citas nuevas en línea (o tampoco de ventanilla). --}}
                                 <form method="POST" action="{{ route('modulos.en_linea', $modulo) }}"
@@ -617,9 +636,31 @@
                             <div class="md-clase">
                                 <label class="form-check m-0"><input class="form-check-input" type="radio" name="clase" value="normal" id="mdClaseNormal" checked> Normal (citas y turnos)</label>
                                 <label class="form-check m-0"><input class="form-check-input" type="radio" name="clase" value="excepcion" id="mdClaseExc"> <i class="bi bi-shield-heart" style="color:#7B5EA7"></i> Casos de excepción</label>
+                                @if ($apoyoMigrado)
+                                    <label class="form-check m-0"><input class="form-check-input" type="radio" name="clase" value="apoyo" id="mdClaseApoyo"> Módulo de apoyo</label>
+                                @endif
                             </div>
                             <div class="form-text" id="mdClaseAyuda" hidden>Recibe las citas de casos de excepción de {{ $sede }}, en línea y de ventanilla. Sólo lo puede atender quien tiene el rol de Conciliación, Género e Igualdad o el distintivo de Enlace de Género e Igualdad (Usuarios).</div>
+                            <div class="form-text" id="mdClaseAyudaApoyo" hidden>No se le asignan citas en línea ni internas, pero sí se le pueden reasignar las ya registradas, normales y de casos de excepción (aquí o en Turnos → Todos); un caso de excepción que se le pasa deja de serlo y queda como cita normal. Sólo recibe solicitudes (orientadores) y ratificaciones (auxiliares): como no empiezan a las mismas horas, sólo se le pasa una cita si no se encima con otra suya.</div>
                         </div>
+                        @if ($apoyoMigrado)
+                            <div class="col-12">
+                                <span class="form-label d-block">Asignación de citas</span>
+                                <div class="md-switches">
+                                    <div class="form-check form-switch m-0">
+                                        <input type="hidden" name="asigna_citas" value="0">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="mdAsigna" name="asigna_citas" value="1" checked>
+                                        <label class="form-check-label" for="mdAsigna" title="Se le asignan citas nuevas: del formulario en línea y las que se generan de manera interna">Asignar en línea</label>
+                                    </div>
+                                    <div class="form-check form-switch m-0">
+                                        <input type="hidden" name="acepta_retorno" value="0">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="mdRetorno" name="acepta_retorno" value="1" checked>
+                                        <label class="form-check-label" for="mdRetorno" title="Se le pueden reasignar citas ya registradas (Reasignar, Turnos → Todos)">Retornar</label>
+                                    </div>
+                                </div>
+                                <div class="form-text"><b>Asignar en línea:</b> le llegan citas nuevas, en línea e internas. <b>Retornar:</b> se le pueden reasignar citas ya registradas. Cada tipo de módulo trae los suyos.</div>
+                            </div>
+                        @endif
                         <div class="col-12">
                             <label class="form-label" for="mdPersona">Quién lo atiende</label>
                             <select class="form-select" id="mdPersona" name="user_id">
@@ -649,7 +690,7 @@
                         <div class="col-12 col-sm-6" data-solo-normal>
                             <span class="form-label d-block">Recibe</span>
                             @foreach ($tramites as $t)
-                                <div class="form-check">
+                                <div class="form-check" @unless (in_array($t, $tramitesApoyo, true)) data-no-apoyo @endunless>
                                     <input class="form-check-input md-tramite" type="checkbox" name="tramites[]" value="{{ $t }}" id="mdT{{ $loop->index }}">
                                     <label class="form-check-label" for="mdT{{ $loop->index }}">{{ $t }}</label>
                                 </div>
@@ -658,7 +699,7 @@
                         <div class="col-12 col-sm-6" data-solo-normal>
                             <span class="form-label d-block">De respaldo <i class="bi bi-info-circle text-muted" title="Sólo cuando ningún módulo que lo recibe de primera mano está libre"></i></span>
                             @foreach ($tramites as $t)
-                                <div class="form-check">
+                                <div class="form-check" @unless (in_array($t, $tramitesApoyo, true)) data-no-apoyo @endunless>
                                     <input class="form-check-input md-respaldo" type="checkbox" name="respaldo[]" value="{{ $t }}" id="mdR{{ $loop->index }}">
                                     <label class="form-check-label" for="mdR{{ $loop->index }}">{{ $t }}</label>
                                 </div>
@@ -748,16 +789,45 @@
             var form = document.getElementById('mdFormModulo');
             var urlCrear = form.getAttribute('action');
 
-            function ponerClase(esExc) {
-                var normal = document.getElementById('mdPersona'), exc = document.getElementById('mdPersonaExc');
-                normal.hidden = normal.disabled = esExc;
-                exc.hidden = exc.disabled = !esExc;
+            // Normal, casos de excepción o de apoyo: cambia qué se pide, a quién se puede
+            // elegir y los switches "Asignar en línea" / "Retornar" que trae cada tipo.
+            var SWITCHES = @json($switchesPorClase);
+            var swAsigna = document.getElementById('mdAsigna'), swRetorno = document.getElementById('mdRetorno');
+            // El de apoyo lo atienden orientadores y auxiliares: la misma lista que el normal.
+            var selects = { normal: 'mdPersona', excepcion: 'mdPersonaExc', apoyo: 'mdPersona' };
+            function ponerClase(clase) {
+                var esExc = clase === 'excepcion';
+                ['mdPersona', 'mdPersonaExc'].forEach(function (id) {
+                    var s = document.getElementById(id);
+                    s.hidden = s.disabled = id !== selects[clase];
+                });
                 document.getElementById('mdClaseAyuda').hidden = !esExc;
+                document.getElementById('mdClaseAyudaApoyo').hidden = clase !== 'apoyo';
                 form.querySelectorAll('[data-solo-normal]').forEach(function (d) { d.hidden = esExc; });
                 form.querySelectorAll('.md-tramite').forEach(function (c) { c.disabled = esExc; });
+                // Módulo de apoyo: sólo Solicitud y Ratificación.
+                form.querySelectorAll('[data-no-apoyo]').forEach(function (d) {
+                    var c = d.querySelector('input');
+                    d.hidden = clase === 'apoyo';
+                    if (clase === 'apoyo') { c.checked = false; }
+                    c.disabled = clase === 'apoyo' || (esExc && c.classList.contains('md-tramite'));
+                });
+                // Un módulo de apoyo no recibe citas nuevas: ese switch no se puede prender.
+                if (swAsigna) { swAsigna.disabled = clase === 'apoyo'; }
+            }
+            // Al elegir el tipo se ponen sus switches; al editar, los que tiene guardados.
+            function ponerSwitches(clase, asigna, retorno) {
+                if (!swAsigna) { return; }
+                var def = SWITCHES[clase] || SWITCHES.normal;
+                swAsigna.checked = clase === 'apoyo' ? false : (asigna === undefined ? def.asigna_citas : !!asigna);
+                swRetorno.checked = retorno === undefined ? def.acepta_retorno : !!retorno;
             }
             form.querySelectorAll('input[name="clase"]').forEach(function (r) {
-                r.addEventListener('change', function () { ponerClase(r.value === 'excepcion' && r.checked); });
+                r.addEventListener('change', function () {
+                    if (!r.checked) { return; }
+                    ponerClase(r.value);
+                    ponerSwitches(r.value);
+                });
             });
 
             modalModulo.addEventListener('show.bs.modal', function (e) {
@@ -770,11 +840,13 @@
                 document.getElementById('mdMetodo').value = m ? 'PUT' : 'POST';
                 document.getElementById('mdNombre').value = m ? m.nombre : '';
                 document.getElementById('mdOrden').value = m ? m.orden : '';
-                // Normal o de casos de excepción: cambia qué se pide y a quién se puede elegir.
-                var esExc = !!(m && m.tramites.indexOf('Excepción') !== -1);
-                document.getElementById(esExc ? 'mdClaseExc' : 'mdClaseNormal').checked = true;
-                ponerClase(esExc);
-                document.getElementById(esExc ? 'mdPersonaExc' : 'mdPersona').value = m && m.user_id ? String(m.user_id) : '';
+                var clase = m ? m.clase : 'normal';
+                var radio = form.querySelector('input[name="clase"][value="' + clase + '"]');
+                if (!radio) { clase = 'normal'; radio = document.getElementById('mdClaseNormal'); }
+                radio.checked = true;
+                ponerClase(clase);
+                ponerSwitches(clase, m ? m.asigna_citas : undefined, m ? m.acepta_retorno : undefined);
+                document.getElementById(selects[clase]).value = m && m.user_id ? String(m.user_id) : '';
                 document.getElementById('mdComida').value = m ? m.hora_comida : '';
                 document.getElementById('mdActivo').checked = m ? !!m.activo : true;
                 form.querySelectorAll('.md-tramite').forEach(function (c) { c.checked = !!(m && m.tramites.indexOf(c.value) !== -1); });
