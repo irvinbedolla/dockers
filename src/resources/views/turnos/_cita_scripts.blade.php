@@ -251,6 +251,27 @@
                 el.textContent = el.getAttribute(esEmpleador ? 'data-etq-empleador' : 'data-etq-normal');
             });
 
+            // Ratificación (trabajador o empleador): no se pide el paso "Tu caso".
+            var esRatificacion = tipo.value === 'Ratificación';
+            var pasoCaso = document.getElementById('gcPasoCaso');
+            var liCaso = document.querySelector('#gcPasos li[data-paso="3"]');
+            if (pasoCaso) { pasoCaso.hidden = esRatificacion; habilitar(pasoCaso, !esRatificacion); }
+            if (liCaso) liCaso.hidden = esRatificacion;
+            var listaPasos = document.getElementById('gcPasos');
+            if (listaPasos) listaPasos.classList.toggle('is-tres', esRatificacion);
+            document.querySelectorAll('[data-num-paso4]').forEach(function (el) { el.textContent = esRatificacion ? '3' : '4'; });
+            document.querySelectorAll('[data-num-pasos]').forEach(function (el) { el.textContent = esRatificacion ? 'tres' : 'cuatro'; });
+
+            // Ratificación que agenda el empleador (con o sin folio): sin edad, sexo,
+            // grupo prioritario, CURP ni domicilio de la persona (CitaPatronal::sinDatosPersonales).
+            var sinDatosPersonales = esRatificacion && esEmpleador;
+            ['gcEdadCaja', 'gcSexoCaja', 'gcVulnerablesCaja', 'gcCamposTrabajador'].forEach(function (id) {
+                var caja = document.getElementById(id);
+                if (!caja) return;
+                caja.style.display = sinDatosPersonales ? 'none' : (id === 'gcCamposTrabajador' ? 'contents' : '');
+                habilitar(caja, !sinDatosPersonales);
+            });
+
             if (conFolio && !folioActivo) validarFolio();
             folioActivo = conFolio;
             if (window.gcActualizarPasos) window.gcActualizarPasos();

@@ -65,6 +65,10 @@ class RecepcionController extends Controller
         // Interruptor "Canalizar a casos de excepción" del formulario de ventanilla.
         $esExcepcion = $request->input('excepcion') === 'Si';
         $data["excepcion"] = $esExcepcion ? 'Si' : 'No';
+        // Una ratificación no puede canalizarse a casos de excepción (el interruptor se bloquea en turnos/crear).
+        if ($esExcepcion && $tipoTramite === 'Ratificación') {
+            return redirect()->back()->withInput()->with('error', 'Una ratificación no puede canalizarse a casos de excepción.');
+        }
 
         $todas_direcciones = [
             'Morelia' => 'BLVD. GARCÍA DE LEÓN NO. 1575, COL. CHAPULTEPEC ORIENTE, C.P. 58260, MORELIA, MICHOACÁN',

@@ -23,12 +23,12 @@
 
                                 @if ($ventanilla)
                                 <p class="gc-intro">
-                                    Captura los cuatro pasos con la persona. Lo marcado con <span class="gc-req">*</span> es obligatorio.
+                                    Captura los <span data-num-pasos>cuatro</span> pasos con la persona. Lo marcado con <span class="gc-req">*</span> es obligatorio.
                                     Al guardar verás el folio y podrás <strong>imprimir el acuse con código QR</strong>.
                                 </p>
                                 @else
                                 <p class="gc-intro">
-                                    Llena los cuatro pasos. Lo marcado con <span class="gc-req">*</span> es obligatorio.
+                                    Llena los <span data-num-pasos>cuatro</span> pasos. Lo marcado con <span class="gc-req">*</span> es obligatorio.
                                     Al terminar te enviaremos a tu correo el <strong>acuse con código QR</strong> que debes presentar el día de tu cita.
                                 </p>
                                 @endif
@@ -37,7 +37,7 @@
                                     <li data-paso="1"><span class="gc-pasos__num">1</span><span class="gc-pasos__texto">Trámite</span></li>
                                     <li data-paso="2"><span class="gc-pasos__num">2</span><span class="gc-pasos__texto" data-etq-normal="{{ $ventanilla ? 'Datos de la persona' : 'Tus datos' }}" data-etq-empleador="Datos del trabajador">{{ $ventanilla ? 'Datos de la persona' : 'Tus datos' }}</span></li>
                                     <li data-paso="3"><span class="gc-pasos__num">3</span><span class="gc-pasos__texto" data-etq-normal="{{ $ventanilla ? 'El caso' : 'Tu caso' }}" data-etq-empleador="Caso del trabajador">{{ $ventanilla ? 'El caso' : 'Tu caso' }}</span></li>
-                                    <li data-paso="4"><span class="gc-pasos__num">4</span><span class="gc-pasos__texto">Día y hora</span></li>
+                                    <li data-paso="4"><span class="gc-pasos__num" data-num-paso4>4</span><span class="gc-pasos__texto">Día y hora</span></li>
                                 </ol>
 
                                 {{-- PASO 1 --}}
@@ -159,6 +159,15 @@
                                                 .gc-poder--error { background: #FBE9E9; color: #8A2626; }
                                             </style>
                                         </div>
+                                        {{-- Quien agenda. Si es el empleador, es su contacto (el acuse va a su correo)
+                                             y va antes que el nombre de la persona trabajadora; en la ratificación
+                                             del propio trabajador se oculta: su nombre va desglosado abajo. --}}
+                                        <div class="col-md-6" id="gcNombreCaja">
+                                            <label class="form-label" for="gcNombre"><span id="gcNombreEtiqueta">Nombre completo</span> <span class="gc-req">*</span></label>
+                                            <input type="text" id="gcNombre" name="nombre" class="form-control gc-mayus" maxlength="100" autocomplete="name"
+                                                   placeholder="Nombre(s) y apellidos" value="{{ old('nombre') }}" oninput="this.value = this.value.toUpperCase();" required>
+                                            <div class="invalid-feedback">Escribe el nombre completo.</div>
+                                        </div>
                                         {{-- Persona trabajadora con el nombre desglosado: la pide la ratificación y,
                                              si agenda el empleador, "Datos Personales del Citado". Deshabilitado
                                              (no se envía) mientras no aplique. --}}
@@ -184,21 +193,15 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        {{-- Quien agenda. Si es el empleador, es su contacto (el acuse va a su correo);
-                                             en la ratificación del propio trabajador se oculta: su nombre va desglosado arriba. --}}
-                                        <div class="col-md-6" id="gcNombreCaja">
-                                            <label class="form-label" for="gcNombre"><span id="gcNombreEtiqueta">Nombre completo</span> <span class="gc-req">*</span></label>
-                                            <input type="text" id="gcNombre" name="nombre" class="form-control gc-mayus" maxlength="100" autocomplete="name"
-                                                   placeholder="Nombre(s) y apellidos" value="{{ old('nombre') }}" oninput="this.value = this.value.toUpperCase();" required>
-                                            <div class="invalid-feedback">Escribe el nombre completo.</div>
-                                        </div>
-                                        <div class="col-6 col-md-3">
+                                        {{-- Edad, sexo, grupo prioritario, CURP y domicilio: no se piden en la
+                                             ratificación que agenda el empleador (se ocultan en _cita_scripts). --}}
+                                        <div class="col-6 col-md-3" id="gcEdadCaja">
                                             <label class="form-label" for="gcEdad"><span data-etq-normal="Edad" data-etq-empleador="Edad del trabajador">Edad</span> <span class="gc-req">*</span></label>
                                             <input type="number" id="gcEdad" name="edad" class="form-control" inputmode="numeric" min="0" max="120" maxlength="3"
                                                    oninput="if(this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);" required>
                                             <div class="invalid-feedback" data-etq-normal="Escribe la edad." data-etq-empleador="Escribe la edad de la persona trabajadora.">Escribe la edad.</div>
                                         </div>
-                                        <div class="col-6 col-md-3">
+                                        <div class="col-6 col-md-3" id="gcSexoCaja">
                                             <label class="form-label" for="gcSexo"><span data-etq-normal="Sexo" data-etq-empleador="Sexo del trabajador">Sexo</span> <span class="gc-req">*</span></label>
                                             {{-- Los valores son los que acepta recepcion.sexo (H, M, NB, LGBTTTIQ).
                                                  Antes había "Otros", que la base rechazaba y la cita no se guardaba. --}}
@@ -272,7 +275,7 @@
                                                    oninput="this.value = this.value.replace(/\D/g, '').slice(0, 10);" required>
                                             <div class="invalid-feedback">Escribe los 10 dígitos de tu teléfono.</div>
                                         </div>
-                                        <div class="col-md-6">
+                                        <div class="col-md-6" id="gcVulnerablesCaja">
                                             <label class="form-label" for="gcVulnerables">{{ $ventanilla ? '¿Pertenece a algún grupo de atención prioritaria?' : '¿Perteneces a algún grupo de atención prioritaria?' }} <span class="gc-req">*</span></label>
                                             <select id="gcVulnerables" name="vulnerables" class="form-select" required>
                                                 <option value="">Elige una opción</option>
@@ -297,8 +300,8 @@
                                     </div>
                                 </fieldset>
 
-                                {{-- PASO 3 --}}
-                                <fieldset class="gc-seccion" data-paso="3">
+                                {{-- PASO 3. En la ratificación no se pide (se oculta en _cita_scripts). --}}
+                                <fieldset class="gc-seccion" data-paso="3" id="gcPasoCaso">
                                     <legend class="gc-titulo"><span class="gc-num">3</span> <span data-etq-normal="{{ $ventanilla ? 'El caso' : 'Tu caso' }}" data-etq-empleador="Caso del trabajador">{{ $ventanilla ? 'El caso' : 'Tu caso' }}</span></legend>
                                     <div class="row g-3">
                                         {{-- Desactivado: la pregunta de casos de excepción se usaba mal en el
@@ -340,7 +343,7 @@
 
                                 {{-- PASO 4 --}}
                                 <fieldset class="gc-seccion" data-paso="4">
-                                    <legend class="gc-titulo"><span class="gc-num">4</span> Elige día y hora</legend>
+                                    <legend class="gc-titulo"><span class="gc-num" data-num-paso4>4</span> Elige día y hora</legend>
                                     <div class="gc-horario">
                                         <button type="button" id="botonCalendar" class="btn btn-guinda gc-horario__boton" data-bs-toggle="modal" data-bs-target="#calendarModal" disabled>
                                             <i class="bi bi-calendar-week me-2" aria-hidden="true"></i><span id="gcTextoCalendario">Ver horarios disponibles</span>

@@ -36,6 +36,8 @@
         .nt-excepcion label { cursor: pointer; font-weight: 600; color: #2E3C3D; margin: 0; }
         .nt-excepcion small { display: block; color: #5E6E6F; font-weight: 400; margin-top: 2px; }
         .nt-excepcion.is-activa { background: #F4E6EC; border-color: #D9B3C3; }
+        .nt-excepcion.is-bloqueada { opacity: .6; }
+        .nt-excepcion.is-bloqueada label, .nt-excepcion.is-bloqueada .form-check-input { cursor: not-allowed; }
     </style>
 @endsection
 
@@ -205,8 +207,21 @@
 
         var AYUDA_EXC = {
             si: 'Lo atenderá personal de casos de excepción. Los horarios son los de ese módulo.',
-            no: 'Actívalo sólo si el caso es de excepción (art. 685 Ter LFT): discriminación, acoso, beneficiarios, seguridad social, libertad sindical, etc.'
+            no: 'Actívalo sólo si el caso es de excepción (art. 685 Ter LFT): discriminación, acoso, beneficiarios, seguridad social, libertad sindical, etc.',
+            bloqueado: 'No aplica a la ratificación de convenio: una ratificación no puede ser caso de excepción.'
         };
+
+        // Ratificación: el interruptor se bloquea (sigue visible) y se apaga.
+        function bloquearExcepcion() {
+            var bloquear = tipo.value === 'Ratificación';
+            if (bloquear && sw.checked) {
+                sw.checked = false;
+                sw.dispatchEvent(new Event('change'));
+            }
+            sw.disabled = bloquear;
+            caja.classList.toggle('is-bloqueada', bloquear);
+            ayudaExc.textContent = bloquear ? AYUDA_EXC.bloqueado : (sw.checked ? AYUDA_EXC.si : AYUDA_EXC.no);
+        }
 
         function pintar() {
             var lista = !!delegacion.value && !!municipio.value;
@@ -226,7 +241,7 @@
             pintar();
         });
 
-        tipo.addEventListener('change', pintar);
+        tipo.addEventListener('change', function () { bloquearExcepcion(); pintar(); });
         municipio.addEventListener('change', function () {
             // Si regresan a "Elige el municipio", la sede anterior no se queda.
             if (!municipio.value) { delegacion.value = ''; blockCalendar(); }
@@ -240,6 +255,7 @@
         // Si el servidor regresó el formulario (horario ocupado, etc.), la sede
         // sale otra vez del municipio; el día y la hora hay que volver a elegirlos.
         if (municipio.value) { municipio.dispatchEvent(new Event('change')); }
+        bloquearExcepcion();   // por si el trámite ya viene elegido (?tipo=Ratificación o un solo trámite)
         blockCalendar();
         pintar();
         @if (session()->hasOldInput())
