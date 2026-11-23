@@ -77,6 +77,8 @@
                 inactivo:    'Módulo inactivo',
                 pausa:       'En pausa: no recibe citas nuevas',
                 sin_reasignar: 'No acepta reasignaciones para esa fecha',
+                sin_retorno: 'No acepta citas reasignadas («Retornar» apagado)',
+                no_tramite: 'Módulo de apoyo: no atiende este trámite',
                 bloqueado: 'Tiene ese día bloqueado en su calendario',
                 sin_persona: 'Sin persona asignada'
             };
@@ -121,6 +123,13 @@
 
                     cuerpo.appendChild(titulo);
                     cuerpo.appendChild(nota);
+
+                    if (elegible && op.quitaExcepcion) {
+                        var avisoExc = document.createElement('span');
+                        avisoExc.className = 'md-opcion__nota md-opcion__nota--mal';
+                        avisoExc.textContent = 'Módulo de apoyo: deja de ser caso de excepción y queda como cita normal.';
+                        cuerpo.appendChild(avisoExc);
+                    }
 
                     if (elegible && !op.recibe) {
                         var aviso = document.createElement('span');
