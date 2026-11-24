@@ -6326,6 +6326,15 @@ class SeerController extends Controller
     }
     */
     public function iniciar_audiencia($id) {
+        $audienciaEnCaptura = session("audiencia_id_{$id}");
+        if ((string) request()->query('audiencia_id', '') === '' && session('preserve_edit_session') && $audienciaEnCaptura) {
+            session()->reflash();
+            return redirect()->route('inicioAudiencia', array_merge(request()->query(), [
+                'id' => $id,
+                'audiencia_id' => $audienciaEnCaptura,
+            ]));
+        }
+
         if (!session('preserve_edit_session')) {
             session()->forget("audiencia_data_{$id}");
         }
@@ -7250,7 +7259,7 @@ class SeerController extends Controller
     public function seleccionar_abogado(Request $request){
         $data = $request->all();
         $id = $data["solicitud"];
-        $audienciaId = $request->input('audiencia_id');
+        $audienciaId = $request->input('audiencia_id') ?: session("audiencia_id_{$id}");
 
         $sessionKey = "audiencia_data_{$id}";
 
