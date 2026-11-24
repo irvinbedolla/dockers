@@ -141,6 +141,20 @@
                                 <div class="invalid-feedback">Escribe el nombre completo.</div>
                             </div>
 
+                            <div class="col-md-6">
+                                <label class="form-label" for="gcCorreo">Correo electrónico <span class="text-muted fw-normal">(opcional)</span></label>
+                                <input type="email" id="gcCorreo" name="correo" class="form-control" maxlength="150" autocomplete="off"
+                                       placeholder="correo@ejemplo.com" value="{{ old('correo') }}">
+                                <div class="invalid-feedback">Revisa el correo electrónico.</div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label" for="gcTelefono">Teléfono <span class="text-muted fw-normal">(opcional)</span></label>
+                                <input type="tel" id="gcTelefono" name="telefono" class="form-control" maxlength="10" inputmode="numeric" pattern="\d{10}" autocomplete="off"
+                                       placeholder="10 dígitos" value="{{ old('telefono') }}" oninput="this.value = this.value.replace(/\D/g, '');">
+                                <div class="invalid-feedback">El teléfono debe tener 10 dígitos.</div>
+                            </div>
+
                             <div class="col-12">
                                 <div class="nt-excepcion {{ $excepcionInicial ? 'is-activa' : '' }}" id="ntExcepcion">
                                     <div class="form-check form-switch">

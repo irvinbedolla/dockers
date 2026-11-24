@@ -287,29 +287,14 @@ class HomeController extends Controller
             return back()->withInput()->with('error', 'Para agendar tu cita es necesario leer y aceptar el Aviso de privacidad.');
         }
 
-        // Tope de citas en línea por conexión (IP), correo y teléfono (Administración → Módulos).
-        if ($bloqueo = \App\Support\LimiteCitas::revisar($request->ip(), $data['email'] ?? null, $data['telefono'] ?? null)) {
+        // Tope de citas en línea por conexión (IP), correo, teléfono y nombre
+        // completo, y listas blanca y negra de correos (Administración → Módulos).
+        $nombreSolicitante = $camposFlujo['solicitante'] ?? ($data['nombre'] ?? null);
+        if ($bloqueo = \App\Support\LimiteCitas::revisar($request->ip(), $data['email'] ?? null, $data['telefono'] ?? null, $nombreSolicitante, $sede, 'linea')) {
             \App\Support\LimiteCitas::registrarBloqueo($bloqueo, $request->ip(), $request->userAgent(), $camposFlujo + $data);
             Log::info('Cita en línea detenida por el límite', ['motivo' => $bloqueo['motivo'], 'llevaba' => $bloqueo['llevaba'], 'ip' => $request->ip()]);
 
             return back()->withInput()->with('error', $bloqueo['mensaje']);
-        }
-        // Tope por nombre: máximo 3 citas en línea del mismo solicitante en la
-        // semana (lunes a domingo) en la que cae la cita que se quiere agendar.
-        $nombreSolicitante = $camposFlujo['solicitante'] ?? ($data['nombre'] ?? null );
-        if($nombreSolicitante){
-            $nombreNormalizado = mb_strtoupper(preg_replace('/\s+/', ' ', trim($nombreSolicitante)));
-            $diaCita = Carbon::parse($fecha_turno);
-            $citasSemana = Recepcion::whereRaw('UPPER(TRIM(solicitante)) = ?', [$nombreNormalizado])
-            ->where('origen', 'linea')
-            ->whereBetween('fecha', [
-                $diaCita->copy()->startOfWeek(Carbon::MONDAY)->toDateString(),
-                $diaCita->copy()->endOfWeek(Carbon::SUNDAY)->toDateString(),
-            ])
-            ->count();
-            if ($citasSemana >= 3) {
-                return back()->withInput()->with('error', 'No se ha podido completar tu cita. Este nombre ya tiene 3 citas registradas en esa semana.');
-            }
         }
 
         //El horario seleccionado en el calendario ya no debe estar ocupado ni caer en un día/horario inhábil

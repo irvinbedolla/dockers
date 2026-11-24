@@ -30,6 +30,15 @@ class Audiencias extends Model
      */
     protected static function booted(): void
     {
+        // Reagendada: la nueva audiencia hereda las llegadas de la anterior
+        // en "Llegadas hoy" (App\Support\LlegadasHoy). Nunca tumba la reagenda.
+        static::created(function (Audiencias $audiencia) {
+            try {
+                \App\Support\LlegadasHoy::heredarDeReagenda($audiencia);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        });
         static::saved(function (Audiencias $audiencia) {
             $cambio = $audiencia->wasRecentlyCreated || $audiencia->wasChanged('estatus');
             if (! $cambio || ! in_array($audiencia->estatus, \App\Support\AtencionTramite::RESOLUCIONES, true)) {

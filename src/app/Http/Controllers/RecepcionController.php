@@ -55,6 +55,25 @@ class RecepcionController extends Controller
             return back()->withInput()->with('error', $errorFlujo);
         }
 
+        // Correo y teléfono (opcionales en ventanilla): bien escritos, fuera de
+        // la lista negra y dentro de los topes que apliquen en ventanilla
+        // (Administración → Módulos, App\Support\LimiteCitas).
+        $correoVentanilla = \App\Support\LimiteCitas::correo($request->input('correo'));
+        if ($correoVentanilla && filter_var($correoVentanilla, FILTER_VALIDATE_EMAIL) === false) {
+            return back()->withInput()->with('error', 'El correo electrónico no está bien escrito.');
+        }
+        $telefonoVentanilla = \App\Support\LimiteCitas::telefono($request->input('telefono'));
+        if ($telefonoVentanilla && strlen($telefonoVentanilla) !== 10) {
+            return back()->withInput()->with('error', 'El teléfono debe tener 10 dígitos.');
+        }
+        $bloqueo = \App\Support\LimiteCitas::revisar(null, $correoVentanilla, $telefonoVentanilla, $camposFlujo['solicitante'] ?? null, $request->input('delegacion'), 'ventanilla');
+        if ($bloqueo) {
+            \Illuminate\Support\Facades\Log::info('Turno de ventanilla detenido por el límite', ['motivo' => $bloqueo['motivo'], 'llevaba' => $bloqueo['llevaba'], 'por' => auth()->id()]);
+
+            return back()->withInput()->with('error', $bloqueo['mensaje']);
+        }
+        $request->merge(['correo' => $correoVentanilla, 'telefono' => $telefonoVentanilla]);
+
         $data = $request->all();
         $sede = $data["delegacion"];
         $tipoTramite = $data["tipo"];
