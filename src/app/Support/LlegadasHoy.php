@@ -107,6 +107,9 @@ class LlegadasHoy
         'ratificacion' => [],
     ];
 
+    /** Estatus de la audiencia que se reagendó (la nueva es otra fila de audiencias). */
+    public const REAGENDADAS = ['Reagendada', 'No conciliacion reagendada'];
+
     /** Ratificaciones que ya no esperan a nadie. */
     private const RATIFICACION_CERRADA = ['Concluida', 'Concluida Pagos', 'Incumplimiento', 'Archivada', 'Prevencion', 'no atendido'];
 
@@ -442,6 +445,8 @@ class LlegadasHoy
         $base = fn (string $tipo) => DB::table(self::TABLA.' as l')
             ->where('l.tipo', $tipo)
             ->where('l.llegada_at', '>=', $desde)
+            // Las heredadas de una audiencia reagendada ya se avisaron en la anterior.
+            ->where('l.origen', '!=', 'reagenda')
             ->select(['l.id', 'l.tipo', 'l.parte', 'l.nombre', 'l.origen', 'l.llegada_at', 'l.registro_id']);
 
         $audiencias = ! $esConc ? collect() : $base('audiencia')
@@ -541,8 +546,10 @@ class LlegadasHoy
         }
 
         $partes = self::partesAudiencia($audiencias);
+        $historial = self::historialAudiencias($audiencias, $fecha);
 
         return self::armar('audiencia', $fecha, $audiencias, fn ($a) => [
+            'historial' => $historial[$a->id] ?? null,
             'hora'   => $a->hora,
             'estatus' => $a->estatus,
             'abierto' => $a->estatus === 'Pendiente',
@@ -644,8 +651,13 @@ class LlegadasHoy
 
                 return $p + [
                     'llegada' => $l ? Carbon::parse($l->llegada_at)->format('H:i') : null,
-                    'por'     => $l ? ($l->origen === 'cita' ? 'Validó su cita en recepción' : 'Marcó '.PantallaEspera::nombreCorto($l->por, false)) : null,
-                    'cita'    => $l && $l->origen === 'cita',
+                    'por'     => $l ? match ($l->origen) {
+                        'cita'     => 'Validó su cita en recepción',
+                        'reagenda' => 'Llegó a la audiencia que se reagendó'.($l->por ? '; marcó '.PantallaEspera::nombreCorto($l->por, false) : ''),
+                        default    => 'Marcó '.PantallaEspera::nombreCorto($l->por, false),
+                    } : null,
+                    'cita'     => $l && $l->origen === 'cita',
+                    'heredada' => $l && $l->origen === 'reagenda',
                 ];
             }, $d['partes']);
 
@@ -680,6 +692,8 @@ class LlegadasHoy
                 // Observaciones de la recepción (audiencias y ratificaciones).
                 'conObs'         => self::conObservaciones() && array_key_exists($tipo, self::OBSERVAN),
                 'obs'            => self::observacion($obs[$fila->id] ?? null),
+                // Audiencias: de qué audiencias reagendadas viene y a dónde se reagendó.
+                'historial'      => $d['historial'] ?? null,
             ];
         });
     }
@@ -810,6 +824,142 @@ class LlegadasHoy
         }
 
         return $resultado;
+    }
+
+    /**
+     * Historial de reagendas de cada audiencia del día: [audiencia_id => [
+     *   'previas'   => las audiencias reagendadas de las que viene (de la más
+     *                  vieja a la más reciente), cada una con quién llegó ese día;
+     *   'siguiente' => si ésta se reagendó, para cuándo quedó la nueva,
+     * ]]; sólo las que tienen alguna de las dos.
+     */
+    private static function historialAudiencias(Collection $audiencias, string $fecha): array
+    {
+        $todas = DB::table('audiencias')
+            ->whereIn('id_solicitud', $audiencias->pluck('id_solicitud')->unique()->values())
+            ->orderBy('id')
+            ->get(['id', 'id_solicitud', 'numero_audiencia', 'fecha', 'hora', 'estatus'])
+            ->groupBy('id_solicitud');
+
+        $cadenas = [];
+        foreach ($audiencias as $a) {
+            $deSolicitud = collect($todas[$a->id_solicitud] ?? []);
+            $previas = [];
+            // Hacia atrás mientras sean reagendadas: ésa es la cadena de esta audiencia.
+            foreach ($deSolicitud->where('id', '<', $a->id)->sortByDesc('id') as $p) {
+                if (! in_array($p->estatus, self::REAGENDADAS, true)) {
+                    break;
+                }
+                $previas[] = $p;
+            }
+            $siguiente = in_array($a->estatus, self::REAGENDADAS, true)
+                ? $deSolicitud->where('id', '>', $a->id)->sortBy('id')->first()
+                : null;
+            if ($previas || $siguiente) {
+                $cadenas[$a->id] = [array_reverse($previas), $siguiente];
+            }
+        }
+        if (! $cadenas) {
+            return [];
+        }
+
+        $idsPrevias = collect($cadenas)->flatMap(fn ($c) => array_map(fn ($p) => $p->id, $c[0]))->unique()->values();
+        $llegadas = $idsPrevias->isEmpty() ? collect() : DB::table(self::TABLA)
+            ->where('tipo', 'audiencia')
+            ->whereIn('registro_id', $idsPrevias)
+            ->orderBy('llegada_at')
+            ->get(['registro_id', 'parte', 'nombre', 'llegada_at'])
+            ->groupBy('registro_id');
+
+        $cuando = function (object $x) use ($fecha) {
+            $dia = Carbon::parse($x->fecha)->toDateString();
+
+            return ($dia === $fecha ? 'hoy' : Carbon::parse($dia)->format('d/m/Y')).' a las '.substr((string) $x->hora, 0, 5);
+        };
+
+        $resultado = [];
+        foreach ($cadenas as $id => [$previas, $siguiente]) {
+            $resultado[$id] = [
+                'previas' => array_map(function ($p) use ($llegadas, $cuando) {
+                    $dia = Carbon::parse($p->fecha)->toDateString();
+
+                    return [
+                        'numero'   => $p->numero_audiencia ? 'Audiencia '.$p->numero_audiencia : 'Audiencia anterior',
+                        'cuando'   => $cuando($p),
+                        'estatus'  => self::CERRADO[$p->estatus] ?? (string) $p->estatus,
+                        // Sólo las de su día: llegadas de otro día no cuentan.
+                        'llegadas' => collect($llegadas[$p->id] ?? [])
+                            ->filter(fn ($l) => Carbon::parse($l->llegada_at)->toDateString() === $dia)
+                            ->map(fn ($l) => [
+                                'quien'  => ['solicitante' => 'Trabajador', 'citado' => 'Citado'][$l->parte] ?? Str::ucfirst((string) $l->parte),
+                                'nombre' => Str::title(Str::lower((string) $l->nombre)),
+                                'hora'   => Carbon::parse($l->llegada_at)->format('H:i'),
+                            ])->values()->all(),
+                    ];
+                }, $previas),
+                'siguiente' => $siguiente ? $cuando($siguiente) : null,
+            ];
+        }
+
+        return $resultado;
+    }
+
+    /**
+     * Se creó una audiencia (Audiencias::created). Si viene de reagendar la
+     * anterior de la misma solicitud, hereda las llegadas y las observaciones
+     * que la recepción registró el día de la nueva audiencia: si se reagenda
+     * para el mismo día, la gente ya está aquí y no hay que volver a marcarla.
+     * Las heredadas quedan con origen "reagenda" y se pueden deshacer.
+     */
+    public static function heredarDeReagenda(object $nueva): void
+    {
+        if (! self::migrado() || empty($nueva->fecha) || empty($nueva->id_solicitud)) {
+            return;
+        }
+
+        $anterior = DB::table('audiencias')
+            ->where('id_solicitud', $nueva->id_solicitud)
+            ->where('id', '<', $nueva->id)
+            ->orderByDesc('id')
+            ->first(['id', 'estatus']);
+        if (! $anterior || ! in_array($anterior->estatus, self::REAGENDADAS, true)) {
+            return;
+        }
+
+        $dia   = self::dia(Carbon::parse($nueva->fecha)->toDateString());
+        $ahora = now();
+
+        $llegadas = DB::table(self::TABLA)
+            ->where('tipo', 'audiencia')->where('registro_id', $anterior->id)
+            ->whereBetween('llegada_at', $dia)
+            ->get();
+        foreach ($llegadas as $l) {
+            DB::table(self::TABLA)->insertOrIgnore([
+                'tipo'           => 'audiencia',
+                'registro_id'    => $nueva->id,
+                'clave'          => $l->clave,
+                'parte'          => $l->parte,
+                'nombre'         => $l->nombre,
+                'origen'         => 'reagenda',
+                'llegada_at'     => $l->llegada_at,
+                'registrado_por' => $l->registrado_por,
+                'created_at'     => $ahora,
+                'updated_at'     => $ahora,
+            ]);
+        }
+
+        if (self::conObservaciones()) {
+            $o = DB::table(self::TABLA_OBS)
+                ->where('tipo', 'audiencia')->where('registro_id', $anterior->id)
+                ->whereBetween('updated_at', $dia)
+                ->first();
+            $yaTiene = DB::table(self::TABLA_OBS)->where('tipo', 'audiencia')->where('registro_id', $nueva->id)->exists();
+            if ($o && ! $yaTiene) {
+                $copia = (array) $o;
+                unset($copia['id']);
+                DB::table(self::TABLA_OBS)->insert(['registro_id' => $nueva->id, 'created_at' => $ahora] + $copia);
+            }
+        }
     }
 
     /**
