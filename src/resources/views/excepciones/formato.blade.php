@@ -111,6 +111,17 @@
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
                 </div>
             @endif
+            @if ($envio)
+                <div class="alert alert-info d-flex gap-2" role="status">
+                    <i class="bi bi-send mt-1" aria-hidden="true"></i>
+                    <div>
+                        <b>Enviado desde Mi módulo</b> por {{ \Illuminate\Support\Str::title(mb_strtolower((string) $envio['quien'])) ?: 'un orientador' }}
+                        el {{ $envio['cuando']->format('d/m/Y') }} a las {{ $envio['cuando']->format('H:i') }}.
+                        Ya vienen los tipos de situación y lo que pasó; revisa y completa lo demás.
+                        @if ($envio['nota'])<div class="mt-1"><b>Nota:</b> {{ $envio['nota'] }}</div>@endif
+                    </div>
+                </div>
+            @endif
             @if (! $migrado)
                 <div class="alert alert-warning">Falta correr la migración del formato (<code>php artisan migrate</code>). Mientras tanto se puede ver y descargar, pero no guardar.</div>
             @endif

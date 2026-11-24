@@ -226,6 +226,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/mi-modulo/citas/{id}/ratificacion',    [App\Http\Controllers\MiModuloController::class, 'ratificacion'])->name('mi_modulo.ratificacion')->whereNumber('id');
     Route::post('/mi-modulo/citas/{id}/ratificacion',   [App\Http\Controllers\MiModuloController::class, 'guardarRatificacion'])->name('mi_modulo.ratificacion.guardar')->whereNumber('id');
     Route::post('/mi-modulo/prellenado/descartar',     [App\Http\Controllers\MiModuloController::class, 'descartar'])->name('mi_modulo.descartar');
+    // "Enviar a casos de excepción": borrador del formato 685 Ter ligado a la cita (FormatoExcepcion::enviarDesdeModulo).
+    Route::post('/mi-modulo/citas/{id}/excepcion',      [App\Http\Controllers\MiModuloController::class, 'enviarExcepcion'])->name('mi_modulo.excepcion')
+        ->whereNumber('id')->middleware('throttle:20,1');
+    // Formato 685 Ter en PDF de una cita del módulo que ya está en casos de excepción
+    // (el de /excepciones/cita/{id}/formato/pdf, sin abrir la bandeja del departamento).
+    Route::get('/mi-modulo/citas/{id}/excepcion/pdf',   [App\Http\Controllers\MiModuloController::class, 'excepcionPdf'])->name('mi_modulo.excepcion.pdf')
+        ->whereNumber('id');
     // Fase 4: Llamar / Iniciar atención / Terminar / No se presentó (mueven la pantalla de espera).
     Route::post('/mi-modulo/citas/{id}/{accion}',       [App\Http\Controllers\MiModuloController::class, 'accion'])->name('mi_modulo.accion')
         ->whereNumber('id')->whereIn('accion', App\Http\Controllers\MiModuloController::ACCIONES)->middleware('throttle:60,1');

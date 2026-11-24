@@ -362,6 +362,30 @@ class CasosExcepcion
                 ->when(self::conFormato(), fn ($q) => $q->whereNotNull('x.terminado_at')));
     }
 
+    /**
+     * Enviados desde Mi módulo: citas ("r") con un borrador que dejó un
+     * orientador o auxiliar (FormatoExcepcion::enviarDesdeModulo) y que el
+     * departamento todavía no termina. También salen en citas() (enviarDesdeModulo
+     * marca la cita); esta lista es para verlos aparte.
+     */
+    public static function enviados(): Builder
+    {
+        return DB::table('recepcion as r')
+            ->when(FlujoCita::migrado(), fn ($q) => $q->where('r.es_prueba', 0))
+            ->whereExists(fn ($s) => $s->select(DB::raw(1))->from('seer_casos_excepcion as x')
+                ->whereColumn('x.id_turno', 'r.id')
+                ->whereNotNull('x.enviado_por')
+                ->whereNull('x.terminado_at'));
+    }
+
+    /** Ya existen las columnas del envío desde Mi módulo. */
+    public static function conEnvio(): bool
+    {
+        static $hay = null;
+
+        return $hay ??= self::conFormato() && Schema::hasColumn('seer_casos_excepcion', 'enviado_por');
+    }
+
     /** Solicitudes de excepción ("g"). */
     public static function solicitudes(): Builder
     {

@@ -504,6 +504,88 @@ class FormatoExcepcion
         return $id;
     }
 
+    /**
+     * "Enviar a casos de excepción" desde Mi módulo: deja un borrador del
+     * formato ligado a la cita (id_turno) con lo poco que sabe quien atiende:
+     * tipos de situación, qué pasó, una nota para el departamento y, si los
+     * conoce, los datos laborales ($laborales: empresa, área de adscripción,
+     * puesto, jefe inmediato, frecuencia, cambios en la situación laboral y
+     * si la persona desea continuar con la conciliación).
+     * El resto lo prellena prellenado() al abrirlo.
+     *
+     * La cita queda marcada como caso de excepción (recepcion.exepcion = 'Si',
+     * y su solicitud, si ya hay, caso_excepcion = 'Si'), como si recepción la
+     * hubiera canalizado: entra a la bandeja, a "Por atender" y a las
+     * estadísticas, y "No es caso de excepción" (reclasificar) la regresa. Se
+     * queda en el módulo donde se atiende: "Pasar a excepción" no mueve citas
+     * en atención (ModulosController::excepcionSinModulo).
+     *
+     * id_user (quien atendió, sale en el PDF) queda vacío: lo pone el
+     * departamento al guardar. Va dentro de la transacción de quien llama.
+     */
+    public static function enviarDesdeModulo(object $cita, array $tipos, ?string $descripcion, ?string $nota, User $usuario, array $laborales = []): int
+    {
+        $tipos = array_values(array_intersect(array_keys(CasosExcepcion::TIPOS), $tipos));
+        $conoce = isset($laborales['conoce_jefe']) && $laborales['conoce_jefe'] !== '' ? (int) $laborales['conoce_jefe'] : null;
+        $frecuencia = $laborales['frecuencia'] ?? null;
+        $situacion = $laborales['situacion_laboral'] ?? null;
+        $resultado = $laborales['resultado'] ?? null;
+        $nombre = self::prellenado(['cita' => $cita, 'solicitud' => null, 'caso' => null])['nombre'] ?? null;
+
+        DB::table('recepcion')->where('id', $cita->id)->update(array_filter([
+            'exepcion'   => 'Si',
+            // La bandeja muestra el tipo de caso de la cita; sólo si recepción no lo puso.
+            'tipo_caso'  => empty($cita->tipo_caso) && $tipos ? CasosExcepcion::TIPOS[$tipos[0]] : null,
+            'updated_at' => now(),
+        ]));
+        DB::table('seer_general')->where('recepcion_id', $cita->id)->update(['caso_excepcion' => 'Si']);
+        PantallaEspera::olvidar((string) $cita->delegacion);
+
+        return (int) DB::table('seer_casos_excepcion')->insertGetId([
+            'id_turno'              => $cita->id,
+            'delegacion'            => $cita->delegacion,
+            'fecha'                 => now()->toDateString(),
+            'hora'                  => now()->format('H:i'),
+            'nombre'                => $nombre,
+            'tipos'                 => json_encode($tipos),
+            'tipo_caso'             => $tipos ? CasosExcepcion::TIPOS[$tipos[0]] : null,
+            'descripcion_conductas' => self::texto($descripcion),
+            'empresa'               => self::texto($laborales['empresa'] ?? null),
+            'area_adscripcion'      => self::texto($laborales['area_adscripcion'] ?? null),
+            'puesto'                => self::texto($laborales['puesto'] ?? null),
+            'conoce_jefe'           => $conoce,
+            'jefe_inmediato'        => $conoce === 1 ? self::texto($laborales['jefe_inmediato'] ?? null) : null,
+            'frecuencia'            => isset(CasosExcepcion::FRECUENCIAS[$frecuencia]) ? $frecuencia : null,
+            'situacion_laboral'     => isset(CasosExcepcion::SITUACIONES[$situacion]) ? $situacion : null,
+            'situacion_otro'        => $situacion === 'otro' ? self::texto($laborales['situacion_otro'] ?? null) : null,
+            // Lo que dijo la persona en el módulo. No cuenta como atendido en
+            // estadísticas hasta que el departamento termina el formato (terminado_at).
+            'resultado'             => in_array($resultado, ['continua', 'canaliza'], true) ? $resultado : null,
+            'enviado_por'           => $usuario->id,
+            'enviado_at'            => now(),
+            'nota_envio'            => self::texto($nota),
+            'created_at'            => now(),
+            'updated_at'            => now(),
+        ]);
+    }
+
+    /**
+     * El formato 685 Ter en PDF (prellenado; lo que falte sale en blanco).
+     * Lo usan la bandeja del departamento y Mi módulo.
+     */
+    public static function pdf(array $origen, int $id)
+    {
+        $datos = self::datos($origen);
+        $atendio = ($origen['caso']->id_user ?? null) ? DB::table('users')->where('id', $origen['caso']->id_user)->value('name') : auth()->user()->name;
+
+        $html = view('PDF.Recepcion.FormatoExcepcion', compact('datos', 'atendio'))->render();
+
+        return \PDF::loadHTML($html)
+            ->setPaper('a4', 'portrait')
+            ->setOption('isHtml5ParserEnabled', true)
+            ->stream('formato_685_ter_'.preg_replace('/[^A-Za-z0-9\-]/', '_', (string) ($datos['expediente'] ?? $id)).'.pdf', ['Attachment' => false]);
+    }
+
     /** Estatus de solicitud que todavía se pueden cerrar como canalizada. */
     public const SOLICITUD_ABIERTA = ['Pendiente', 'Aceptado', 'Confirmado', 'Reagendada', 'Prevencion'];
 

@@ -642,7 +642,11 @@ class ModulosController extends Controller
         return $respuesta;
     }
 
-    /** Citas de excepción de la sede, de hoy en adelante, por atender y fuera de un módulo de excepción. */
+    /**
+     * Citas de excepción de la sede, de hoy en adelante, por atender y fuera de
+     * un módulo de excepción. No las que ya están en atención (p. ej. las que
+     * el orientador envió desde Mi módulo): ésas se quedan con quien las atiende.
+     */
     private static function excepcionSinModulo(string $sede)
     {
         $ids = AsignadorModulos::idsExcepcion();
@@ -651,6 +655,7 @@ class ModulosController extends Controller
             ->where('exepcion', 'Si')
             ->where('fecha', '>=', Carbon::today()->toDateString())
             ->whereIn('estatus', self::MOVIBLES)
+            ->when(\App\Support\FlujoCita::migrado(), fn ($q) => $q->whereNull('atencion_inicio_at'))
             ->where(fn ($q) => $q->whereNull('modulo_id')->when($ids, fn ($w) => $w->orWhereNotIn('modulo_id', $ids)));
     }
 
