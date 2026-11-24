@@ -196,8 +196,13 @@ class LlegadasHoy
         return null;
     }
 
-    /** Observaciones guardadas de unos registros de un tipo, por registro_id. */
-    private static function observacionesDe(string $tipo, $ids): Collection
+    /**
+     * Observaciones guardadas de unos registros de un tipo, por registro_id.
+     * Sólo las anotadas el día $fecha: si al registro le cambiaron la fecha
+     * (Administración → Cambiar fecha) conserva su id, y lo del día original
+     * no debe aparecer en el nuevo (ver delDia()).
+     */
+    private static function observacionesDe(string $tipo, $ids, string $fecha): Collection
     {
         if (! self::conObservaciones() || ! array_key_exists($tipo, self::OBSERVAN)) {
             return collect();
@@ -207,6 +212,7 @@ class LlegadasHoy
             ->leftJoin('users as u', 'u.id', '=', 'o.registrado_por')
             ->where('o.tipo', $tipo)
             ->whereIn('o.registro_id', collect($ids)->all() ?: [0])
+            ->whereBetween('o.updated_at', self::dia($fecha))
             ->get(['o.registro_id', 'o.silla_ruedas', 'o.traductor', 'o.menor_edad', 'o.texto', 'o.updated_at', 'u.name as por'])
             ->keyBy('registro_id');
     }
@@ -487,7 +493,7 @@ class LlegadasHoy
         // Observaciones de la recepción: van en el aviso (silla de ruedas, traductor...).
         $obs = [];
         foreach (array_keys(self::OBSERVAN) as $t) {
-            $obs[$t] = self::observacionesDe($t, $todas->where('tipo', $t)->pluck('registro_id'));
+            $obs[$t] = self::observacionesDe($t, $todas->where('tipo', $t)->pluck('registro_id'), $hoy);
         }
 
         return $todas
@@ -618,12 +624,15 @@ class LlegadasHoy
     private static function armar(string $tipo, string $fecha, Collection $filas, callable $datos): Collection
     {
         $ahora = now();
-        $obs   = self::observacionesDe($tipo, $filas->pluck('id'));
+        $obs   = self::observacionesDe($tipo, $filas->pluck('id'), $fecha);
 
+        // Sólo las llegadas de ese día: un registro al que le cambiaron la
+        // fecha conserva su id y traería las del día original.
         $llegadas = DB::table(self::TABLA.' as l')
             ->leftJoin('users as u', 'u.id', '=', 'l.registrado_por')
             ->where('l.tipo', $tipo)
             ->whereIn('l.registro_id', $filas->pluck('id'))
+            ->whereBetween('l.llegada_at', self::dia($fecha))
             ->get(['l.registro_id', 'l.clave', 'l.llegada_at', 'l.origen', 'u.name as por'])
             ->groupBy('registro_id');
 
@@ -870,6 +879,13 @@ class LlegadasHoy
     private static function registrar(string $tipo, int $id, array $parte, Carbon $cuando, ?int $por, string $origen): void
     {
         $ahora = now();
+        // La llegada de otro día (el registro cambió de fecha) ya no vale y,
+        // por la llave única, impediría registrar la de hoy.
+        DB::table(self::TABLA)
+            ->where('tipo', $tipo)->where('registro_id', $id)->where('clave', $parte['clave'])
+            ->whereNotBetween('llegada_at', self::dia($cuando->toDateString()))
+            ->delete();
+
         DB::table(self::TABLA)->insertOrIgnore([
             'tipo'           => $tipo,
             'registro_id'    => $id,
@@ -892,6 +908,15 @@ class LlegadasHoy
             'cumplimiento' => \Illuminate\Support\Facades\Route::has('pago_cumplimiento') ? route('pago_cumplimiento', $id) : null,
             default        => null,
         };
+    }
+
+    /**
+     * Inicio y fin de un día, para whereBetween sobre un timestamp. Lo usa
+     * también RevisionAudiencia: lo de otro día no cuenta.
+     */
+    public static function dia(string $fecha): array
+    {
+        return [$fecha.' 00:00:00', $fecha.' 23:59:59'];
     }
 
     private static function limpio(?string $nombre): string

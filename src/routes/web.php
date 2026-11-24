@@ -128,6 +128,14 @@ Route::get('/generar-cita/exito',                   [HomeController::class, 'cit
 // justo cuando se despliegue; se puede quitar después.
 Route::permanentRedirect('/generarCita',            '/generar-cita');
 Route::permanentRedirect('/generarCitaExito',       '/generar-cita');
+// Ratificación múltiple (5 o más trabajadores del mismo patrón): solicitud patronal en línea con el Excel (App\Support\RatificacionMultiple).
+Route::get('/ratificacion-multiple',                [App\Http\Controllers\RatificacionMultipleController::class, 'formulario'])->name('ratificacion_multiple');
+Route::get('/ratificacion-multiple/formato',        [App\Http\Controllers\RatificacionMultipleController::class, 'formato'])->name('ratificacion_multiple.formato');
+Route::post('/ratificacion-multiple/revisar',       [App\Http\Controllers\RatificacionMultipleController::class, 'revisar'])->name('ratificacion_multiple.revisar')->middleware('throttle:10,1');
+Route::post('/ratificacion-multiple/confirmar',     [App\Http\Controllers\RatificacionMultipleController::class, 'confirmar'])->name('ratificacion_multiple.confirmar')->middleware('throttle:10,1');
+Route::get('/ratificacion-multiple/listo',          [App\Http\Controllers\RatificacionMultipleController::class, 'exito'])->name('ratificacion_multiple.exito');
+Route::get('/ratificacion-multiple/acuse/{lote}',   [App\Http\Controllers\RatificacionMultipleController::class, 'acuse'])->name('ratificacion_multiple.acuse')
+    ->whereNumber('lote')->middleware('signed');
 Route::post('/turnos_guardar',                      [HomeController::class, 'turnos_publico']);
 // Formulario de atención del trámite de conciliación (público, con el folio de
 // la solicitud; App\Support\AtencionTramite). Con límite de intentos para que
@@ -281,6 +289,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('role:Super Usuario|Estadistica|Directivo');
     Route::post('/estadisticas/atencion/{id}/atender',  [App\Http\Controllers\EstadisticasAtencionController::class, 'atender'])->name('estadisticas.atencion.atender')
         ->whereNumber('id')->middleware('role:Super Usuario|Estadistica|Directivo');
+    // Reporte estadístico: la presentación "Estadística" calculada con el sistema (App\Support\ReporteEstadistico).
+    Route::get('/estadisticas/reporte',                 [App\Http\Controllers\ReporteEstadisticoController::class, 'index'])->name('estadisticas.reporte')
+        ->middleware('role:Super Usuario|Estadistica|Directivo');
+    Route::get('/estadisticas/reporte/descargar',       [App\Http\Controllers\ReporteEstadisticoController::class, 'descargar'])->name('estadisticas.reporte.descargar')
+        ->middleware('role:Super Usuario|Estadistica|Directivo');
+    // Datos de referencia: lo que el reporte necesita y no sale del sistema (App\Support\DatosReferencia).
+    Route::get('/estadisticas/datos-referencia',        [App\Http\Controllers\ReporteEstadisticoController::class, 'referencia'])->name('datos_referencia.index')
+        ->middleware('role:Super Usuario|Estadistica|Directivo');
+    Route::put('/estadisticas/datos-referencia/{clave}', [App\Http\Controllers\ReporteEstadisticoController::class, 'guardarReferencia'])->name('datos_referencia.guardar')
+        ->where('clave', '[a-z_]+')->middleware('role:Super Usuario|Estadistica|Directivo');
     // Casos de excepción (art. 685 Ter): también los ve Conciliación, Género e Igualdad.
     Route::get('/estadisticas/excepciones',             [EstadisticasController::class, 'excepciones'])->name('estadisticas.excepciones')
         ->middleware(CasosExcepcionAcceso::class.':estadisticas');
@@ -391,6 +409,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::put('administracion/modulos/{modulo}/en-linea',       [ModulosController::class, 'enLinea'])->name('modulos.en_linea');
             Route::put('administracion/modulos/{modulo}/reasignacion',   [ModulosController::class, 'reasignacion'])->name('modulos.reasignacion');
             Route::put('administracion/modulos/{modulo}/turnar',         [ModulosController::class, 'turnar'])->name('modulos.turnar');
+            // Días bloqueados en el calendario de la persona del módulo (App\Models\BloqueoCita).
+            Route::post('administracion/modulos/{modulo}/bloqueos',      [ModulosController::class, 'bloquearDias'])->name('modulos.bloqueos.guardar');
+            Route::delete('administracion/modulos/{modulo}/bloqueos',    [ModulosController::class, 'quitarBloqueo'])->name('modulos.bloqueos.quitar');
             // Las citas de excepción que se quedaron con el Departamento pasan a los módulos de excepción de la sede.
             Route::post('administracion/modulos/excepcion/pasar',        [ModulosController::class, 'pasarExcepcion'])->name('modulos.pasar_excepcion');
             Route::post('administracion/modulos/citas/{id}/reasignar',   [ModulosController::class, 'reasignar'])->name('modulos.reasignar')->whereNumber('id');
@@ -398,9 +419,22 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::put('administracion/horarios',                        [HorariosCitasController::class, 'actualizar'])->name('horarios.actualizar');
             // Conciliadores: en qué sedes atiende cada uno (una presencial y las virtuales), días, horario y sala (App\Support\SedesConciliador).
             Route::get('administracion/conciliadores',                   [App\Http\Controllers\ConciliadoresController::class, 'index'])->name('conciliadores.index');
+            Route::get('administracion/conciliadores/traspaso',          [App\Http\Controllers\ConciliadoresController::class, 'traspaso'])->name('conciliadores.traspaso');
+            Route::post('administracion/conciliadores/traspaso',         [App\Http\Controllers\ConciliadoresController::class, 'aplicarTraspaso'])->name('conciliadores.traspaso.aplicar');
             Route::get('administracion/conciliadores/{id}',              [App\Http\Controllers\ConciliadoresController::class, 'editar'])->name('conciliadores.editar')->whereNumber('id');
             Route::put('administracion/conciliadores/{id}',              [App\Http\Controllers\ConciliadoresController::class, 'guardar'])->name('conciliadores.guardar')->whereNumber('id');
             Route::delete('administracion/conciliadores/{id}/sedes',     [App\Http\Controllers\ConciliadoresController::class, 'quitar'])->name('conciliadores.quitar')->whereNumber('id');
+            // Días bloqueados del conciliador (dias_inhabiles con su user_id, como en Administración → Sedes).
+            Route::post('administracion/conciliadores/{id}/bloqueos',    [App\Http\Controllers\ConciliadoresController::class, 'bloquear'])->name('conciliadores.bloqueos.guardar')->whereNumber('id');
+            Route::delete('administracion/conciliadores/{id}/bloqueos/{bloqueo}', [App\Http\Controllers\ConciliadoresController::class, 'quitarBloqueo'])->name('conciliadores.bloqueos.quitar')->whereNumber('id')->whereNumber('bloqueo');
+            // Inventario de dispositivos: se corrige en la tabla mientras no tenga el check (App\Http\Controllers\InventarioController).
+            Route::get('administracion/inventario',                      [App\Http\Controllers\InventarioController::class, 'index'])->name('inventario.index');
+            Route::get('administracion/inventario/historial',            [App\Http\Controllers\InventarioController::class, 'historial'])->name('inventario.historial');
+            Route::get('administracion/inventario/exportar',             [App\Http\Controllers\InventarioController::class, 'exportar'])->name('inventario.exportar');
+            Route::post('administracion/inventario',                     [App\Http\Controllers\InventarioController::class, 'guardar'])->name('inventario.guardar');
+            Route::put('administracion/inventario/{id}',                 [App\Http\Controllers\InventarioController::class, 'actualizar'])->name('inventario.actualizar')->whereNumber('id');
+            Route::patch('administracion/inventario/{id}/verificar',     [App\Http\Controllers\InventarioController::class, 'verificar'])->name('inventario.verificar')->whereNumber('id');
+            Route::patch('administracion/inventario/{id}/revision',      [App\Http\Controllers\InventarioController::class, 'revision'])->name('inventario.revision')->whereNumber('id');
         });
         Route::get('administracion/sedes',                  [AdministracionController::class, 'configuracion_sedes'])->name('configuracion_sedes');
         Route::get('administracion/usuarios',               [AdministracionController::class, 'configuracion_usuarios'])->name('configuracion_usuarios');
@@ -497,6 +531,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware(['role:Super Usuario|Conciliador'])->group(function () {
         Route::get('/solicitud/indexA',                 [SeerController::class, 'indexA'])->name('audiencias.conciliador');
         Route::get('/solicitud/iniciar/{id}',           [SeerController::class, 'iniciar_audiencia'])->name('inicioAudiencia');
+        // Formato "Comparecencia sin Acreditación de Facultades": se captura y se vuelve a editar desde la audiencia iniciada.
+        Route::post('/audiencia/comparecencia-sin-facultades', [App\Http\Controllers\ComparecenciaSinFacultadesController::class, 'guardar'])->name('comparecencia_sf.guardar');
         Route::post('/audiencia/guardar',               [SeerController::class, 'concluir_audiencia_conciliador'])->name('concluir_audiencia_conciliador');
         Route::post('/audiencia/guardarNC',             [SeerController::class, 'concluir_audiencia_noconciliacion'])->name('concluir_audiencia_noconcialiacion');
         Route::get('/solicitud/indexB/{id}',            [SeerController::class, 'audienciaParte3'])->name('audiencias.parte3');
@@ -707,6 +743,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/cumplimientos/detalle/{id}',                           [SeerController::class, 'ver_pago_cumplimiento'])->name('pago_cumplimiento');
     Route::get('/seer/asseria',                                         [SeerController::class, 'create_asesoria'])->name('create_asesoria')->middleware('especialidad:asesoria_crear');
     Route::get('/revisar/indexAudiencia',                               [SeerController::class, 'todas_audiencias'])->name('todas_audiencias');
+    // Vista rápida de la solicitud completa (modal del índice de audiencias, sólo consulta).
+    Route::get('/revisar/indexAudiencia/solicitud/{id}',                [SeerController::class, 'todas_audiencias_solicitud'])->name('todas_audiencias.solicitud')->whereNumber('id');
     Route::get('/revisar/indexSolictudes',                              [SeerController::class, 'todas_solicitudes'])->name('todas_solicitudes');
     Route::get('/revisar/indexRatificaciones',                          [SeerController::class, 'todas_ratificaciones'])->name('todas_ratificaciones');
     // La cita de la ratificación expiró hoy (llegó tarde) y la persona sí está: vuelve a la fila.
@@ -828,7 +866,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/VerpdfNotificacionNoENS/{id}/{id_solicitud}',      [SeerController::class, 'PDFnotificadoNoexitosaNS'])->name('PDFnotificadoNoexitosaNS'); //Notificación No exitosa NO SE LOCALIZA INTERIOR
         Route::get('/VerpdfcPTULabora/{id}',                            [SeerController::class, 'VerPDFConvenioPTULabora'])->name('PDFconvenioPTU_SI_S'); //Convenio PTU SIGUE laborando el trabajador
         Route::get('/VerpdfcPTUNLabora/{id}',                           [SeerController::class, 'VerPDFConvenioPTUNoLabora'])->name('PDFconvenioPTU_NO_S'); //Convenio PTU ya NO labora el trabajador
-        Route::get('/pdfsinPoder/{id}',                                 [SeerController::class, 'VerPDFCompareceSinPoder'])->name('PDFcompareceSP'); //Comparece representante legal sin poder
+        Route::get('/pdfsinPoder/{id}',                                 [App\Http\Controllers\ComparecenciaSinFacultadesController::class, 'pdf'])->name('PDFcompareceSP'); //Comparece representante legal sin poder (con lo capturado; ?citado=ID)
         Route::get('/Verpdfcumpumplimiento/{id}',                       [SeerController::class, 'VerPDFCumplimiento'])->name('PDFcumplimiento');
         Route::get('/VerpdfcumpumplimientoP/{id}',                      [SeerController::class, 'PDFcumplimientoParcial'])->name('PDFcumplimientoParcial');
         Route::get('/solicitudes/descargarCitatorios/{id}',             [SeerController::class, 'descargarCitatorios'])->name('descargarCitatorios'); //Vista para descargar y subircitatorios entregados por el trabajador
@@ -869,7 +907,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/ratificaciones/pagos/{id}',            [TurnosController::class, 'pagar_ratificacion'])->name('ratificacion_pagar');
         Route::get('/ratificaciones/cumplimietos/{id}',     [TurnosController::class, 'ver_pagos_rati'])->name('ratificacion_cumplimientos');
         Route::post('/ratificaciones/pagoA',                [TurnosController::class, 'pagoA_ratificacion'])->name('ratificacion_pagoA');
-        Route::get('/ratificaciones/pagoR/{id}',            [TurnosController::class, 'pagoR_ratificacion'])->name('ratificacion_pagoR');
+        Route::post('/ratificaciones/pago_pena',            [TurnosController::class, 'pagarConPenaRatificacion'])->name('ratificacion_pago_pena');
+        Route::get('/ratificaciones/pagoR/{id}',           [TurnosController::class, 'pagoR_ratificacion'])->name('ratificacion_pagoR');
         Route::get('ratificaciones/consultar/{id}',         [TurnosController::class, 'consultar_ratificaciones'])->name('consultar_ratificacion');
         Route::get('ratificaciones/detalle/{id}',           [TurnosController::class, 'detalle_ratificacion'])->name('detalle_ratificacion')->whereNumber('id');
         Route::post('ratificaciones/editar',                [TurnosController::class, 'editar_ratificaciones'])->name('editar_ratificacion');

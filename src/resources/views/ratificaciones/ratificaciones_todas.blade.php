@@ -16,7 +16,7 @@
     // El día, los apartados y el orden se filtran en el servidor (SeerController::todas_ratificaciones)
     // porque la lista va paginada; cada liga conserva búsqueda, día, apartado y orden.
     $urlCon = fn (array $cambios) => url()->current().'?'.http_build_query(array_filter(
-        array_merge(request()->only(['buscar', 'estatus', 'orden', 'fecha']), $cambios),
+        array_merge(request()->only(['buscar', 'trabajador', 'estatus', 'orden', 'fecha']), $cambios),
         fn ($v) => $v !== null && $v !== ''
     ));
     $apartadosVista = [
@@ -63,7 +63,7 @@
         @media (max-width: 860px) { .rt-cifras { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
         /* Filtros con la misma disposición que Todos los turnos. */
-        .rt-filtros { display: grid; grid-template-columns: auto minmax(0, 2fr) minmax(0, 1fr) auto; gap: 12px; align-items: end; }
+        .rt-filtros { display: grid; grid-template-columns: auto minmax(0, 1.4fr) minmax(0, 1.4fr) minmax(0, 1fr) auto; gap: 12px; align-items: end; }
         @media (max-width: 1200px) { .rt-filtros { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
         @media (max-width: 640px)  { .rt-filtros { grid-template-columns: 1fr; } }
         .rt-filtros label { display: block; font-size: 11.5px; font-weight: 600; color: var(--tn-tenue); margin-bottom: 4px; }
@@ -199,6 +199,14 @@
                         </div>
 
                         <div>
+                            <label for="rtTrabajador">Trabajador</label>
+                            <div class="rt-buscar">
+                                <i class="bi bi-person" aria-hidden="true"></i>
+                                <input type="search" id="rtTrabajador" name="trabajador" class="form-control" placeholder="Nombre o apellidos" value="{{ request('trabajador') }}">
+                            </div>
+                        </div>
+
+                        <div>
                             <label for="rtOrden">Ordenar</label>
                             <select id="rtOrden" name="orden" class="form-select">
                                 @foreach ($ordenesVista as $clave => $texto)
@@ -209,7 +217,7 @@
 
                         <div class="d-flex gap-2">
                             <button type="submit" class="btn tn-boton-dorado"><i class="bi bi-funnel me-1"></i> Filtrar</button>
-                            @if (request('buscar') || $estatus || ! $enVistaInicial || $orden !== 'recientes')
+                            @if (request('buscar') || request('trabajador') || $estatus || ! $enVistaInicial || $orden !== 'recientes')
                                 <a href="{{ url()->current() }}" class="btn btn-outline-secondary" title="Quitar filtros">Limpiar</a>
                             @endif
                         </div>
@@ -232,7 +240,7 @@
                 <div class="rt-encabezado-dia" aria-live="polite">
                     <h4>{{ $ultimas ? 'Últimas ratificaciones que registraste' : ($fecha ? $fechaLarga($fecha) : 'Todos los días') }}</h4>
                     <span>
-                        {{ number_format($solicitudes->total()) }} {{ $solicitudes->total() === 1 ? 'ratificación' : 'ratificaciones' }}@if($estatus) en {{ $apartadosVista[$estatus][0] }}@endif @if(request('buscar')) que coinciden con "{{ request('buscar') }}"@endif
+                        {{ number_format($solicitudes->total()) }} {{ $solicitudes->total() === 1 ? 'ratificación' : 'ratificaciones' }}@if($estatus) en {{ $apartadosVista[$estatus][0] }}@endif @if(request('buscar')) que coinciden con "{{ request('buscar') }}"@endif @if(request('trabajador')) del trabajador "{{ request('trabajador') }}"@endif
                     </span>
                 </div>
 
@@ -329,6 +337,10 @@
                                                     <i class="bi bi-cash-coin me-1"></i> Cumplimiento
                                                 </a>
                                             @endcan
+                                        @endif
+
+                                        @if($solicitud->estatus == "Pendiente")
+                                            <span class="rt-secundario"><i class="bi bi-hourglass-split me-1"></i>En espera de revisión de datos y conclusión de turno.</span>
                                         @endif
                                     </td>
                                     <td class="text-center">

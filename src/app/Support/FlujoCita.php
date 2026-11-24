@@ -81,7 +81,9 @@ class FlujoCita
 
     /**
      * CURP y domicilio del formulario de cita, validados, listos para
-     * Recepcion::create. Son obligatorios.
+     * Recepcion::create. La CURP es opcional: si la escriben se valida y se
+     * guarda (Mi módulo la usa en el prellenado y para ligar la solicitud);
+     * el domicilio es obligatorio.
      *
      * @return array{0: array, 1: ?string} [columnas, error]
      */
@@ -92,10 +94,7 @@ class FlujoCita
         }
 
         $curp = Curp::normalizar($request->input('curp'));
-        if ($curp === '') {
-            return [[], 'Escribe la CURP y el domicilio: ahora son obligatorios para agendar.'];
-        }
-        if ($error = Curp::error($curp)) {
+        if ($curp !== '' && ($error = Curp::error($curp))) {
             return [[], $error];
         }
 
@@ -116,7 +115,7 @@ class FlujoCita
         $domicilio = array_map(fn ($v) => mb_substr(mb_strtoupper($v), 0, 60), $domicilio);
 
         return [[
-            'curp'      => $curp,
+            'curp'      => $curp !== '' ? $curp : null,
             'domicilio' => json_encode($domicilio, JSON_UNESCAPED_UNICODE),
         ], null];
     }

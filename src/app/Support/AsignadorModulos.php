@@ -82,7 +82,7 @@ class AsignadorModulos
      * (activas, sin pausa y fuera de su comida). Null si la sede no tiene
      * módulo de excepción (manda sólo Horarios, como antes).
      */
-    public static function capacidadExcepcion(string $sede, string $canal, string $hora, ?Collection $modulos = null): ?int
+    public static function capacidadExcepcion(string $sede, string $canal, string $hora, ?Collection $modulos = null, ?string $fecha = null): ?int
     {
         if (! self::hayModulosExcepcion($sede)) {
             return null;
@@ -91,7 +91,8 @@ class AsignadorModulos
         $config   = HorarioCitas::config($sede, null, true);
         $duracion = (int) $config->duracion;
 
-        $personas = $modulos->filter(fn (Modulo $m) => self::atendible($m) && $m->recibePor($canal) && ! $m->enComida($hora, $duracion))->count();
+        $personas = $modulos->filter(fn (Modulo $m) => self::atendible($m) && $m->recibePor($canal) && ! $m->enComida($hora, $duracion)
+            && ! ($fecha && $m->bloqueadoEl($fecha)))->count();
 
         return min($personas, HorarioCitas::capacidad($config, $hora));
     }
@@ -122,13 +123,21 @@ class AsignadorModulos
         $duracionExc = $tramite === self::TRAMITE_EXCEPCION ? (int) HorarioCitas::config($sede, null, true)->duracion : null;
         $modulos = self::deSede($sede, true)
             ->filter(fn (Modulo $m) => self::atendible($m))
-            ->filter(fn (Modulo $m) => $m->recibePor($canal))
+            ->filter(fn (Modulo $m) => $m->recibePor($canal, $reasignacion))
+            // Día bloqueado en el calendario de su persona (Administración → Módulos).
+            ->filter(fn (Modulo $m) => ! $m->bloqueadoEl($fecha))
             ->filter(fn (Modulo $m) => ! $reasignacion || $m->aceptaReasignacion($fecha));
+
+        // Módulos de apoyo: sus solicitudes y ratificaciones no caen en las mismas horas (choqueApoyo).
+        $duracionCita = $modulos->contains(fn (Modulo $m) => $m->esDeApoyo())
+            ? (int) HorarioCitas::config($sede, $tramite, $tramite === self::TRAMITE_EXCEPCION)->duracion
+            : 0;
 
         foreach (['recibe', 'recibeDeRespaldo'] as $criterio) {
             $libres = $modulos
                 ->filter(fn (Modulo $m) => $m->{$criterio}($tramite))
-                ->filter(fn (Modulo $m) => ! $m->enComida($hora, $duracionExc) && self::choque($m, $fecha, $hora, $excepto) === null);
+                ->filter(fn (Modulo $m) => ! $m->enComida($hora, $duracionExc) && self::choque($m, $fecha, $hora, $excepto) === null
+                    && ! ($m->esDeApoyo() && self::choqueApoyo($m, $fecha, $hora, $duracionCita, $excepto)));
 
             if ($libres->isNotEmpty()) {
                 return $libres->random();
@@ -161,7 +170,7 @@ class AsignadorModulos
         $duracionExc = $tramite === self::TRAMITE_EXCEPCION ? (int) HorarioCitas::config($sede, null, true)->duracion : null;
         $modulos = self::deSede($sede, true)
             ->filter(fn (Modulo $m) => self::atendible($m)
-                && $m->recibePor($canal)
+                && $m->recibePor($canal, $reasignacion)
                 && ($m->recibe($tramite) || $m->recibeDeRespaldo($tramite)))
             ->values();
 
@@ -180,13 +189,20 @@ class AsignadorModulos
             ->get(['fecha', 'hora', 'modulo_id', 'auxiliar', 'exepcion'])
             ->groupBy(fn ($c) => substr((string) $c->fecha, 0, 10).'T'.HorarioCitas::normalizarHora((string) $c->hora));
 
-        return function (string $fecha, string $hora) use ($modulos, $porHorario, $duracionExc, $reasignacion): bool {
+        // Módulos de apoyo: sus citas del rango, para ver traslapes (choqueApoyo).
+        $deApoyo = $modulos->filter(fn (Modulo $m) => $m->esDeApoyo());
+        $citasApoyo = $deApoyo->isNotEmpty() ? self::citasDeApoyo($deApoyo, $desde, $hasta) : collect();
+        $duracionCita = $deApoyo->isNotEmpty() ? (int) HorarioCitas::config($sede, $tramite, $tramite === self::TRAMITE_EXCEPCION)->duracion : 0;
+
+        return function (string $fecha, string $hora) use ($modulos, $porHorario, $duracionExc, $reasignacion, $citasApoyo, $duracionCita, $excepto): bool {
             $hora  = HorarioCitas::normalizarHora($hora);
             $citas = $porHorario->get($fecha.'T'.$hora, collect());
 
-            return $modulos->contains(fn (Modulo $m) => (! $reasignacion || $m->aceptaReasignacion($fecha))
+            return $modulos->contains(fn (Modulo $m) => ! $m->bloqueadoEl($fecha)
+                && (! $reasignacion || $m->aceptaReasignacion($fecha))
                 && ! $m->enComida($hora, $duracionExc)
-                && ! $citas->contains(fn ($c) => self::citaOcupa($m, $c)));
+                && ! $citas->contains(fn ($c) => self::citaOcupa($m, $c))
+                && ! ($m->esDeApoyo() && self::choqueApoyo($m, $fecha, $hora, $duracionCita, $excepto, $citasApoyo)));
         };
     }
 
@@ -210,7 +226,9 @@ class AsignadorModulos
      */
     public static function hayQuienReciba(Collection $modulos, string $tramite, ?string $canal = null): bool
     {
+        // Sin "Asignar en línea" (p. ej. los de apoyo) no recibe citas nuevas por ningún canal.
         return $modulos->contains(fn (Modulo $m) => self::atendible($m)
+            && $m->asignaCitas()
             && $m->recibePor($canal)
             && ($m->recibe($tramite) || $m->recibeDeRespaldo($tramite)));
     }
@@ -235,6 +253,79 @@ class AsignadorModulos
             && $modulo->user_id !== null
             && $modulo->persona !== null
             && $modulo->persona->estatus === 'Activo';
+    }
+
+    /** Trámites que puede atender un módulo de apoyo (orientadores y auxiliares). */
+    public const TRAMITES_APOYO = ['Solicitud', 'Ratificación'];
+
+    /**
+     * Minutos que ocupa una cita: su hora_fin si la trae con duración (las
+     * ratificaciones a veces la guardan igual a la hora); si no, lo que dice
+     * Horarios para su trámite.
+     */
+    public static function duracionCita(string $sede, object $cita): int
+    {
+        $hora = substr((string) ($cita->hora ?? ''), 0, 5);
+        $fin  = substr((string) ($cita->hora_fin ?? ''), 0, 5);
+        if ($hora !== '' && $fin !== '' && $fin > $hora) {
+            return self::minutos($fin) - self::minutos($hora);
+        }
+
+        return (int) HorarioCitas::config($sede, $cita->tipo ?? null, ($cita->exepcion ?? null) === 'Si')->duracion;
+    }
+
+    /**
+     * Citas (que no están expiradas ni canceladas) de esos módulos o de sus
+     * personas entre dos fechas. Para el traslape de los módulos de apoyo.
+     */
+    public static function citasDeApoyo(Collection $modulos, string $desde, string $hasta): Collection
+    {
+        $ids      = $modulos->pluck('id')->all();
+        $personas = $modulos->pluck('user_id')->filter()->unique()->values()->all();
+        if (! $ids) {
+            return collect();
+        }
+
+        return DB::table('recepcion')
+            ->whereBetween('fecha', [substr($desde, 0, 10), substr($hasta, 0, 10)])
+            ->whereNotIn('estatus', ['expirada', 'cancelada'])
+            ->where(fn ($q) => $q->whereIn('modulo_id', $ids)->when($personas, fn ($w) => $w->orWhereIn('auxiliar', $personas)))
+            ->get(['id', 'consecutivo', 'codigo', 'solicitante', 'fecha', 'hora', 'hora_fin', 'tipo', 'exepcion', 'delegacion', 'modulo_id', 'auxiliar']);
+    }
+
+    /**
+     * Módulo de apoyo: atiende solicitudes (cada 30 min) y ratificaciones (cada
+     * 50 min), que no caen en las mismas horas. choque() sólo ve la misma hora
+     * exacta; esto ve si la cita nueva (hora + $duracion minutos) se encima con
+     * alguna de las que ya tiene el módulo o su persona. Devuelve esa cita o
+     * null. $citas (de citasDeApoyo()) evita una consulta por horario.
+     */
+    public static function choqueApoyo(Modulo $modulo, string $fecha, string $hora, int $duracion, ?int $excepto = null, ?Collection $citas = null): ?object
+    {
+        $fecha = substr($fecha, 0, 10);
+        $citas ??= self::citasDeApoyo(collect([$modulo]), $fecha, $fecha);
+        $inicio = self::minutos($hora);
+        $fin    = $inicio + max($duracion, 1);
+
+        return $citas->first(function ($c) use ($modulo, $fecha, $excepto, $inicio, $fin) {
+            if (substr((string) $c->fecha, 0, 10) !== $fecha || ($excepto && (int) $c->id === $excepto)) {
+                return false;
+            }
+            $suya = ($c->modulo_id !== null && (int) $c->modulo_id === (int) $modulo->id)
+                || ($modulo->user_id && $c->auxiliar !== null && (int) $c->auxiliar === (int) $modulo->user_id);
+            if (! $suya) {
+                return false;
+            }
+            $empieza = self::minutos((string) $c->hora);
+
+            return $empieza < $fin && $empieza + self::duracionCita((string) $c->delegacion, $c) > $inicio;
+        });
+    }
+
+    /** "09:20" o "09:20:00" → minutos del día. */
+    private static function minutos(string $hora): int
+    {
+        return (int) substr($hora, 0, 2) * 60 + (int) substr($hora, 3, 2);
     }
 
     /**

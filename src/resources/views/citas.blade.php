@@ -97,13 +97,18 @@
     @livewireStyles
 </head>
 <body onload="validarcheckfolio()">
-    {{-- Con $turno: Mi módulo abre este formulario con los datos de la ratificación para revisarlos (MiModuloController::ratificacion). --}}
+    {{-- Con $cita: Mi módulo abre este formulario (MiModuloController::ratificacion). Con $turno, con los datos de la
+         ratificación para revisarlos; sin turno, con lo capturado al agendar ($prellenadoCita) y al guardar se crea. --}}
     {{-- Personal (interno): elige la hora de una lista, aunque esté ocupada. Público (externo): el selector de /generar-cita. --}}
     @php
-        $enAtencion = isset($turno);
+        $enAtencion = $origen === 'modulo' && isset($cita);
+        $turno = $turno ?? null;
+        $capturaNueva = $enAtencion && ! $turno;
+        // El folio no se cambia si ya venía del turno o de la cita; si no, lo escribe el auxiliar.
+        $folioFijo = $enAtencion && ($turno || ! empty($prellenadoCita['folio']));
         $esInterno = $origen === 'interno';
         // En Mi módulo: liga firmada al documento que subió la persona al agendar (null si no subió).
-        $docCargado = fn (?string $archivo) => $enAtencion && $archivo && $archivo !== 'Sin documento'
+        $docCargado = fn (?string $archivo) => $enAtencion && $turno && $archivo && $archivo !== 'Sin documento'
             ? signedDocRoute('documentos.ver', ['tipo' => 'ratificacion', 'id' => $turno->id, 'archivo' => $archivo])
             : null;
     @endphp
@@ -124,7 +129,7 @@
                 <div class="card shadow-sm border-0">
                     <div class="card-header card-header-guinda py-3">
                         @if ($enAtencion)
-                            <h4 class="m-0 text-center fs-5"><i class="bi bi-pencil-square me-2"></i>Revisión de la ratificación · Folio {{ \App\Support\FolioCita::mostrar($cita) }}</h4>
+                            <h4 class="m-0 text-center fs-5"><i class="bi bi-pencil-square me-2"></i>{{ $capturaNueva ? 'Captura' : 'Revisión' }} de la ratificación · Folio {{ \App\Support\FolioCita::mostrar($cita) }}</h4>
                         @else
                             <h4 class="m-0 text-center fs-5"><i class="bi bi-calendar-check me-2"></i>Genera tu Cita para Ratificación</h4>
                         @endif
@@ -133,8 +138,15 @@
                         @if ($enAtencion)
                             <div class="alert alert-info mb-4">
                                 <i class="bi bi-info-circle-fill me-2"></i>
-                                Estos son los datos que se capturaron al agendar la cita. Revísalos con la persona, corrige lo necesario y da clic en <b>Finalizar</b>;
-                                después, en Mi módulo, da clic en <b>Terminar</b> para confirmar la ratificación.
+                                @if ($capturaNueva)
+                                    La cita se agendó {{ \App\Support\CitaPatronal::esEmpleador($cita) ? 'por el empleador' : 'por la persona trabajadora' }}{{ ! empty($prellenadoCita['folio']) ? ' con folio de representante patronal' : '' }}.
+                                    Ya están puestos los datos que dio al agendar; @if (empty($prellenadoCita['folio'])) escribe el <b>folio interno de registro</b> (el resto del formulario aparece cuando el folio es válido), @endif completa lo que falta y da clic en <b>Finalizar</b>
+                                    para registrar la ratificación; después, en Mi módulo, da clic en <b>Terminar</b> para confirmarla.
+                                    <a href="{{ route('mi_modulo', ['modulo' => $cita->modulo_id]) }}" class="d-block mt-2"><i class="bi bi-arrow-left"></i> Regresar a Mi módulo</a>
+                                @else
+                                    Estos son los datos que se capturaron al agendar la cita. Revísalos con la persona, corrige lo necesario y da clic en <b>Finalizar</b>;
+                                    después, en Mi módulo, da clic en <b>Terminar</b> para confirmar la ratificación.
+                                @endif
                             </div>
                             @if ($errors->any())
                                 <div class="alert alert-danger mb-4">
@@ -192,7 +204,7 @@
                                 </div>
                                 <div class="col-12 col-md-4">
                                     <label for="folio_input" class="form-label fw-bold">Folio Interno de Registro <span class="text-danger">*</span></label>
-                                    <input type="number" name="folio" id="folio_input" class="form-control" placeholder="Ingrese número de folio" required @if ($enAtencion) readonly @endif>
+                                    <input type="number" name="folio" id="folio_input" class="form-control" placeholder="Ingrese número de folio" required @if ($folioFijo) readonly @endif>
                                     <div class="invalid-feedback">El folio es obligatorio.</div>
                                 </div>
                             </div>
@@ -905,7 +917,7 @@
     @include('turnos._ratificacion_horario_scripts')
     @if ($enAtencion)
     @php
-        $prellenado = [
+        $prellenado = $capturaNueva ? ($prellenadoCita ?? []) : [
             'folio'               => $turno->idAbogado,
             'primero_trabajador'  => $turno->primero_trabajador,
             'segundo_trabajador'  => $turno->segundo_trabajador,
@@ -941,7 +953,7 @@
             'hora'                => $cita->hora ? $cita->hora->format('H:i') : $turno->hora,
         ];
         $prellenadoPrestaciones = collect(['Aguinaldo', 'Vacaciones', 'PrimaVacacional', 'PagoPTU', 'Gratificación', 'PrimaAntigüedad', 'Otras'])
-                ->mapWithKeys(fn ($c) => [$c => (bool) $turno->{$c}]);
+                ->mapWithKeys(fn ($c) => [$c => $turno ? (bool) $turno->{$c} : false]);
     @endphp
     <script>
         // Mi módulo: llena el formulario con los datos de la ratificación (o con lo
@@ -1007,7 +1019,15 @@
             document.getElementById('horaResumen').textContent = datos.hora || '';
             document.getElementById('resumenCita').style.display = 'block';
 
-            document.getElementById('datos_formulario').style.display = 'block';
+            // Con turno ya capturado se revisa todo. En una captura nueva el resto
+            // del formulario aparece hasta que el folio resulte elegible, igual
+            // que en la cita pública (lo decide la validación del folio al teclearlo).
+            var folio = document.getElementById('folio_input');
+            if (@json($capturaNueva)) {
+                if (folio && folio.value) { folio.dispatchEvent(new Event('keyup')); }
+            } else {
+                document.getElementById('datos_formulario').style.display = 'block';
+            }
         });
     </script>
     @endif

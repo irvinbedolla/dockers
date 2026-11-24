@@ -485,7 +485,7 @@
                                             <div class="col-xs-12 col-sm-12 col-md-12">
                                                 <div class="form-group">
                                                     <label for="name">Describe brevemente el motivo de tu solicitud</label>
-                                                    <textarea class="form-control" name="descripcionSolicitud"><?=$solicitante["descripcionSolicitud"];?></textarea>
+                                                    <textarea class="form-control js-autoalto" name="descripcionSolicitud" rows="3"><?=$solicitante["descripcionSolicitud"];?></textarea>
                                                     <div class="invalid-feedback">
                                                         El campo descripción del motivo de la solicitud es obligatorio.
                                                     </div>
@@ -1119,5 +1119,7 @@
             $('#tabla_citados').show();
             $('#tabla_documentos').show();
     </script>
+
+    @include('partials.general._textarea_autoalto')
 @endsection
 

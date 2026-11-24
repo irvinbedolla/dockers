@@ -6,7 +6,7 @@
     auxiliar los revisa (entra al campo o lo cambia) y el aviso lleva la cuenta
     de los que faltan.
 --}}
-@php $prellenado = \App\Support\PrellenadoCita::paraVista(); @endphp
+@php $prellenado = \App\Support\PrellenadoCita::paraVista('trabajador'); @endphp
 @if ($prellenado)
     <div class="alert alert-warning d-flex justify-content-between align-items-center flex-wrap gap-2" role="status" id="avisoPrellenado"
          style="background:#FBF4E1;border-color:#F0DFA8;color:#7A5D10;">

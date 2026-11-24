@@ -15,6 +15,7 @@
     $filas = old('sedes', array_map(fn ($s) => [
         'sede' => $s['sede'], 'modalidad' => $s['modalidad'], 'dias' => $s['dias'],
         'inicio' => $s['inicio'], 'fin' => $s['fin'], 'sala' => $s['sala'],
+        'desde' => $s['desde'] ?? null, 'hasta' => $s['hasta'] ?? null, 'exclusiva' => $s['exclusiva'] ?? false,
     ], $sedes));
     if (! $filas) {
         $filas = [['sede' => $conciliador->delegacion, 'modalidad' => SC::PRESENCIAL, 'dias' => array_keys(PermisosConciliador::DIAS),
@@ -73,6 +74,15 @@
                     </div>
                 @endif
             </div>
+
+            {{-- Días bloqueados (permisos, vacaciones…): fuera del formulario de la agenda. --}}
+            <div class="tn-tarjeta mb-3">
+                <h5 class="mb-1" style="font-size: 15px; font-weight: 700; color: var(--tn-tinta);">Días bloqueados</h5>
+                <p class="cn-sub mb-2">Esos días (u horas) no se le dan audiencias nuevas. Son los mismos bloqueos de Administración → Sedes.</p>
+                @include('administracion.conciliadores._bloqueos', ['conciliador' => $conciliador, 'susBloqueos' => $susBloqueos])
+                @if ($susBloqueos->isEmpty())<p class="cn-sub mb-0 mt-1">No tiene días bloqueados de hoy en adelante.</p>@endif
+            </div>
+            @include('administracion.conciliadores._bloqueo_modal')
 
             <form method="POST" action="{{ route('conciliadores.guardar', $conciliador->id) }}" id="cnForm" novalidate>
                 @csrf
@@ -133,6 +143,7 @@
         @include('administracion.conciliadores._fila', ['i' => '__I__', 'f' => [
             'sede' => '', 'modalidad' => SC::VIRTUAL, 'dias' => [],
             'inicio' => PermisosConciliador::PREDETERMINADO['inicio'], 'fin' => PermisosConciliador::PREDETERMINADO['fin'], 'sala' => null,
+            'desde' => null, 'hasta' => null, 'exclusiva' => false,
         ], 'conciliador' => $conciliador])
     </template>
 @endsection

@@ -15,7 +15,14 @@
     $apartadosVista = [
         'Pendiente' => ['Pendientes', 'bi-hourglass-split', 'pd-i-pendiente'],
         'Validado'  => ['Validados', 'bi-patch-check', 'pd-i-validado'],
+        'mas-usados' => ['Más usados', 'bi-graph-up-arrow', 'pd-i-usados'],
     ];
+    $plural = fn (int $n, string $uno, string $varios) => $n.' '.($n === 1 ? $uno : $varios);
+    $detalleUsos = fn ($p) => implode(' · ', array_filter([
+        $p->usos_ratificaciones ? $plural((int) $p->usos_ratificaciones, 'ratificación', 'ratificaciones') : null,
+        $p->usos_solicitudes ? $plural((int) $p->usos_solicitudes, 'solicitud', 'solicitudes') : null,
+        $p->usos_audiencias ? $plural((int) $p->usos_audiencias, 'audiencia', 'audiencias') : null,
+    ])) ?: 'Todavía no se ha usado';
 @endphp
 
 @section('page_css')
@@ -33,7 +40,7 @@
         .hp-quien { font-size: 12.5px; color: var(--tn-tenue); }
         .hp-cambios { margin: 6px 0 0; padding-left: 18px; font-size: 13px; color: var(--tn-suave); }
         .hp-cambios li { margin-bottom: 2px; overflow-wrap: anywhere; }
-        .rt-cifras { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; max-width: 640px; }
+        .rt-cifras { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; max-width: 960px; }
         .rt-cifra {
             display: flex; align-items: center; gap: 12px; padding: 14px 16px; text-decoration: none;
             background: #fff; border: 1px solid var(--tn-borde); border-radius: 12px;
@@ -46,6 +53,14 @@
         .rt-cifra__txt { font-size: 12.5px; color: var(--tn-suave); }
         .pd-i-pendiente { background: #EEF0F3; color: #5F6B7A; }
         .pd-i-validado { background: #E5F3EA; color: #1E7B3C; }
+        .pd-i-usados { background: #F8F0DA; color: #9A7A1F; }
+        .rt-cifra__nota { display: block; font-size: 11px; color: var(--tn-tenue); }
+        .rt-usos {
+            display: inline-block; min-width: 34px; padding: 3px 9px; border-radius: 999px; cursor: help;
+            background: #EEF2F2; color: var(--tn-suave); font-weight: 700; font-size: 12.5px; font-variant-numeric: tabular-nums;
+        }
+        .rt-usos--frecuente { background: #F8F0DA; color: #7A5D10; }
+        .rt-usos--cero { background: transparent; color: var(--tn-tenue); font-weight: 600; }
         @media (max-width: 640px) { .rt-cifras { grid-template-columns: 1fr; } }
 
         .rt-filtros { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: end; }
@@ -126,7 +141,12 @@
                        href="{{ $urlCon(['estatus' => $estatus === $clave ? null : $clave]) }}"
                        @if ($estatus === $clave) aria-current="true" @endif>
                         <span class="rt-cifra__icono {{ $tono }}"><i class="bi {{ $icono }}"></i></span>
-                        <span><span class="rt-cifra__num">{{ number_format($conteo[$clave]) }}</span><span class="rt-cifra__txt">{{ $texto }}</span></span>
+                        <span>
+                            <span class="rt-cifra__num">{{ number_format($conteo[$clave]) }}</span><span class="rt-cifra__txt">{{ $texto }}</span>
+                            @if ($clave === 'mas-usados')
+                                <span class="rt-cifra__nota">{{ $usosFrecuentes }} usos o más</span>
+                            @endif
+                        </span>
                     </a>
                 @endforeach
             </div>
@@ -166,7 +186,7 @@
                 <div class="rt-encabezado-dia" aria-live="polite">
                     <h4>{{ $estatus ? $apartadosVista[$estatus][0] : 'Todos los estatus' }}</h4>
                     <span>
-                        {{ number_format($poderes->total()) }} {{ $poderes->total() === 1 ? 'poder' : 'poderes' }}@if(request('buscar')) que coinciden con "{{ request('buscar') }}"@endif
+                        {{ number_format($poderes->total()) }} {{ $poderes->total() === 1 ? 'poder' : 'poderes' }}@if($estatus === 'mas-usados') con {{ $usosFrecuentes }} usos o más (ratificaciones, solicitudes y audiencias), del más usado al menos usado @endif @if(request('buscar')) que coinciden con "{{ request('buscar') }}"@endif
                     </span>
                 </div>
 
@@ -179,6 +199,7 @@
                                 <th>RFC</th>
                                 <th>Representante Legal</th>
                                 <th class="text-center">Estatus</th>
+                                <th class="text-center" title="Ratificaciones, solicitudes y audiencias donde se ha usado">Usos</th>
                                 @can('poderes_ver_expediente')
                                     <th class="text-center">Expediente Digital</th>
                                 @endcan
@@ -209,6 +230,10 @@
                                         @else
                                             <span class="rt-vence">Vence {{ \Carbon\Carbon::parse($poder->fechaVigencia)->format('d-m-Y') }}</span>
                                         @endif
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="rt-usos {{ $poder->usos >= $usosFrecuentes ? 'rt-usos--frecuente' : ($poder->usos ? '' : 'rt-usos--cero') }}"
+                                              title="{{ $detalleUsos($poder) }}" data-bs-toggle="tooltip">{{ number_format($poder->usos) }}</span>
                                     </td>
                                     @can('poderes_ver_expediente')
                                         <td class="text-center">
@@ -265,7 +290,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="8" class="text-center py-4" style="color: var(--tn-tenue);">No hay poderes con estos filtros.</td>
+                                    <td colspan="9" class="text-center py-4" style="color: var(--tn-tenue);">No hay poderes con estos filtros.</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -649,6 +674,11 @@
         }
 
         $(document).ready(function () {
+            // Desglose de usos al pasar el cursor.
+            if (window.bootstrap && bootstrap.Tooltip) {
+                document.querySelectorAll('.rt-usos[data-bs-toggle="tooltip"]').forEach(function (el) { new bootstrap.Tooltip(el); });
+            }
+
             // Mover el modal al final del body para evitar conflictos de opacidad (Página en gris)
             if ($('#modalExpedienteDigital').length) {
                 $('#modalExpedienteDigital').appendTo("body");

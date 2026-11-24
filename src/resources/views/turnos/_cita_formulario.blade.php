@@ -6,6 +6,8 @@
     correo y municipio_solicitante. Requiere también _cita_modales,
     _cita_estilos y _cita_scripts.
     Espera: $modo ('publico' | 'ventanilla'), $accion (URL del POST), $municipios.
+    Nota: /turnos/nuevo ya tiene su propio formulario corto (turnos/crear); el
+    modo "ventanilla" se conserva por si se vuelve a necesitar.
 --}}
 @php
     $ventanilla = ($modo ?? 'publico') === 'ventanilla';
@@ -21,21 +23,21 @@
 
                                 @if ($ventanilla)
                                 <p class="gc-intro">
-                                    Captura los cuatro pasos con la persona. Lo marcado con <span class="gc-req">*</span> es obligatorio.
+                                    Captura los <span data-num-pasos>cuatro</span> pasos con la persona. Lo marcado con <span class="gc-req">*</span> es obligatorio.
                                     Al guardar verás el folio y podrás <strong>imprimir el acuse con código QR</strong>.
                                 </p>
                                 @else
                                 <p class="gc-intro">
-                                    Llena los cuatro pasos. Lo marcado con <span class="gc-req">*</span> es obligatorio.
+                                    Llena los <span data-num-pasos>cuatro</span> pasos. Lo marcado con <span class="gc-req">*</span> es obligatorio.
                                     Al terminar te enviaremos a tu correo el <strong>acuse con código QR</strong> que debes presentar el día de tu cita.
                                 </p>
                                 @endif
 
                                 <ol class="gc-pasos" id="gcPasos" aria-label="Avance">
                                     <li data-paso="1"><span class="gc-pasos__num">1</span><span class="gc-pasos__texto">Trámite</span></li>
-                                    <li data-paso="2"><span class="gc-pasos__num">2</span><span class="gc-pasos__texto">{{ $ventanilla ? 'Datos de la persona' : 'Tus datos' }}</span></li>
-                                    <li data-paso="3"><span class="gc-pasos__num">3</span><span class="gc-pasos__texto">{{ $ventanilla ? 'El caso' : 'Tu caso' }}</span></li>
-                                    <li data-paso="4"><span class="gc-pasos__num">4</span><span class="gc-pasos__texto">Día y hora</span></li>
+                                    <li data-paso="2"><span class="gc-pasos__num">2</span><span class="gc-pasos__texto" data-etq-normal="{{ $ventanilla ? 'Datos de la persona' : 'Tus datos' }}" data-etq-empleador="Datos del trabajador">{{ $ventanilla ? 'Datos de la persona' : 'Tus datos' }}</span></li>
+                                    <li data-paso="3"><span class="gc-pasos__num">3</span><span class="gc-pasos__texto" data-etq-normal="{{ $ventanilla ? 'El caso' : 'Tu caso' }}" data-etq-empleador="Caso del trabajador">{{ $ventanilla ? 'El caso' : 'Tu caso' }}</span></li>
+                                    <li data-paso="4"><span class="gc-pasos__num" data-num-paso4>4</span><span class="gc-pasos__texto">Día y hora</span></li>
                                 </ol>
 
                                 {{-- PASO 1 --}}
@@ -64,23 +66,40 @@
                                             <div class="form-text gc-ayuda-tramite" id="gcAyudaTramite">Elige una opción y te explicamos de qué se trata.</div>
                                             <div class="invalid-feedback">Elige el tipo de trámite.</div>
                                         </div>
-                                        <div class="col-md-6" style="display:none;" id="calidad">
+                                        <div class="col-md-6"  id="calidad">
                                             <label class="form-label" for="puesto">{{ $ventanilla ? 'Acude en calidad de:' : 'Acudes en calidad de:' }}</label>
-                                            <select id="puesto" class="form-select">
+                                            {{-- name="calidad" y "tiene_folio": quién agenda y si trae folio patronal (App\Support\CitaPatronal).
+                                                 Van deshabilitados mientras el trámite no los pide. --}}
+                                            <select id="puesto" name="calidad" class="form-select" required disabled>
                                                 <option value="">Elige una opción</option>
                                                 <option value="trabajador">Trabajador</option>
                                                 <option value="empleador">Empleador</option>
                                             </select>
+                                            <div class="invalid-feedback">Elige una opción.</div>
                                         </div>
                                         <div class="col-md-6" style="display:none;" id="si_ratificacion">
                                             <label class="form-label" for="folio_patronal">{{ $ventanilla ? '¿Ya tiene folio de representante patronal?' : '¿Ya tienes un folio de representante patronal?' }}</label>
-                                            <select id="folio_patronal" class="form-select">
+                                            <select id="folio_patronal" name="tiene_folio" class="form-select" required disabled>
                                                 <option value="">Elige una opción</option>
                                                 <option value="si">{{ $ventanilla ? 'Sí, ya tiene folio' : 'Sí, ya tengo folio' }}</option>
                                                 <option value="no">{{ $ventanilla ? 'No tiene folio' : 'No tengo folio' }}</option>
                                             </select>
-                                            <div class="form-text">{{ $ventanilla ? 'Si ya tiene folio, se abrirá el formulario para ratificar con él.' : 'Si ya tienes folio, te llevaremos al formulario para ratificar con él.' }}</div>
+                                            <div class="form-text" id="ayuda_folio_patronal">{{ $ventanilla ? 'Si ya tiene folio, se captura en el paso 2.' : 'Si ya tienes folio, lo escribirás en el paso 2.' }}</div>
+                                            <div class="invalid-feedback">Elige una opción.</div>
                                         </div>
+                                        @unless ($ventanilla)
+                                            {{-- Empleador con 5 o más trabajadores: ratificación múltiple (RatificacionMultipleController). --}}
+                                            <div class="col-12" id="gcRatMultiple" hidden>
+                                                <div class="alert alert-light border d-flex gap-2 align-items-start mb-0" style="font-size: 14px;">
+                                                    <i class="bi bi-people-fill" style="color: #496163; font-size: 18px;"></i>
+                                                    <div>
+                                                        <b>¿Vas a ratificar convenios de 5 o más trabajadores?</b>
+                                                        Usa la <a href="{{ route('ratificacion_multiple') }}"><b>solicitud de ratificación múltiple</b></a>:
+                                                        subes un solo Excel con todos y el sistema agenda una cita para cada uno.
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        @endunless
                                         <div class="col-md-6">
                                             <label class="form-label" for="municipio_citado">{{ $ventanilla ? 'Municipio de la fuente de empleo (o de la persona a citar)' : 'Municipio donde está tu trabajo (o la persona a la que vas a citar)' }} <span class="gc-req">*</span></label>
                                             <select id="municipio_citado" class="form-select" name="{{ $ventanilla ? 'municipio_solicitante' : 'municipio_citado' }}" required>
@@ -105,22 +124,85 @@
 
                                 {{-- PASO 2 --}}
                                 <fieldset class="gc-seccion" data-paso="2">
-                                    <legend class="gc-titulo"><span class="gc-num">2</span> {{ $ventanilla ? 'Datos de la persona' : 'Tus datos' }}</legend>
+                                    <legend class="gc-titulo"><span class="gc-num">2</span> <span data-etq-normal="{{ $ventanilla ? 'Datos de la persona' : 'Tus datos' }}" data-etq-empleador="Datos del trabajador">{{ $ventanilla ? 'Datos de la persona' : 'Tus datos' }}</span></legend>
                                     <div class="row g-3">
-                                        <div class="col-md-6">
-                                            <label class="form-label" for="gcNombre">Nombre completo <span class="gc-req">*</span></label>
-                                            <input type="text" id="gcNombre" name="nombre" class="form-control gc-mayus" maxlength="100" autocomplete="name"
-                                                   placeholder="Nombre(s) y apellidos" oninput="this.value = this.value.toUpperCase();" required>
-                                            <div class="invalid-feedback">Escribe tu nombre completo.</div>
+                                        {{-- Empleador con folio (App\Support\CitaPatronal): los datos de la parte patronal
+                                             salen del folio, como en "Soy patronal individual". Los campos van
+                                             deshabilitados (no se envían) mientras no aplique. --}}
+                                        <div class="col-12 gc-patronal" id="gcPatronalFolio" hidden>
+                                            <div class="row g-3">
+                                                <div class="col-md-5">
+                                                    <label class="form-label" for="gcPoderFolio">Folio de representante patronal <span class="gc-req">*</span></label>
+                                                    <input type="text" id="gcPoderFolio" name="poder_folio" class="form-control" inputmode="numeric" maxlength="10"
+                                                           autocomplete="off" placeholder="Folio interno de registro" value="{{ old('poder_folio') }}"
+                                                           oninput="this.value = this.value.replace(/\D/g, '').slice(0, 10);" required disabled>
+                                                    <div class="form-text">
+                                                        {{ $ventanilla ? '¿No lo tiene?' : '¿No lo tienes?' }}
+                                                        <a href="{{ route('poder-crear') }}" target="_blank" rel="noopener">Registro de representante patronal</a>
+                                                    </div>
+                                                    <div class="invalid-feedback" id="gcPoderFolioError">Escribe un folio válido.</div>
+                                                </div>
+                                                <div class="col-md-7">
+                                                    <div class="gc-poder" id="gcPoderInfo" aria-live="polite" hidden></div>
+                                                </div>
+                                            </div>
+                                            <div class="form-text mt-2">
+                                                {{ $ventanilla
+                                                    ? 'Los datos de la parte patronal (CURP, domicilio, identificación) se toman de su folio. Abajo van los datos de la persona trabajadora y el contacto de quien agenda.'
+                                                    : 'Los datos de la parte patronal (CURP, domicilio, identificación) se toman de tu folio. Abajo van los datos de la persona trabajadora y tu contacto.' }}
+                                            </div>
+                                            <hr class="my-2" style="border-color:#E3E8E8;">
+                                            <style>
+                                                .gc-poder { padding: 10px 14px; border-radius: 10px; background: #EEF2F2; color: #5E6E6F; font-size: 13px; line-height: 1.5; }
+                                                .gc-poder b { color: #2E3C3D; }
+                                                .gc-poder--ok { background: #E5F3EA; color: #24613A; }
+                                                .gc-poder--error { background: #FBE9E9; color: #8A2626; }
+                                            </style>
                                         </div>
-                                        <div class="col-6 col-md-3">
-                                            <label class="form-label" for="gcEdad">Edad <span class="gc-req">*</span></label>
+                                        {{-- Quien agenda. Si es el empleador, es su contacto (el acuse va a su correo)
+                                             y va antes que el nombre de la persona trabajadora; en la ratificación
+                                             del propio trabajador se oculta: su nombre va desglosado abajo. --}}
+                                        <div class="col-md-6" id="gcNombreCaja">
+                                            <label class="form-label" for="gcNombre"><span id="gcNombreEtiqueta">Nombre completo</span> <span class="gc-req">*</span></label>
+                                            <input type="text" id="gcNombre" name="nombre" class="form-control gc-mayus" maxlength="100" autocomplete="name"
+                                                   placeholder="Nombre(s) y apellidos" value="{{ old('nombre') }}" oninput="this.value = this.value.toUpperCase();" required>
+                                            <div class="invalid-feedback">Escribe el nombre completo.</div>
+                                        </div>
+                                        {{-- Persona trabajadora con el nombre desglosado: la pide la ratificación y,
+                                             si agenda el empleador, "Datos Personales del Citado". Deshabilitado
+                                             (no se envía) mientras no aplique. --}}
+                                        <div class="col-12" id="gcPatronalCitado" hidden>
+                                            <span class="form-label d-block mb-1" style="font-weight:600;">Nombre de la persona trabajadora</span>
+                                            <div class="row g-3">
+                                                <div class="col-md-4">
+                                                    <label class="form-label" for="gcCitadoNombre">Nombre(s) <span class="gc-req">*</span></label>
+                                                    <input type="text" id="gcCitadoNombre" name="citado_nombre" class="form-control gc-mayus" maxlength="60" autocomplete="off"
+                                                           value="{{ old('citado_nombre') }}" oninput="this.value = this.value.toUpperCase();" required disabled>
+                                                    <div class="invalid-feedback">Escribe el nombre.</div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label class="form-label" for="gcCitadoPrimer">Primer apellido <span class="gc-req">*</span></label>
+                                                    <input type="text" id="gcCitadoPrimer" name="citado_primer_apellido" class="form-control gc-mayus" maxlength="60" autocomplete="off"
+                                                           value="{{ old('citado_primer_apellido') }}" oninput="this.value = this.value.toUpperCase();" required disabled>
+                                                    <div class="invalid-feedback">Escribe el primer apellido.</div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label class="form-label" for="gcCitadoSegundo">Segundo apellido</label>
+                                                    <input type="text" id="gcCitadoSegundo" name="citado_segundo_apellido" class="form-control gc-mayus" maxlength="60" autocomplete="off"
+                                                           value="{{ old('citado_segundo_apellido') }}" oninput="this.value = this.value.toUpperCase();" disabled>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {{-- Edad, sexo, grupo prioritario, CURP y domicilio: no se piden en la
+                                             ratificación que agenda el empleador (se ocultan en _cita_scripts). --}}
+                                        <div class="col-6 col-md-3" id="gcEdadCaja">
+                                            <label class="form-label" for="gcEdad"><span data-etq-normal="Edad" data-etq-empleador="Edad del trabajador">Edad</span> <span class="gc-req">*</span></label>
                                             <input type="number" id="gcEdad" name="edad" class="form-control" inputmode="numeric" min="0" max="120" maxlength="3"
                                                    oninput="if(this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);" required>
-                                            <div class="invalid-feedback">Escribe tu edad.</div>
+                                            <div class="invalid-feedback" data-etq-normal="Escribe la edad." data-etq-empleador="Escribe la edad de la persona trabajadora.">Escribe la edad.</div>
                                         </div>
-                                        <div class="col-6 col-md-3">
-                                            <label class="form-label" for="gcSexo">Sexo <span class="gc-req">*</span></label>
+                                        <div class="col-6 col-md-3" id="gcSexoCaja">
+                                            <label class="form-label" for="gcSexo"><span data-etq-normal="Sexo" data-etq-empleador="Sexo del trabajador">Sexo</span> <span class="gc-req">*</span></label>
                                             {{-- Los valores son los que acepta recepcion.sexo (H, M, NB, LGBTTTIQ).
                                                  Antes había "Otros", que la base rechazaba y la cita no se guardaba. --}}
                                             <select id="gcSexo" name="sexo" class="form-select" required>
@@ -193,7 +275,7 @@
                                                    oninput="this.value = this.value.replace(/\D/g, '').slice(0, 10);" required>
                                             <div class="invalid-feedback">Escribe los 10 dígitos de tu teléfono.</div>
                                         </div>
-                                        <div class="col-md-6">
+                                        <div class="col-md-6" id="gcVulnerablesCaja">
                                             <label class="form-label" for="gcVulnerables">{{ $ventanilla ? '¿Pertenece a algún grupo de atención prioritaria?' : '¿Perteneces a algún grupo de atención prioritaria?' }} <span class="gc-req">*</span></label>
                                             <select id="gcVulnerables" name="vulnerables" class="form-select" required>
                                                 <option value="">Elige una opción</option>
@@ -208,17 +290,25 @@
                                             <div class="form-text">Nos ayuda a darte la atención adecuada.</div>
                                             <div class="invalid-feedback">Elige una opción.</div>
                                         </div>
-                                        {{-- CURP y domicilio para el prellenado (App\Support\FlujoCita). --}}
+                                        {{-- CURP y domicilio para el prellenado (App\Support\FlujoCita): de quien agenda o,
+                                             si es el empleador, de la persona trabajadora (App\Support\CitaPatronal). --}}
                                         @if (\App\Support\FlujoCita::camposExtra($ventanilla))
-                                            @include('turnos._campos_flujo')
+                                            <div id="gcCamposTrabajador" style="display:contents;">
+                                                @include('turnos._campos_flujo')
+                                            </div>
                                         @endif
                                     </div>
                                 </fieldset>
 
-                                {{-- PASO 3 --}}
-                                <fieldset class="gc-seccion" data-paso="3">
-                                    <legend class="gc-titulo"><span class="gc-num">3</span> {{ $ventanilla ? 'El caso' : 'Tu caso' }}</legend>
+                                {{-- PASO 3. En la ratificación no se pide (se oculta en _cita_scripts). --}}
+                                <fieldset class="gc-seccion" data-paso="3" id="gcPasoCaso">
+                                    <legend class="gc-titulo"><span class="gc-num">3</span> <span data-etq-normal="{{ $ventanilla ? 'El caso' : 'Tu caso' }}" data-etq-empleador="Caso del trabajador">{{ $ventanilla ? 'El caso' : 'Tu caso' }}</span></legend>
                                     <div class="row g-3">
+                                        {{-- Desactivado: la pregunta de casos de excepción se usaba mal en el
+                                             formulario público. Ahora sólo recepción canaliza a excepción
+                                             (interruptor de /turnos/nuevo). Las citas en línea se guardan con
+                                             tipo_caso "Ninguno" y exepcion "No" (HomeController::turnos_publico). --}}
+                                        @if (false)
                                         <div class="col-12">
                                             <label class="form-label" for="gcTipoCaso">
                                                 {{ $ventanilla ? '¿El caso es por alguno de estos motivos?' : '¿Tu caso es por alguno de estos motivos?' }} <span class="gc-req">*</span>
@@ -241,6 +331,7 @@
                                             <div class="form-text" id="gcAyudaCaso">Si no estás seguro, elige "No, ninguno de estos".</div>
                                             <div class="invalid-feedback">Elige una opción.</div>
                                         </div>
+                                        @endif
                                         <div class="col-12">
                                             <label class="form-label" for="gcConflicto">{{ $ventanilla ? 'Descripción breve de lo que pasó' : 'Cuéntanos brevemente qué pasó' }} <span class="gc-opcional">(opcional)</span></label>
                                             <textarea id="gcConflicto" name="conflicto" class="form-control gc-mayus" rows="3" maxlength="500"
@@ -252,7 +343,7 @@
 
                                 {{-- PASO 4 --}}
                                 <fieldset class="gc-seccion" data-paso="4">
-                                    <legend class="gc-titulo"><span class="gc-num">4</span> Elige día y hora</legend>
+                                    <legend class="gc-titulo"><span class="gc-num" data-num-paso4>4</span> Elige día y hora</legend>
                                     <div class="gc-horario">
                                         <button type="button" id="botonCalendar" class="btn btn-guinda gc-horario__boton" data-bs-toggle="modal" data-bs-target="#calendarModal" disabled>
                                             <i class="bi bi-calendar-week me-2" aria-hidden="true"></i><span id="gcTextoCalendario">Ver horarios disponibles</span>

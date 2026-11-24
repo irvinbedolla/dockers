@@ -494,6 +494,8 @@ class RevisionAudiencia
 
         $llegaron = DB::table(LlegadasHoy::TABLA)
             ->where('tipo', 'audiencia')->where('registro_id', $audiencia->id)
+            // Sólo las de hoy: si le cambiaron la fecha conserva su id y traería las del día original.
+            ->whereBetween('llegada_at', LlegadasHoy::dia(now()->toDateString()))
             ->orderBy('llegada_at')
             ->get(['nombre', 'parte', 'llegada_at'])
             ->map(fn ($l) => [
@@ -504,7 +506,8 @@ class RevisionAudiencia
 
         $obs = [];
         if (LlegadasHoy::conObservaciones()) {
-            $o = DB::table(LlegadasHoy::TABLA_OBS)->where('tipo', 'audiencia')->where('registro_id', $audiencia->id)->first();
+            $o = DB::table(LlegadasHoy::TABLA_OBS)->where('tipo', 'audiencia')->where('registro_id', $audiencia->id)
+                ->whereBetween('updated_at', LlegadasHoy::dia(now()->toDateString()))->first();
             if ($o) {
                 foreach (LlegadasHoy::OBSERVACIONES as $campo => $texto) {
                     if (! empty($o->{$campo})) {

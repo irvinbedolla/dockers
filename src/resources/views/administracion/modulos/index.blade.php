@@ -114,6 +114,9 @@
         .md-chip--inactivo { background: #F6E4EA; color: #8C1D40; }
         .md-chip--excepcion { background: #EDE7F6; color: #5B3F99; }
         .md-modulo.is-excepcion { border-top: 3px solid #7B5EA7; }
+        .md-chip--apoyo { background: #E3F0FA; color: #1F5F8B; }
+        .md-modulo.is-apoyo { border-top: 3px solid #2E7DB5; }
+        .md-switches { display: flex; flex-wrap: wrap; gap: 6px 24px; }
         .md-clase { display: flex; flex-wrap: wrap; gap: 6px 16px; }
 
         /* Switch "Recibe citas" de cada módulo y qué se pausa. */
@@ -137,6 +140,27 @@
         .md-linea__fecha { width: auto; min-width: 150px; padding: 2px 8px; font-size: 12.5px; }
         .md-linea__acciones { flex-basis: 100%; display: flex; align-items: center; gap: 8px; }
         .md-linea__acciones .btn { font-size: 12px; padding: 2px 10px; }
+        /* "Días bloqueados" de cada tarjeta (aparte de "Recibe citas" y "Acepta reasignaciones"). */
+        .md-bloqueos { flex-direction: column; align-items: stretch; gap: 6px; background: #F5F7F7; border-color: #E0E5E5; }
+        .md-bloqueos__cab { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; }
+        .md-bloqueos__titulo { font-size: 13px; font-weight: 700; color: var(--tn-tinta); }
+        .md-bloqueos__titulo i { color: #8C1D40; }
+        .md-bloqueos__abrir { font-size: 12.5px; font-weight: 700; color: #496163; text-decoration: none; }
+        .md-bloqueos__dias { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+        .md-bloq { display: inline-flex; align-items: center; gap: 4px; margin: 0; padding: 2px 4px 2px 9px; border-radius: 999px;
+            background: #fff; border: 1px solid #EBC3D0; color: #8C1D40; font-size: 12px; font-weight: 700; }
+        .md-bloq small { font-weight: 500; color: #7A5A66; }
+        .md-bloq.is-hoy { background: #8C1D40; border-color: #8C1D40; color: #fff; }
+        .md-bloq.is-hoy small { color: #F3D9E2; }
+        .md-bloq button { border: 0; background: transparent; color: inherit; font-size: 15px; line-height: 1; padding: 0 3px; cursor: pointer; opacity: .75; }
+        .md-bloq button:hover { opacity: 1; }
+        .md-bloq button:disabled { cursor: wait; opacity: 1; }
+        .md-bloq__spin { width: 11px; height: 11px; border-width: 2px; vertical-align: -1px; }
+        .md-bloqueos__todos { font-size: 12px; color: #8C1D40; }
+        .md-bloqueos__form { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding-top: 6px; border-top: 1px dashed #DCE3E3; }
+        .md-bloqueos__form label { display: inline-flex; align-items: center; gap: 6px; margin: 0; font-size: 12.5px; font-weight: 700; color: var(--tn-suave); }
+        .md-bloqueos__motivo { flex: 1 1 180px; font-size: 12.5px; }
+        .md-bloqueos__form .md-linea__nota { flex-basis: 100%; }
         /* .d-flex lleva !important: sin esto el aviso no se oculta. */
         #mdAvisoPausa[hidden] { display: none !important; }
         .md-linea__modo { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; font-size: 12.5px; color: var(--tn-suave); }
@@ -292,7 +316,9 @@
                         Se reparten entre las personas libres a su misma hora; no cambian de día ni de hora y no se le avisa a la persona.
                     </span>
                     <form method="POST" action="{{ route('modulos.pasar_excepcion') }}" class="m-0"
-                          onsubmit="return confirm('¿Pasar estas citas de excepción a los módulos de casos de excepción de {{ $sede }}?');">
+                          data-confirmar="¿Pasar estas citas de excepción?"
+                          data-confirmar-texto="Se pasan a los módulos de casos de excepción de {{ $sede }}. No cambian de día ni de hora y no se le avisa a la persona."
+                          data-confirmar-boton="Sí, pasarlas" data-confirmar-cargando="Pasando…">
                         @csrf
                         <input type="hidden" name="sede" value="{{ $sede }}">
                         <input type="hidden" name="fecha_vista" value="{{ $fecha }}">
@@ -312,10 +338,12 @@
                             'tramites' => $modulo->tramites ?? [], 'respaldo' => $modulo->respaldo ?? [],
                             'hora_comida' => $modulo->hora_comida ? substr($modulo->hora_comida, 0, 5) : '',
                             'activo' => $modulo->activo, 'orden' => $modulo->orden,
+                            'clase' => $modulo->clase(),
+                            'asigna_citas' => $modulo->asignaCitas(), 'acepta_retorno' => $modulo->aceptaRetorno(),
                             'accion' => route('modulos.actualizar', $modulo),
                         ];
                     @endphp
-                    <article class="tn-tarjeta md-modulo {{ $modulo->activo ? '' : 'is-inactivo' }} {{ $modulo->esDeExcepcion() ? 'is-excepcion' : '' }}">
+                    <article class="tn-tarjeta md-modulo {{ $modulo->activo ? '' : 'is-inactivo' }} {{ $modulo->esDeExcepcion() ? 'is-excepcion' : '' }} {{ $modulo->esDeApoyo() ? 'is-apoyo' : '' }}">
                         <header class="md-cabeza">
                             <div class="md-cabeza__fila">
                                 <div>
@@ -348,6 +376,14 @@
 
                             <div class="md-chips">
                                 @if (! $modulo->activo)<span class="md-chip md-chip--inactivo">Inactivo</span>@endif
+                                @if ($modulo->esDeApoyo())
+                                    <span class="md-chip md-chip--apoyo" title="No recibe citas nuevas; sí se le reasignan solicitudes y ratificaciones, sin que se encimen."> Módulo de apoyo</span>
+                                @elseif (! $modulo->asignaCitas())
+                                    <span class="md-chip md-chip--inactivo" title="Switch «Asignar en línea» apagado (edita el módulo)">Sin citas nuevas</span>
+                                @endif
+                                @if (! $modulo->aceptaRetorno())
+                                    <span class="md-chip md-chip--respaldo" title="Switch «Retornar» apagado (edita el módulo): no se le reasignan citas">Sin retornos</span>
+                                @endif
                                 @foreach ($modulo->tramites ?? [] as $t)
                                     @if ($t === \App\Support\AsignadorModulos::TRAMITE_EXCEPCION)
                                         <span class="md-chip md-chip--excepcion" title="Recibe los casos de excepción de {{ $modulo->delegacion }}"><i class="bi bi-shield-heart"></i> Casos de excepción</span>
@@ -364,7 +400,13 @@
                                 @endforeach
                             </div>
 
-                            @if ($enLineaMigrado)
+                            @if ($enLineaMigrado && ! $modulo->asignaCitas())
+                                <div class="md-linea is-programada">
+                                    <span class="md-linea__nota">
+                                        {{ $modulo->esDeApoyo() ? 'Módulo de apoyo: no' : 'No' }} se le asignan citas en línea ni internas{{ $modulo->aceptaRetorno() ? '; sólo las que se le reasignan' : '' }}.
+                                    </span>
+                                </div>
+                            @elseif ($enLineaMigrado)
                                 @php $pausa = $modulo->pausa(); @endphp
                                 {{-- Apagado: desde ese momento no se le asignan citas nuevas en línea (o tampoco de ventanilla). --}}
                                 <form method="POST" action="{{ route('modulos.en_linea', $modulo) }}"
@@ -440,6 +482,74 @@
                                         <button class="btn btn-sm btn-link p-0">Guardar</button>
                                     </noscript>
                                 </form>
+                            @endif
+
+                            @if ($bloqueosMigrado && $modulo->user_id)
+                                @php
+                                    $susBloqueos = $bloqueos->get((int) $modulo->user_id, collect());
+                                    $vistaBloqueada = $susBloqueos->contains(fn ($b) => $b->fecha->toDateString() === $fecha);
+                                @endphp
+                                {{-- Días bloqueados en el calendario de su persona: esos días no recibe citas
+                                     (en línea ni ventanilla) ni reasignaciones. App\Models\BloqueoCita. --}}
+                                <div class="md-linea md-bloqueos {{ $vistaBloqueada ? 'is-pausa' : ($susBloqueos->isNotEmpty() ? 'is-programada' : '') }}">
+                                    <div class="md-bloqueos__cab">
+                                        <span class="md-bloqueos__titulo"><i class="bi bi-calendar-x"></i> Días bloqueados</span>
+                                        <span class="md-linea__nota">
+                                            @if ($vistaBloqueada)
+                                                Este día está bloqueado: no recibe citas ni reasignaciones
+                                            @elseif ($susBloqueos->isEmpty())
+                                                Ninguno: recibe citas todos los días
+                                            @else
+                                                Esos días no recibe citas en línea ni de ventanilla, ni reasignaciones
+                                            @endif
+                                        </span>
+                                        <button type="button" class="btn btn-sm btn-link p-0 ms-auto md-bloqueos__abrir" data-bloq-abrir>
+                                            <i class="bi bi-plus-lg"></i> Bloquear días
+                                        </button>
+                                    </div>
+                                    @if ($susBloqueos->isNotEmpty())
+                                        <div class="md-bloqueos__dias">
+                                            @foreach ($susBloqueos as $b)
+                                                <form method="POST" action="{{ route('modulos.bloqueos.quitar', $modulo) }}" class="md-bloq {{ $b->fecha->toDateString() === $fecha ? 'is-hoy' : '' }}"
+                                                      title="{{ $b->motivo ? 'Motivo: '.$b->motivo : 'Sin motivo' }}">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <input type="hidden" name="fecha_vista" value="{{ $fecha }}">
+                                                    <input type="hidden" name="origen_vista" value="{{ $origen }}">
+                                                    <input type="hidden" name="fecha" value="{{ $b->fecha->toDateString() }}">
+                                                    <span>{{ \Illuminate\Support\Str::ucfirst($b->fecha->locale('es')->isoFormat('ddd D MMM')) }}@if ($b->motivo)<small> · {{ \Illuminate\Support\Str::limit($b->motivo, 22) }}</small>@endif</span>
+                                                    <button type="submit" aria-label="Desbloquear {{ $b->fecha->format('d/m/Y') }}" title="Desbloquear este día">&times;</button>
+                                                </form>
+                                            @endforeach
+                                            @if ($susBloqueos->count() > 1)
+                                                <form method="POST" action="{{ route('modulos.bloqueos.quitar', $modulo) }}" class="d-inline"
+                                                      data-confirmar="¿Quitar todos sus días bloqueados?"
+                                                      data-confirmar-texto="{{ $nombreBonito(optional($modulo->persona)->name ?? $modulo->nombre) }} volverá a recibir citas esos días."
+                                                      data-confirmar-boton="Sí, quitarlos">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <input type="hidden" name="fecha_vista" value="{{ $fecha }}">
+                                                    <input type="hidden" name="origen_vista" value="{{ $origen }}">
+                                                    <input type="hidden" name="todos" value="1">
+                                                    <button type="submit" class="btn btn-sm btn-link p-0 md-bloqueos__todos" data-bloq-todos>Quitar todos</button>
+                                                </form>
+                                            @endif
+                                        </div>
+                                    @endif
+                                    <form method="POST" action="{{ route('modulos.bloqueos.guardar', $modulo) }}" class="md-bloqueos__form" data-bloq-form hidden>
+                                        @csrf
+                                        <input type="hidden" name="fecha_vista" value="{{ $fecha }}">
+                                        <input type="hidden" name="origen_vista" value="{{ $origen }}">
+                                        <label>Desde <input type="date" class="form-control form-control-sm md-linea__fecha" name="bloqueo_desde" min="{{ $hoy }}" required data-bloq-desde></label>
+                                        <label>Hasta <input type="date" class="form-control form-control-sm md-linea__fecha" name="bloqueo_hasta" min="{{ $hoy }}" data-bloq-hasta></label>
+                                        <input type="text" class="form-control form-control-sm md-bloqueos__motivo" name="bloqueo_motivo" maxlength="120" placeholder="Motivo (vacaciones, permiso…)">
+                                        <div class="md-linea__acciones">
+                                            <button type="submit" class="btn btn-sm btn-dark" data-bloq-enviar>Bloquear</button>
+                                            <button type="button" class="btn btn-sm btn-link p-0" data-bloq-cancelar>Cancelar</button>
+                                        </div>
+                                        <span class="md-linea__nota">Sin "Hasta" se bloquea sólo ese día. Sábados y domingos no cuentan. Lo ya agendado esos días no se mueve solo.</span>
+                                    </form>
+                                </div>
                             @endif
 
                             @if ($modulo->esDeExcepcion() && \App\Models\Modulo::turnarMigrado())
@@ -526,9 +636,31 @@
                             <div class="md-clase">
                                 <label class="form-check m-0"><input class="form-check-input" type="radio" name="clase" value="normal" id="mdClaseNormal" checked> Normal (citas y turnos)</label>
                                 <label class="form-check m-0"><input class="form-check-input" type="radio" name="clase" value="excepcion" id="mdClaseExc"> <i class="bi bi-shield-heart" style="color:#7B5EA7"></i> Casos de excepción</label>
+                                @if ($apoyoMigrado)
+                                    <label class="form-check m-0"><input class="form-check-input" type="radio" name="clase" value="apoyo" id="mdClaseApoyo"> Módulo de apoyo</label>
+                                @endif
                             </div>
                             <div class="form-text" id="mdClaseAyuda" hidden>Recibe las citas de casos de excepción de {{ $sede }}, en línea y de ventanilla. Sólo lo puede atender quien tiene el rol de Conciliación, Género e Igualdad o el distintivo de Enlace de Género e Igualdad (Usuarios).</div>
+                            <div class="form-text" id="mdClaseAyudaApoyo" hidden>No se le asignan citas en línea ni internas, pero sí se le pueden reasignar las ya registradas, normales y de casos de excepción (aquí o en Turnos → Todos); un caso de excepción que se le pasa deja de serlo y queda como cita normal. Sólo recibe solicitudes (orientadores) y ratificaciones (auxiliares): como no empiezan a las mismas horas, sólo se le pasa una cita si no se encima con otra suya.</div>
                         </div>
+                        @if ($apoyoMigrado)
+                            <div class="col-12">
+                                <span class="form-label d-block">Asignación de citas</span>
+                                <div class="md-switches">
+                                    <div class="form-check form-switch m-0">
+                                        <input type="hidden" name="asigna_citas" value="0">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="mdAsigna" name="asigna_citas" value="1" checked>
+                                        <label class="form-check-label" for="mdAsigna" title="Se le asignan citas nuevas: del formulario en línea y las que se generan de manera interna">Asignar en línea</label>
+                                    </div>
+                                    <div class="form-check form-switch m-0">
+                                        <input type="hidden" name="acepta_retorno" value="0">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="mdRetorno" name="acepta_retorno" value="1" checked>
+                                        <label class="form-check-label" for="mdRetorno" title="Se le pueden reasignar citas ya registradas (Reasignar, Turnos → Todos)">Retornar</label>
+                                    </div>
+                                </div>
+                                <div class="form-text"><b>Asignar en línea:</b> le llegan citas nuevas, en línea e internas. <b>Retornar:</b> se le pueden reasignar citas ya registradas. Cada tipo de módulo trae los suyos.</div>
+                            </div>
+                        @endif
                         <div class="col-12">
                             <label class="form-label" for="mdPersona">Quién lo atiende</label>
                             <select class="form-select" id="mdPersona" name="user_id">
@@ -558,7 +690,7 @@
                         <div class="col-12 col-sm-6" data-solo-normal>
                             <span class="form-label d-block">Recibe</span>
                             @foreach ($tramites as $t)
-                                <div class="form-check">
+                                <div class="form-check" @unless (in_array($t, $tramitesApoyo, true)) data-no-apoyo @endunless>
                                     <input class="form-check-input md-tramite" type="checkbox" name="tramites[]" value="{{ $t }}" id="mdT{{ $loop->index }}">
                                     <label class="form-check-label" for="mdT{{ $loop->index }}">{{ $t }}</label>
                                 </div>
@@ -567,7 +699,7 @@
                         <div class="col-12 col-sm-6" data-solo-normal>
                             <span class="form-label d-block">De respaldo <i class="bi bi-info-circle text-muted" title="Sólo cuando ningún módulo que lo recibe de primera mano está libre"></i></span>
                             @foreach ($tramites as $t)
-                                <div class="form-check">
+                                <div class="form-check" @unless (in_array($t, $tramitesApoyo, true)) data-no-apoyo @endunless>
                                     <input class="form-check-input md-respaldo" type="checkbox" name="respaldo[]" value="{{ $t }}" id="mdR{{ $loop->index }}">
                                     <label class="form-check-label" for="mdR{{ $loop->index }}">{{ $t }}</label>
                                 </div>
@@ -606,6 +738,46 @@
 @endsection
 
 @section('scripts')
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        // Confirmaciones con SweetAlert (nunca el confirm del navegador): cualquier
+        // <form data-confirmar="Título" data-confirmar-texto data-confirmar-boton data-confirmar-cargando>.
+        // Va en captura: se detiene el envío antes que los demás scripts (loaders) y,
+        // si se acepta, se vuelve a enviar con requestSubmit para que ellos sí corran.
+        document.addEventListener('submit', function (e) {
+            var form = e.target;
+            if (!form.matches || !form.matches('[data-confirmar]') || form.dataset.confirmado) { return; }
+            e.preventDefault();
+            e.stopPropagation();
+            var submitter = e.submitter || null;
+            var seguir = function () {
+                form.dataset.confirmado = '1';
+                var boton = submitter || form.querySelector('button[type=submit]');
+                if (form.dataset.confirmarCargando && boton && !form.closest('.md-bloqueos')) {
+                    form.requestSubmit(boton);
+                    boton.disabled = true;
+                    boton.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> ' + form.dataset.confirmarCargando;
+                    return;
+                }
+                form.requestSubmit(boton);
+            };
+            if (typeof Swal === 'undefined') {
+                if (window.confirm(form.dataset.confirmar + (form.dataset.confirmarTexto ? '\n' + form.dataset.confirmarTexto : ''))) { seguir(); }
+                return;
+            }
+            Swal.fire({
+                icon: 'question',
+                title: form.dataset.confirmar,
+                text: form.dataset.confirmarTexto || '',
+                showCancelButton: true,
+                confirmButtonText: form.dataset.confirmarBoton || 'Sí, continuar',
+                cancelButtonText: 'Cancelar',
+                reverseButtons: true,
+                focusCancel: true,
+                confirmButtonColor: '#496163'
+            }).then(function (r) { if (r.isConfirmed) { seguir(); } });
+        }, true);
+    </script>
     <script>
         (function () {
             // Elegir otro día recarga.
@@ -617,16 +789,45 @@
             var form = document.getElementById('mdFormModulo');
             var urlCrear = form.getAttribute('action');
 
-            function ponerClase(esExc) {
-                var normal = document.getElementById('mdPersona'), exc = document.getElementById('mdPersonaExc');
-                normal.hidden = normal.disabled = esExc;
-                exc.hidden = exc.disabled = !esExc;
+            // Normal, casos de excepción o de apoyo: cambia qué se pide, a quién se puede
+            // elegir y los switches "Asignar en línea" / "Retornar" que trae cada tipo.
+            var SWITCHES = @json($switchesPorClase);
+            var swAsigna = document.getElementById('mdAsigna'), swRetorno = document.getElementById('mdRetorno');
+            // El de apoyo lo atienden orientadores y auxiliares: la misma lista que el normal.
+            var selects = { normal: 'mdPersona', excepcion: 'mdPersonaExc', apoyo: 'mdPersona' };
+            function ponerClase(clase) {
+                var esExc = clase === 'excepcion';
+                ['mdPersona', 'mdPersonaExc'].forEach(function (id) {
+                    var s = document.getElementById(id);
+                    s.hidden = s.disabled = id !== selects[clase];
+                });
                 document.getElementById('mdClaseAyuda').hidden = !esExc;
+                document.getElementById('mdClaseAyudaApoyo').hidden = clase !== 'apoyo';
                 form.querySelectorAll('[data-solo-normal]').forEach(function (d) { d.hidden = esExc; });
                 form.querySelectorAll('.md-tramite').forEach(function (c) { c.disabled = esExc; });
+                // Módulo de apoyo: sólo Solicitud y Ratificación.
+                form.querySelectorAll('[data-no-apoyo]').forEach(function (d) {
+                    var c = d.querySelector('input');
+                    d.hidden = clase === 'apoyo';
+                    if (clase === 'apoyo') { c.checked = false; }
+                    c.disabled = clase === 'apoyo' || (esExc && c.classList.contains('md-tramite'));
+                });
+                // Un módulo de apoyo no recibe citas nuevas: ese switch no se puede prender.
+                if (swAsigna) { swAsigna.disabled = clase === 'apoyo'; }
+            }
+            // Al elegir el tipo se ponen sus switches; al editar, los que tiene guardados.
+            function ponerSwitches(clase, asigna, retorno) {
+                if (!swAsigna) { return; }
+                var def = SWITCHES[clase] || SWITCHES.normal;
+                swAsigna.checked = clase === 'apoyo' ? false : (asigna === undefined ? def.asigna_citas : !!asigna);
+                swRetorno.checked = retorno === undefined ? def.acepta_retorno : !!retorno;
             }
             form.querySelectorAll('input[name="clase"]').forEach(function (r) {
-                r.addEventListener('change', function () { ponerClase(r.value === 'excepcion' && r.checked); });
+                r.addEventListener('change', function () {
+                    if (!r.checked) { return; }
+                    ponerClase(r.value);
+                    ponerSwitches(r.value);
+                });
             });
 
             modalModulo.addEventListener('show.bs.modal', function (e) {
@@ -639,11 +840,13 @@
                 document.getElementById('mdMetodo').value = m ? 'PUT' : 'POST';
                 document.getElementById('mdNombre').value = m ? m.nombre : '';
                 document.getElementById('mdOrden').value = m ? m.orden : '';
-                // Normal o de casos de excepción: cambia qué se pide y a quién se puede elegir.
-                var esExc = !!(m && m.tramites.indexOf('Excepción') !== -1);
-                document.getElementById(esExc ? 'mdClaseExc' : 'mdClaseNormal').checked = true;
-                ponerClase(esExc);
-                document.getElementById(esExc ? 'mdPersonaExc' : 'mdPersona').value = m && m.user_id ? String(m.user_id) : '';
+                var clase = m ? m.clase : 'normal';
+                var radio = form.querySelector('input[name="clase"][value="' + clase + '"]');
+                if (!radio) { clase = 'normal'; radio = document.getElementById('mdClaseNormal'); }
+                radio.checked = true;
+                ponerClase(clase);
+                ponerSwitches(clase, m ? m.asigna_citas : undefined, m ? m.acepta_retorno : undefined);
+                document.getElementById(selects[clase]).value = m && m.user_id ? String(m.user_id) : '';
                 document.getElementById('mdComida').value = m ? m.hora_comida : '';
                 document.getElementById('mdActivo').checked = m ? !!m.activo : true;
                 form.querySelectorAll('.md-tramite').forEach(function (c) { c.checked = !!(m && m.tramites.indexOf(c.value) !== -1); });
@@ -861,5 +1064,44 @@
                 });
             });
         })();
+    </script>
+    <script>
+        // "Días bloqueados" de cada tarjeta: abre el formulario y "Hasta" no puede ser antes de "Desde".
+        document.addEventListener('click', function (e) {
+            var abrir = e.target.closest('[data-bloq-abrir]');
+            var cancelar = e.target.closest('[data-bloq-cancelar]');
+            var caja = (abrir || cancelar) && (abrir || cancelar).closest('.md-bloqueos');
+            if (!caja) { return; }
+            var form = caja.querySelector('[data-bloq-form]');
+            form.hidden = !!cancelar;
+            if (abrir) { var d = form.querySelector('[data-bloq-desde]'); try { d.focus(); d.showPicker && d.showPicker(); } catch (err) {} }
+        });
+        document.addEventListener('change', function (e) {
+            if (!e.target.matches('[data-bloq-desde]')) { return; }
+            var hasta = e.target.closest('form').querySelector('[data-bloq-hasta]');
+            hasta.min = e.target.value || hasta.min;
+            if (hasta.value && hasta.value < e.target.value) { hasta.value = e.target.value; }
+        });
+        document.addEventListener('submit', function (e) {
+            var form = e.target;
+            // Bloquear / quitar: un solo envío. El botón queda con loader hasta que recarga la página.
+            if (!form.closest('.md-bloqueos')) { return; }
+            if (form.dataset.enviando) { e.preventDefault(); return; }
+            form.dataset.enviando = '1';
+            var boton = form.querySelector('[data-bloq-enviar], [data-bloq-todos], button[type=submit]');
+            if (boton) {
+                boton.disabled = true;
+                boton.setAttribute('aria-busy', 'true');
+                if (boton.hasAttribute('data-bloq-enviar')) {
+                    boton.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Bloqueando…';
+                } else if (boton.hasAttribute('data-bloq-todos')) {
+                    boton.textContent = 'Quitando…';
+                } else {
+                    boton.innerHTML = '<span class="spinner-border md-bloq__spin" role="status" aria-hidden="true"></span>';
+                }
+            }
+            var cancelar = form.querySelector('[data-bloq-cancelar]');
+            if (cancelar) { cancelar.disabled = true; }
+        });
     </script>
 @endsection

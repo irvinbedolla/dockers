@@ -62,6 +62,14 @@
         <footer>
             
         </footer>
+        @php
+            // Lo capturado en la audiencia (ComparecenciaSinFacultades); sin captura quedan los huecos.
+            $f = $formato ?? null;
+            $linea = '________________________________';
+            $momento = $f ? \Carbon\Carbon::parse($f->fecha_acta->format('Y-m-d').' '.$f->hora_acta) : \Carbon\Carbon::now();
+            $notificado = $f && $f->fecha_notificacion ? $f->fecha_notificacion : \Carbon\Carbon::parse($citado->fecha);
+            $horaNotificado = $f && $f->hora_notificacion ? substr($f->hora_notificacion, 0, 5) : '___';
+        @endphp
         <main>
             <div class="content">
                 <div class="table-responsive">
@@ -88,20 +96,30 @@
                 <p><center><b>CERTIFICACIÓN:</b></center></p><br>
 
                 <p>
-                    En la Ciudad de <b>{{ $solicitud->delegacion }}</b>, Michoacán, siendo las <b>{{ \Carbon\Carbon::now()->format('H:i') }}</b> horas, del día 
-                    <b>{{ \Carbon\Carbon::now()->translatedFormat('d \d\e F \d\e\l Y') }}</b>, fecha y hora señalada para la Audiencia de Conciliación dentro del 
+                    En la Ciudad de <b>{{ $solicitud->delegacion }}</b>, Michoacán, siendo las <b>{{ $momento->format('H:i') }}</b> horas, del día
+                    <b>{{ $momento->translatedFormat('d \d\e F \d\e\l Y') }}</b>, fecha y hora señalada para la Audiencia de Conciliación dentro del 
                     número único de registro citado al rubro; ante la fe pública de la persona Conciliadora de 
-                    nombre <b>{{$conciliador->name}}</b>, adscrita a la Delegación Regional <b>{{ $solicitud->delegacion }}</b> del Centro de Conciliación Laboral del Estado 
+                    nombre <b>{{ $conciliador->name ?? '' }}</b>, adscrita a la Delegación Regional <b>{{ $solicitud->delegacion }}</b> del Centro de Conciliación Laboral del Estado 
                     de Michoacán de Ocampo, en ejercicio de mis facultades establecidas en el artículo 684-E fracción IV de la Ley Federal del Trabajo y 20 fracción 
                     I, XIII y XVI del Reglamento Interior del Centro de Conciliación Laboral del Estado de Michoacán de Ocampo, hago constar la siguiente:
                 </p>
 
                 <p>
-                    Que comparece a la audiencia de Conciliación señalada para el día hoy, la <b>C. ________________________________ </b>, quien se identifica con credencial de 
-                    elector ___________________________ y  manifiesta ser representante legal de la parte citada <b>________________________________</b>; 
-                    sin exhibir documento alguno que acredite (o con documento insuficiente describir el documento y adjuntar copia en el expediente para constancia legal) la personería ostentada; 
+                    @if ($f)
+                        Que comparece a la audiencia de Conciliación señalada para el día hoy, la <b>C. {{ $f->compareciente }}</b>, quien se identifica con
+                        {{ mb_strtolower($f->tipo_identificacion) }} número <b>{{ $f->num_identificacion }}</b> y manifiesta ser representante legal de la parte citada <b>{{ $f->representa }}</b>;
+                        @if ($f->documento === 'insuficiente')
+                            exhibiendo documento insuficiente para acreditar la personería ostentada, consistente en <b>{{ $f->documento_descripcion }}</b>, del cual se adjunta copia en el expediente para constancia legal;
+                        @else
+                            sin exhibir documento alguno que acredite la personería ostentada;
+                        @endif
+                    @else
+                        Que comparece a la audiencia de Conciliación señalada para el día hoy, la <b>C. {{ $linea }} </b>, quien se identifica con credencial de
+                        elector ___________________________ y  manifiesta ser representante legal de la parte citada <b>{{ $linea }}</b>;
+                        sin exhibir documento alguno que acredite (o con documento insuficiente describir el documento y adjuntar copia en el expediente para constancia legal) la personería ostentada;
+                    @endif
                     por tanto, esta actuante se ve impedida a dar trámite a la presente audiencia; por lo que una vez cerciorado que la persona fue legalmente notificado el 
-                    día <b>{{ \Carbon\Carbon::parse($citado->fecha)->translatedFormat('d \d\e F \d\e\l Y') }}</b> a las <b>___</b>hrs por parte de personal notificador del Centro; se hace efectivo el apercibimiento decretado en el 
+                    día <b>{{ $notificado->translatedFormat('d \d\e F \d\e\l Y') }}</b> a las <b>{{ $horaNotificado }}</b> hrs por parte de personal notificador del Centro; se hace efectivo el apercibimiento decretado en el 
                     citatorio tener a las partes por inconformes de todo arreglo conciliatorio, emitiendo ACTA DE MULTA y la CONSTANCIA DE HABER AGOTADO LA CONCILIACIÓN, dejando 
                     a salvo los derechos de la parte solicitante, y para los efectos legales a que haya lugar.- Notifíquese  
                     <br><br>
@@ -112,7 +130,7 @@
                     Reglamento Interior del Centro de Conciliación Laboral del Estado de Michoacán de Ocampo. Doy fe.
                 </p>
                 <br><br><br>       
-                <center><br><br> <p><b>___________________________________<br>{{$conciliador->name}}<br>FUNCIONARIO/A CONCILIADOR/A</b></p></center>           
+                <center><br><br> <p><b>___________________________________<br>{{ $conciliador->name ?? '' }}<br>FUNCIONARIO/A CONCILIADOR/A</b></p></center>           
             </div>
             <script type="text/php">
                 if (isset($pdf)) {

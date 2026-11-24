@@ -116,8 +116,12 @@
             </div>
             <div class="d-flex flex-wrap gap-2">
             @if ($atiende)
+                {{-- Para quien llega SIN cita. Si ya tiene cita de excepción y no lo es, se usa
+                     Atender → "No es caso de excepción" en su renglón: crear otra cita deja ésta
+                     sin atender y la nueva sin los datos de la persona. --}}
                 @foreach (array_intersect(\App\Support\Recepcion::tramitesQuePuedeCrear(auth()->user()), \App\Support\CasosExcepcion::TRAMITES_TURNO) as $t)
-                    <a class="btn btn-primary btn-sm" href="{{ route('nueva_cita', ['tipo' => $t]) }}"><i class="bi bi-calendar-plus"></i> Turno de {{ mb_strtolower($t) }}</a>
+                    <a class="btn btn-primary btn-sm" href="{{ route('nueva_cita', ['tipo' => $t]) }}"
+                       data-bs-toggle="modal" data-bs-target="#cxTurnoNuevoModal" data-tramite="{{ mb_strtolower($t) }}"><i class="bi bi-calendar-plus"></i> Turno de {{ mb_strtolower($t) }}</a>
                 @endforeach
             @endif
             @if (\Illuminate\Support\Facades\Route::has('estadisticas.excepciones') && \App\Support\CasosExcepcion::estadisticas(auth()->user()))
@@ -341,10 +345,50 @@
     </section>
 @endsection
 
+{{-- Va en el stack "modals" del layout, fuera de .main-content, como en turnos.crear. --}}
+@push('modals')
+{{-- Aviso antes de "Turno de solicitud / ratificación": crea una cita NUEVA. Si la persona
+     ya tiene cita de excepción y no lo es, lo correcto es Atender → "No es caso de
+     excepción" (FormatoExcepcion::reclasificar), que pasa esa misma cita a un módulo. --}}
+<div class="modal fade" id="cxTurnoNuevoModal" tabindex="-1" aria-labelledby="cxTurnoNuevoTitulo" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header card-header-guinda py-3">
+                <h5 class="modal-title mb-0" id="cxTurnoNuevoTitulo"><i class="bi bi-exclamation-triangle me-2" aria-hidden="true"></i>Crear una cita nueva</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2">Esto crea una cita <b>nueva</b> de <span data-tramite></span>. Úsalo sólo si la persona <b>no tiene cita</b>.</p>
+                <div class="alert alert-primary" role="alert">
+                    
+                    <div>Si la persona <b>ya tiene una cita de caso de excepción</b> y no lo es, cierra este aviso, presiona
+                        <b>«Atender»</b> en su renglón y marca <b>«No es caso de excepción»</b>: su misma cita pasa al orientador con todos sus datos y no queda sin atender.</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <a href="#" class="btn btn-primary" data-continuar><i class="bi bi-calendar-plus me-1" aria-hidden="true"></i>Crear cita nueva</a>
+            </div>
+        </div>
+    </div>
+</div>
+@endpush
+
 @section('scripts')
     <script>
         document.querySelectorAll('#cxFiltros .cx-auto').forEach(function (s) {
             s.addEventListener('change', function () { s.form.submit(); });
         });
+
+        // Aviso de "Turno de …": el botón "Crear cita nueva" lleva a /turnos/nuevo con su trámite.
+        (function () {
+            var aviso = document.getElementById('cxTurnoNuevoModal');
+            if (!aviso) { return; }
+            aviso.addEventListener('show.bs.modal', function (e) {
+                var origen = e.relatedTarget;
+                aviso.querySelector('[data-tramite]').textContent = origen.dataset.tramite;
+                aviso.querySelector('[data-continuar]').href = origen.getAttribute('href');
+            });
+        })();
     </script>
 @endsection

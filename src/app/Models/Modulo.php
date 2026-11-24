@@ -19,6 +19,7 @@ class Modulo extends Model
         'delegacion', 'nombre', 'user_id', 'tramites', 'respaldo', 'hora_comida', 'activo', 'orden',
         'en_linea', 'pausa_ventanilla', 'en_linea_cambio_at', 'en_linea_cambio_por',
         'no_reasignar_desde', 'no_reasignar_por', 'no_reasignar_at',
+        'apoyo', 'asigna_citas', 'acepta_retorno',
     ];
 
     protected $casts = [
@@ -31,6 +32,9 @@ class Modulo extends Model
         'no_reasignar_desde' => 'date',
         'no_reasignar_at' => 'datetime',
         'en_linea_cambio_at' => 'datetime',
+        'apoyo' => 'boolean',
+        'asigna_citas' => 'boolean',
+        'acepta_retorno' => 'boolean',
     ];
 
     public function persona(): BelongsTo
@@ -63,9 +67,17 @@ class Modulo extends Model
         return ! ($this->pausa_ventanilla ?? false);
     }
 
-    /** ¿Recibe citas nuevas por este canal? 'linea', 'ventanilla' o null (cualquiera). */
-    public function recibePor(?string $canal): bool
+    /**
+     * ¿Recibe citas nuevas por este canal? 'linea', 'ventanilla' o null (cualquiera).
+     * $reasignacion: la cita ya existe y se mueve (reagenda): no cuenta el switch
+     * "Asignar en línea", sino "Retornar" (aceptaReasignacion).
+     */
+    public function recibePor(?string $canal, bool $reasignacion = false): bool
     {
+        if ($canal !== null && ! $reasignacion && ! $this->asignaCitas()) {
+            return false;
+        }
+
         return match ($canal) {
             'linea'      => $this->recibeEnLinea() && $this->recibeVentanilla(),
             'ventanilla' => $this->recibeVentanilla(),
@@ -86,13 +98,31 @@ class Modulo extends Model
      */
     public function aceptaReasignacion(?string $fecha = null): bool
     {
+        // Switch "Retornar" del formulario del módulo.
+        if (! $this->aceptaRetorno()) {
+            return false;
+        }
         if (! $this->recibeVentanilla()) {
+            return false;
+        }
+        // Día bloqueado en el calendario de su persona: tampoco se le mueven citas.
+        if ($this->bloqueadoEl($fecha ?? now()->toDateString())) {
             return false;
         }
         $desde = $this->no_reasignar_desde;
         $dia   = $fecha ? substr($fecha, 0, 10) : now()->toDateString();
 
         return ! ($desde && $dia >= $desde->toDateString());
+    }
+
+    /**
+     * ¿Su persona tiene ese día (Y-m-d) bloqueado en su calendario?
+     * (Administración → Módulos, "Días bloqueados"; App\Models\BloqueoCita.)
+     * Ese día no recibe citas en línea ni de ventanilla, ni reasignaciones.
+     */
+    public function bloqueadoEl(string $fecha): bool
+    {
+        return BloqueoCita::bloqueado($this->user_id ? (int) $this->user_id : null, $fecha);
     }
 
     /** null (acepta), 'vigente' (ya no acepta) o 'programado' (desde una fecha que no llega). */
@@ -117,6 +147,9 @@ class Modulo extends Model
     /** "Acepta reasignaciones", "Sin reasignaciones a partir del lunes 20 de noviembre de 2026 · Ana Pérez"… */
     public function notaReasignacion(): string
     {
+        if (! $this->aceptaRetorno()) {
+            return 'No se le reasignan citas: tiene apagado «Retornar» (edita el módulo)';
+        }
         if ($this->pausa() === 'todas') {
             return 'Tampoco se le reasigna: tiene la pausa total de citas';
         }
@@ -242,4 +275,53 @@ class Modulo extends Model
 
         return $hay ??= Schema::hasColumn('modulos', 'puede_turnar');
     }
+
+    /**
+     * ¿Es un módulo de apoyo? No se le asignan citas nuevas, pero se le pueden
+     * reasignar las ya registradas. Sólo solicitudes (orientadores) y
+     * ratificaciones (auxiliares); como no empiezan a las mismas horas, al
+     * moverle una cita se revisa que no se encime con otra suya
+     * (AsignadorModulos::choqueApoyo).
+     */
+    public function esDeApoyo(): bool
+    {
+        return (bool) ($this->apoyo ?? false);
+    }
+
+    /** 'normal', 'excepcion' o 'apoyo' (el "Tipo de módulo" del formulario). */
+    public function clase(): string
+    {
+        return $this->esDeExcepcion() ? 'excepcion' : ($this->esDeApoyo() ? 'apoyo' : 'normal');
+    }
+
+    /**
+     * Switch "Asignar en línea": ¿se le asignan citas nuevas, del formulario
+     * público o generadas de manera interna (ventanilla)? Sin la columna
+     * (migración pendiente), sí, como antes.
+     */
+    public function asignaCitas(): bool
+    {
+        return (bool) ($this->asigna_citas ?? true);
+    }
+
+    /** Switch "Retornar": ¿se le pueden reasignar citas que ya existen? */
+    public function aceptaRetorno(): bool
+    {
+        return (bool) ($this->acepta_retorno ?? true);
+    }
+
+    /** ¿Ya corrió la migración de módulos de apoyo (y sus switches)? */
+    public static function apoyoMigrado(): bool
+    {
+        static $hay = null;
+
+        return $hay ??= Schema::hasColumn('modulos', 'acepta_retorno');
+    }
+
+    /** Los switches que trae cada tipo de módulo al elegirlo en el formulario. */
+    public const SWITCHES_POR_CLASE = [
+        'normal'    => ['asigna_citas' => true,  'acepta_retorno' => true],
+        'excepcion' => ['asigna_citas' => true,  'acepta_retorno' => false],
+        'apoyo'     => ['asigna_citas' => false, 'acepta_retorno' => true],
+    ];
 }

@@ -81,6 +81,12 @@
                                     </div>
                                 @endif
 
+                                {{-- Cita patronal: persona trabajadora a citar ya puesta (App\Support\CitaPatronal). --}}
+                                @include('solicitudes.auxiliares._prellenado_patronal', [
+                                    'clave' => 'citado',
+                                    'form'  => 'form_concluir',
+                                    'texto' => 'La persona a citar y la descripción vienen de la cita: confírmalas y completa domicilio y datos laborales.',
+                                ])
                                 <form class="needs-validation" novalidate id="form_concluir" method="POST" action="{{route('seer.citadosAuxP', ['id' => $id])}}" enctype="multipart/form-data">
                                     @csrf
                                     <input type="hidden" name="id" value="{{ $id }}">

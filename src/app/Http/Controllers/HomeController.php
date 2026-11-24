@@ -250,8 +250,9 @@ class HomeController extends Controller
             return back()->withInput()->with('error', 'Es necesario seleccionar la fecha y el horario del turno en el calendario.');
         }
         
-        // CURP y domicilio del flujo nuevo (sólo si el formulario los pidió).
-        [$camposFlujo, $errorFlujo] = \App\Support\FlujoCita::camposDeCita($request);
+        // Quien agenda (trabajador o empleador, con o sin folio), su CURP y
+        // domicilio y la persona trabajadora (App\Support\CitaPatronal).
+        [$camposFlujo, $errorFlujo] = \App\Support\CitaPatronal::camposDelFormulario($request);
         if ($errorFlujo) {
             return back()->withInput()->with('error', $errorFlujo);
         }
@@ -259,7 +260,12 @@ class HomeController extends Controller
         $data = $request->all();
         $sede = $data["delegacion"];
         $tipo = $data["tipo"];
-        $excepcion = $data["excepcion"] ?? "No";
+        $sinDatosPersonales = \App\Support\CitaPatronal::sinDatosPersonales($request);
+        // Casos de excepción: el formulario público ya no lo pregunta (se usaba
+        // mal). Sólo recepción canaliza a excepción desde /turnos/nuevo, así que
+        // aquí se ignora lo que llegue en el POST.
+        $excepcion = "No";
+        $data["excepcion"] = "No";
         $fecha_turno = $data["fecha_turno"];
         $hora_turno = $data["hora_turno"];
         $todas_direcciones = [
@@ -341,26 +347,28 @@ class HomeController extends Controller
 
         $data_insertar= array(
             'consecutivo'   => $numero_consecutivo,
-            'solicitante'   => $data["nombre"],
+            'solicitante'   => $camposFlujo['solicitante'] ?? ($data["nombre"] ?? null),
             'auxiliar'      => $id_aux,
             'lugar_auxiliar'=> $modulo,
             'modulo_id'     => $modulo_id,
             'origen'        => 'linea',
             'tipo'          => $tipo,
-            'tipo_caso'     => $data["tipo_caso"],
+            'tipo_caso'     => 'Ninguno',
             'fecha'         => $fecha_turno,
             'hora'          => $hora_turno,
             'hora_fin'      => $hora_fin,
             'delegacion'    => $sede,
             'estatus'       => "pendiente",
             'exepcion'      => $excepcion,
-            'edad'          => $data["edad"],
-            'sexo'          => $data["sexo"],
-            'vulnerables'   => $data["vulnerables"],
+            // Ratificación del empleador: sin edad, sexo ni grupo prioritario;
+            // en cualquier ratificación, sin "Tu caso" (CitaPatronal::sinDatosPersonales).
+            'edad'          => $sinDatosPersonales ? null : ($data["edad"] ?? null),
+            'sexo'          => $sinDatosPersonales ? null : ($data["sexo"] ?? null),
+            'vulnerables'   => $sinDatosPersonales ? 'No aplica' : ($data["vulnerables"] ?? 'No aplica'),
             'municipio'     => $data["municipio_citado"],
             'correo'        => $data["email"],
             'telefono'      => $data["telefono"],
-            'observaciones' => $data["conflicto"]
+            'observaciones' => $tipo === 'Ratificación' ? null : ($data["conflicto"] ?? null)
         ) + $camposFlujo;
 
         // Desde qué conexión y navegador se agendó (estadísticas y límite de citas).
@@ -371,7 +379,7 @@ class HomeController extends Controller
     
             // Motivo exacto del caso de excepción (CasosExcepcion::MOTIVOS).
             if (\App\Support\CasosExcepcion::conMotivo()) {
-                $data_insertar['motivo_excepcion'] = \App\Support\CasosExcepcion::motivoValido($data['motivo_excepcion'] ?? null);
+                $data_insertar['motivo_excepcion'] = null;
             }
             // En transacción: si el INSERT falla, también se deshace el folio
             // que se apartó en folios_citas y no quedan números saltados.
@@ -390,7 +398,14 @@ class HomeController extends Controller
             return redirect()->route('citas')->with('errorr', 'No se ha podido completar tu cita.'); 
         }
 
-        return view('turnos_exito');
+        // Solicitud patronal (empleador con folio): la misma lista de "qué llevar"
+        // que el correo, que agrega domicilio y datos laborales de la persona citada.
+        $cita = session('id') ? \App\Models\Recepcion::find(session('id')) : null;
+        $queLlevarPatronal = $cita && $cita->tipo === 'Solicitud' && \App\Support\CitaPatronal::esPatronal($cita)
+            ? \App\Support\CitaCorreo::queLlevar($cita)
+            : null;
+
+        return view('turnos_exito', compact('queLlevarPatronal'));
     }
 
     // password_cambiar() y contraseña_update() vivían aquí. Los reemplaza

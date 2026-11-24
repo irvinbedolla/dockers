@@ -305,6 +305,7 @@
                 </div>
                 <div class="modal-body">
                     <input type="hidden" id="sedeReagendar" value="{{ $sede ?? '' }}">
+                    <div id="leyendaReagendar"></div>
                     <div id="calendarReagendar"></div>
                     <input type="hidden" name="fecha" id="fechaSeleccionada">
                     <input type="hidden" name="hora" id="horaSeleccionada">
@@ -1461,6 +1462,7 @@
         </!script-->
         
 
+    <script src="{{ asset('assets/js/audiencias/calendario_empalme.js') }}"></script>
     <script>
         let calendarReagendar;
         $('#ModalReagendar').on('shown.bs.modal', function () {
@@ -1580,6 +1582,8 @@
                         });
                     },
                     eventTimeFormat: { hour: '2-digit', minute: '2-digit' },
+                    // Cada horario dice si hay empalme o no (calendario_empalme.js).
+                    eventContent: CalendarioEmpalme.contenido,
                     eventClick: function(info) {
                         const slot = new Date(info.event.start);
                         const estadoClick = info.event.extendedProps && info.event.extendedProps.estado ? info.event.extendedProps.estado : null;
@@ -1641,11 +1645,9 @@
                             });
                         }
                     },
-                    eventDidMount: function(info){
-                        const estado = info.event.extendedProps.estado;
-                        if(estado){ info.el.classList.add('fc-est-'+estado); info.el.classList.add('fc-event-'+estado); }
-                    }
+                    eventDidMount: CalendarioEmpalme.montar
                 });
+                CalendarioEmpalme.leyenda(document.getElementById('leyendaReagendar'));
                 calendarReagendar.render();
                 setTimeout(function(){ if (calendarReagendar) { calendarReagendar.updateSize(); calendarReagendar.refetchEvents(); } }, 200);
             })();

@@ -48,6 +48,7 @@ class BitacoraIncidencias
         'retroceso'                 => 'Retroceso',
         'edicion_ratificacion'      => 'Edición de ratificación',
         'cambio_fecha_audiencia'    => 'Cambio de fecha de audiencia',
+        CambioFinalizacionAudiencia::TIPO => 'Cambio de finalización de audiencia',
         'cambio_fecha_cumplimiento' => 'Cambio de fecha de cumplimiento',
         'borrar_cumplimiento'       => 'Cumplimiento borrado',
         'marcar_incidencia'         => 'Marcado como incidencia',
@@ -70,10 +71,10 @@ class BitacoraIncidencias
         );
 
         $bitacora = DB::table('historial_administracion')
-            ->whereIn('tipo', ['cambio_fecha_audiencia', 'cambio_fecha_cumplimiento', 'borrar_cumplimiento', 'marcar_incidencia', 'desmarcar_incidencia'])
+            ->whereIn('tipo', ['cambio_fecha_audiencia', 'cambio_fecha_cumplimiento', 'borrar_cumplimiento', 'marcar_incidencia', 'desmarcar_incidencia', CambioFinalizacionAudiencia::TIPO])
             ->selectRaw(
                 "'bitacora', id,
-                 CASE WHEN tipo = 'cambio_fecha_audiencia' THEN 'audiencia'
+                 CASE WHEN tipo IN ('cambio_fecha_audiencia', '".CambioFinalizacionAudiencia::TIPO."') THEN 'audiencia'
                       WHEN tipo IN ('cambio_fecha_cumplimiento', 'borrar_cumplimiento') THEN 'cumplimiento'
                       WHEN tabla = 'turnos' THEN 'ratificacion'
                       ELSE 'solicitud' END,

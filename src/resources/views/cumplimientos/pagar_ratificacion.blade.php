@@ -51,7 +51,11 @@
                                                         <span class="badge bg-warning text-dark rounded-pill px-3 py-2">Pendiente</span>
                                                     @elseif($pago->estatus == 'No pagado')
                                                         <span class="badge bg-danger rounded-pill px-3 py-2">No Cumplimiento</span>
-                                    
+                                                    @elseif($pago->estatus == 'Pagado con pena convencional')
+                                                        <span class="badge bg-success rounded-pill px-3 py-2">Cumplimiento con pena convencional</span>
+                                                        @if(!is_null($pago->monto_pc))
+                                                            <div class="small text-muted mt-1">Pena: ${{ number_format($pago->monto_pc, 2) }}</div>
+                                                        @endif
                                                     @else
                                                         <span class="badge bg-danger rounded-pill px-3 py-2">{{ $pago->estatus }}</span>
                                                     @endif
@@ -93,7 +97,14 @@
                                                                 </form>
                                                             @endcan
                                                         </div>
-                                                        
+
+                                                    @endif
+                                                    @if($pago->estatus == "No pagado")
+                                                        @can('cumplimientos_generar_cumplimiento')
+                                                            <button type="button" class="btn btn-warning btn-sm text-white open-modal-pena" data-bs-toggle="modal" data-bs-target="#penaModal" data-id="{{ $pago->id }}">
+                                                                <i class="bi bi-cash-stack me-1"></i> Pagar con pena convencional
+                                                            </button>
+                                                        @endcan
                                                     @endif
                                                 </td>
                                                 <td class="text-center">
@@ -110,6 +121,10 @@
                                                                     </a>
                                                                 @endif
                                                             @endif
+                                                        @elseif($pago->estatus == "Pagado con pena convencional")
+                                                            <a class="btn btn-success btn-sm px-3 shadow-sm" href="{{ $total == 1 ? route('PDFcumplimientoR', $pago->id_solicitud) : route('PDFpagos', $pago->id) }}" target="_blank">
+                                                                <i class="bi bi-file-earmark-pdf me-1"></i> Parcialidad {{ $index + 1 }}
+                                                            </a>
                                                         @elseif($pago->estatus == "No pagado")
                                                             <a class="btn btn-info btn-sm text-white px-3 shadow-sm" href="{{ route('PDFincumplimientoRatificacion', $pago->id) }}" target="_blank">
                                                                 <i class="bi bi-file-earmark-pdf me-1"></i> Parcialidad {{ $index + 1 }}
@@ -231,6 +246,37 @@ Dicha cantidad corresponde al cumplimiento (total o parcial, según corresponda)
             </div>
         </form>
     </div>
+
+    <!-- Modal Pagar con pena convencional -->
+    <div class="modal fade" id="penaModal" tabindex="-1" aria-labelledby="penaModalLabel" aria-hidden="true">
+        <form id="formPenaModal" class="needs-validation" novalidate method="POST" action="{{ route('ratificacion_pago_pena') }}">
+            @csrf
+            <input type="hidden" id="pena-modal-id" name="id" value="">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-0 shadow-lg">
+                    <div class="modal-header text-white" style="background-color: #354647;">
+                        <h5 class="modal-title fw-bold text-white mb-0" id="penaModalLabel">Pagar con pena convencional</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    </div>
+                    <div class="modal-body p-3">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Monto de pena convencional</label>
+                            <input type="number" step="0.01" min="0" name="monto_pc" class="form-control" required>
+                            <div class="invalid-feedback">Ingrese el monto de la pena convencional.</div>
+                        </div>
+                        <div class="mb-0">
+                            <label class="form-label fw-semibold">Observaciones / Descripción</label>
+                            <textarea name="observaciones" class="form-control" rows="8" placeholder="Escriba aquí los detalles..."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-light border-0">
+                        <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Cerrar</button>
+                        <button type="submit" class="btn btn-primary px-4" style="background-color: #CEA845; border-color: #CEA845; color: #ffffff !important;">Guardar</button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
 @endsection
 
 @section('scripts')
@@ -287,6 +333,11 @@ Dicha cantidad corresponde al cumplimiento (total o parcial, según corresponda)
                     form.action = "{{ route('ratificacion_pagoA') }}";
                     titulo.innerText = "Descripción de Cumplimiento Parcial";
                 }
+            });
+
+            // Pagar con pena convencional: pasa el id del pago al modal
+            $(document).on('click', '.open-modal-pena', function() {
+                document.getElementById('pena-modal-id').value = $(this).data('id');
             });
 
             let datosTemporales = {};

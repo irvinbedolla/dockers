@@ -1,4 +1,4 @@
-{{-- Una sede de la agenda del conciliador. $i (índice o "__I__" en la plantilla), $f (sede, modalidad, dias, inicio, fin, sala). --}}
+{{-- Una sede de la agenda del conciliador. $i (índice o "__I__" en la plantilla), $f (sede, modalidad, dias, inicio, fin, sala, desde, hasta). --}}
 @php
     use App\Support\SedesConciliador as SC;
     $f = (array) $f;
@@ -49,6 +49,21 @@
             <label for="cn-{{ $i }}-sala">Sala</label>
             <input type="text" class="form-control form-control-sm" id="cn-{{ $i }}-sala" name="sedes[{{ $i }}][sala]" value="{{ $f['sala'] ?? '' }}" maxlength="40" data-campo="sala"
                    placeholder="{{ ($f['sede'] ?? '') && ($f['sede'] ?? '') !== $conciliador->delegacion ? SC::SALA_FUERA : 'La de siempre' }}">
+        </div>
+        {{-- Vigencia: para coberturas ("desde el 9 de diciembre atiende Zitácuaro"). Vacías = siempre. --}}
+        <div class="cn-vigencia">
+            <span class="cn-vigencia__titulo"><i class="bi bi-calendar-range"></i> Vigencia <small>(opcional)</small></span>
+            <label for="cn-{{ $i }}-desde">Desde</label>
+            <input type="date" class="form-control form-control-sm" id="cn-{{ $i }}-desde" name="sedes[{{ $i }}][desde]" value="{{ $f['desde'] ?? '' }}">
+            <label for="cn-{{ $i }}-hasta">Hasta</label>
+            <input type="date" class="form-control form-control-sm" id="cn-{{ $i }}-hasta" name="sedes[{{ $i }}][hasta]" value="{{ $f['hasta'] ?? '' }}">
+            <input type="hidden" name="sedes[{{ $i }}][exclusiva]" value="0">
+            <input type="checkbox" class="btn-check" value="1" id="cn-{{ $i }}-exclusiva" name="sedes[{{ $i }}][exclusiva]" autocomplete="off" @checked(! empty($f['exclusiva']))>
+            <label class="btn cn-exclusiva" for="cn-{{ $i }}-exclusiva" title="Mientras esté vigente, sólo quien la tenga exclusiva recibe audiencias nuevas de esta sede">
+                <i class="bi bi-unlock cn-exclusiva__no"></i><i class="bi bi-lock-fill cn-exclusiva__si"></i> Exclusiva
+            </label>
+            <span class="cn-sub">Sin fechas, atiende esta sede siempre. Con "Desde", el reparto le da audiencias de esta sede a partir de ese día; con "Hasta", deja de dárselas después.
+                <b>Exclusiva:</b> mientras esté vigente, sólo quien la tenga exclusiva recibe audiencias nuevas de esta sede; los demás conciliadores que la atienden dejan de recibirlas.</span>
         </div>
     </div>
 </div>
