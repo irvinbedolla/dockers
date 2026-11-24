@@ -506,7 +506,9 @@ class RevisionAudiencia
 
         $obs = [];
         if (LlegadasHoy::conObservaciones()) {
+            // Las de la recepción (el conciliador ve las suyas en Llegadas hoy).
             $o = DB::table(LlegadasHoy::TABLA_OBS)->where('tipo', 'audiencia')->where('registro_id', $audiencia->id)
+                ->when(LlegadasHoy::conAutor(), fn ($q) => $q->where('autor', 'recepcion'))
                 ->whereBetween('updated_at', LlegadasHoy::dia(now()->toDateString()))->first();
             if ($o) {
                 foreach (LlegadasHoy::OBSERVACIONES as $campo => $texto) {
