@@ -294,6 +294,23 @@ class HomeController extends Controller
 
             return back()->withInput()->with('error', $bloqueo['mensaje']);
         }
+        // Tope por nombre: máximo 3 citas en línea del mismo solicitante en la
+        // semana (lunes a domingo) en la que cae la cita que se quiere agendar.
+        $nombreSolicitante = $camposFlujo['solicitante'] ?? ($data['nombre'] ?? null );
+        if($nombreSolicitante){
+            $nombreNormalizado = mb_strtoupper(preg_replace('/\s+/', ' ', trim($nombreSolicitante)));
+            $diaCita = Carbon::parse($fecha_turno);
+            $citasSemana = Recepcion::whereRaw('UPPER(TRIM(solicitante)) = ?', [$nombreNormalizado])
+            ->where('origen', 'linea')
+            ->whereBetween('fecha', [
+                $diaCita->copy()->startOfWeek(Carbon::MONDAY)->toDateString(),
+                $diaCita->copy()->endOfWeek(Carbon::SUNDAY)->toDateString(),
+            ])
+            ->count();
+            if ($citasSemana >= 3) {
+                return back()->withInput()->with('error', 'No se ha podido completar tu cita. Este nombre ya tiene 3 citas registradas en esa semana.');
+            }
+        }
 
         //El horario seleccionado en el calendario ya no debe estar ocupado ni caer en un día/horario inhábil
         if (!(new RecepcionController())->turnoSlotDisponible($sede, $tipo, $fecha_turno, $hora_turno, $excepcion, true)) {
