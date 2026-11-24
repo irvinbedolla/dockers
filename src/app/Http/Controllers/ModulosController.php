@@ -440,27 +440,33 @@ class ModulosController extends Controller
     }
 
     /**
-     * Tope de citas en línea por conexión (IP), correo y teléfono, para todas
-     * las sedes (App\Support\LimiteCitas). 0 = sin límite.
+     * Tope de citas en línea por conexión (IP), correo, teléfono y nombre,
+     * cada uno con su periodo, y las listas blanca y negra de correos, para
+     * todas las sedes (App\Support\LimiteCitas). 0 = sin límite.
      */
     public function limite(Request $request)
     {
-        abort_unless(LimiteCitas::migrado(), 404);
+        abort_unless(LimiteCitas::porCriterio(), 404);
 
         $numero = ['required', 'integer', 'min:0', 'max:'.LimiteCitas::MAXIMO];
-        $datos = $request->validate([
-            'por_ip'       => $numero,
-            'por_correo'   => $numero,
-            'por_telefono' => $numero,
-            'periodo'      => ['required', Rule::in(array_keys(LimiteCitas::PERIODOS))],
+        $periodo = ['required', Rule::in(array_keys(LimiteCitas::PERIODOS))];
+        $reglas = [
             'exentas'      => ['nullable', 'string', 'max:2000'],
-        ], [], [
-            'por_ip'       => 'límite por conexión (IP)',
-            'por_correo'   => 'límite por correo',
-            'por_telefono' => 'límite por teléfono',
-            'periodo'      => 'periodo',
+            'lista_blanca' => ['nullable', 'string', 'max:5000'],
+            'lista_negra'  => ['nullable', 'string', 'max:5000'],
+        ];
+        $nombres = [
             'exentas'      => 'conexiones sin límite',
-        ]);
+            'lista_blanca' => 'lista blanca',
+            'lista_negra'  => 'lista negra',
+        ];
+        foreach (LimiteCitas::CRITERIOS as [$col, $colPeriodo, $etiqueta]) {
+            $reglas[$col] = $numero;
+            $reglas[$colPeriodo] = $periodo;
+            $nombres[$col] = 'límite por '.mb_strtolower($etiqueta);
+            $nombres[$colPeriodo] = 'periodo por '.mb_strtolower($etiqueta);
+        }
+        $datos = $request->validate($reglas, [], $nombres);
 
         $escritas = preg_split('/[\s,;]+/', trim((string) ($datos['exentas'] ?? '')), -1, PREG_SPLIT_NO_EMPTY);
         $invalidas = array_values(array_diff($escritas, LimiteCitas::listaExentas((string) ($datos['exentas'] ?? ''))));
@@ -468,14 +474,32 @@ class ModulosController extends Controller
             return back()->withInput()->withErrors(['exentas' => 'Estas no son direcciones IP válidas: '.implode(', ', $invalidas).'.']);
         }
 
+        $listas = [];
+        foreach (['lista_blanca', 'lista_negra'] as $campo) {
+            $escritos = LimiteCitas::partesLista((string) ($datos[$campo] ?? ''));
+            $malos = array_values(array_filter($escritos, fn ($v) => ! LimiteCitas::correoValidoLista($v)));
+            if ($malos) {
+                return back()->withInput()->withErrors([$campo => 'Estos no son correos ni dominios válidos: '.implode(', ', $malos).'. Escribe el correo completo o @dominio.com.']);
+            }
+            $listas[$campo] = LimiteCitas::listaCorreos((string) ($datos[$campo] ?? ''));
+        }
+        if ($enAmbas = array_values(array_intersect($listas['lista_blanca'], $listas['lista_negra']))) {
+            return back()->withInput()->withErrors(['lista_negra' => 'Estos correos están en las dos listas: '.implode(', ', $enAmbas).'. Déjalos sólo en una.']);
+        }
+
         $antes = LimiteCitas::config();
         LimiteCitas::guardar($datos, $request->user());
         $ahora = LimiteCitas::config();
 
+        $foto = fn ($c) => [
+            'reglas'       => LimiteCitas::resumen($c),
+            'lista_blanca' => count(LimiteCitas::listaCorreos($c->lista_blanca)),
+            'lista_negra'  => count(LimiteCitas::listaCorreos($c->lista_negra)),
+        ];
         Log::info('Límite de citas en línea actualizado', [
             'por'   => $request->user()->id,
-            'antes' => [$antes->por_ip, $antes->por_correo, $antes->por_telefono, $antes->periodo],
-            'ahora' => [$ahora->por_ip, $ahora->por_correo, $ahora->por_telefono, $ahora->periodo],
+            'antes' => $foto($antes),
+            'ahora' => $foto($ahora),
         ]);
 
         return redirect()->route('modulos.index', array_filter([

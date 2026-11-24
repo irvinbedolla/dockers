@@ -9,11 +9,7 @@
     use App\Support\LimiteCitas;
     $pctAg = fn ($v) => $v === null ? '—' : rtrim(rtrim(number_format($v, 1), '0'), '.').'%';
     $limiteAg = $ag['limite'];
-    $reglasAg = array_filter([
-        $limiteAg->por_ip ? $limiteAg->por_ip.' por IP' : null,
-        $limiteAg->por_correo ? $limiteAg->por_correo.' por correo' : null,
-        $limiteAg->por_telefono ? $limiteAg->por_telefono.' por teléfono' : null,
-    ]);
+    $reglasAg = LimiteCitas::resumen($limiteAg);
     $tablas = [
         ['porIp', 'masIps', 'Por conexión (IP)', 'IP', 'Personas distintas que agendaron desde la misma conexión a internet.'],
         ['porCorreo', 'masCorreos', 'Por correo', 'Correo', 'Un mismo correo con citas de varias personas suele ser de quien agenda por otros.'],
@@ -184,8 +180,8 @@
     @if ($ag['migrado'])
         <h5 class="et-titulo mt-4 mb-1" style="font-size:14.5px">Intentos detenidos por el límite</h5>
         <p class="et-sub mb-2">
-            Citas que no se registraron porque la conexión, el correo o el teléfono ya tenía el máximo
-            ({{ $reglasAg ? implode(', ', $reglasAg).' '.LimiteCitas::PERIODOS[$limiteAg->periodo] : 'hoy no hay límite activo' }}; se cambia en Administración → Módulos).
+            Citas que no se registraron porque la conexión, el correo, el teléfono o el nombre ya tenía el máximo, o el correo estaba en la lista negra
+            ({{ $reglasAg ? implode(', ', $reglasAg) : 'hoy no hay límite activo' }}; se cambia en Administración → Módulos).
             Por la fecha que pedían.
         </p>
         @if (empty($ag['bloqueos']['lista']))

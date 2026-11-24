@@ -1,22 +1,26 @@
 {{--
-    Administración → Módulos: tope de citas en línea por conexión (IP), correo
-    y teléfono (App\Support\LimiteCitas), para que una sola oficina no acapare
-    los turnos. Aplica a todas las sedes. Espera $limite, $limiteHoy, $sede,
-    $fecha y $origen.
+    Administración → Módulos: tope de citas en línea por conexión (IP), correo,
+    teléfono y nombre completo, cada uno con su periodo, y listas blanca y
+    negra de correos (App\Support\LimiteCitas), para que una sola oficina no
+    acapare los turnos. Aplica a todas las sedes. Espera $limite, $limiteHoy,
+    $sede, $fecha y $origen.
 --}}
 @php
     use App\Support\LimiteCitas;
     $migradoLimite = LimiteCitas::migrado();
+    $porCriterio   = LimiteCitas::porCriterio();
     $activoLimite  = $migradoLimite && LimiteCitas::activo($limite);
     $exentas       = LimiteCitas::listaExentas((string) $limite->exentas);
-    $regla = function (int $n, string $que) use ($limite) {
-        return $n > 0 ? $n.' '.($n === 1 ? 'cita' : 'citas').' por '.$que : null;
-    };
-    $reglas = array_filter([
-        $regla((int) $limite->por_ip, 'conexión (IP)'),
-        $regla((int) $limite->por_correo, 'correo'),
-        $regla((int) $limite->por_telefono, 'teléfono'),
-    ]);
+    $listaBlanca   = LimiteCitas::listaCorreos((string) $limite->lista_blanca);
+    $listaNegra    = LimiteCitas::listaCorreos((string) $limite->lista_negra);
+    $reglas        = LimiteCitas::resumen($limite);
+    $ayudaCriterio = [
+        'ip'       => 'Misma conexión a internet.',
+        'correo'   => 'Mismo correo electrónico.',
+        'telefono' => 'Mismo número (sólo dígitos).',
+        'nombre'   => 'Nombre con apellidos de quien agenda.',
+    ];
+    $camposLimite = array_merge(['exentas', 'lista_blanca', 'lista_negra'], ...array_map(fn ($c) => [$c[0], $c[1]], array_values(LimiteCitas::CRITERIOS)));
 @endphp
 
 <div class="tn-tarjeta md-limite mb-3" id="limiteCitas">
@@ -24,7 +28,7 @@
         <div>
             <h5 class="md-limite__titulo">
                 <i class="bi bi-shield-check" aria-hidden="true"></i> Límite de citas en línea
-                @if (! $migradoLimite)
+                @if (! $porCriterio)
                     <span class="md-chip md-chip--inactivo">Falta la migración</span>
                 @elseif ($activoLimite)
                     <span class="md-chip">Activo</span>
@@ -33,10 +37,10 @@
                 @endif
             </h5>
             <p class="md-limite__texto mb-0">
-                @if (! $migradoLimite)
-                    Corre <code>php artisan migrate</code> para empezar a guardar desde qué conexión se agenda y poder poner un tope.
-                @elseif ($activoLimite)
-                    Máximo {{ implode(' · ', $reglas) }} <b>{{ LimiteCitas::PERIODOS[$limite->periodo] }}</b>, en todas las sedes.
+                @if (! $porCriterio)
+                    Corre <code>php artisan migrate</code> para poder poner un tope por conexión, correo, teléfono y nombre, cada uno con su periodo, y las listas de correos.
+                @elseif ($reglas)
+                    Máximo {{ implode(' · ', $reglas) }}, en todas las sedes.
                     @if ($exentas)
                         {{ count($exentas) === 1 ? '1 conexión exenta' : count($exentas).' conexiones exentas' }}.
                     @endif
@@ -44,6 +48,16 @@
                     Cualquier conexión puede registrar todas las citas que quiera. Pon un tope para que una sola oficina no acapare los turnos.
                 @endif
             </p>
+            @if ($porCriterio && ($listaBlanca || $listaNegra))
+                <p class="md-limite__texto mb-0">
+                    @if ($listaBlanca)
+                        <span class="md-chip md-chip--respaldo"><i class="bi bi-check-circle" aria-hidden="true"></i> {{ count($listaBlanca) }} en lista blanca</span>
+                    @endif
+                    @if ($listaNegra)
+                        <span class="md-chip md-chip--inactivo"><i class="bi bi-slash-circle" aria-hidden="true"></i> {{ count($listaNegra) }} en lista negra</span>
+                    @endif
+                </p>
+            @endif
             @if ($migradoLimite && $limite->actualizado_por_nombre)
                 <p class="md-persona__nota mb-0">Último cambio: {{ \Illuminate\Support\Str::title(mb_strtolower($limite->actualizado_por_nombre)) }} · {{ \Illuminate\Support\Carbon::parse($limite->updated_at)->format('d/m/Y H:i') }}</p>
             @endif
@@ -55,9 +69,11 @@
                         <i class="bi bi-bar-chart"></i> Ver quién agenda
                     </a>
                 @endif
-                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#mdModalLimite">
-                    <i class="bi bi-sliders"></i> Cambiar límite
-                </button>
+                @if ($porCriterio)
+                    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#mdModalLimite">
+                        <i class="bi bi-sliders"></i> Cambiar límite
+                    </button>
+                @endif
             </div>
         @endif
     </div>
@@ -73,12 +89,12 @@
     @endif
 </div>
 
-@if ($migradoLimite)
+@if ($porCriterio)
     {{-- El diálogo va al final del <body> (stack modals del layout): dentro de la
          tarjeta quedaba debajo del fondo oscuro y no se podía usar. --}}
     @push('modals')
     <div class="modal fade" id="mdModalLimite" tabindex="-1" aria-labelledby="mdModalLimiteTitulo" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
             <form class="modal-content" method="POST" action="{{ route('modulos.limite') }}">
                 @csrf
                 @method('PUT')
@@ -90,39 +106,72 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                 </div>
                 <div class="modal-body">
-                    <p class="md-persona__nota">Aplica a las citas que se agendan en <b>/generar-cita</b>, en todas las sedes. Las de ventanilla no tienen límite. Deja <b>0</b> para no limitar.</p>
+                    <p class="md-persona__nota">
+                        Los topes aplican a las citas que se agendan en <b>/generar-cita</b>, en todas las sedes; las de ventanilla no tienen tope.
+                        Deja <b>0</b> para no limitar ese dato.
+                    </p>
+
+                    <div class="md-lim-tabla" role="group" aria-label="Topes por dato">
+                        <div class="md-lim-tabla__cab" aria-hidden="true">
+                            <span>Dato</span><span>Máximo de citas</span><span>Se cuentan las registradas</span>
+                        </div>
+                        @foreach (LimiteCitas::CRITERIOS as $criterio => [$col, $colPeriodo, $etiqueta])
+                            <div class="md-lim-tabla__fila">
+                                <div>
+                                    <label class="form-label mb-0 fw-semibold" for="lim_{{ $col }}">{{ $etiqueta }}</label>
+                                    <div class="md-persona__nota">{{ $ayudaCriterio[$criterio] }}</div>
+                                </div>
+                                <div>
+                                    <input type="number" class="form-control @error($col) is-invalid @enderror" id="lim_{{ $col }}" name="{{ $col }}"
+                                           min="0" max="{{ LimiteCitas::MAXIMO }}" value="{{ old($col, $limite->{$col}) }}" required>
+                                    @error($col)<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                </div>
+                                <div>
+                                    <select class="form-select @error($colPeriodo) is-invalid @enderror" id="lim_{{ $colPeriodo }}" name="{{ $colPeriodo }}" aria-label="Periodo por {{ mb_strtolower($etiqueta) }}">
+                                        @foreach (LimiteCitas::GRUPOS as $grupo => $claves)
+                                            <optgroup label="{{ $grupo }}">
+                                                @foreach ($claves as $clave)
+                                                    <option value="{{ $clave }}" @selected(old($colPeriodo, $limite->{$colPeriodo}) === $clave)>{{ \Illuminate\Support\Str::ucfirst(LimiteCitas::PERIODOS[$clave]) }}</option>
+                                                @endforeach
+                                            </optgroup>
+                                        @endforeach
+                                    </select>
+                                    @error($colPeriodo)<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                    <div class="form-text mb-3">
+                        <b>Periodo móvil:</b> cuentan las citas registradas hoy (desde las 00:00) o en los últimos 7, 15 o 30 días.
+                        <b>A partir de que se registra:</b> el plazo empieza con la primera cita de ese dato que nunca se había usado
+                        o cuyo plazo anterior ya terminó; al vencer, la siguiente cita abre un plazo nuevo.
+                        En los dos casos cuentan todas las citas registradas, sin importar para qué día son ni si después se cancelan.
+                    </div>
 
                     <div class="row g-3">
-                        <div class="col-12 col-sm-4">
-                            <label class="form-label" for="limPorIp">Por conexión (IP)</label>
-                            <input type="number" class="form-control" id="limPorIp" name="por_ip" min="0" max="{{ LimiteCitas::MAXIMO }}" value="{{ old('por_ip', $limite->por_ip) }}" required>
-                        </div>
-                        <div class="col-12 col-sm-4">
-                            <label class="form-label" for="limPorCorreo">Por correo</label>
-                            <input type="number" class="form-control" id="limPorCorreo" name="por_correo" min="0" max="{{ LimiteCitas::MAXIMO }}" value="{{ old('por_correo', $limite->por_correo) }}" required>
-                        </div>
-                        <div class="col-12 col-sm-4">
-                            <label class="form-label" for="limPorTel">Por teléfono</label>
-                            <input type="number" class="form-control" id="limPorTel" name="por_telefono" min="0" max="{{ LimiteCitas::MAXIMO }}" value="{{ old('por_telefono', $limite->por_telefono) }}" required>
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label" for="limPeriodo">Se cuentan las citas registradas</label>
-                            <select class="form-select" id="limPeriodo" name="periodo">
-                                @foreach (LimiteCitas::PERIODOS as $clave => $texto)
-                                    <option value="{{ $clave }}" @selected(old('periodo', $limite->periodo) === $clave)>{{ \Illuminate\Support\Str::ucfirst($texto) }}</option>
-                                @endforeach
-                            </select>
-                            <div class="form-text">Cuentan todas las citas registradas en ese tiempo, sin importar para qué día son ni si después se cancelan.</div>
-                        </div>
                         <div class="col-12">
                             <label class="form-label" for="limExentas">Conexiones sin límite (opcional)</label>
-                            <textarea class="form-control" id="limExentas" name="exentas" rows="3" placeholder="Una por renglón. Ej. 201.144.10.25 o 201.144.10.0/24">{{ old('exentas', $limite->exentas) }}</textarea>
+                            <textarea class="form-control @error('exentas') is-invalid @enderror" id="limExentas" name="exentas" rows="2" placeholder="Una por renglón. Ej. 201.144.10.25 o 201.144.10.0/24">{{ old('exentas', $limite->exentas) }}</textarea>
+                            @error('exentas')<div class="invalid-feedback">{{ $message }}</div>@enderror
                             <div class="form-text">
                                 Por ejemplo, la de un módulo del Centro donde se ayuda a la gente a agendar. Tu conexión ahora es
                                 <code>{{ request()->ip() }}</code>.
                             </div>
                         </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="limBlanca"><i class="bi bi-check-circle text-success" aria-hidden="true"></i> Lista blanca de correos</label>
+                            <textarea class="form-control @error('lista_blanca') is-invalid @enderror" id="limBlanca" name="lista_blanca" rows="4" placeholder="Uno por renglón. Ej. persona@correo.com o @empresa.com">{{ old('lista_blanca', $limite->lista_blanca) }}</textarea>
+                            @error('lista_blanca')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            <div class="form-text">Con estos correos no aplica ningún tope (ni de conexión, teléfono o nombre).</div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="limNegra"><i class="bi bi-slash-circle text-danger" aria-hidden="true"></i> Lista negra de correos</label>
+                            <textarea class="form-control @error('lista_negra') is-invalid @enderror" id="limNegra" name="lista_negra" rows="4" placeholder="Uno por renglón. Ej. persona@correo.com o @empresa.com">{{ old('lista_negra', $limite->lista_negra) }}</textarea>
+                            @error('lista_negra')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            <div class="form-text">Con estos correos no se registra la cita en línea ni el turno en ventanilla.</div>
+                        </div>
                     </div>
+                    <div class="form-text">Escribe el correo completo, o <code>@dominio.com</code> para todos los correos de ese dominio.</div>
 
                     <div class="md-limite__nota mt-3">
                         <i class="bi bi-info-circle" aria-hidden="true"></i>
@@ -138,7 +187,7 @@
         </div>
     </div>
 
-    @if ($errors->hasAny(['por_ip', 'por_correo', 'por_telefono', 'periodo', 'exentas']))
+    @if ($errors->hasAny($camposLimite))
         {{-- Si el límite no se guardó por un dato mal escrito, se vuelve a abrir el diálogo. --}}
         <script>
             document.addEventListener('DOMContentLoaded', function () {
