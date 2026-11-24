@@ -7,7 +7,7 @@
     $vcReal    = \App\Support\VerComo::real() ?? auth()->user();
     $vcDatos   = \App\Support\VerComo::activo() ? app('ver_como.datos') : null;
     $vcFrase   = $vcDatos ? \App\Support\VerComo::frase($vcDatos, auth()->user()) : null;
-    $vcRoles   = \Spatie\Permission\Models\Role::where('guard_name', 'web')->orderBy('name')->pluck('name')->all();
+    $vcRoles   = \App\Support\VerComo::roles();
     $vcSedes   = \App\Support\Recepcion::TODAS_LAS_SEDES;
 @endphp
 <style>

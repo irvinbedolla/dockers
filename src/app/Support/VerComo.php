@@ -29,6 +29,15 @@ class VerComo
     /** Quién puede usarlo (siempre se pregunta por el usuario real). */
     public const ROL = 'Super Usuario';
 
+    /** Roles que no se ofrecen: el solicitante usa el portal público, no el sistema. */
+    public const EXCLUIDOS = ['Solicitante'];
+
+    /** Roles que se pueden elegir (sin los EXCLUIDOS), por nombre. */
+    public static function roles(): array
+    {
+        return Role::where('guard_name', 'web')->whereNotIn('name', self::EXCLUIDOS)->orderBy('name')->pluck('name')->all();
+    }
+
     public static function puede(?User $real): bool
     {
         return $real !== null && $real->hasRole(self::ROL);
