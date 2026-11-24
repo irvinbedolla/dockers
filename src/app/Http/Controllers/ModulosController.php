@@ -460,11 +460,20 @@ class ModulosController extends Controller
             'lista_blanca' => 'lista blanca',
             'lista_negra'  => 'lista negra',
         ];
-        foreach (LimiteCitas::CRITERIOS as [$col, $colPeriodo, $etiqueta]) {
+        foreach (LimiteCitas::CRITERIOS as $criterio => [$col, $colPeriodo, $etiqueta]) {
             $reglas[$col] = $numero;
             $reglas[$colPeriodo] = $periodo;
             $nombres[$col] = 'límite por '.mb_strtolower($etiqueta);
             $nombres[$colPeriodo] = 'periodo por '.mb_strtolower($etiqueta);
+            if (LimiteCitas::porAlcance()) {
+                // Sin ninguna sede marcada = todas.
+                $reglas['sedes_'.$criterio] = ['nullable', 'array'];
+                $reglas['sedes_'.$criterio.'.*'] = [Rule::in(LimiteCitas::sedes())];
+                $reglas['canal_'.$criterio] = ['required', Rule::in(array_keys(LimiteCitas::CANALES))];
+                $nombres['sedes_'.$criterio] = 'sedes por '.mb_strtolower($etiqueta);
+                $nombres['sedes_'.$criterio.'.*'] = 'sede por '.mb_strtolower($etiqueta);
+                $nombres['canal_'.$criterio] = 'dónde aplica por '.mb_strtolower($etiqueta);
+            }
         }
         $datos = $request->validate($reglas, [], $nombres);
 

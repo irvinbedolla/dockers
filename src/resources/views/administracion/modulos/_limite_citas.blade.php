@@ -21,6 +21,15 @@
         'nombre'   => 'Nombre con apellidos de quien agenda.',
     ];
     $camposLimite = array_merge(['exentas', 'lista_blanca', 'lista_negra'], ...array_map(fn ($c) => [$c[0], $c[1]], array_values(LimiteCitas::CRITERIOS)));
+    $porAlcance   = LimiteCitas::porAlcance();
+    $sedesTodas   = LimiteCitas::sedes();
+    // Al volver por un error se respeta lo que se había marcado (nada marcado = todas).
+    $hayOld = old('por_ip') !== null;
+    foreach (array_keys(LimiteCitas::CRITERIOS) as $k) {
+        $camposLimite[] = 'sedes_'.$k;
+        $camposLimite[] = 'sedes_'.$k.'.*';
+        $camposLimite[] = 'canal_'.$k;
+    }
 @endphp
 
 <div class="tn-tarjeta md-limite mb-3" id="limiteCitas">
@@ -40,7 +49,7 @@
                 @if (! $porCriterio)
                     Corre <code>php artisan migrate</code> para poder poner un tope por conexión, correo, teléfono y nombre, cada uno con su periodo, y las listas de correos.
                 @elseif ($reglas)
-                    Máximo {{ implode(' · ', $reglas) }}, en todas las sedes.
+                    Máximo {{ implode(' · ', $reglas) }}.
                     @if ($exentas)
                         {{ count($exentas) === 1 ? '1 conexión exenta' : count($exentas).' conexiones exentas' }}.
                     @endif
@@ -94,7 +103,7 @@
          tarjeta quedaba debajo del fondo oscuro y no se podía usar. --}}
     @push('modals')
     <div class="modal fade" id="mdModalLimite" tabindex="-1" aria-labelledby="mdModalLimiteTitulo" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
             <form class="modal-content" method="POST" action="{{ route('modulos.limite') }}">
                 @csrf
                 @method('PUT')
@@ -107,13 +116,14 @@
                 </div>
                 <div class="modal-body">
                     <p class="md-persona__nota">
-                        Los topes aplican a las citas que se agendan en <b>/generar-cita</b>, en todas las sedes; las de ventanilla no tienen tope.
-                        Deja <b>0</b> para no limitar ese dato.
+                        Cada tope aplica en las sedes y en el canal que elijas: <b>en línea</b> (/generar-cita), <b>en ventanilla</b> (/turnos/nuevo) o en las dos,
+                        y cuenta sólo las citas de esas sedes y ese canal. Deja <b>0</b> para no limitar ese dato.
                     </p>
 
-                    <div class="md-lim-tabla" role="group" aria-label="Topes por dato">
+                    <div class="md-lim-tabla {{ $porAlcance ? 'md-lim-tabla--alcance' : '' }}" role="group" aria-label="Topes por dato">
                         <div class="md-lim-tabla__cab" aria-hidden="true">
                             <span>Dato</span><span>Máximo de citas</span><span>Se cuentan las registradas</span>
+                            @if ($porAlcance)<span>Sedes</span><span>Aplica</span>@endif
                         </div>
                         @foreach (LimiteCitas::CRITERIOS as $criterio => [$col, $colPeriodo, $etiqueta])
                             <div class="md-lim-tabla__fila">
@@ -138,6 +148,57 @@
                                     </select>
                                     @error($colPeriodo)<div class="invalid-feedback">{{ $message }}</div>@enderror
                                 </div>
+                                @if ($porAlcance)
+                                    @php
+                                        $marcadas = $hayOld ? (array) old('sedes_'.$criterio, []) : $limite->{'sedes_'.$criterio};
+                                        $marcadas = $marcadas ?: $sedesTodas;
+                                        $canalSel = old('canal_'.$criterio, $limite->{'canal_'.$criterio});
+                                        $soloLinea = in_array($criterio, LimiteCitas::SOLO_LINEA, true);
+                                    @endphp
+                                    <div>
+                                        <span class="md-lim-tabla__etq" aria-hidden="true">Sedes</span>
+                                        <div class="dropdown md-lim-sedes">
+                                            <button type="button" class="form-select text-start md-lim-sedes__boton @error('sedes_'.$criterio) is-invalid @enderror @error('sedes_'.$criterio.'.*') is-invalid @enderror"
+                                                    data-bs-toggle="dropdown" data-bs-auto-close="outside" data-bs-popper-config='{"strategy":"fixed"}'
+                                                    aria-expanded="false" aria-label="Sedes por {{ mb_strtolower($etiqueta) }}">
+                                                <span class="md-lim-sedes__texto">Todas</span>
+                                            </button>
+                                            <div class="dropdown-menu md-lim-sedes__menu">
+                                                <div class="form-check">
+                                                    <input class="form-check-input md-lim-sedes__todas" type="checkbox" id="limSedesTodas_{{ $criterio }}">
+                                                    <label class="form-check-label fw-semibold" for="limSedesTodas_{{ $criterio }}">Todas las sedes</label>
+                                                </div>
+                                                <hr class="dropdown-divider">
+                                                @foreach ($sedesTodas as $i => $s)
+                                                    <div class="form-check">
+                                                        <input class="form-check-input md-lim-sedes__sede" type="checkbox" name="sedes_{{ $criterio }}[]" value="{{ $s }}"
+                                                               id="limSede_{{ $criterio }}_{{ $i }}" @checked(in_array($s, $marcadas, true))>
+                                                        <label class="form-check-label" for="limSede_{{ $criterio }}_{{ $i }}">{{ $s }}</label>
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        </div>
+                                        @error('sedes_'.$criterio)<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+                                        @error('sedes_'.$criterio.'.*')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+                                    </div>
+                                    <div>
+                                        <span class="md-lim-tabla__etq" aria-hidden="true">Aplica</span>
+                                        @if ($soloLinea)
+                                            <input type="hidden" name="canal_{{ $criterio }}" value="linea">
+                                            <select class="form-select" disabled aria-label="Dónde aplica por {{ mb_strtolower($etiqueta) }}">
+                                                <option>En línea</option>
+                                            </select>
+                                            <div class="md-persona__nota">En ventanilla la conexión es la de la oficina.</div>
+                                        @else
+                                            <select class="form-select @error('canal_'.$criterio) is-invalid @enderror" name="canal_{{ $criterio }}" aria-label="Dónde aplica por {{ mb_strtolower($etiqueta) }}">
+                                                @foreach (LimiteCitas::CANALES as $clave => $texto)
+                                                    <option value="{{ $clave }}" @selected($canalSel === $clave)>{{ $texto }}</option>
+                                                @endforeach
+                                            </select>
+                                            @error('canal_'.$criterio)<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                        @endif
+                                    </div>
+                                @endif
                             </div>
                         @endforeach
                     </div>
@@ -146,6 +207,9 @@
                         <b>A partir de que se registra:</b> el plazo empieza con la primera cita de ese dato que nunca se había usado
                         o cuyo plazo anterior ya terminó; al vencer, la siguiente cita abre un plazo nuevo.
                         En los dos casos cuentan todas las citas registradas, sin importar para qué día son ni si después se cancelan.
+                        @if ($porAlcance)
+                            En ventanilla el correo y el teléfono son opcionales: si el auxiliar no los escribe, ese tope no se revisa.
+                        @endif
                     </div>
 
                     <div class="row g-3">
@@ -186,6 +250,36 @@
             </form>
         </div>
     </div>
+
+    @if ($porAlcance)
+        <script>
+            // Sedes de cada tope: "Todas" marca o desmarca todas; si no queda
+            // ninguna marcada se vuelven a marcar todas (nada marcado = todas).
+            document.addEventListener('DOMContentLoaded', function () {
+                document.querySelectorAll('#mdModalLimite .md-lim-sedes').forEach(function (caja) {
+                    var todas = caja.querySelector('.md-lim-sedes__todas');
+                    var sedes = Array.prototype.slice.call(caja.querySelectorAll('.md-lim-sedes__sede'));
+                    var texto = caja.querySelector('.md-lim-sedes__texto');
+                    function pintar() {
+                        var marcadas = sedes.filter(function (s) { return s.checked; });
+                        if (marcadas.length === 0) { sedes.forEach(function (s) { s.checked = true; }); marcadas = sedes; }
+                        var completas = marcadas.length === sedes.length;
+                        todas.checked = completas;
+                        texto.textContent = completas ? 'Todas'
+                            : (marcadas.length <= 2 ? marcadas.map(function (s) { return s.value; }).join(', ') : marcadas.length + ' sedes');
+                        caja.querySelector('.md-lim-sedes__boton').title = completas ? 'Todas las sedes' : marcadas.map(function (s) { return s.value; }).join(', ');
+                    }
+                    todas.addEventListener('change', function () {
+                        if (todas.checked) { sedes.forEach(function (s) { s.checked = true; }); }
+                        else { sedes.forEach(function (s, i) { s.checked = i === 0; }); }
+                        pintar();
+                    });
+                    sedes.forEach(function (s) { s.addEventListener('change', pintar); });
+                    pintar();
+                });
+            });
+        </script>
+    @endif
 
     @if ($errors->hasAny($camposLimite))
         {{-- Si el límite no se guardó por un dato mal escrito, se vuelve a abrir el diálogo. --}}

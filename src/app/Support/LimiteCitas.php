@@ -65,6 +65,16 @@ class LimiteCitas
         'nombre'   => ['por_nombre', 'periodo_nombre', 'Nombre completo'],
     ];
 
+    /** Dónde aplica cada tope. */
+    public const CANALES = [
+        'linea'      => 'En línea',
+        'ventanilla' => 'En ventanilla',
+        'ambos'      => 'En las dos',
+    ];
+
+    /** Datos que no se pueden revisar en ventanilla (la IP es la de la oficina). */
+    public const SOLO_LINEA = ['ip'];
+
     public const MOTIVOS = [
         'ip'       => 'Conexión (IP)',
         'correo'   => 'Correo',
@@ -97,12 +107,44 @@ class LimiteCitas
         return $listo ??= self::migrado() && Schema::hasColumn('limites_citas', 'periodo_ip');
     }
 
+    /** ¿Ya corrió la migración de sedes y canal (en línea / ventanilla) por criterio? */
+    public static function porAlcance(): bool
+    {
+        static $listo = null;
+
+        return $listo ??= self::porCriterio() && Schema::hasColumn('limites_citas', 'canal_ip');
+    }
+
+    /** Las sedes (nombre => clave), las de App\Support\FolioCita. */
+    public static function sedes(): array
+    {
+        return array_keys(FolioCita::SEDES);
+    }
+
+    /** Sede sin acentos ni mayúsculas, para comparar (en recepcion hay "Zitácuaro" y "Zitacuaro"). */
+    public static function sedeClave(?string $sede): string
+    {
+        return mb_strtolower(Str::ascii(trim((string) $sede)));
+    }
+
+    /** Lista guardada de sedes → nombres válidos; [] = todas. */
+    public static function listaSedes($valor): array
+    {
+        $escritas = is_array($valor) ? $valor : preg_split('/\R+/', (string) $valor, -1, PREG_SPLIT_NO_EMPTY);
+        $claves = array_map([self::class, 'sedeClave'], $escritas);
+        $elegidas = array_values(array_filter(self::sedes(), fn ($s) => in_array(self::sedeClave($s), $claves, true)));
+
+        return count($elegidas) === count(self::sedes()) ? [] : $elegidas;
+    }
+
     /** El tope vigente (sin migración: sin límite, salvo la regla por nombre). */
     public static function config(): object
     {
         // Mientras no corra la migración nueva sigue la regla que estaba en
         // el código: 3 citas por nombre en 7 días.
         $base = (object) [
+            'sedes_ip' => [], 'sedes_correo' => [], 'sedes_telefono' => [], 'sedes_nombre' => [],
+            'canal_ip' => 'linea', 'canal_correo' => 'linea', 'canal_telefono' => 'linea', 'canal_nombre' => 'linea',
             'por_ip' => 0, 'por_correo' => 0, 'por_telefono' => 0, 'por_nombre' => 3,
             'periodo' => 'dia', 'periodo_ip' => 'dia', 'periodo_correo' => 'dia', 'periodo_telefono' => 'dia', 'periodo_nombre' => 'semana',
             'exentas' => '', 'lista_blanca' => '', 'lista_negra' => '',
@@ -121,6 +163,12 @@ class LimiteCitas
             // Sin la migración nueva: el periodo único de antes (y 7 días para el nombre).
             $p = self::porCriterio() ? ($fila->{$colPeriodo} ?? null) : ($col === 'por_nombre' ? 'semana' : $fila->periodo);
             $fila->{$colPeriodo} = array_key_exists((string) $p, self::PERIODOS) ? $p : 'dia';
+        }
+        foreach (array_keys(self::CRITERIOS) as $criterio) {
+            // Sin la migración de alcance: todas las sedes, sólo en línea.
+            $fila->{'sedes_'.$criterio} = self::listaSedes($fila->{'sedes_'.$criterio} ?? '');
+            $canal = $fila->{'canal_'.$criterio} ?? 'linea';
+            $fila->{'canal_'.$criterio} = in_array($criterio, self::SOLO_LINEA, true) || ! isset(self::CANALES[$canal]) ? 'linea' : $canal;
         }
         $fila->exentas = (string) $fila->exentas;
         $fila->lista_blanca = (string) ($fila->lista_blanca ?? '');
@@ -147,7 +195,12 @@ class LimiteCitas
         foreach (self::CRITERIOS as $criterio => [$col, $colPeriodo]) {
             $n = (int) $c->{$col};
             if ($n > 0) {
-                $reglas[] = $n.' '.($n === 1 ? 'cita' : 'citas').' por '.$que[$criterio].' '.self::PERIODOS[$c->{$colPeriodo}];
+                $donde = array_filter([
+                    $c->{'sedes_'.$criterio} ? implode(', ', $c->{'sedes_'.$criterio}) : null,
+                    $c->{'canal_'.$criterio} !== 'linea' ? mb_strtolower(self::CANALES[$c->{'canal_'.$criterio}]) : null,
+                ]);
+                $reglas[] = $n.' '.($n === 1 ? 'cita' : 'citas').' por '.$que[$criterio].' '.self::PERIODOS[$c->{$colPeriodo}]
+                    .($donde ? ' ('.implode(' · ', $donde).')' : '');
             }
         }
 
@@ -168,6 +221,13 @@ class LimiteCitas
         foreach (self::CRITERIOS as [$col, $colPeriodo]) {
             $valores[$col] = (int) ($datos[$col] ?? 0);
             $valores[$colPeriodo] = $datos[$colPeriodo] ?? 'dia';
+        }
+        if (self::porAlcance()) {
+            foreach (array_keys(self::CRITERIOS) as $criterio) {
+                $valores['sedes_'.$criterio] = implode("\n", self::listaSedes($datos['sedes_'.$criterio] ?? [])) ?: null;
+                $canal = $datos['canal_'.$criterio] ?? 'linea';
+                $valores['canal_'.$criterio] = in_array($criterio, self::SOLO_LINEA, true) || ! isset(self::CANALES[$canal]) ? 'linea' : $canal;
+            }
         }
         // La columna vieja se queda con el de la conexión (por compatibilidad).
         $valores['periodo'] = $valores['periodo_ip'];
@@ -327,12 +387,17 @@ class LimiteCitas
     }
 
     /**
-     * ¿Esta cita en línea pasa el tope? null si sí; si no, por qué:
+     * ¿Esta cita pasa el tope? null si sí; si no, por qué:
      * ['motivo', 'limite', 'llevaba', 'periodo', 'mensaje'].
+     *
+     * $canal: 'linea' (/generar-cita) o 'ventanilla' (/turnos/nuevo). Cada
+     * tope aplica sólo en su canal y sus sedes, y cuenta sólo las citas de
+     * ese canal (en las dos: en línea y ventanilla) y esas sedes.
      */
-    public static function revisar(?string $ip, ?string $correo, ?string $telefono, ?string $nombre = null): ?array
+    public static function revisar(?string $ip, ?string $correo, ?string $telefono, ?string $nombre = null, ?string $sede = null, string $canal = 'linea'): ?array
     {
         $c = self::config();
+        $ventanilla = $canal === 'ventanilla';
 
         // Lista negra: no se registra, sin importar los topes.
         if (self::enListaNegra($correo, $c)) {
@@ -341,37 +406,57 @@ class LimiteCitas
                 'limite'  => 0,
                 'llevaba' => 0,
                 'periodo' => '',
-                'mensaje' => self::MENSAJE_NEGRA,
+                'mensaje' => $ventanilla
+                    ? 'No se puede registrar el turno: el correo '.self::correo($correo).' está en la lista negra (Administración → Módulos → Límite de citas).'
+                    : self::MENSAJE_NEGRA,
             ];
         }
         // Lista blanca y conexiones exentas: sin tope.
         if (self::enListaBlanca($correo, $c) || ! self::activo($c)) {
             return null;
         }
-        if ($ip && self::migrado() && $c->exentas !== '' && IpUtils::checkIp($ip, self::listaExentas($c->exentas))) {
+        if (! $ventanilla && $ip && self::migrado() && $c->exentas !== '' && IpUtils::checkIp($ip, self::listaExentas($c->exentas))) {
             return null;
         }
 
-        $base = fn () => DB::table('recepcion')
-            ->where('origen', 'linea')
-            ->where(fn ($w) => $w->where('es_prueba', 0)->orWhereNull('es_prueba'));
+        // Citas que cuentan para un criterio: de su canal y de sus sedes.
+        $base = function (string $criterio) use ($c) {
+            $origenes = ['linea' => ['linea'], 'ventanilla' => ['ventanilla'], 'ambos' => ['linea', 'ventanilla']][$c->{'canal_'.$criterio}];
+            $q = DB::table('recepcion')
+                ->whereIn('origen', $origenes)
+                ->where(fn ($w) => $w->where('es_prueba', 0)->orWhereNull('es_prueba'));
+            if ($sedes = $c->{'sedes_'.$criterio}) {
+                // Con y sin acentos, como puede venir guardada.
+                $q->whereIn('delegacion', array_values(array_unique(array_merge($sedes, array_map(fn ($s) => Str::ascii($s), $sedes)))));
+            }
+
+            return $q;
+        };
 
         $correoN = self::correo($correo);
         $telN = self::telefono($telefono);
         $nombreN = self::nombre($nombre);
         $consultas = [
             // Sin la migración no hay columna ip; el nombre sí se revisa.
-            'ip'       => $ip && self::migrado() ? fn () => $base()->where('ip', $ip) : null,
-            'correo'   => $correoN ? fn () => $base()->whereRaw('LOWER(TRIM(correo)) = ?', [$correoN]) : null,
-            'telefono' => $telN ? fn () => $base()->where('telefono', $telN) : null,
+            'ip'       => $ip && self::migrado() ? fn () => $base('ip')->where('ip', $ip) : null,
+            'correo'   => $correoN ? fn () => $base('correo')->whereRaw('LOWER(TRIM(correo)) = ?', [$correoN]) : null,
+            'telefono' => $telN ? fn () => $base('telefono')->where('telefono', $telN) : null,
             // Los espacios dobles se juntan (el formulario en línea no los quita).
-            'nombre'   => $nombreN ? fn () => $base()->whereRaw("UPPER(TRIM(REPLACE(REPLACE(REPLACE(solicitante, '  ', ' '), '  ', ' '), '  ', ' '))) = ?", [$nombreN]) : null,
+            'nombre'   => $nombreN ? fn () => $base('nombre')->whereRaw("UPPER(TRIM(REPLACE(REPLACE(REPLACE(solicitante, '  ', ' '), '  ', ' '), '  ', ' '))) = ?", [$nombreN]) : null,
         ];
 
         foreach (self::CRITERIOS as $motivo => [$col, $colPeriodo]) {
             $limite = (int) $c->{$col};
             $consulta = $consultas[$motivo];
             if ($limite <= 0 || $consulta === null) {
+                continue;
+            }
+            // ¿Aplica en este canal y en esta sede?
+            if (! in_array($c->{'canal_'.$motivo}, [$canal, 'ambos'], true)) {
+                continue;
+            }
+            $sedes = $c->{'sedes_'.$motivo};
+            if ($sedes && ! in_array(self::sedeClave($sede), array_map([self::class, 'sedeClave'], $sedes), true)) {
                 continue;
             }
             $periodo = $c->{$colPeriodo};
@@ -382,7 +467,7 @@ class LimiteCitas
                     'limite'  => $limite,
                     'llevaba' => $cuenta['llevaba'],
                     'periodo' => $periodo,
-                    'mensaje' => self::mensaje($motivo, $limite, $periodo, $cuenta['inicio'], $cuenta['libre']),
+                    'mensaje' => self::mensaje($motivo, $limite, $periodo, $cuenta['inicio'], $cuenta['libre'], $c->{'canal_'.$motivo}, $ventanilla),
                 ];
             }
         }
@@ -393,8 +478,11 @@ class LimiteCitas
     public const MENSAJE_NEGRA = 'No se pudo registrar la cita con este correo electrónico. '
         .'Si necesitas una cita, acude directamente a la sede del Centro o comunícate por teléfono; el trámite es gratuito.';
 
-    /** Lo que ve la persona cuando el tope la detiene. */
-    public static function mensaje(string $motivo, int $limite, string $periodo, ?Carbon $inicio = null, ?Carbon $libre = null): string
+    /**
+     * Lo que se ve cuando el tope detiene la cita: a la persona en línea o
+     * al auxiliar en ventanilla. $canalTope: de qué citas es el máximo.
+     */
+    public static function mensaje(string $motivo, int $limite, string $periodo, ?Carbon $inicio = null, ?Carbon $libre = null, string $canalTope = 'linea', bool $ventanilla = false): string
     {
         $desde = [
             'ip'       => 'desde esta conexión a internet',
@@ -403,23 +491,28 @@ class LimiteCitas
             'nombre'   => 'a este nombre',
         ][$motivo] ?? '';
         $citas = $limite === 1 ? 'una cita' : $limite.' citas';
+        $de = ['linea' => ' en línea', 'ventanilla' => ' en ventanilla', 'ambos' => ''][$canalTope] ?? '';
+        $inicioTexto = $ventanilla ? 'No se puede registrar el turno:' : 'No se pudo registrar la cita:';
 
         if (self::esDesdeRegistro($periodo)) {
-            $texto = "No se pudo registrar la cita: ya se registró el máximo de {$citas} en línea {$desde} en ".self::DIAS[$periodo].' días'
+            $texto = "{$inicioTexto} ya se registró el máximo de {$citas}{$de} {$desde} en ".self::DIAS[$periodo].' días'
                 .($inicio ? ', contados desde la primera ('.$inicio->format('d/m/Y').')' : '').'.';
         } else {
             $cuando = [
                 'dia' => 'hoy', 'semana' => 'en los últimos 7 días', 'quincena' => 'en los últimos 15 días', 'mes' => 'en los últimos 30 días',
             ][$periodo] ?? 'hoy';
-            $texto = "No se pudo registrar la cita: {$cuando} ya se registró el máximo de {$citas} en línea {$desde}.";
+            $texto = "{$inicioTexto} {$cuando} ya se registró el máximo de {$citas}{$de} {$desde}.";
         }
         if ($libre) {
+            $quien = $ventanilla ? 'Podrá agendar otra' : 'Podrás agendar otra';
             $texto .= $periodo === 'dia'
-                ? ' Podrás agendar otra a partir de mañana.'
-                : ' Podrás agendar otra a partir del '.$libre->format('d/m/Y').' a las '.$libre->format('H:i').'.';
+                ? " {$quien} a partir de mañana."
+                : " {$quien} a partir del ".$libre->format('d/m/Y').' a las '.$libre->format('H:i').'.';
         }
 
-        return $texto.' Si necesitas otra cita antes, acude directamente a la sede del Centro o comunícate por teléfono; el trámite es gratuito.';
+        return $ventanilla
+            ? $texto.' (Límite de Administración → Módulos.)'
+            : $texto.' Si necesitas otra cita antes, acude directamente a la sede del Centro o comunícate por teléfono; el trámite es gratuito.';
     }
 
     /** Deja constancia del intento detenido (para /estadisticas/turnos). */
