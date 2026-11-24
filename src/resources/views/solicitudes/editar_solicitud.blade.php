@@ -2441,6 +2441,7 @@
             });
         });
     </script>
+    @include('partials.general._resulte_nombre_auto')
     <script>
         // Igual que Revisar audiencia: pestaña "Detalles" abierta al entrar y
         // encabezado con las acciones fijo arriba al bajar.
