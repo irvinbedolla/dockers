@@ -7,10 +7,19 @@
     $conclucion = session('conclucion')
         ?? (is_array($audienciaConclucionData) ? ($audienciaConclucionData['conclucion'] ?? null) : null);
 @endphp
+@section('page_css')
+    @include('audiencias._estilos_captura')
+@endsection
 @section('content')
-    <section class="section">
-        <div class="section-header">
-            <h3 class="page__heading">Audiencia Vista Previa</h3>
+    <section class="section tn au-captura">
+        <div class="section-header d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+            <div>
+                <h3 class="page__heading mb-0">Audiencia Vista Previa</h3>
+                <span class="au-sub">
+                    Revisa los montos y la resolución antes de terminar
+                    @if (data_get($solicitud ?? null, 'NUE')) · Expediente <strong>{{ data_get($solicitud, 'NUE') }}</strong>@endif
+                </span>
+            </div>
         </div>
         @if(session()->has('success'))
             <div class="alert alert-success alert-dismissible fade show" role="alert">
@@ -43,7 +52,7 @@
                                     <tbody>
                                         <tr>
                                             <td style="display:none">{{$solicitante->id}}</td>
-                                            <td style="color: #000000;"><b>Solicitante</b></td>
+                                            <td><span class="au-parte">Solicitante</span></td>
                                             <td>{{ $solicitante->nombre }}</td>
                                             <td></td>
                                             <td></td>
@@ -63,7 +72,7 @@
                                         @foreach($representantes as $representante)
                                             <tr>
                                                 <td style="display:none">{{$representante->id}}</td>
-                                                <td style="color: #000000;"><b>Citado</b></td>
+                                                <td><span class="au-parte">Citado</span></td>
                                                 <td>{{$representante->nombre}} {{$representante->primer_apellido}} {{$representante->segundo_apellido}}</td>
                                                 <td>{{ $representante->notificacion }}</td>
                                                 <td>{{ $representante->estatus }}</td>
@@ -229,7 +238,7 @@
                                 <input type="hidden" name="audiencia_id" value="{{ request()->query('audiencia_id') }}">
                                 <div class="row">
                                     <div id="justificacion"><br>
-                                        <div class="col-xs-12 col-sm-12 col-md-12"  style="border:1px solid black;">
+                                        <div class="col-xs-12 col-sm-12 col-md-12 au-bloque">
                                             <div class="form-group">
                                                 <label for="name">RESOLUCIÓN PRIMERA MANIFESTACIÓN</label>
                                                 <textarea name="primera" class="form-control" readonly> {{$conciliadores->resolicion_primera}}</textarea>
@@ -240,7 +249,7 @@
                                         </div>
                                     </div><br>
                                     <div id="justificacion"><br>
-                                        <div class="col-xs-12 col-sm-12 col-md-12" style="border:1px solid black;">
+                                        <div class="col-xs-12 col-sm-12 col-md-12 au-bloque">
                                             <div class="form-group">
                                                 <label for="name">RESOLUCIÓN JUSTIFICACIÓN PROPUESTA</label>
                                                 <textarea name="justificacion" class="form-control" readonly>{{$conciliadores->resolicion_justificacion}}</textarea>
@@ -251,7 +260,7 @@
                                         </div>
                                     </div><br>
                                     <div id="segunda" ><br>
-                                        <div class="col-xs-12 col-sm-12 col-md-12" style="border:1px solid black;">
+                                        <div class="col-xs-12 col-sm-12 col-md-12 au-bloque">
                                             <div class="form-group">
                                                 <label for="name">RESOLUCIÓN SEGUNDA MANIFESTACIÓN</label>
                                                 <textarea name="segunda" class="form-control" readonly>{{$conciliadores->resolicion_segunda}}</textarea>
@@ -359,7 +368,7 @@
                                         <div id="div_pagos_diferidos"></div>
                                         <div class="col-xs-12 col-sm-12 col-md-12">
                                             <h4 class="text-center" style="margin-top:20px;">Total a pagar:</h4>
-                                            <h3 id="totalCalculado" class="text-center" style="color:green;">$0.00</h3>
+                                            <h3 id="totalCalculado" class="text-center au-total">$0.00</h3>
                                         </div>
                                         <div class="row">
                                             <div class="col-xs-12 col-sm-12 col-md-6"><br>
@@ -373,23 +382,15 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="row">
-                                    <div class="col-xs-12 col-sm-12 col-md-2">
-                                        <br><button id="btn-terminar" type="submit" class="btn btn-success" name="bandera" value="1">Terminar</button>
-                                    </div>
+                                <div class="au-pie">
+                                    <button id="btn-terminar" type="submit" class="btn btn-success" name="bandera" value="1"><i class="bi bi-check2-circle me-1"></i> Terminar</button>
                                     <!--div class="col-xs-12 col-sm-12 col-md-2">
                                         <br><button id="btn-terminar" type="submit" class="btn btn-success" name="bandera" value="2">Actualizar</button>
                                     </!--div-->
-                                    <div class="col-xs-12 col-sm-12 col-md-2">
-                                        <br><button id="btn-convenio1" type="button" class="btn btn-info" name="bandera" value="3" target="_blank">Convenio</button>
-                                    </div>
-                                    <div class="col-xs-12 col-sm-12 col-md-2">
-                                        <br><button id="btn-acta" type="button" class="btn btn-info" name="bandera" value="4">Acta de Audiencia</button>
-                                    </div>
-                                        <div class="col-xs-12 col-sm-12 col-md-2">
-                                            <br>{{-- Si viene de "Editar finalización", Regresar vuelve ahí y no a concluir la audiencia. --}}
-                                            <a href="{{ request('desde') === 'edicion' ? route('edicion_audienciaConcluida', ['id' => $id, 'audiencia_id' => request()->query('audiencia_id')]) : route('audiencias.parte3', $id) . '?bandera=5&audiencia_id=' . request()->query('audiencia_id') }}" class="btn btn-danger" name="bandera" value="5">Regresar</a>
-                                        </div>
+                                    <button id="btn-convenio1" type="button" class="btn btn-info" name="bandera" value="3" target="_blank"><i class="bi bi-file-earmark-text me-1"></i> Convenio</button>
+                                    <button id="btn-acta" type="button" class="btn btn-info" name="bandera" value="4"><i class="bi bi-file-earmark-richtext me-1"></i> Acta de Audiencia</button>
+                                    {{-- Si viene de "Editar finalización", Regresar vuelve ahí y no a concluir la audiencia. --}}
+                                    <a href="{{ request('desde') === 'edicion' ? route('edicion_audienciaConcluida', ['id' => $id, 'audiencia_id' => request()->query('audiencia_id')]) : route('audiencias.parte3', $id) . '?bandera=5&audiencia_id=' . request()->query('audiencia_id') }}" class="btn btn-danger" name="bandera" value="5"><i class="bi bi-arrow-left me-1"></i> Regresar</a>
                                 </div>
                             </form>
                         </div>

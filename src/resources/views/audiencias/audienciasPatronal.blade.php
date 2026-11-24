@@ -5,6 +5,7 @@
     $contador = 0;
 @endphp
 @section('page_css')
+@include('audiencias._estilos_captura')
 <style>
     .btn-invisible {
         display: none;
@@ -15,9 +16,15 @@
 </style>
 @endsection
 @section('content')
-    <section class="section">
-        <div class="section-header">
-            <h3 class="page__heading">Audiencia Patronal Iniciada</h3>
+    <section class="section tn au-captura">
+        <div class="section-header d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+            <div>
+                <h3 class="page__heading mb-0">Audiencia Patronal Iniciada</h3>
+                <span class="au-sub">
+                    Comparecencias de las partes
+                    @if (data_get($solicitud ?? null, 'NUE')) · Expediente <strong>{{ data_get($solicitud, 'NUE') }}</strong>@endif
+                </span>
+            </div>
         </div>
         <div class="section-body">
             <div class="row">
@@ -37,10 +44,11 @@
                                 Actualizar representantes
                             </!--a-->
 
+                            <div class="au-barra">
                             @if ($allCentro || $isExhorto)
                             @else
                                 <button type="button" class="btn btn-info open-modal" data-bs-toggle="modal" data-bs-target="#ModalReagendar" data-id="{{ $id }}">
-                                    Reagendar
+                                    <i class="bi bi-calendar2-week me-1"></i> Reagendar
                                 </button>
                             @endif
 
@@ -61,26 +69,27 @@
 
                             @can('audiencia_archivar')
                                 <button type="button" class="btn btn-danger open-modal" data-bs-toggle="modal" data-bs-target="#ModalArchivar" data-id="{{ $id }}">
-                                    Archivar
+                                    <i class="bi bi-archive me-1"></i> Archivar
                                 </button>
                             @endcan
                             @can('audiencia_incompetencia')
                                 <button type="button" class="btn btn-danger open-modal" data-bs-toggle="modal" data-bs-target="#ModalIncopentencia" data-id="{{ $id }}">
-                                    Incompetencia
+                                    <i class="bi bi-slash-circle me-1"></i> Incompetencia
                                 </button>
                             @endcan
                             @can('audiencia_desistimiento')
                                 <button type="button" class="btn btn-danger open-modal" data-bs-toggle="modal" data-bs-target="#ModalDesistimiento" data-id="{{ $id }}">
-                                    Desistimiento
+                                    <i class="bi bi-x-circle me-1"></i> Desistimiento
                                 </button>
                             @endcan
                             @can('audiencia_no_conciliacion')
                                 @if($mostrarEmitirMultasTop)
                                     <button type="button" class="btn btn-danger open-modal" data-bs-toggle="modal" data-bs-target="#ModalEmitirMultas" data-id="{{ $id }}">
-                                        Emitir Constancias de No Conciliación
+                                        <i class="bi bi-file-earmark-x me-1"></i> Emitir Constancias de No Conciliación
                                     </button>
                                 @endif
                             @endcan
+                            </div>
                             <div class="table-responsive">
                                 <table class="table table-striped mt-1">
                                     <thead style="background-color: #354647;">
@@ -98,7 +107,7 @@
                                     <tbody>
                                         <tr>
                                             <td style="display:none">{{$solicitante->id}}</td>
-                                            <td style="color: #000000;"><b>Solicitante</b></td>
+                                            <td><span class="au-parte">Solicitante</span></td>
                                             <td>{{ $solicitante->nombre }}</td>
                                             <td>@if($audiencia->poder->reprecentante == 'Si') {{ $audiencia->poder->nombre_representante }} {{ $audiencia->poder->primer_apellido_representante ?? ''}} {{ $audiencia->poder->segundo_apellido_representante ?? ''}} @else Sin representante legal @endif</td>
                                             <td></td>
@@ -124,7 +133,7 @@
                                         @foreach($citados as $citado)
                                             <tr>
                                                 <td  style="display:none">{{$citado->id}}</td>
-                                                <td style="color: #000000;"><b>Citado</b></td>
+                                                <td><span class="au-parte">Citado</span></td>
                                                 <td>{{$citado->nombre}} {{$citado->primer_apellido}} {{$citado->segundo_apellido}}</td>
                                                 <td></td>
                                                 <td>
@@ -169,7 +178,9 @@
                                     </tbody> 
                                 </table>
                             </div>
-                            <a type="button" class="btn btn-success open-modal" data-bs-toggle="modal" data-bs-target="#ModalTerminar" data-id="{{ $id }}">Continuar</a>
+                            <div class="au-pie">
+                                <a type="button" class="btn btn-success open-modal" data-bs-toggle="modal" data-bs-target="#ModalTerminar" data-id="{{ $id }}">Continuar <i class="bi bi-arrow-right ms-1"></i></a>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -478,7 +489,7 @@
                                             </div>
                                         </div>
                                         <div class="col-xs-12 col-sm-12 col-md-2">
-                                            <a href="{{ route('cancelar_edicion', ['id' => $id, 'redirect_to' => 'publico']) }}" class="btn btn-primary" style=" background-color:#CEA845; border-color: #CEA845">Regresar</a>    
+                                            <a href="{{ route('cancelar_edicion', ['id' => $id, 'redirect_to' => 'publico']) }}" class="btn tn-boton-dorado">Regresar</a>    
                                         </div>
                                     </div>
 
@@ -919,8 +930,8 @@
                                                 
                                                 <div class="col-xs-12 col-sm-12 col-md-12">
                                                     <div align="center">
-                                                        <button type="submit" class="btn btn-primary" style="background-color:#CEA845; border-color:#CEA845;">Guardar</button>
-                                                        <a href="{{ route('cancelar_edicion', ['id' => $id, 'redirect_to' => 'publico']) }}" class="btn btn-primary" style=" background-color:#CEA845; border-color:#CEA845;">Regresar</a>    
+                                                        <button type="submit" class="btn tn-boton-dorado">Guardar</button>
+                                                        <a href="{{ route('cancelar_edicion', ['id' => $id, 'redirect_to' => 'publico']) }}" class="btn tn-boton-dorado">Regresar</a>    
                                                     </div>
                                                 </div> 
                                             </div>
@@ -980,8 +991,8 @@
                                             
                                             <div class="col-xs-12 col-sm-12 col-md-12">
                                                 <div align="center">
-                                                    <button type="submit" class="btn btn-primary" style="background-color:#CEA845; border-color:#CEA845;">Guardar</button>
-                                                    <a href="{{ route('cancelar_edicion', ['id' => $id, 'redirect_to' => 'publico']) }}" class="btn btn-primary" style=" background-color:#CEA845; border-color:#CEA845;">Regresar</a>    
+                                                    <button type="submit" class="btn tn-boton-dorado">Guardar</button>
+                                                    <a href="{{ route('cancelar_edicion', ['id' => $id, 'redirect_to' => 'publico']) }}" class="btn tn-boton-dorado">Regresar</a>    
                                                 </div>
                                             </div> 
                                         </div>
@@ -1348,8 +1359,8 @@
                                     
                                                 <div class="col-xs-12 col-sm-12 col-md-12">
                                                     <div align="center">
-                                                        <button type="submit" class="btn btn-primary" style="background-color:#CEA845; border-color:#CEA845;">Guardar</button>
-                                                        <a href="{{ route('cancelar_edicion', ['id' => $id, 'redirect_to' => 'publico']) }}" class="btn btn-primary" style=" background-color:#CEA845; border-color:#CEA845;">Regresar</a>    
+                                                        <button type="submit" class="btn tn-boton-dorado">Guardar</button>
+                                                        <a href="{{ route('cancelar_edicion', ['id' => $id, 'redirect_to' => 'publico']) }}" class="btn tn-boton-dorado">Regresar</a>    
                                                     </div>
                                                 </div> 
                                             </div>

@@ -1,10 +1,20 @@
 @extends('layouts.app')
 @section('title', 'Audiencia')
 
+@section('page_css')
+    @include('audiencias._estilos_captura')
+@endsection
+
 @section('content')
-    <section class="section">
-        <div class="section-header">
-            <h3 class="page__heading">Audiencia</h3>
+    <section class="section tn au-captura">
+        <div class="section-header d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+            <div>
+                <h3 class="page__heading mb-0">Audiencia</h3>
+                <span class="au-sub">
+                    Resolución y conclusión de la audiencia
+                    @if (data_get($solicitud ?? null, 'NUE')) · Expediente <strong>{{ data_get($solicitud, 'NUE') }}</strong>@endif
+                </span>
+            </div>
         </div>
         <div class="section-body">
             <div class="row">
@@ -55,7 +65,7 @@
                                 <input type="hidden" name="audiencia_hora" id="audiencia_hora" value="{{ $audiencia_hora }}">
                                 <input type="hidden" name="audiencia_fecha" id="audiencia_fecha" value="{{ $audiencia_fecha }}">
                                 <div class="row">
-                                    <div class="col-xs-12 col-sm-12 col-md-12"  style="border:1px solid black;">
+                                    <div class="col-xs-12 col-sm-12 col-md-12 au-bloque">
                                         <div class="form-group">
                                             <label for="name">RESOLUCIÓN PRIMERA MANIFESTACIÓN</label>
                                             <textarea name="primera" class="form-control" required></textarea>
@@ -81,7 +91,7 @@
                                     </div>
                                     -->
                                     <div id="justificacion" style="display:none"><br>
-                                        <div class="col-xs-12 col-sm-12 col-md-12" style="border:1px solid black;">
+                                        <div class="col-xs-12 col-sm-12 col-md-12 au-bloque">
                                             <div class="form-group">
                                                 <label for="name">RESOLUCIÓN JUSTIFICACIÓN PROPUESTA</label>
                                                 <textarea name="justificacion" class="form-control" required></textarea>
@@ -97,7 +107,7 @@
                                     </div><br>
                                     
                                     <div id="segunda" style="display:none"><br>
-                                        <div class="col-xs-12 col-sm-12 col-md-12" style="border:1px solid black;">
+                                        <div class="col-xs-12 col-sm-12 col-md-12 au-bloque">
                                             <div class="form-group">
                                                 <label for="name">RESOLUCIÓN SEGUNDA MANIFESTACIÓN</label>
                                                 <textarea name="segunda" class="form-control" required></textarea>
@@ -213,7 +223,7 @@
                                         </div>
                                         <div class="col-xs-12 col-sm-12 col-md-12">
                                             <h4 class="text-center" style="margin-top:20px;">Total a pagar:</h4>
-                                            <h3 id="totalCalculado" class="text-center" style="color:green;">$0.00</h3>
+                                            <h3 id="totalCalculado" class="text-center au-total">$0.00</h3>
                                         </div>
                                         <div id="div_pagos_diferidos"></div>
                                         <div class="row">
