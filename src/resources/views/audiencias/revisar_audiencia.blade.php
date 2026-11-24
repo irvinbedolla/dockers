@@ -2382,5 +2382,7 @@
 
     {{-- "Describe brevemente el motivo de tu solicitud" crece hasta verse completo. --}}
     @include('partials.general._textarea_autoalto')
+
+    @include('partials.general._resulte_nombre_auto')
 @endsection
 
