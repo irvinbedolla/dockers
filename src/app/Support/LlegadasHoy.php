@@ -101,6 +101,16 @@ class LlegadasHoy
         'menor_edad'   => 'Es menor de edad',
     ];
 
+    /**
+     * Quién anota observaciones: la recepción (en lo de su sede) y el
+     * conciliador (en sus audiencias, con las mismas casillas). Se guardan
+     * aparte y se ven separadas.
+     */
+    public const AUTORES = [
+        'recepcion'   => 'Recepción',
+        'conciliador' => 'Conciliador',
+    ];
+
     /** Dónde se anotan observaciones y qué casillas lleva cada uno (el texto libre va en todos). */
     public const OBSERVAN = [
         'audiencia'    => ['silla_ruedas', 'traductor', 'menor_edad'],
@@ -155,13 +165,52 @@ class LlegadasHoy
         return $hay ??= Schema::hasTable(self::TABLA_OBS);
     }
 
+    /** ¿Ya corrió la migración del autor (recepción / conciliador) de las observaciones? */
+    public static function conAutor(): bool
+    {
+        static $hay = null;
+
+        return $hay ??= self::conObservaciones() && Schema::hasColumn(self::TABLA_OBS, 'autor');
+    }
+
+    /**
+     * Como quién anota observaciones este usuario: 'recepcion' (quien marca
+     * llegadas), 'conciliador' o null.
+     */
+    public static function autorObservaciones(?User $usuario): ?string
+    {
+        if (! $usuario || ! self::conObservaciones()) {
+            return null;
+        }
+        if (self::puedeMarcar($usuario)) {
+            return 'recepcion';
+        }
+
+        return self::conAutor() && $usuario->hasRole('Conciliador') ? 'conciliador' : null;
+    }
+
+    /**
+     * Pestañas que ve: el conciliador no lleva ratificaciones, así que no la
+     * ve (salvo que además las lleve como auxiliar u orientador, o marque).
+     */
+    public static function tiposPara(User $usuario): array
+    {
+        $tipos = self::TIPOS;
+        if ($usuario->hasRole('Conciliador') && ! self::puedeMarcar($usuario) && ! self::lleva($usuario)['ratificacion']) {
+            unset($tipos['ratificacion']);
+        }
+
+        return $tipos;
+    }
+
     /**
      * Guarda (o borra, si queda vacío) las observaciones de un registro de
      * hoy. Devuelve el texto de error, o null si salió bien.
      */
     public static function guardarObservaciones(string $tipo, int $id, array $datos, User $usuario): ?string
     {
-        if (! self::conObservaciones() || ! array_key_exists($tipo, self::OBSERVAN)) {
+        $autor = self::autorObservaciones($usuario);
+        if (! $autor || ! array_key_exists($tipo, self::OBSERVAN)) {
             return 'Aquí no se anotan observaciones.';
         }
 
@@ -169,7 +218,14 @@ class LlegadasHoy
         if (! $registro) {
             return 'Ese registro ya no existe.';
         }
-        if (! in_array($registro['sede'], self::variantes(self::sedes($usuario)), true)) {
+        if ($autor === 'conciliador') {
+            // El conciliador, sólo en sus audiencias.
+            $suya = $tipo === 'audiencia'
+                && (int) DB::table('audiencias')->where('id', $id)->value('id_conciliador') === (int) $usuario->id;
+            if (! $suya) {
+                return 'Sólo anotas observaciones en tus audiencias.';
+            }
+        } elseif (! in_array($registro['sede'], self::variantes(self::sedes($usuario)), true)) {
             return 'No es de tu sede.';
         }
         if ($registro['fecha'] !== now()->toDateString()) {
@@ -182,7 +238,8 @@ class LlegadasHoy
             $fila[$casilla] = in_array($casilla, self::OBSERVAN[$tipo], true) && ! empty($datos[$casilla]);
         }
 
-        $donde = DB::table(self::TABLA_OBS)->where('tipo', $tipo)->where('registro_id', $id);
+        $donde = DB::table(self::TABLA_OBS)->where('tipo', $tipo)->where('registro_id', $id)
+            ->when(self::conAutor(), fn ($q) => $q->where('autor', $autor));
         if ($fila['texto'] === null && ! in_array(true, array_intersect_key($fila, self::OBSERVACIONES), true)) {
             $donde->delete();
 
@@ -193,7 +250,8 @@ class LlegadasHoy
         if ((clone $donde)->exists()) {
             $donde->update($fila);
         } else {
-            DB::table(self::TABLA_OBS)->insert($fila + ['tipo' => $tipo, 'registro_id' => $id, 'created_at' => now()]);
+            DB::table(self::TABLA_OBS)->insert($fila + ['tipo' => $tipo, 'registro_id' => $id, 'created_at' => now()]
+                + (self::conAutor() ? ['autor' => $autor] : []));
         }
 
         return null;
@@ -205,15 +263,19 @@ class LlegadasHoy
      * (Administración → Cambiar fecha) conserva su id, y lo del día original
      * no debe aparecer en el nuevo (ver delDia()).
      */
-    private static function observacionesDe(string $tipo, $ids, string $fecha): Collection
+    private static function observacionesDe(string $tipo, $ids, string $fecha, string $autor = 'recepcion'): Collection
     {
         if (! self::conObservaciones() || ! array_key_exists($tipo, self::OBSERVAN)) {
+            return collect();
+        }
+        if ($autor !== 'recepcion' && ! self::conAutor()) {
             return collect();
         }
 
         return DB::table(self::TABLA_OBS . ' as o')
             ->leftJoin('users as u', 'u.id', '=', 'o.registrado_por')
             ->where('o.tipo', $tipo)
+            ->when(self::conAutor(), fn ($q) => $q->where('o.autor', $autor))
             ->whereIn('o.registro_id', collect($ids)->all() ?: [0])
             ->whereBetween('o.updated_at', self::dia($fecha))
             ->get(['o.registro_id', 'o.silla_ruedas', 'o.traductor', 'o.menor_edad', 'o.texto', 'o.updated_at', 'u.name as por'])
@@ -632,6 +694,8 @@ class LlegadasHoy
     {
         $ahora = now();
         $obs   = self::observacionesDe($tipo, $filas->pluck('id'), $fecha);
+        // Las del conciliador (sólo audiencias), aparte de las de la recepción.
+        $obsConc = $tipo === 'audiencia' ? self::observacionesDe($tipo, $filas->pluck('id'), $fecha, 'conciliador') : collect();
 
         // Sólo las llegadas de ese día: un registro al que le cambiaron la
         // fecha conserva su id y traería las del día original.
@@ -643,7 +707,7 @@ class LlegadasHoy
             ->get(['l.registro_id', 'l.clave', 'l.llegada_at', 'l.origen', 'u.name as por'])
             ->groupBy('registro_id');
 
-        return $filas->map(function ($fila) use ($tipo, $fecha, $ahora, $datos, $llegadas, $obs) {
+        return $filas->map(function ($fila) use ($tipo, $fecha, $ahora, $datos, $llegadas, $obs, $obsConc) {
             $d      = $datos($fila);
             $deEste = ($llegadas[$fila->id] ?? collect())->keyBy('clave');
             $lista  = array_map(function ($p) use ($deEste) {
@@ -692,6 +756,7 @@ class LlegadasHoy
                 // Observaciones de la recepción (audiencias y ratificaciones).
                 'conObs'         => self::conObservaciones() && array_key_exists($tipo, self::OBSERVAN),
                 'obs'            => self::observacion($obs[$fila->id] ?? null),
+                'obsConc'        => self::observacion($obsConc[$fila->id] ?? null),
                 // Audiencias: de qué audiencias reagendadas viene y a dónde se reagendó.
                 'historial'      => $d['historial'] ?? null,
             ];
@@ -949,15 +1014,15 @@ class LlegadasHoy
         }
 
         if (self::conObservaciones()) {
-            $o = DB::table(self::TABLA_OBS)
+            // Las de la recepción y las del conciliador, cada una con su autor.
+            $filas = DB::table(self::TABLA_OBS)
                 ->where('tipo', 'audiencia')->where('registro_id', $anterior->id)
                 ->whereBetween('updated_at', $dia)
-                ->first();
-            $yaTiene = DB::table(self::TABLA_OBS)->where('tipo', 'audiencia')->where('registro_id', $nueva->id)->exists();
-            if ($o && ! $yaTiene) {
+                ->get();
+            foreach ($filas as $o) {
                 $copia = (array) $o;
                 unset($copia['id']);
-                DB::table(self::TABLA_OBS)->insert(['registro_id' => $nueva->id, 'created_at' => $ahora] + $copia);
+                DB::table(self::TABLA_OBS)->insertOrIgnore(['registro_id' => $nueva->id, 'created_at' => $ahora] + $copia);
             }
         }
     }

@@ -81,6 +81,11 @@
         .ll-obs__casillas { display: flex; flex-wrap: wrap; gap: 6px 16px; }
         .ll-obs__casilla { display: inline-flex; gap: 6px; align-items: center; font-weight: 600; margin: 0; }
         .ll-obs__botones { display: flex; gap: 6px; justify-content: flex-end; }
+        .ll-obs__autor { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: #7A5D10; margin-bottom: 4px; }
+        .ll-obs--conciliador { background: #EEF1FB; border-color: #CCD6F0; }
+        .ll-obs--conciliador .ll-obs__autor { color: #2B4C7E; }
+        .ll-obs--conciliador .ll-obs__chip { background: #DCE4F7; color: #23407A; }
+        .ll-obs--editar.ll-obs--conciliador { background: #fff; border-color: #CCD6F0; }
         .ll-cita { font-size: 12px; color: var(--tn-suave); margin-bottom: 4px; }
         .ll-reag-chip { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: 999px; background: #E8EEF8; color: #2B4C7E; font-size: 11.5px; font-weight: 800; margin-left: 6px; vertical-align: 1px; }
         .ll-reag { margin: 2px 0 6px; font-size: 12.5px; color: #2B4C7E; }
@@ -151,7 +156,12 @@
             @unless ($marca)
                 <div class="ll-consulta">
                     <i class="bi bi-eye"></i>
-                    <div>Sólo consulta. La recepción marca las llegadas; cuando llegue alguien de lo tuyo te avisamos con sonido, estés en la pantalla que estés.</div>
+                    <div>
+                        La recepción marca las llegadas; cuando llegue alguien de lo tuyo te avisamos con sonido, estés en la pantalla que estés.
+                        @if ($autorObs === 'conciliador')
+                            En tus audiencias puedes anotar tus propias observaciones; se ven aparte de las de la recepción.
+                        @endif
+                    </div>
                 </div>
             @endunless
 
@@ -181,14 +191,17 @@
     var URL_DATOS = @json($urlDatos);
     var URL_MARCAR = @json($marca ? route('llegadas.marcar', ['tipo' => '__T__', 'id' => '__ID__']) : null);
     var TOKEN = @json(csrf_token());
-    var URL_OBS = {!! json_encode($marca ? route('llegadas.observaciones', ['tipo' => '__T__', 'id' => '__ID__']) : null) !!};
+    var URL_OBS = {!! json_encode($autorObs ? route('llegadas.observaciones', ['tipo' => '__T__', 'id' => '__ID__']) : null) !!};
+    // Como quién anoto observaciones: 'recepcion', 'conciliador' o null.
+    var MI_AUTOR = @json($autorObs);
+    var AUTORES = @json(\App\Support\LlegadasHoy::AUTORES);
     var OBS = @json(\App\Support\LlegadasHoy::OBSERVACIONES);
     var OBSERVAN = @json(\App\Support\LlegadasHoy::OBSERVAN);
     // Observaciones que se están editando (sobreviven a la actualización cada 30 s).
     var editando = null, borrador = null;
     var MARCA = @json($marca);
     var YO = @json($yo);
-    var TIPOS = @json(\App\Support\LlegadasHoy::TIPOS);
+    var TIPOS = @json($tipos);
     var CORTO = @json(\App\Support\LlegadasHoy::SINGULAR);
     var datos = @json($datos);
     var tab = @json($tipo);
@@ -272,26 +285,38 @@
             '<span class="ll-accion">' + accion + '</span></div>';
     }
 
-    // Observaciones de la recepción: casillas (audiencias) y texto libre.
-    function obsHtml(r) {
-        if (!r.conObs) { return ''; }
-        var clave = r.tipo + ':' + r.id, o = r.obs;
-        if (MARCA && editando === clave && borrador) {
+    // Observaciones: las de la recepción (audiencias y ratificaciones) y las
+    // del conciliador (sus audiencias), con las mismas casillas, cada una en
+    // su recuadro. Cada quien edita sólo las suyas.
+    function puedeAnotar(r, autor) {
+        if (!URL_OBS || autor !== MI_AUTOR) { return false; }
+        return autor === 'recepcion' || (r.tipo === 'audiencia' && r.conciliador_id === YO);
+    }
+    function obsBloque(r, autor, o) {
+        var clave = r.tipo + ':' + r.id + ':' + autor;
+        var puede = puedeAnotar(r, autor);
+        var cls = 'll-obs ll-obs--' + autor;
+        var autorHtml = '<div class="ll-obs__autor"><i class="bi ' + (autor === 'conciliador' ? 'bi-person-badge' : 'bi-door-open') + '"></i> ' + esc(AUTORES[autor]) + '</div>';
+        if (puede && editando === clave && borrador) {
             var casillas = (OBSERVAN[r.tipo] || []).map(function (c) {
                 return '<label class="ll-obs__casilla"><input type="checkbox" class="form-check-input m-0" data-obs-campo="' + c + '"' + (borrador[c] ? ' checked' : '') + '> ' + esc(OBS[c]) + '</label>';
             }).join('');
-            return '<div class="ll-obs ll-obs--editar" data-obs="' + clave + '">' +
+            return '<div class="' + cls + ' ll-obs--editar" data-obs="' + clave + '">' + autorHtml +
                 (casillas ? '<div class="ll-obs__casillas">' + casillas + '</div>' : '') +
                 '<textarea class="form-control form-control-sm" rows="2" maxlength="1000" data-obs-campo="texto" placeholder="Observaciones">' + esc(borrador.texto || '') + '</textarea>' +
                 '<div class="ll-obs__botones"><button type="button" class="btn btn-sm btn-outline-secondary" data-obs-cancelar>Cancelar</button>' +
                 '<button type="button" class="btn btn-sm btn-primary" data-obs-guardar data-tipo="' + r.tipo + '" data-id="' + r.id + '"><i class="bi bi-save"></i> Guardar</button></div></div>';
         }
-        var boton = MARCA ? '<button type="button" class="ll-obs__editar" data-obs-abrir="' + clave + '"><i class="bi bi-pencil"></i> ' + (o ? 'Editar observaciones' : 'Agregar observaciones') + '</button>' : '';
-        if (!o) { return MARCA ? '<div class="ll-obs ll-obs--vacia"><div class="ll-obs__pie">' + boton + '</div></div>' : ''; }
+        var boton = puede ? '<button type="button" class="ll-obs__editar" data-obs-abrir="' + clave + '"><i class="bi bi-pencil"></i> ' + (o ? 'Editar observaciones' : (autor === 'conciliador' ? 'Agregar mis observaciones' : 'Agregar observaciones')) + '</button>' : '';
+        if (!o) { return puede ? '<div class="ll-obs ll-obs--vacia"><div class="ll-obs__pie">' + boton + '</div></div>' : ''; }
         var chips = (o.etiquetas || []).map(function (e) { return '<span class="ll-obs__chip"><i class="bi bi-exclamation-diamond"></i> ' + esc(e) + '</span>'; }).join('');
-        return '<div class="ll-obs">' + (chips ? '<div class="ll-obs__chips">' + chips + '</div>' : '') +
+        return '<div class="' + cls + '">' + autorHtml + (chips ? '<div class="ll-obs__chips">' + chips + '</div>' : '') +
             (o.texto ? '<div class="ll-obs__texto"><i class="bi bi-chat-left-text"></i> ' + esc(o.texto) + '</div>' : '') +
             '<div class="ll-obs__pie">' + (o.por ? '<span class="ll-obs__meta">Anotó ' + esc(o.por) + ' · ' + esc(o.hora) + '</span>' : '<span></span>') + boton + '</div></div>';
+    }
+    function obsHtml(r) {
+        if (!r.conObs) { return ''; }
+        return obsBloque(r, 'recepcion', r.obs) + (r.tipo === 'audiencia' ? obsBloque(r, 'conciliador', r.obsConc) : '');
     }
 
     // Audiencias reagendadas: de dónde viene (con quién llegó a cada una) y
@@ -405,9 +430,10 @@
         });
     }
 
-    if (MARCA && URL_OBS) {
+    if (URL_OBS) {
         var lista = document.getElementById('llLista');
-        var buscar = function (clave) { return (datos.registros || []).filter(function (r) { return r.tipo + ':' + r.id === clave; })[0]; };
+        // clave = tipo:id:autor
+        var buscar = function (clave) { return (datos.registros || []).filter(function (r) { return clave.indexOf(r.tipo + ':' + r.id + ':') === 0; })[0]; };
         var campo = function (e) {
             var c = e.target.getAttribute && e.target.getAttribute('data-obs-campo');
             if (c && borrador) { borrador[c] = e.target.type === 'checkbox' ? e.target.checked : e.target.value; }
@@ -420,7 +446,8 @@
                 var r = buscar(abrir.getAttribute('data-obs-abrir'));
                 editando = abrir.getAttribute('data-obs-abrir');
                 borrador = { silla_ruedas: false, traductor: false, menor_edad: false, texto: '' };
-                if (r && r.obs) { Object.keys(borrador).forEach(function (k) { borrador[k] = r.obs[k] || borrador[k]; }); }
+                var actual = r ? (MI_AUTOR === 'conciliador' ? r.obsConc : r.obs) : null;
+                if (actual) { Object.keys(borrador).forEach(function (k) { borrador[k] = actual[k] || borrador[k]; }); }
                 pintar();
                 var t = lista.querySelector('[data-obs="' + editando + '"] textarea');
                 if (t) { t.focus(); }
