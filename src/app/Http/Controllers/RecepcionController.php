@@ -55,6 +55,19 @@ class RecepcionController extends Controller
             return back()->withInput()->with('error', $errorFlujo);
         }
 
+        // Correo (opcional en ventanilla): bien escrito y fuera de la lista
+        // negra de Administración → Módulos (App\Support\LimiteCitas).
+        $correoVentanilla = \App\Support\LimiteCitas::correo($request->input('correo'));
+        if ($correoVentanilla && filter_var($correoVentanilla, FILTER_VALIDATE_EMAIL) === false) {
+            return back()->withInput()->with('error', 'El correo electrónico no está bien escrito.');
+        }
+        if (\App\Support\LimiteCitas::enListaNegra($correoVentanilla)) {
+            \Illuminate\Support\Facades\Log::info('Turno de ventanilla detenido por la lista negra', ['correo' => $correoVentanilla, 'por' => auth()->id()]);
+
+            return back()->withInput()->with('error', 'No se puede registrar el turno: el correo '.$correoVentanilla.' está en la lista negra (Administración → Módulos → Límite de citas en línea).');
+        }
+        $request->merge(['correo' => $correoVentanilla]);
+
         $data = $request->all();
         $sede = $data["delegacion"];
         $tipoTramite = $data["tipo"];

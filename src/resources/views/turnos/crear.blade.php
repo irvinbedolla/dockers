@@ -142,6 +142,13 @@
                             </div>
 
                             <div class="col-12">
+                                <label class="form-label" for="gcCorreo">Correo electrónico <span class="text-muted fw-normal">(opcional)</span></label>
+                                <input type="email" id="gcCorreo" name="correo" class="form-control" maxlength="150" autocomplete="off"
+                                       placeholder="correo@ejemplo.com" value="{{ old('correo') }}">
+                                <div class="invalid-feedback">Revisa el correo electrónico.</div>
+                            </div>
+
+                            <div class="col-12">
                                 <div class="nt-excepcion {{ $excepcionInicial ? 'is-activa' : '' }}" id="ntExcepcion">
                                     <div class="form-check form-switch">
                                         <input class="form-check-input" type="checkbox" role="switch" id="ntExcepcionSwitch" @checked($excepcionInicial)>
