@@ -94,6 +94,11 @@ class RatificacionMultipleController extends Controller
             'acepta_privacidad.accepted' => 'Debes aceptar el aviso de privacidad.',
         ]);
 
+        // Lista negra de correos (Administración → Módulos).
+        if (\App\Support\LimiteCitas::enListaNegra($datos['correo'])) {
+            return back()->withInput()->withErrors(['correo' => \App\Support\LimiteCitas::MENSAJE_NEGRA]);
+        }
+
         [$poder, $error] = CitaPatronal::poderElegible($datos['poder_folio']);
         if ($error) {
             return back()->withInput()->withErrors(['poder_folio' => $error]);
