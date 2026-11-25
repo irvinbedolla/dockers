@@ -133,9 +133,9 @@
                     <span class="ex-sub">{{ $textoPeriodo }}</span>
                 </div>
                 <div class="ex-cifras">
-                    <div class="ex-cifra" title="Citas y turnos marcados como excepción, más las solicitudes marcadas que no vienen de una de esas citas.">
+                    <div class="ex-cifra" title="Citas y turnos marcados como excepción, más las solicitudes marcadas que no vienen de una de esas citas. En línea y ventanilla: los marcó recepción al agendar; en módulo: los detectó y envió el orientador o auxiliar que atendía la cita.">
                         <b>{{ number_format($r['detectados']) }}</b><span>Detectados</span>
-                        <small>{{ $r['enLinea'] }} en línea · {{ $r['ventanilla'] }} ventanilla · {{ $r['solicitudes'] }} solicitud</small>
+                        <small>{{ $r['enLinea'] }} en línea · {{ $r['ventanilla'] }} ventanilla{{ $r['conEnvio'] ? ' · '.$r['modulo'].' en módulo' : '' }} · {{ $r['solicitudes'] }} solicitud</small>
                     </div>
                     <div class="ex-cifra"><b>{{ number_format($r['atendidos']) }}</b><span>Atendidos</span><small>formato terminado</small></div>
                     <div class="ex-cifra ex-cifra--exito"><b>{{ number_format($r['continua']) }}</b><span>Continúan</span><small>con la conciliación{{ $r['integral'] ? ' · '.$r['integral'].' además canalizados' : '' }}</small></div>
@@ -279,12 +279,13 @@
                     <div class="ex-cabeza"><h4 class="ex-titulo">Por sede</h4><span class="ex-sub">{{ $textoPeriodo }}</span></div>
                     <div class="table-responsive">
                         <table class="table table-hover ex-tabla mb-0">
-                            <thead><tr><th>Sede</th><th class="ex-num">Detectados</th><th class="ex-num">Atendidos</th><th class="ex-num">Continúan</th><th class="ex-num">Canalizados</th><th class="ex-num">No competentes</th><th class="ex-num">No eran excepción</th><th class="ex-num">Por atender hoy</th></tr></thead>
+                            <thead><tr><th>Sede</th><th class="ex-num">Detectados</th>@if ($r['conEnvio'])<th class="ex-num" title="De los detectados, los que envió el orientador o auxiliar desde Mi módulo">En módulo</th>@endif<th class="ex-num">Atendidos</th><th class="ex-num">Continúan</th><th class="ex-num">Canalizados</th><th class="ex-num">No competentes</th><th class="ex-num">No eran excepción</th><th class="ex-num">Por atender hoy</th></tr></thead>
                             <tbody>
                                 @foreach ($porSede as $f)
                                     <tr>
                                         <td><a href="{{ $url(['sede' => $f['sede']]) }}" style="color:var(--tn-tinta);font-weight:700;text-decoration:none">{{ $f['sede'] }}</a></td>
                                         <td class="ex-num">{{ number_format($f['detectados']) }}</td>
+                                        @if ($r['conEnvio'])<td class="ex-num">{{ number_format($f['modulo']) }}</td>@endif
                                         <td class="ex-num">{{ number_format($f['atendidos']) }}</td>
                                         <td class="ex-num" style="color:#1E7B3C;font-weight:700">{{ number_format($f['continua']) }}</td>
                                         <td class="ex-num" style="color:#9A3A22;font-weight:700">{{ number_format($f['canaliza']) }}</td>

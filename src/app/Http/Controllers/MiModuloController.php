@@ -417,6 +417,85 @@ class MiModuloController extends Controller
         });
     }
 
+    /**
+     * "Enviar a casos de excepción": quien atiende una solicitud o asesoría de
+     * hoy (en atención o ya atendida) descubre que es caso de excepción y deja
+     * un borrador del formato 685 Ter ligado a la cita; el departamento lo
+     * continúa desde su bandeja (pestaña "Enviados desde módulos"). La cita
+     * queda marcada como caso de excepción, pero sigue en el módulo y la
+     * atención continúa como siempre.
+     */
+    public function enviarExcepcion(Request $request, int $id)
+    {
+        $usuario = $request->user();
+        abort_unless(self::puedeVer($usuario), 403);
+        abort_unless(\App\Support\CasosExcepcion::conEnvio(), 503, 'Falta correr la migración del envío a casos de excepción.');
+
+        $datos = $request->validate([
+            'tipos'       => ['required', 'array', 'min:1'],
+            'tipos.*'     => ['string', \Illuminate\Validation\Rule::in(array_keys(\App\Support\CasosExcepcion::TIPOS))],
+            'descripcion' => ['required', 'string', 'max:2000'],
+            'nota'        => ['nullable', 'string', 'max:1000'],
+            // Datos laborales del formato 685 Ter: opcionales, el departamento completa lo que falte.
+            'empresa'           => ['nullable', 'string', 'max:255'],
+            'area_adscripcion'  => ['nullable', 'string', 'max:255'],
+            'puesto'            => ['nullable', 'string', 'max:255'],
+            'conoce_jefe'       => ['nullable', 'in:0,1'],
+            'jefe_inmediato'    => ['nullable', 'string', 'max:255'],
+            'frecuencia'        => ['nullable', \Illuminate\Validation\Rule::in(array_keys(\App\Support\CasosExcepcion::FRECUENCIAS))],
+            'situacion_laboral' => ['nullable', \Illuminate\Validation\Rule::in(array_keys(\App\Support\CasosExcepcion::SITUACIONES))],
+            'situacion_otro'    => ['nullable', 'string', 'max:255'],
+            // ¿Desea continuar con la conciliación? Queda marcado en el borrador; el departamento lo confirma al terminar.
+            'resultado'         => ['nullable', 'in:continua,canaliza'],
+        ], [
+            'tipos.required'       => 'Marca al menos un tipo de situación.',
+            'descripcion.required' => 'Escribe brevemente qué pasó.',
+        ]);
+
+        $casoId = DB::transaction(function () use ($usuario, $id, $datos) {
+            // Bloquea la cita: un doble clic no deja dos borradores.
+            $cita = DB::table('recepcion')->where('id', $id)->lockForUpdate()->first();
+            abort_unless($cita, 404);
+            abort_unless($this->esDeSusModulos($usuario, $cita), 403, 'La cita no es de tu módulo.');
+            abort_unless(FlujoCita::aplicaA($cita), 422, 'El flujo nuevo no aplica a esta cita.');
+            abort_unless(in_array($cita->tipo, \App\Support\CasosExcepcion::TRAMITES_TURNO, true) || self::esAsesoria($cita), 422,
+                'Sólo se envían solicitudes y asesorías.');
+            abort_unless(substr((string) $cita->fecha, 0, 10) === now()->toDateString(), 422, 'Sólo se envían citas de hoy.');
+            abort_unless($cita->estatus === 'atendido' || (in_array($cita->estatus, self::VIGENTES, true) && $cita->atencion_inicio_at), 422,
+                'Primero inicia la atención de la cita.');
+
+            $solicitud = DB::table('seer_general')->where('recepcion_id', $cita->id)->value('id');
+            abort_if(\App\Support\FormatoExcepcion::tieneFormato($cita->id, $solicitud ? (int) $solicitud : null), 422,
+                'Este caso ya está en casos de excepción.');
+
+            return \App\Support\FormatoExcepcion::enviarDesdeModulo($cita, $datos['tipos'], $datos['descripcion'], $datos['nota'] ?? null, $usuario, $datos);
+        });
+
+        \Illuminate\Support\Facades\Log::info('excepcion.enviada_desde_modulo', ['cita' => $id, 'caso' => $casoId, 'por' => $usuario->id]);
+
+        return response()->json(['mensaje' => 'Se envió a casos de excepción. Puedes continuar con la atención.']);
+    }
+
+    /**
+     * El formato 685 Ter en PDF de una cita del módulo que ya está en casos de
+     * excepción: el mismo de la bandeja (/excepciones/cita/{id}/formato/pdf),
+     * para quien atiende la cita sin tener acceso a la bandeja.
+     */
+    public function excepcionPdf(Request $request, int $id)
+    {
+        $usuario = $request->user();
+        abort_unless(self::puedeVer($usuario), 403);
+
+        $cita = DB::table('recepcion')->where('id', $id)->first();
+        abort_unless($cita, 404);
+        abort_unless($this->esDeSusModulos($usuario, $cita), 403, 'La cita no es de tu módulo.');
+
+        $origen = \App\Support\FormatoExcepcion::origen('cita', $id);
+        abort_unless($origen['caso'], 404, 'Esta cita todavía no se ha enviado a casos de excepción.');
+
+        return \App\Support\FormatoExcepcion::pdf($origen, $id);
+    }
+
     public function descartar(Request $request)
     {
         \App\Support\PrellenadoCita::descartar();
@@ -587,6 +666,11 @@ class MiModuloController extends Controller
                 ...(FlujoCita::conTardias() ? ['r.llego_tarde'] : []),
                 ...(MotivoTermino::migrado() ? ['r.motivo_termino', 'r.motivo_termino_texto'] : []),
                 ...(\App\Support\CitaPatronal::migrado() ? ['r.poder_folio', 'r.citado', 'r.calidad'] : []),
+                // Ya tiene formato de casos de excepción (lo envió el módulo o lo abrió el departamento).
+                ...(\App\Support\CasosExcepcion::conEnvio() ? [
+                    DB::raw('EXISTS (SELECT 1 FROM seer_casos_excepcion x WHERE x.id_turno = r.id) AS con_formato'),
+                    DB::raw('EXISTS (SELECT 1 FROM seer_casos_excepcion x WHERE x.id_turno = r.id AND x.enviado_por IS NOT NULL) AS desde_modulo'),
+                ] : []),
                 'mu.nombre as municipio',
             ])
             ->map(function ($c) use ($ahora, $hoy, $aviso, $actualId, $sigueId) {
@@ -620,6 +704,11 @@ class MiModuloController extends Controller
                     // Formulario corto de ventanilla: quién solicita y si recepción lo canalizó a excepción.
                     'calidad'     => match ($c->calidad ?? null) { 'trabajador' => 'Trabajador', 'empleador' => 'Empleador', default => null },
                     'excepcion'   => $c->exepcion === 'Si',
+                    // "Enviar a casos de excepción": null si no aplica (sin migración o no es solicitud/asesoría).
+                    'enviadoExcepcion' => isset($c->con_formato) && (in_array($c->tipo, \App\Support\CasosExcepcion::TRAMITES_TURNO, true) || self::esAsesoria($c))
+                        ? (bool) $c->con_formato : null,
+                    // La marcó como excepción un módulo (no recepción): cambia el texto del chip.
+                    'desdeModulo' => (bool) ($c->desde_modulo ?? false),
                     'folioPatronal' => \App\Support\CitaPatronal::esPatronal($c) ? (string) $c->poder_folio : null,
                     'citado'      => \App\Support\CitaPatronal::nombreCitado($c),
                     'minutos'     => $minutos,
