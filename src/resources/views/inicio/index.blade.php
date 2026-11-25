@@ -79,6 +79,10 @@
                 @if (! empty($orientador))
                     @include('inicio._accesos_orientador')
                 @endif
+                {{-- Conciliadores: su siguiente audiencia, su día y los próximos días. --}}
+                @if (! empty($conciliador))
+                    @include('inicio._accesos_conciliador')
+                @endif
             </div>
 
             {{-- Tabla de posiciones para todos los roles menos recepción (que

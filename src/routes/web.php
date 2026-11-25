@@ -212,6 +212,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Pantalla de Inicio: deslindada del resto para poder colgarle después
     // datos y notificaciones por rol.
     Route::get('/inicio',                               [InicioController::class, 'index'])->name('inicio');
+    // Inicio del conciliador: su siguiente audiencia, su día y lo que sigue (se refresca cada 30 s).
+    Route::get('/inicio/conciliador',                   [InicioController::class, 'conciliador'])->name('inicio.conciliador');
     // "Ver como" (sólo Super Usuario, lo revisa el controlador con el usuario real): App\Support\VerComo.
     Route::get('/administracion/ver-como',              [App\Http\Controllers\VerComoController::class, 'index'])->name('ver_como.index');
     Route::post('/administracion/ver-como',             [App\Http\Controllers\VerComoController::class, 'iniciar'])->name('ver_como.iniciar');
