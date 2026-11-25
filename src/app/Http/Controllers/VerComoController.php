@@ -7,7 +7,6 @@ use App\Support\Recepcion;
 use App\Support\VerComo;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
-use Spatie\Permission\Models\Role;
 
 /**
  * Administración → "Ver como" (App\Support\VerComo). Sólo Super Usuario; estas
@@ -27,13 +26,15 @@ class VerComoController extends Controller
             'inactivos'  => ['nullable', 'boolean'],
         ]);
         $q = trim($f['q'] ?? '');
-        $roles = Role::where('guard_name', 'web')->orderBy('name')->pluck('name')->all();
+        $roles = VerComo::roles();
         $rol   = in_array($f['rol'] ?? null, $roles, true) ? $f['rol'] : null;
 
         $usuarios = User::with('roles:id,name')
             ->when(! ($f['inactivos'] ?? false), fn ($w) => $w->where('estatus', 'Activo'))
             ->when($q !== '', fn ($w) => $w->where(fn ($s) => $s->where('name', 'like', "%{$q}%")->orWhere('email', 'like', "%{$q}%")))
             ->when($rol, fn ($w, $r) => $w->role($r))
+            // Sin solicitantes (VerComo::EXCLUIDOS).
+            ->whereDoesntHave('roles', fn ($r) => $r->whereIn('name', VerComo::EXCLUIDOS))
             ->when($f['sede'] ?? null, fn ($w, $sede) => $w->where('delegacion', $sede))
             ->where('id', '!=', $real->id)
             ->orderBy('name')
@@ -64,6 +65,7 @@ class VerComoController extends Controller
 
         $personas = User::with('roles:id,name')
             ->where('id', '!=', $real->id)
+            ->whereDoesntHave('roles', fn ($r) => $r->whereIn('name', VerComo::EXCLUIDOS))
             ->where(fn ($s) => $s->where('name', 'like', "%{$q}%")->orWhere('email', 'like', "%{$q}%"))
             ->orderByRaw("CASE WHEN estatus = 'Activo' THEN 0 ELSE 1 END")
             ->orderBy('name')
@@ -90,12 +92,12 @@ class VerComoController extends Controller
         if ($tipo === 'usuario') {
             $id = (int) $request->validate(['user_id' => ['required', 'integer']])['user_id'];
             $objetivo = User::find($id);
-            abort_unless($objetivo && $objetivo->id !== $real->id, 404);
+            abort_unless($objetivo && $objetivo->id !== $real->id && ! $objetivo->hasAnyRole(VerComo::EXCLUIDOS), 404);
             VerComo::iniciarUsuario($real, $objetivo);
         } else {
             $datos = $request->validate([
                 'roles'   => ['required', 'array', 'min:1', 'max:6'],
-                'roles.*' => ['string', Rule::exists('roles', 'name')->where('guard_name', 'web')],
+                'roles.*' => ['string', Rule::in(VerComo::roles())],
                 'sede'    => ['required', Rule::in(Recepcion::TODAS_LAS_SEDES)],
             ], [
                 'roles.required' => 'Elige al menos un rol.',

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\AccesosConciliador;
 use App\Support\AccesosOrientador;
 use App\Support\AccesosRecepcion;
 use App\Support\CasosExcepcion;
@@ -38,6 +39,10 @@ class InicioController extends Controller
         $accesos    = ! $casos && AccesosRecepcion::aplica($usuario) ? AccesosRecepcion::para($usuario) : null;
         // Orientadores y auxiliares con módulo: quién sigue, sus citas y sus solicitudes.
         $orientador = ! $casos && ! $accesos && AccesosOrientador::aplica($usuario) ? AccesosOrientador::para($usuario) : null;
+        // Conciliadores: su siguiente audiencia, su día, lo que sigue y los próximos días.
+        $conciliador = ! $casos && ! $accesos && ! $orientador && AccesosConciliador::aplica($usuario)
+            ? ['hoy' => AccesosConciliador::hoy($usuario), 'proximos' => AccesosConciliador::proximos($usuario)]
+            : null;
         $posiciones = ($accesos || $casos) ? null : TablaPosiciones::resumen();
 
         if (in_array('Directivo', $userRole, true)) {
@@ -49,6 +54,7 @@ class InicioController extends Controller
                 'accesos'      => $accesos,
                 'casos'        => $casos,
                 'orientador'   => $orientador,
+                'conciliador'  => $conciliador,
                 'resumen'      => ResumenSedes::totales(),
                 'resumenSedes' => ResumenSedes::detalle(),
             ]);
@@ -56,6 +62,15 @@ class InicioController extends Controller
 
         ['sedes' => $sedes, 'conciliadores' => $conciliadores] = AgendaContexto::para($usuario);
 
-        return view('inicio.index', compact('usuario', 'userRole', 'saludo', 'posiciones', 'accesos', 'casos', 'orientador', 'sedes', 'conciliadores'));
+        return view('inicio.index', compact('usuario', 'userRole', 'saludo', 'posiciones', 'accesos', 'casos', 'orientador', 'conciliador', 'sedes', 'conciliadores'));
+    }
+
+    /** Refresco (cada 30 s) de la siguiente audiencia, el día y lo que sigue del conciliador. */
+    public function conciliador()
+    {
+        $usuario = auth()->user();
+        abort_unless(AccesosConciliador::aplica($usuario), 403);
+
+        return response()->json(AccesosConciliador::hoy($usuario))->header('Cache-Control', 'no-store');
     }
 }

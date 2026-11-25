@@ -280,7 +280,7 @@ class AgendadoresCitas
         $lista = (clone $q)->orderByDesc('created_at')->limit($cuantos)->get()->map(fn ($b) => [
             'cuando'    => $b->created_at ? Carbon::parse($b->created_at)->format('d/m/Y H:i') : '—',
             'motivo'    => LimiteCitas::MOTIVOS[$b->motivo] ?? $b->motivo,
-            'regla'     => 'Tenía '.$b->llevaba.' · máximo '.$b->limite.' '.(LimiteCitas::PERIODOS[$b->periodo] ?? ''),
+            'regla'     => $b->motivo === 'negra' ? 'Correo en la lista negra' : 'Tenía '.$b->llevaba.' · máximo '.$b->limite.' '.(LimiteCitas::PERIODOS[$b->periodo] ?? ''),
             'ip'        => $b->ip ?: '—',
             'correo'    => $b->correo ?: '—',
             'telefono'  => $b->telefono ?: '—',

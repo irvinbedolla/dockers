@@ -27,10 +27,10 @@ use Illuminate\Support\Str;
 class RevisionAudiencia
 {
     /** Estatus de notificación que cuentan como hecha. */
-    private const NOTIFICADO = ['Finalizado exitosamente', 'Exitosa por Instructivo', 'Notificada en Audiencia', 'Recibe pero no firma', 'Notificada'];
+    public const NOTIFICADO = ['Finalizado exitosamente', 'Exitosa por Instructivo', 'Notificada en Audiencia', 'Recibe pero no firma', 'Notificada'];
 
     /** No se logró. */
-    private const NO_NOTIFICADO = ['No exitosa se constituye', 'No exitosa no se constituye', 'No notificada'];
+    public const NO_NOTIFICADO = ['No exitosa se constituye', 'No exitosa no se constituye', 'No notificada'];
 
     /** Pestañas de la pantalla (los id de los div .tabcontent). */
     public const PESTANAS = [
@@ -506,7 +506,9 @@ class RevisionAudiencia
 
         $obs = [];
         if (LlegadasHoy::conObservaciones()) {
+            // Las de la recepción (el conciliador ve las suyas en Llegadas hoy).
             $o = DB::table(LlegadasHoy::TABLA_OBS)->where('tipo', 'audiencia')->where('registro_id', $audiencia->id)
+                ->when(LlegadasHoy::conAutor(), fn ($q) => $q->where('autor', 'recepcion'))
                 ->whereBetween('updated_at', LlegadasHoy::dia(now()->toDateString()))->first();
             if ($o) {
                 foreach (LlegadasHoy::OBSERVACIONES as $campo => $texto) {

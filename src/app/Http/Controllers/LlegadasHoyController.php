@@ -12,7 +12,8 @@ use Illuminate\Support\Facades\Log;
  *
  *   - La recepción (Morelia 02 y la General, cada una en sus sedes) y el
  *     Super Usuario marcan.
- *   - El conciliador sólo consulta; por omisión ve lo suyo.
+ *   - El conciliador consulta (por omisión ve lo suyo, sin ratificaciones,
+ *     que no lleva) y anota sus propias observaciones en sus audiencias.
  *   - Al conciliador asignado le llega el aviso con sonido (avisos(), que
  *     consulta llegadas/_avisos desde el layout).
  */
@@ -25,16 +26,19 @@ class LlegadasHoyController extends Controller
 
         $sedes = LlegadasHoy::sedes($usuario);
         $sede  = $this->sede($request, $sedes);
-        $tipo  = array_key_exists((string) $request->query('tipo'), LlegadasHoy::TIPOS) ? (string) $request->query('tipo') : 'todas';
+        $tipos = LlegadasHoy::tiposPara($usuario);
+        $tipo  = array_key_exists((string) $request->query('tipo'), $tipos) ? (string) $request->query('tipo') : 'todas';
 
         return view('llegadas.index', [
             'sedes'     => $sedes,
             'sede'      => $sede,
             'tipo'      => $tipo,
+            'tipos'     => $tipos,
             'marca'     => LlegadasHoy::puedeMarcar($usuario),
+            'autorObs'  => LlegadasHoy::autorObservaciones($usuario),
             'yo'        => $usuario->id,
             'soloMias'  => ! LlegadasHoy::puedeMarcar($usuario),
-            'datos'     => $this->armar($sede),
+            'datos'     => $this->armar($sede, $tipos),
             'urlDatos'  => route('llegadas.datos', ['sede' => $sede]),
         ]);
     }
@@ -45,7 +49,7 @@ class LlegadasHoyController extends Controller
 
         $sede = $this->sede($request, LlegadasHoy::sedes($request->user()));
 
-        return response()->json($this->armar($sede))->header('Cache-Control', 'no-store');
+        return response()->json($this->armar($sede, LlegadasHoy::tiposPara($request->user())))->header('Cache-Control', 'no-store');
     }
 
     public function marcar(Request $request, string $tipo, int $id)
@@ -69,11 +73,14 @@ class LlegadasHoyController extends Controller
         return response()->json(['ok' => true]);
     }
 
-    /** Observaciones de la recepción para una audiencia o ratificación de hoy. */
+    /**
+     * Observaciones de la recepción (audiencia o ratificación de hoy) o del
+     * conciliador (sus audiencias de hoy); cada quien guarda las suyas.
+     */
     public function observaciones(Request $request, string $tipo, int $id)
     {
         $usuario = $request->user();
-        abort_unless(LlegadasHoy::puedeMarcar($usuario), 403);
+        abort_unless(LlegadasHoy::autorObservaciones($usuario) !== null, 403);
 
         $datos = $request->validate([
             'silla_ruedas' => ['nullable', 'boolean'],
@@ -87,7 +94,7 @@ class LlegadasHoyController extends Controller
             return response()->json(['message' => $error], 422);
         }
 
-        Log::info('llegada.observaciones', ['tipo' => $tipo, 'id' => $id, 'por' => $usuario->id]);
+        Log::info('llegada.observaciones', ['tipo' => $tipo, 'id' => $id, 'autor' => LlegadasHoy::autorObservaciones($usuario), 'por' => $usuario->id]);
 
         return response()->json(['ok' => true]);
     }
@@ -106,9 +113,10 @@ class LlegadasHoyController extends Controller
         return in_array($pedida, $sedes, true) ? $pedida : ($sedes[0] ?? '');
     }
 
-    private function armar(string $sede): array
+    private function armar(string $sede, array $tipos): array
     {
-        $registros = $sede === '' ? collect() : LlegadasHoy::delDia([$sede], now()->toDateString());
+        $registros = $sede === '' ? collect() : LlegadasHoy::delDia([$sede], now()->toDateString())
+            ->filter(fn ($r) => array_key_exists($r['tipo'], $tipos))->values();
 
         return [
             'sede'      => $sede,

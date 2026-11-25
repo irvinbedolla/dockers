@@ -16,9 +16,8 @@ use Illuminate\Support\Str;
  * recepción que recibe a la gente (Morelia 02 y, en las sedes regionales, la
  * Recepción General) lo marca y el conciliador asignado
  * recibe un aviso con sonido (llegadas/_avisos), igual que el auxiliar que
- * lleva la ratificación o el cumplimiento (AUXILIARES) y que el orientador
- * con el permiso de ese trámite activo (ORIENTADOR). Todos ellos también ven
- * la pantalla, sólo para consultar.
+ * lleva la ratificación o el cumplimiento (AUXILIARES). Ellos también ven la
+ * pantalla, sólo con las pestañas de lo que llevan (tiposPara()).
  *
  *   delDia()      lo de hoy de unas sedes, con sus partes y quién llegó;
  *   marcar()      registra (o quita) la llegada de una parte;
@@ -64,32 +63,25 @@ class LlegadasHoy
     public const MARCAN = ['Super Usuario', Recepcion::MORELIA_02, Recepcion::REGIONAL];
 
     /**
-     * Auxiliares que reciben el aviso de lo que llevan: la ratificación que
-     * capturaron o cuya cita cayó en su módulo, y el cumplimiento que
-     * agendaron (o el de una ratificación suya). Las audiencias son sólo del
-     * conciliador.
+     * Auxiliares que reciben el aviso de lo que llevan y ven su pestaña: el
+     * de ratificaciones, la ratificación que capturó o cuya cita cayó en su
+     * módulo; el de cumplimientos, el cumplimiento que agendó (o el de una
+     * ratificación suya). Las audiencias son sólo del conciliador: un
+     * auxiliar las ve únicamente si además tiene el rol Conciliador.
      */
     public const AUXILIARES = ['Auxiliar Ratificaciones', 'Auxiliar Cumplimientos'];
+
+    /** Qué trámite lleva cada rol de auxiliar. */
+    public const AUXILIAR_DE = [
+        'ratificacion' => 'Auxiliar Ratificaciones',
+        'cumplimiento' => 'Auxiliar Cumplimientos',
+    ];
 
     /** Quién sólo consulta (las de sus sedes; por omisión, las suyas). */
     public const CONSULTAN = ['Conciliador', ...self::AUXILIARES];
 
-    /**
-     * El orientador recibe los avisos (y ve la pantalla) de las ratificaciones
-     * y cumplimientos que lleva, igual que un auxiliar, sólo mientras tenga
-     * activo el permiso de ese trámite (por su rol o dado directo al usuario).
-     * Son los mismos permisos que pide un módulo para atender el trámite
-     * (Especialidades::PERMISO_POR_TRAMITE).
-     */
-    public const ORIENTADOR = 'Orientador';
-
-    public const PERMISO_ORIENTADOR = [
-        'ratificacion' => 'ratificaciones_crear',
-        'cumplimiento' => 'cumplimientos_consultar',
-    ];
-
-    /** Roles a los que les puede llegar el aviso (la ruta; el permiso lo revisa recibeAvisos()). */
-    public const RECIBEN = [...self::CONSULTAN, self::ORIENTADOR];
+    /** Roles a los que les puede llegar el aviso (la ruta). */
+    public const RECIBEN = self::CONSULTAN;
 
     /** Tabla de observaciones (una fila por registro). */
     public const TABLA_OBS = 'llegadas_observaciones';
@@ -101,11 +93,24 @@ class LlegadasHoy
         'menor_edad'   => 'Es menor de edad',
     ];
 
+    /**
+     * Quién anota observaciones: la recepción (en lo de su sede) y el
+     * conciliador (en sus audiencias, con las mismas casillas). Se guardan
+     * aparte y se ven separadas.
+     */
+    public const AUTORES = [
+        'recepcion'   => 'Recepción',
+        'conciliador' => 'Conciliador',
+    ];
+
     /** Dónde se anotan observaciones y qué casillas lleva cada uno (el texto libre va en todos). */
     public const OBSERVAN = [
         'audiencia'    => ['silla_ruedas', 'traductor', 'menor_edad'],
         'ratificacion' => [],
     ];
+
+    /** Estatus de la audiencia que se reagendó (la nueva es otra fila de audiencias). */
+    public const REAGENDADAS = ['Reagendada', 'No conciliacion reagendada'];
 
     /** Ratificaciones que ya no esperan a nadie. */
     private const RATIFICACION_CERRADA = ['Concluida', 'Concluida Pagos', 'Incumplimiento', 'Archivada', 'Prevencion', 'no atendido'];
@@ -152,13 +157,62 @@ class LlegadasHoy
         return $hay ??= Schema::hasTable(self::TABLA_OBS);
     }
 
+    /** ¿Ya corrió la migración del autor (recepción / conciliador) de las observaciones? */
+    public static function conAutor(): bool
+    {
+        static $hay = null;
+
+        return $hay ??= self::conObservaciones() && Schema::hasColumn(self::TABLA_OBS, 'autor');
+    }
+
+    /**
+     * Como quién anota observaciones este usuario: 'recepcion' (quien marca
+     * llegadas), 'conciliador' o null.
+     */
+    public static function autorObservaciones(?User $usuario): ?string
+    {
+        if (! $usuario || ! self::conObservaciones()) {
+            return null;
+        }
+        if (self::puedeMarcar($usuario)) {
+            return 'recepcion';
+        }
+
+        return self::conAutor() && $usuario->hasRole('Conciliador') ? 'conciliador' : null;
+    }
+
+    /**
+     * Pestañas que ve. La recepción (y el Super Usuario), todas. Los demás,
+     * sólo lo que llevan:
+     *   audiencia     el conciliador (un auxiliar, sólo si también es conciliador);
+     *   ratificacion  el Auxiliar Ratificaciones;
+     *   cumplimiento  el Auxiliar Cumplimientos y el conciliador.
+     */
+    public static function tiposPara(User $usuario): array
+    {
+        if (self::puedeMarcar($usuario)) {
+            return self::TIPOS;
+        }
+
+        $conc  = $usuario->hasRole('Conciliador');
+        $lleva = self::lleva($usuario);
+        $ve = [
+            'audiencia'    => $conc,
+            'ratificacion' => $lleva['ratificacion'],
+            'cumplimiento' => $conc || $lleva['cumplimiento'],
+        ];
+
+        return array_filter(self::TIPOS, fn ($tipo) => $ve[$tipo] ?? false, ARRAY_FILTER_USE_KEY);
+    }
+
     /**
      * Guarda (o borra, si queda vacío) las observaciones de un registro de
      * hoy. Devuelve el texto de error, o null si salió bien.
      */
     public static function guardarObservaciones(string $tipo, int $id, array $datos, User $usuario): ?string
     {
-        if (! self::conObservaciones() || ! array_key_exists($tipo, self::OBSERVAN)) {
+        $autor = self::autorObservaciones($usuario);
+        if (! $autor || ! array_key_exists($tipo, self::OBSERVAN)) {
             return 'Aquí no se anotan observaciones.';
         }
 
@@ -166,7 +220,14 @@ class LlegadasHoy
         if (! $registro) {
             return 'Ese registro ya no existe.';
         }
-        if (! in_array($registro['sede'], self::variantes(self::sedes($usuario)), true)) {
+        if ($autor === 'conciliador') {
+            // El conciliador, sólo en sus audiencias.
+            $suya = $tipo === 'audiencia'
+                && (int) DB::table('audiencias')->where('id', $id)->value('id_conciliador') === (int) $usuario->id;
+            if (! $suya) {
+                return 'Sólo anotas observaciones en tus audiencias.';
+            }
+        } elseif (! in_array($registro['sede'], self::variantes(self::sedes($usuario)), true)) {
             return 'No es de tu sede.';
         }
         if ($registro['fecha'] !== now()->toDateString()) {
@@ -179,7 +240,8 @@ class LlegadasHoy
             $fila[$casilla] = in_array($casilla, self::OBSERVAN[$tipo], true) && ! empty($datos[$casilla]);
         }
 
-        $donde = DB::table(self::TABLA_OBS)->where('tipo', $tipo)->where('registro_id', $id);
+        $donde = DB::table(self::TABLA_OBS)->where('tipo', $tipo)->where('registro_id', $id)
+            ->when(self::conAutor(), fn ($q) => $q->where('autor', $autor));
         if ($fila['texto'] === null && ! in_array(true, array_intersect_key($fila, self::OBSERVACIONES), true)) {
             $donde->delete();
 
@@ -190,7 +252,8 @@ class LlegadasHoy
         if ((clone $donde)->exists()) {
             $donde->update($fila);
         } else {
-            DB::table(self::TABLA_OBS)->insert($fila + ['tipo' => $tipo, 'registro_id' => $id, 'created_at' => now()]);
+            DB::table(self::TABLA_OBS)->insert($fila + ['tipo' => $tipo, 'registro_id' => $id, 'created_at' => now()]
+                + (self::conAutor() ? ['autor' => $autor] : []));
         }
 
         return null;
@@ -202,15 +265,19 @@ class LlegadasHoy
      * (Administración → Cambiar fecha) conserva su id, y lo del día original
      * no debe aparecer en el nuevo (ver delDia()).
      */
-    private static function observacionesDe(string $tipo, $ids, string $fecha): Collection
+    private static function observacionesDe(string $tipo, $ids, string $fecha, string $autor = 'recepcion'): Collection
     {
         if (! self::conObservaciones() || ! array_key_exists($tipo, self::OBSERVAN)) {
+            return collect();
+        }
+        if ($autor !== 'recepcion' && ! self::conAutor()) {
             return collect();
         }
 
         return DB::table(self::TABLA_OBS . ' as o')
             ->leftJoin('users as u', 'u.id', '=', 'o.registrado_por')
             ->where('o.tipo', $tipo)
+            ->when(self::conAutor(), fn ($q) => $q->where('o.autor', $autor))
             ->whereIn('o.registro_id', collect($ids)->all() ?: [0])
             ->whereBetween('o.updated_at', self::dia($fecha))
             ->get(['o.registro_id', 'o.silla_ruedas', 'o.traductor', 'o.menor_edad', 'o.texto', 'o.updated_at', 'u.name as por'])
@@ -237,7 +304,7 @@ class LlegadasHoy
         ];
     }
 
-    /** Roles con la pestaña en el menú (al orientador además se le pide el permiso: puedeVer()). */
+    /** Roles con la pestaña en el menú (además se pide que vea algo: puedeVer()). */
     public static function roles(): array
     {
         return array_merge(self::MARCAN, self::RECIBEN);
@@ -250,47 +317,22 @@ class LlegadasHoy
 
     public static function puedeVer(?User $usuario): bool
     {
-        return $usuario !== null && self::migrado()
-            && ($usuario->hasAnyRole(array_merge(self::MARCAN, self::CONSULTAN)) || self::orientadorConPermiso($usuario));
+        return $usuario !== null && self::migrado() && self::tiposPara($usuario) !== [];
     }
 
     /** ¿Le llegan los avisos con sonido? (layouts/app incluye llegadas/_avisos) */
     public static function recibeAvisos(?User $usuario): bool
     {
-        return $usuario !== null && self::migrado()
-            && ($usuario->hasAnyRole(self::CONSULTAN) || self::orientadorConPermiso($usuario));
+        return $usuario !== null && self::migrado() && $usuario->hasAnyRole(self::CONSULTAN);
     }
 
     /**
-     * Qué lleva como auxiliar u orientador: ['ratificacion' => bool, 'cumplimiento' => bool].
-     * Los auxiliares (AUXILIARES), los dos; el orientador, los de su permiso activo.
+     * Qué lleva como auxiliar: ['ratificacion' => bool, 'cumplimiento' => bool],
+     * según tenga el rol Auxiliar Ratificaciones o Auxiliar Cumplimientos.
      */
     public static function lleva(User $usuario): array
     {
-        $aux = $usuario->hasAnyRole(self::AUXILIARES);
-        $ori = $usuario->hasRole(self::ORIENTADOR);
-
-        $lleva = [];
-        foreach (self::PERMISO_ORIENTADOR as $tipo => $permiso) {
-            $lleva[$tipo] = $aux || ($ori && $usuario->can($permiso));
-        }
-
-        return $lleva;
-    }
-
-    /** ¿Es orientador con el permiso de ratificaciones o de cumplimientos activo? */
-    private static function orientadorConPermiso(User $usuario): bool
-    {
-        if (! $usuario->hasRole(self::ORIENTADOR)) {
-            return false;
-        }
-        foreach (self::PERMISO_ORIENTADOR as $permiso) {
-            if ($usuario->can($permiso)) {
-                return true;
-            }
-        }
-
-        return false;
+        return array_map(fn ($rol) => $usuario->hasRole($rol), self::AUXILIAR_DE);
     }
 
     /**
@@ -408,7 +450,7 @@ class LlegadasHoy
 
     /**
      * Llegadas recientes a lo de hoy que lleva esta persona: como conciliador
-     * asignado, o como auxiliar u orientador (ver lleva()).
+     * asignado, o como auxiliar (ver lleva()).
      *
      * @return Collection<int, array>
      */
@@ -442,6 +484,8 @@ class LlegadasHoy
         $base = fn (string $tipo) => DB::table(self::TABLA.' as l')
             ->where('l.tipo', $tipo)
             ->where('l.llegada_at', '>=', $desde)
+            // Las heredadas de una audiencia reagendada ya se avisaron en la anterior.
+            ->where('l.origen', '!=', 'reagenda')
             ->select(['l.id', 'l.tipo', 'l.parte', 'l.nombre', 'l.origen', 'l.llegada_at', 'l.registro_id']);
 
         $audiencias = ! $esConc ? collect() : $base('audiencia')
@@ -541,8 +585,10 @@ class LlegadasHoy
         }
 
         $partes = self::partesAudiencia($audiencias);
+        $historial = self::historialAudiencias($audiencias, $fecha);
 
         return self::armar('audiencia', $fecha, $audiencias, fn ($a) => [
+            'historial' => $historial[$a->id] ?? null,
             'hora'   => $a->hora,
             'estatus' => $a->estatus,
             'abierto' => $a->estatus === 'Pendiente',
@@ -625,6 +671,8 @@ class LlegadasHoy
     {
         $ahora = now();
         $obs   = self::observacionesDe($tipo, $filas->pluck('id'), $fecha);
+        // Las del conciliador (sólo audiencias), aparte de las de la recepción.
+        $obsConc = $tipo === 'audiencia' ? self::observacionesDe($tipo, $filas->pluck('id'), $fecha, 'conciliador') : collect();
 
         // Sólo las llegadas de ese día: un registro al que le cambiaron la
         // fecha conserva su id y traería las del día original.
@@ -636,7 +684,7 @@ class LlegadasHoy
             ->get(['l.registro_id', 'l.clave', 'l.llegada_at', 'l.origen', 'u.name as por'])
             ->groupBy('registro_id');
 
-        return $filas->map(function ($fila) use ($tipo, $fecha, $ahora, $datos, $llegadas, $obs) {
+        return $filas->map(function ($fila) use ($tipo, $fecha, $ahora, $datos, $llegadas, $obs, $obsConc) {
             $d      = $datos($fila);
             $deEste = ($llegadas[$fila->id] ?? collect())->keyBy('clave');
             $lista  = array_map(function ($p) use ($deEste) {
@@ -644,8 +692,13 @@ class LlegadasHoy
 
                 return $p + [
                     'llegada' => $l ? Carbon::parse($l->llegada_at)->format('H:i') : null,
-                    'por'     => $l ? ($l->origen === 'cita' ? 'Validó su cita en recepción' : 'Marcó '.PantallaEspera::nombreCorto($l->por, false)) : null,
-                    'cita'    => $l && $l->origen === 'cita',
+                    'por'     => $l ? match ($l->origen) {
+                        'cita'     => 'Validó su cita en recepción',
+                        'reagenda' => 'Llegó a la audiencia que se reagendó'.($l->por ? '; marcó '.PantallaEspera::nombreCorto($l->por, false) : ''),
+                        default    => 'Marcó '.PantallaEspera::nombreCorto($l->por, false),
+                    } : null,
+                    'cita'     => $l && $l->origen === 'cita',
+                    'heredada' => $l && $l->origen === 'reagenda',
                 ];
             }, $d['partes']);
 
@@ -680,6 +733,9 @@ class LlegadasHoy
                 // Observaciones de la recepción (audiencias y ratificaciones).
                 'conObs'         => self::conObservaciones() && array_key_exists($tipo, self::OBSERVAN),
                 'obs'            => self::observacion($obs[$fila->id] ?? null),
+                'obsConc'        => self::observacion($obsConc[$fila->id] ?? null),
+                // Audiencias: de qué audiencias reagendadas viene y a dónde se reagendó.
+                'historial'      => $d['historial'] ?? null,
             ];
         });
     }
@@ -810,6 +866,142 @@ class LlegadasHoy
         }
 
         return $resultado;
+    }
+
+    /**
+     * Historial de reagendas de cada audiencia del día: [audiencia_id => [
+     *   'previas'   => las audiencias reagendadas de las que viene (de la más
+     *                  vieja a la más reciente), cada una con quién llegó ese día;
+     *   'siguiente' => si ésta se reagendó, para cuándo quedó la nueva,
+     * ]]; sólo las que tienen alguna de las dos.
+     */
+    private static function historialAudiencias(Collection $audiencias, string $fecha): array
+    {
+        $todas = DB::table('audiencias')
+            ->whereIn('id_solicitud', $audiencias->pluck('id_solicitud')->unique()->values())
+            ->orderBy('id')
+            ->get(['id', 'id_solicitud', 'numero_audiencia', 'fecha', 'hora', 'estatus'])
+            ->groupBy('id_solicitud');
+
+        $cadenas = [];
+        foreach ($audiencias as $a) {
+            $deSolicitud = collect($todas[$a->id_solicitud] ?? []);
+            $previas = [];
+            // Hacia atrás mientras sean reagendadas: ésa es la cadena de esta audiencia.
+            foreach ($deSolicitud->where('id', '<', $a->id)->sortByDesc('id') as $p) {
+                if (! in_array($p->estatus, self::REAGENDADAS, true)) {
+                    break;
+                }
+                $previas[] = $p;
+            }
+            $siguiente = in_array($a->estatus, self::REAGENDADAS, true)
+                ? $deSolicitud->where('id', '>', $a->id)->sortBy('id')->first()
+                : null;
+            if ($previas || $siguiente) {
+                $cadenas[$a->id] = [array_reverse($previas), $siguiente];
+            }
+        }
+        if (! $cadenas) {
+            return [];
+        }
+
+        $idsPrevias = collect($cadenas)->flatMap(fn ($c) => array_map(fn ($p) => $p->id, $c[0]))->unique()->values();
+        $llegadas = $idsPrevias->isEmpty() ? collect() : DB::table(self::TABLA)
+            ->where('tipo', 'audiencia')
+            ->whereIn('registro_id', $idsPrevias)
+            ->orderBy('llegada_at')
+            ->get(['registro_id', 'parte', 'nombre', 'llegada_at'])
+            ->groupBy('registro_id');
+
+        $cuando = function (object $x) use ($fecha) {
+            $dia = Carbon::parse($x->fecha)->toDateString();
+
+            return ($dia === $fecha ? 'hoy' : Carbon::parse($dia)->format('d/m/Y')).' a las '.substr((string) $x->hora, 0, 5);
+        };
+
+        $resultado = [];
+        foreach ($cadenas as $id => [$previas, $siguiente]) {
+            $resultado[$id] = [
+                'previas' => array_map(function ($p) use ($llegadas, $cuando) {
+                    $dia = Carbon::parse($p->fecha)->toDateString();
+
+                    return [
+                        'numero'   => $p->numero_audiencia ? 'Audiencia '.$p->numero_audiencia : 'Audiencia anterior',
+                        'cuando'   => $cuando($p),
+                        'estatus'  => self::CERRADO[$p->estatus] ?? (string) $p->estatus,
+                        // Sólo las de su día: llegadas de otro día no cuentan.
+                        'llegadas' => collect($llegadas[$p->id] ?? [])
+                            ->filter(fn ($l) => Carbon::parse($l->llegada_at)->toDateString() === $dia)
+                            ->map(fn ($l) => [
+                                'quien'  => ['solicitante' => 'Trabajador', 'citado' => 'Citado'][$l->parte] ?? Str::ucfirst((string) $l->parte),
+                                'nombre' => Str::title(Str::lower((string) $l->nombre)),
+                                'hora'   => Carbon::parse($l->llegada_at)->format('H:i'),
+                            ])->values()->all(),
+                    ];
+                }, $previas),
+                'siguiente' => $siguiente ? $cuando($siguiente) : null,
+            ];
+        }
+
+        return $resultado;
+    }
+
+    /**
+     * Se creó una audiencia (Audiencias::created). Si viene de reagendar la
+     * anterior de la misma solicitud, hereda las llegadas y las observaciones
+     * que la recepción registró el día de la nueva audiencia: si se reagenda
+     * para el mismo día, la gente ya está aquí y no hay que volver a marcarla.
+     * Las heredadas quedan con origen "reagenda" y se pueden deshacer.
+     */
+    public static function heredarDeReagenda(object $nueva): void
+    {
+        if (! self::migrado() || empty($nueva->fecha) || empty($nueva->id_solicitud)) {
+            return;
+        }
+
+        $anterior = DB::table('audiencias')
+            ->where('id_solicitud', $nueva->id_solicitud)
+            ->where('id', '<', $nueva->id)
+            ->orderByDesc('id')
+            ->first(['id', 'estatus']);
+        if (! $anterior || ! in_array($anterior->estatus, self::REAGENDADAS, true)) {
+            return;
+        }
+
+        $dia   = self::dia(Carbon::parse($nueva->fecha)->toDateString());
+        $ahora = now();
+
+        $llegadas = DB::table(self::TABLA)
+            ->where('tipo', 'audiencia')->where('registro_id', $anterior->id)
+            ->whereBetween('llegada_at', $dia)
+            ->get();
+        foreach ($llegadas as $l) {
+            DB::table(self::TABLA)->insertOrIgnore([
+                'tipo'           => 'audiencia',
+                'registro_id'    => $nueva->id,
+                'clave'          => $l->clave,
+                'parte'          => $l->parte,
+                'nombre'         => $l->nombre,
+                'origen'         => 'reagenda',
+                'llegada_at'     => $l->llegada_at,
+                'registrado_por' => $l->registrado_por,
+                'created_at'     => $ahora,
+                'updated_at'     => $ahora,
+            ]);
+        }
+
+        if (self::conObservaciones()) {
+            // Las de la recepción y las del conciliador, cada una con su autor.
+            $filas = DB::table(self::TABLA_OBS)
+                ->where('tipo', 'audiencia')->where('registro_id', $anterior->id)
+                ->whereBetween('updated_at', $dia)
+                ->get();
+            foreach ($filas as $o) {
+                $copia = (array) $o;
+                unset($copia['id']);
+                DB::table(self::TABLA_OBS)->insertOrIgnore(['registro_id' => $nueva->id, 'created_at' => $ahora] + $copia);
+            }
+        }
     }
 
     /**
