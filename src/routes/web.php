@@ -767,6 +767,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/seguimiento/solicitud/{id}',                       [App\Http\Controllers\SeguimientoController::class, 'verSolicitud'])->name('seguimiento.solicitud')->whereNumber('id');
         Route::get('/seguimiento/{clave}',                              [App\Http\Controllers\SeguimientoController::class, 'ver'])->name('seguimiento.ver')->where('clave', '[sc][0-9]+');
     });
+    // Seguimiento de la solicitud en un modal desde revisar/iniciar audiencia (sin la
+    // especialidad de solicitudes: lo abre el conciliador; las sedes se validan igual).
+    Route::get('/seguimiento/audiencia/{id}',                           [App\Http\Controllers\SeguimientoController::class, 'modal'])->name('seguimiento.modal')->whereNumber('id');
     Route::post('/seer/aserorias',                                      [SeerController::class, 'store_asesorias'])->name('seer.store_asesoria');
     Route::post('/seer/EliminarAserorias',                               [SeerController::class, 'destroy_asesorias'])->name('seer.destroy_asesoria');
     Route::get('/seer/index',                                           [SeerController::class, 'index'])->name('seer');
