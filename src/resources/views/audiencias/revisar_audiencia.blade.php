@@ -231,12 +231,13 @@
 
 @section('content')
     <section class="section">
-        <div class="section-header">
+        <div class="section-header d-flex justify-content-between align-items-center flex-wrap gap-2">
             @if ($isAudiencia == 'Si')
             <h3 class="page__heading">Revisar Audiencia</h3>
             @else
             <h3 class="page__heading">Revisar Solicitud</h3>
             @endif
+            @include('seguimiento._boton_modal', ['solicitudId' => $general->id])
         </div>
         <div class="section-body">
             <?php $fecha_actual->format('d/m/Y') ?>

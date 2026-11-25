@@ -25,6 +25,7 @@
                     @if (data_get($solicitud ?? null, 'NUE')) · Expediente <strong>{{ data_get($solicitud, 'NUE') }}</strong>@endif
                 </span>
             </div>
+            @include('seguimiento._boton_modal', ['solicitudId' => data_get($solicitud ?? null, 'id', $id ?? null)])
         </div>
         <div class="section-body">
             <div class="row">
