@@ -187,7 +187,7 @@
 
 
     </style>
-    {{-- Confirmación de cita: boleto, acciones, qué llevar e impresión. --}}
+    {{-- Confirmación de cita: aviso de correo, acciones, qué llevar e impresión. --}}
     <style>
         .cx { max-width: 820px; }
         .cx-hero { text-align: center; margin: 8px auto 22px; }
@@ -198,35 +198,7 @@
         }
         .cx-hero__titulo { font-size: clamp(24px, 4vw, 32px); font-weight: 800; color: #2E3C3D; margin: 0 0 8px; }
         .cx-hero__texto { max-width: 560px; margin: 0 auto; color: #4A5859; font-size: 15.5px; }
-
-        .cx-boleto {
-            display: grid;
-            grid-template-columns: 210px minmax(0, 1fr);
-            background: #fff;
-            border-radius: 16px;
-            box-shadow: 0 6px 24px rgba(46, 60, 61, .1);
-            overflow: hidden;
-            margin-bottom: 14px;
-        }
-        .cx-boleto__folio {
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-            padding: 20px 10px; background: var(--color-guinda); color: #fff;
-            border-right: 3px dashed rgba(255, 255, 255, .45);
-        }
-        .cx-boleto__folio .cx-etiqueta { color: rgba(255, 255, 255, .8); }
-        .cx-folio { font-size: 25px; font-weight: 800; letter-spacing: .03em; font-variant-numeric: tabular-nums; white-space: nowrap; }
-        .cx-boleto__datos {
-            display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 16px 20px; padding: 20px 22px;
-        }
-        .cx-dato { display: flex; gap: 12px; align-items: flex-start; min-width: 0; }
-        .cx-dato > i { font-size: 22px; color: var(--color-oro); line-height: 1.2; }
-        .cx-dato--ancho { grid-column: 1 / -1; }
-        .cx-etiqueta { display: block; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #8A9899; }
-        .cx-valor { display: block; font-size: 17px; font-weight: 700; color: #2E3C3D; word-break: break-word; }
-        .cx-dato--grande .cx-valor { font-size: 20px; }
-        .cx-valor--normal { font-weight: 500; font-size: 15px; }
-        .cx-mapa { display: inline-flex; gap: 6px; align-items: center; margin-top: 4px; font-size: 14px; font-weight: 600; color: var(--color-guinda); }
+        .cx-hero__texto + .cx-hero__texto { margin-top: 10px; }
 
         .cx-acciones { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 4px 0 20px; }
         .cx-btn { display: inline-flex; align-items: center; gap: 8px; padding: 11px 20px; border-radius: 10px; font-weight: 600; }
@@ -250,10 +222,6 @@
         .cx-otra { text-align: center; }
 
         @media (max-width: 576px) {
-            .cx-boleto { grid-template-columns: 1fr; }
-            .cx-boleto__folio { flex-direction: row; gap: 12px; border-right: 0; border-bottom: 3px dashed rgba(255, 255, 255, .45); padding: 14px; }
-            .cx-folio { font-size: 24px; }
-            .cx-boleto__datos { grid-template-columns: 1fr; padding: 18px; }
             .cx-acciones .cx-btn { flex: 1 1 100%; justify-content: center; }
         }
 
@@ -262,8 +230,7 @@
             body { padding-top: 0 !important; background: #fff !important; }
             .navbar, .cx-acciones, .cx-otra, .cx-detalle summary { display: none !important; }
             .cx-detalle__cuerpo { display: block !important; }
-            .cx-boleto, .cx-tarjeta { box-shadow: none; break-inside: avoid; }
-            .cx-boleto__folio { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .cx-tarjeta { box-shadow: none; break-inside: avoid; }
         }
     </style>
     @livewireStyles
@@ -285,30 +252,23 @@
     </nav>
 <body>
     {{--
-        Confirmación de cita en línea. Los datos llegan en la sesión desde
-        HomeController::turnos_publico (folio, fecha, hora, delegacion, modulo,
-        direccion). Si se recarga la página, citas_exito regresa al formulario.
+        Confirmación de cita en línea. Por seguridad no se muestran folio ni datos de
+        la cita: sólo llegan por correo, para que quien agenda capture un correo real.
+        La sesión (de HomeController::turnos_publico) sólo se usa para armar el enlace
+        de Google Calendar. Si se recarga la página, citas_exito regresa al formulario.
     --}}
     @php
         use Illuminate\Support\Carbon;
         use Illuminate\Support\Str;
 
         $fechaCita = session('fecha') ? Carbon::parse(session('fecha')) : null;
-        $diaSemana = $fechaCita ? Str::ucfirst($fechaCita->locale('es')->isoFormat('dddd')) : '';
-        $fechaLarga = $fechaCita ? $fechaCita->locale('es')->isoFormat('D [de] MMMM [de] YYYY') : session('fecha');
         $hora = session('hora');
-        $folio = (string) session('folio');
-        // Folio nuevo (MOR-S26-0142) tal cual; uno numérico viejo, con ceros.
-        if (ctype_digit($folio)) {
-            $folio = str_pad($folio, 5, '0', STR_PAD_LEFT);
-        }
         $direccion = session('direccion');
         // La dirección viene en mayúsculas; se pasa a formato normal cuidando abreviaturas y preposiciones.
         $direccionLegible = $direccion
             ? strtr(Str::title(mb_strtolower($direccion)), [' De ' => ' de ', ' Del ' => ' del ', ' La ' => ' la ', 'C.p.' => 'C.P.', 'No. ' => 'No. '])
             : '';
         $modulo = str_replace('Modulo', 'Módulo', (string) session('modulo'));
-        $mapa = $direccion ? 'https://www.google.com/maps/search/?api=1&query='.urlencode('Centro de Conciliación Laboral '.$direccion) : null;
         // "Agregar a Google Calendar": enlace de plantilla de Google (no usa API ni
         // credenciales). Abre Google Calendar con el evento lleno; la persona sólo guarda.
         $googleCalendar = null;
@@ -316,11 +276,11 @@
             $inicio = Carbon::parse(session('fecha').' '.substr($hora, 0, 5));
             $googleCalendar = 'https://calendar.google.com/calendar/render?'.http_build_query([
                 'action'   => 'TEMPLATE',
-                'text'     => 'Cita en el Centro de Conciliación Laboral (folio '.$folio.')',
+                'text'     => 'Cita en el Centro de Conciliación Laboral',
                 'dates'    => $inicio->format('Ymd\THis').'/'.$inicio->copy()->addMinutes(40)->format('Ymd\THis'),
                 'ctz'      => 'America/Mexico_City',
                 'location' => $direccionLegible,
-                'details'  => $modulo.'. Lleva tu identificación oficial y tu acuse con código QR. Tolerancia: 5 minutos.',
+                'details'  => $modulo.'. Lleva tu identificación oficial, tu acuse con código QR y tu folio (preséntalo en recepción). Tolerancia: 5 minutos.',
             ], '', '&', PHP_QUERY_RFC3986);
         }
     @endphp
@@ -333,56 +293,10 @@
                 Te enviamos a tu correo el <strong>acuse con código QR</strong>. Preséntalo el día de tu cita
                 (impreso o en tu celular). Si no lo ves, revisa tu carpeta de correo no deseado.
             </p>
+            <p class="cx-hero__texto">
+                En ese correo encontrarás tu folio, el día, la hora y la dirección de tu cita.
+            </p>
         </div>
-
-        <section class="cx-boleto" aria-label="Datos de tu cita">
-            <div class="cx-boleto__folio">
-                <span class="cx-etiqueta">Folio</span>
-                <span class="cx-folio">{{ $folio }}</span>
-            </div>
-            <div class="cx-boleto__datos">
-                <div class="cx-dato cx-dato--grande">
-                    <i class="bi bi-calendar-event" aria-hidden="true"></i>
-                    <div>
-                        <span class="cx-etiqueta">Día</span>
-                        <span class="cx-valor">{{ $diaSemana }} {{ $fechaLarga }}</span>
-                    </div>
-                </div>
-                <div class="cx-dato cx-dato--grande">
-                    <i class="bi bi-clock" aria-hidden="true"></i>
-                    <div>
-                        <span class="cx-etiqueta">Hora</span>
-                        <span class="cx-valor">{{ $hora }} h</span>
-                    </div>
-                </div>
-                <div class="cx-dato">
-                    <i class="bi bi-building" aria-hidden="true"></i>
-                    <div>
-                        <span class="cx-etiqueta">Oficina</span>
-                        <span class="cx-valor">{{ session('delegacion') }}</span>
-                    </div>
-                </div>
-                <div class="cx-dato">
-                    <i class="bi bi-door-open" aria-hidden="true"></i>
-                    <div>
-                        <span class="cx-etiqueta">Módulo</span>
-                        <span class="cx-valor">{{ $modulo }}</span>
-                    </div>
-                </div>
-                <div class="cx-dato cx-dato--ancho">
-                    <i class="bi bi-geo-alt" aria-hidden="true"></i>
-                    <div>
-                        <span class="cx-etiqueta">Dirección</span>
-                        <span class="cx-valor cx-valor--normal">{{ $direccionLegible }}</span>
-                        @if ($mapa)
-                            <a class="cx-mapa" href="{{ $mapa }}" target="_blank" rel="noopener noreferrer">
-                                <i class="bi bi-map" aria-hidden="true"></i> Ver en el mapa
-                            </a>
-                        @endif
-                    </div>
-                </div>
-            </div>
-        </section>
 
         @if ($googleCalendar)
             <div class="cx-acciones">
@@ -403,6 +317,8 @@
         <section class="cx-tarjeta">
             <h2 class="cx-subtitulo"><i class="bi bi-card-checklist" aria-hidden="true"></i> Qué llevar</h2>
             <ul class="cx-lista">
+                {{-- Va para todas las citas, también las patronales. --}}
+                <li><i class="bi bi-check2-circle" aria-hidden="true"></i><span>Tu <strong>folio</strong> (viene en el correo): preséntalo en <strong>recepción</strong>, sin él no podrás ser atendido.</span></li>
             @if (! empty($queLlevarPatronal))
                 {{-- Solicitud patronal con folio: misma lista que el correo (CitaCorreo::queLlevar). --}}
                 @foreach ($queLlevarPatronal as $punto)
@@ -427,7 +343,7 @@
         </section>
 
         <p class="cx-cierre">
-            Guarda tu folio <strong>{{ $folio }}</strong> para cualquier duda o aclaración. El trámite es gratuito. <strong>¡Te esperamos!</strong>
+            El trámite es gratuito. <strong>¡Te esperamos!</strong>
         </p>
 
         <div class="cx-otra">
