@@ -148,7 +148,7 @@
             $definicion = [
                 'recepcion'    => ['Recepción',             'bi bi-bell',             ['mi_modulo', 'llegadas.index', 'turnos', 'recepcion.escaner']],
                 'tramites'     => ['Trámites',              'bi bi-folder2-open',     ['solicitudes_index', 'index_notificaciones', 'todas_audiencias', 'todas_ratificaciones', 'audiencias.cumplimiento', 'create_asesoria', 'excepcion']],
-                'registro'     => ['Registro',              'bi bi-journal-bookmark', ['agenda', 'poderes', 'plantillas_index']],
+                'documentacion' => ['Documentación',        'bi bi-journal-bookmark', ['agenda', 'poderes', 'plantillas_index']],
                 'estadisticas' => ['Estadísticas',          'bi bi-bar-chart-line',   ['estadisticas.index', 'seer.estadistica']],
                 'sistema'      => ['Sistema',               'bi bi-gear',             ['configuracion', 'usuarios', 'roles']],
             ];
