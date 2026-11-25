@@ -1436,7 +1436,7 @@ class PoderController extends Controller
     }
 
     /** Tamaño máximo de cada PDF, en KB: lo mismo que avisan los formularios (10 MB). */
-    private const PDF_MAX_KB = 10240;
+    private const PDF_MAX_KB = 20480;
 
     /** Cómo se llama cada documento en los mensajes de error. */
     private const DOCUMENTOS = [
