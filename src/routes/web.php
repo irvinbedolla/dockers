@@ -291,6 +291,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('role:Super Usuario|Estadistica|Directivo');
     Route::get('/estadisticas/turnos/descargar',        [EstadisticasController::class, 'turnosDescargar'])->name('estadisticas.turnos.descargar')
         ->middleware('role:Super Usuario|Estadistica|Directivo');
+    // Solicitudes por rama industrial y quién reclama sus semanas (App\Support\EstadisticasSolicitudes).
+    Route::get('/estadisticas/solicitudes',             [EstadisticasController::class, 'solicitudes'])->name('estadisticas.solicitudes')
+        ->middleware('role:Super Usuario|Estadistica|Directivo');
+    Route::get('/estadisticas/solicitudes/descargar',   [EstadisticasController::class, 'solicitudesDescargar'])->name('estadisticas.solicitudes.descargar')
+        ->middleware('role:Super Usuario|Estadistica|Directivo');
     // Formulario de atención del trámite: resultados, Excel y seguimiento de alertas (App\Support\EstadisticasAtencion).
     Route::get('/estadisticas/atencion',                [App\Http\Controllers\EstadisticasAtencionController::class, 'index'])->name('estadisticas.atencion')
         ->middleware('role:Super Usuario|Estadistica|Directivo');
