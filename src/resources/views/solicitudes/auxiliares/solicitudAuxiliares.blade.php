@@ -18,6 +18,7 @@
 @endsection
 
 @section('content')
+    @include('solicitudes.auxiliares._proceso_vencido')
     <section class="section tn">
         <div class="section-body sa">
             <div class="sa-cabeza">

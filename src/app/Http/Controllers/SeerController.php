@@ -262,6 +262,48 @@ class SeerController extends Controller
     }
 
     /**
+     * ¿Sigue completo el borrador? El primer paso (tipo de industria) deja el
+     * año y el tipo de solicitud. Si ya no están, el proceso se venció o se
+     * canceló (al volver a entrar a Solicitudes o con "Abandonar") mientras
+     * otra pestaña seguía abierta, y no hay de dónde armar la solicitud.
+     */
+    private function borradorSolicitudAuxCompleto($solicitudData): bool
+    {
+        return is_array($solicitudData)
+            && ! empty($solicitudData['año'])
+            && ! empty($solicitudData['tipo_solicitud']);
+    }
+
+    /**
+     * Borrador incompleto: se limpia lo que quedó de él y se regresa al inicio
+     * con el aviso de volver a empezar, en lugar de intentar guardar una
+     * solicitud sin datos. Si hay otro proceso activo, ése no se toca.
+     */
+    private function borradorSolicitudAuxVencido(string $draftId)
+    {
+        \Log::warning('Solicitud auxiliar con el borrador incompleto: se pide volver a empezar', [
+            'draft_id' => $draftId,
+            'usuario'  => auth()->id(),
+        ]);
+
+        $lock = $this->getSolicitudAuxLock();
+        if (! $lock || ($lock['draft_id'] ?? null) === $draftId) {
+            $this->limpiarSesionSolicitudAuxCompletamente($draftId);
+        } else {
+            session()->forget([
+                $this->draftSessionKey('solicitud_data',    $draftId),
+                $this->draftSessionKey('solicitud_motivos', $draftId),
+                $this->draftSessionKey('solicitante_data',  $draftId),
+                $this->draftSessionKey('citados_data',      $draftId),
+                $this->draftSessionKey('excepcion_data',    $draftId),
+            ]);
+            Storage::disk('s3')->deleteDirectory($this->documentosSolicitudTmpDir($draftId));
+        }
+
+        return redirect()->route('solicitud')->with('proceso_vencido', true);
+    }
+
+    /**
      * Limpia COMPLETAMENTE todos los datos de sesión y archivos tmp del
      * flujo de solicitudes auxiliares, y libera el lock.
      */
@@ -17175,6 +17217,11 @@ class SeerController extends Controller
                 $citadosData = session($this->draftSessionKey('citados_data', $draftId), []);
                 $excepcionData = session($this->draftSessionKey('excepcion_data', $draftId));
 
+                if (! $this->borradorSolicitudAuxCompleto($solicitudData)) {
+                    DB::rollBack();
+
+                    return $this->borradorSolicitudAuxVencido($draftId);
+                }
                 if (!$solicitudData || !$solicitanteData) {
                     return redirect()->back()->with('error', 'No hay datos de solicitud en la sesión.');
                 }
@@ -17369,6 +17416,9 @@ class SeerController extends Controller
             $citadosData = session($this->draftSessionKey('citados_data', $draftId)); // En AuxP es 1 citado (array)
             $excepcionData = session($this->draftSessionKey('excepcion_data', $draftId));
 
+            if (! $this->borradorSolicitudAuxCompleto($solicitudData)) {
+                return $this->borradorSolicitudAuxVencido($draftId);
+            }
             if (!$solicitudData || !$solicitanteData || !$citadosData) {
                 return redirect()->back()->with('error', 'No hay datos de solicitud en la sesión.');
             }
@@ -17878,6 +17928,10 @@ class SeerController extends Controller
 
         // DraftId por pestaña/proceso (debe venir como hidden input en los forms)
         $draftId = $this->resolveSolicitudDraftId($request);
+        // Si el borrador ya no tiene el primer paso, no se sigue: hay que volver a empezar.
+        if ($id === 'session' && ! $this->borradorSolicitudAuxCompleto(session($this->draftSessionKey('solicitud_data', $draftId)))) {
+            return $this->borradorSolicitudAuxVencido($draftId);
+        }
         $this->renewSolicitudAuxLock(); // mantener proceso vivo
 
         //validando información
@@ -18098,6 +18152,10 @@ class SeerController extends Controller
 
         // DraftId por pestaña/proceso (debe venir como hidden input en los forms)
         $draftId = $this->resolveSolicitudDraftId($request);
+        // Si el borrador ya no tiene el primer paso, no se sigue: hay que volver a empezar.
+        if ($id_solicitud === 'session' && ! $this->borradorSolicitudAuxCompleto(session($this->draftSessionKey('solicitud_data', $draftId)))) {
+            return $this->borradorSolicitudAuxVencido($draftId);
+        }
         $this->renewSolicitudAuxLock(); // mantener proceso vivo
 
         //validando información
