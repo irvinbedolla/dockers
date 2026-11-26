@@ -113,6 +113,31 @@
         .ll-vacio { text-align: center; color: var(--tn-tenue); padding: 40px 12px; background: #fff; border: 1px dashed var(--tn-borde); border-radius: 12px; }
         .ll-mensaje { font-size: 13px; font-weight: 600; padding: 8px 12px; border-radius: 10px; margin-bottom: 12px; background: #FBE9E7; color: #9A2B1C; }
 
+        /* Ratificaciones: botón y ventana del poder de la empresa (sólo lectura). */
+        .ll-poder-btn { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 999px; border: 1px solid #D5DEDE; background: #fff; color: var(--tn-verde); font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+        .ll-poder-btn:hover, .ll-poder-btn:focus { border-color: var(--tn-verde); background: #F1F4F4; }
+        .ll-poder-btn.is-sin { color: #9A6B00; border-color: #F0DFA8; background: #FFFBEF; }
+        .pd-cab { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 12px; }
+        .pd-chip { display: inline-flex; align-items: center; gap: 5px; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; background: #EEF2F2; color: #354647; }
+        .pd-chip.is-ok { background: #E5F3EA; color: #1E7B3C; }
+        .pd-chip.is-aviso { background: #FBF4E1; color: #7A5D10; }
+        .pd-chip.is-mal { background: #FDECEA; color: #B42318; }
+        .pd-seccion { border: 1px solid var(--tn-borde); border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; }
+        .pd-seccion h6 { margin: 0 0 6px; font-size: 11.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--tn-tenue); }
+        .pd-seccion.is-quien { border-color: #BFE0C9; background: #F6FBF8; }
+        .pd-dato { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 2px 10px; font-size: 13px; padding: 2px 0; }
+        .pd-dato span:first-child { color: var(--tn-tenue); }
+        .pd-dato span:last-child { color: var(--tn-tinta); font-weight: 600; overflow-wrap: anywhere; }
+        .pd-nombre { font-size: 16px; font-weight: 800; color: var(--tn-tinta); margin-bottom: 4px; }
+        .pd-docs { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+        .pd-docs li { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; padding: 4px 0; border-top: 1px dashed #EDF1F1; }
+        .pd-docs li:first-child { border-top: 0; }
+        .pd-docs .is-si { color: #1E7B3C; font-weight: 700; white-space: nowrap; }
+        .pd-docs .is-no { color: #B42318; font-weight: 700; white-space: nowrap; }
+        .pd-vacio { text-align: center; padding: 22px 10px; color: var(--tn-tenue); }
+        .pd-vacio .bi { font-size: 30px; color: #CEA845; display: block; margin-bottom: 6px; }
+        @media (max-width: 520px) { .pd-dato { grid-template-columns: 1fr; } }
+
         @media (max-width: 720px) {
             .ll-item { grid-template-columns: 1fr; gap: 8px; }
             .ll-parte { grid-template-columns: 1fr auto; }
@@ -183,6 +208,23 @@
             <div class="ll-lista" id="llLista"></div>
         </div>
     </section>
+
+    {{-- Poder de la empresa de una ratificación (sólo lectura; sin los archivos). --}}
+    <div class="modal fade" id="llPoderModal" tabindex="-1" aria-labelledby="llPoderTitulo" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="llPoderTitulo">Poder de la empresa</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body" id="llPoderCuerpo"></div>
+                <div class="modal-footer">
+                    <span class="me-auto small" style="color: var(--tn-tenue);"><i class="bi bi-eye"></i> Sólo consulta</span>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
 @endsection
 
 @section('scripts')
@@ -190,6 +232,7 @@
 (function () {
     var URL_DATOS = @json($urlDatos);
     var URL_MARCAR = @json($marca ? route('llegadas.marcar', ['tipo' => '__T__', 'id' => '__ID__']) : null);
+    var URL_PODER = @json(route('llegadas.poder', ['id' => '__ID__']));
     var TOKEN = @json(csrf_token());
     var URL_OBS = {!! json_encode($autorObs ? route('llegadas.observaciones', ['tipo' => '__T__', 'id' => '__ID__']) : null) !!};
     // Como quién anoto observaciones: 'recepcion', 'conciliador' o null.
@@ -361,7 +404,12 @@
                 '<span class="ll-nue">' + esc(r.nue) + '</span>' +
                 (r.historial && r.historial.previas && r.historial.previas.length ? '<span class="ll-reag-chip"><i class="bi bi-arrow-repeat"></i> Reagendada</span>' : '') +
                 ' <span class="ll-conc">· ' + esc(r.conciliador || 'Sin conciliador') + '</span></div>' +
-                '<span class="d-inline-flex gap-2 align-items-center flex-wrap">' + etiqueta + '<span class="ll-estado">' + (r.completa ? 'Todos llegaron' : 'Llegaron ' + r.llegaron + ' de ' + r.partes.length) + '</span></span></div>' +
+                '<span class="d-inline-flex gap-2 align-items-center flex-wrap">' + etiqueta + '<span class="ll-estado">' + (r.completa ? 'Todos llegaron' : 'Llegaron ' + r.llegaron + ' de ' + r.partes.length) + '</span>' +
+                (r.tipo === 'ratificacion'
+                    ? '<button type="button" class="ll-poder-btn' + (r.poder ? '' : ' is-sin') + '" data-poder-turno="' + r.id + '" data-poder-nue="' + esc(r.nue) + '">' +
+                        '<i class="bi ' + (r.poder ? 'bi-person-vcard' : 'bi-exclamation-triangle') + '"></i> ' + (r.poder ? 'Ver poder' : 'Sin poder') + '</button>'
+                    : '') +
+                '</span></div>' +
             cita + historialHtml(r) + obsHtml(r) +
             (r.partes.length ? r.partes.map(function (p) { return parteHtml(r, p); }).join('') : '<span class="ll-conc">Sin partes registradas.</span>') +
             '</div></article>';
@@ -499,6 +547,63 @@
         var d = e.target;
         if (d && d.getAttribute && d.getAttribute('data-historial')) { historialAbierto[d.getAttribute('data-historial')] = d.open; }
     }, true);
+
+    // Ratificaciones: el poder de la empresa, en una ventana de sólo lectura.
+    var poderModal = document.getElementById('llPoderModal');
+    var poderCuerpo = document.getElementById('llPoderCuerpo');
+    function dato(etq, val) { return val ? '<div class="pd-dato"><span>' + esc(etq) + '</span><span>' + esc(val) + '</span></div>' : ''; }
+    function poderHtml(j) {
+        var p = j.poder;
+        if (!p) {
+            return '<div class="pd-vacio"><i class="bi bi-exclamation-triangle"></i><b>Esta ratificación no tiene un poder relacionado.</b>' +
+                '<div class="small mt-1">Expediente ' + esc(j.nue || 'sin NUE') + '.</div></div>';
+        }
+        var est = p.estatus === 'Validado' ? 'is-ok' : (p.estatus === 'Pendiente' ? 'is-aviso' : 'is-mal');
+        var vig = p.vigencia
+            ? (p.vigencia.vencido ? '<span class="pd-chip is-mal"><i class="bi bi-calendar-x"></i> Venció el ' + esc(p.vigencia.fecha) + '</span>'
+                : '<span class="pd-chip is-ok"><i class="bi bi-calendar-check"></i> Vigente al ' + esc(p.vigencia.fecha) + '</span>')
+            : '<span class="pd-chip">Sin fecha de vigencia</span>';
+        var h = '<div class="pd-cab"><span class="pd-chip">Folio ' + esc(p.folio) + '</span><span class="pd-chip ' + est + '">' + esc(p.estatus) + '</span>' + vig +
+            '<span class="pd-chip">' + esc(p.tipo) + '</span></div>';
+
+        // Quién debe presentarse: el representante o, sin él, el propio patrón.
+        var rep = p.representante;
+        h += '<div class="pd-seccion is-quien"><h6><i class="bi bi-person-check"></i> ' + (p.comparece === 'representante' ? 'Quien comparece: representante legal' : 'Quien comparece: el propio patrón') + '</h6>' +
+            '<div class="pd-nombre">' + esc(rep ? rep.nombre : p.patron.nombre) + '</div>' +
+            dato('CURP', rep ? rep.curp : p.patron.curp) +
+            dato('Identificación', [p.identificacion.tipo, p.identificacion.numero].filter(Boolean).join(' · ')) +
+            dato('Teléfono', rep ? rep.telefono : p.patron.telefono) +
+            dato('Correo', rep ? rep.correo : p.patron.correo) + '</div>';
+
+        h += '<div class="pd-seccion"><h6><i class="bi bi-building"></i> Patrón / empresa</h6>' +
+            '<div class="pd-nombre" style="font-size:14.5px">' + esc(p.patron.nombre || 'Sin nombre') + '</div>' +
+            dato('RFC', p.patron.rfc) + (rep ? dato('CURP', p.patron.curp) : '') + dato('Giro', p.patron.giro) +
+            (rep ? dato('Teléfono', p.patron.telefono) + dato('Correo', p.patron.correo) : '') + '</div>';
+
+        if (p.personeria) {
+            h += '<div class="pd-seccion"><h6><i class="bi bi-file-earmark-text"></i> Personería</h6>' +
+                dato('Documento', p.personeria.tipo) + dato('Descripción', p.personeria.descripcion) + dato('Registrado', p.registro) + '</div>';
+        }
+
+        h += '<div class="pd-seccion"><h6><i class="bi bi-folder-check"></i> Documentos en el poder</h6><ul class="pd-docs">' +
+            p.documentos.map(function (d) {
+                return '<li><span>' + esc(d.nombre) + '</span>' + (d.esta ? '<span class="is-si"><i class="bi bi-check-circle-fill"></i> Sí está</span>' : '<span class="is-no"><i class="bi bi-x-circle-fill"></i> No está</span>') + '</li>';
+            }).join('') + '</ul></div>';
+        return h;
+    }
+    document.getElementById('llLista').addEventListener('click', function (e) {
+        var b = e.target.closest('[data-poder-turno]');
+        if (!b || !poderModal || !window.bootstrap) { return; }
+        document.getElementById('llPoderTitulo').textContent = 'Poder de la empresa · ' + (b.getAttribute('data-poder-nue') || '');
+        poderCuerpo.innerHTML = '<div class="pd-vacio"><span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Cargando…</div>';
+        bootstrap.Modal.getOrCreateInstance(poderModal).show();
+        fetch(URL_PODER.replace('__ID__', b.getAttribute('data-poder-turno')), { headers: { 'Accept': 'application/json' }, cache: 'no-store', credentials: 'same-origin' })
+            .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { ok: r.ok, j: j }; }); })
+            .then(function (res) {
+                poderCuerpo.innerHTML = res.ok ? poderHtml(res.j) : '<div class="pd-vacio">' + esc(res.j.message || 'No se pudo consultar el poder.') + '</div>';
+            })
+            .catch(function () { poderCuerpo.innerHTML = '<div class="pd-vacio">Sin conexión; intenta de nuevo.</div>'; });
+    });
 
     pintar();
     setInterval(actualizar, 30000);

@@ -336,6 +336,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->whereIn('tipo', array_keys(\App\Support\LlegadasHoy::TIPOS))->whereNumber('id')->middleware('throttle:120,1');
         Route::post('/recepcion/llegadas/{tipo}/{id}/observaciones', [App\Http\Controllers\LlegadasHoyController::class, 'observaciones'])->name('llegadas.observaciones')
             ->whereIn('tipo', array_keys(\App\Support\LlegadasHoy::OBSERVAN))->whereNumber('id')->middleware('throttle:120,1');
+        // Poder de la empresa de una ratificación (sólo lectura, sin los archivos).
+        Route::get('/recepcion/llegadas/ratificacion/{id}/poder', [App\Http\Controllers\LlegadasHoyController::class, 'poder'])->name('llegadas.poder')->whereNumber('id');
     });
     Route::permanentRedirect('/recepcion/audiencias-hoy',   '/recepcion/llegadas-hoy');
     Route::get('/llegadas/avisos',                      [App\Http\Controllers\LlegadasHoyController::class, 'avisos'])->name('llegadas.avisos')
