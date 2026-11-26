@@ -9,6 +9,7 @@ namespace App\Support;
  *
  *   barras($etiquetas, $series, $op)   barras (agrupadas si hay varias series)
  *   lineas($etiquetas, $series, $op)   líneas con puntos
+ *   pastel($partes, $op)               pastel (dona) con su leyenda
  *
  * $series: [['nombre' => 'JLCA', 'color' => '#829A9C', 'valores' => [..]], ...]
  * Un valor null no se dibuja (p. ej. años sin dato).
@@ -34,6 +35,85 @@ class GraficaSvg
     public static function lineas(array $etiquetas, array $series, array $op = []): string
     {
         return self::dibujar('lineas', $etiquetas, $series, $op);
+    }
+
+    /**
+     * Pastel (dona) con la leyenda a la derecha: nombre, cantidad y
+     * porcentaje. Las rebanadas son polígonos (no arcos) para que dompdf las
+     * dibuje igual que el navegador.
+     *
+     * $partes: [['nombre' => ..., 'valor' => n, 'color' => '#...', 'destacar' => bool], ...]
+     * Opciones: ancho, alto, hueco (0 a 0.9, el agujero), centro y
+     * centro_sub (texto en el agujero).
+     */
+    public static function pastel(array $partes, array $op = []): string
+    {
+        $W = $op['ancho'] ?? 560;
+        // Alto suficiente para la leyenda (34 px por renglón).
+        $H = max($op['alto'] ?? 270, count($partes) * 34 + 24);
+        $f = self::FUENTE;
+        $r = min(($op['alto'] ?? 270) / 2 - 12, 118);
+        $cx = $r + 14;
+        $cy = $H / 2;
+        $hueco = $op['hueco'] ?? 0.56;
+        $total = array_sum(array_map(fn ($p) => max(0, (float) $p['valor']), $partes));
+
+        $o = [sprintf('<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 %d %d">', $W, $H, $W, $H)];
+        $punto = fn (float $grados, float $radio) => [
+            round($cx + $radio * cos(deg2rad($grados)), 2),
+            round($cy + $radio * sin(deg2rad($grados)), 2),
+        ];
+
+        if ($total <= 0) {
+            $o[] = sprintf('<circle cx="%s" cy="%s" r="%s" fill="#EEF2F2"/>', $cx, $cy, $r);
+        } else {
+            $angulo = -90.0;
+            foreach ($partes as $p) {
+                $v = max(0, (float) $p['valor']);
+                if ($v <= 0) {
+                    continue;
+                }
+                $barrido = $v / $total * 360;
+                if ($barrido >= 359.99) {
+                    $o[] = sprintf('<circle cx="%s" cy="%s" r="%s" fill="%s"/>', $cx, $cy, $r, $p['color']);
+                } else {
+                    $puntos = [[$cx, $cy]];
+                    $pasos = max(2, (int) ceil($barrido / 3));
+                    for ($i = 0; $i <= $pasos; $i++) {
+                        $puntos[] = $punto($angulo + $barrido * $i / $pasos, $r);
+                    }
+                    $o[] = sprintf('<polygon points="%s" fill="%s" stroke="#ffffff" stroke-width="1.5"/>',
+                        implode(' ', array_map(fn ($xy) => $xy[0].','.$xy[1], $puntos)), $p['color']);
+                }
+                $angulo += $barrido;
+            }
+        }
+        if ($hueco > 0) {
+            $o[] = sprintf('<circle cx="%s" cy="%s" r="%s" fill="#ffffff"/>', $cx, $cy, round($r * $hueco, 2));
+        }
+        if (isset($op['centro'])) {
+            $o[] = sprintf('<text x="%s" y="%s" font-size="22" font-weight="bold" text-anchor="middle" font-family="%s" fill="#2E3C3D">%s</text>', $cx, $cy + 4, $f, e($op['centro']));
+            if (isset($op['centro_sub'])) {
+                $o[] = sprintf('<text x="%s" y="%s" font-size="11" font-weight="normal" text-anchor="middle" font-family="%s" fill="#6B7A7B">%s</text>', $cx, $cy + 21, $f, e($op['centro_sub']));
+            }
+        }
+
+        // Leyenda: color, nombre y "n · p%".
+        $lx = $cx + $r + 26;
+        $alto = 34;
+        $ly = max(14, $cy - count($partes) * $alto / 2 + 10);
+        foreach ($partes as $p) {
+            $v = max(0, (float) $p['valor']);
+            $pct = $total > 0 ? rtrim(rtrim(number_format($v * 100 / $total, 1), '0'), '.').'%' : '0%';
+            $peso = ! empty($p['destacar']) ? 'bold' : 'normal';
+            $o[] = sprintf('<rect x="%s" y="%s" width="12" height="12" rx="3" fill="%s"/>', $lx, $ly - 10, $p['color']);
+            $o[] = sprintf('<text x="%s" y="%s" font-size="12" font-weight="%s" font-family="%s" fill="#2E3C3D">%s</text>', $lx + 18, $ly, $peso, $f, e($p['nombre']));
+            $o[] = sprintf('<text x="%s" y="%s" font-size="11" font-weight="normal" font-family="%s" fill="#6B7A7B">%s</text>', $lx + 18, $ly + 14, $f, e(number_format($v).' · '.$pct));
+            $ly += $alto;
+        }
+        $o[] = '</svg>';
+
+        return implode('', $o);
     }
 
     /** SVG en línea para la página: con la fuente de las láminas. */

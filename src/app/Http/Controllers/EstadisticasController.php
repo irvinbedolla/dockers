@@ -10,7 +10,9 @@ use App\Support\CasosExcepcion;
 use App\Support\DesempenoNotificadores;
 use App\Support\EmbudoCasos;
 use App\Support\BitacoraIncidencias;
+use App\Exports\EstadisticasSolicitudesExport;
 use App\Exports\EstadisticasTurnosExport;
+use App\Support\EstadisticasSolicitudes;
 use App\Support\EstadisticasExcepcion;
 use App\Support\EstadisticasTurnos;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -235,6 +237,36 @@ class EstadisticasController extends Controller
                 ->setOption('isPhpEnabled', true)
                 ->download($datos['archivo'].'.pdf'),
             'png'  => view('estadisticas.turnos.imagen', $datos),
+        };
+    }
+
+    /**
+     * /estadisticas/solicitudes: solicitudes por rama industrial y, de la
+     * rama elegida, cuántos trabajadores reclaman sus semanas
+     * (App\Support\EstadisticasSolicitudes).
+     */
+    public function solicitudes(Request $request)
+    {
+        $f = EstadisticasSolicitudes::filtros($request);
+
+        return view('estadisticas.solicitudes.index', EstadisticasSolicitudes::armar($f, $request->user()->name) + [
+            'anios'         => EstadisticasSolicitudes::anios(),
+            'ramasCatalogo' => EstadisticasSolicitudes::ramas(),
+        ]);
+    }
+
+    /** Lo mismo de /estadisticas/solicitudes en PDF o Excel (el Excel lleva también la lista de solicitudes de la rama). */
+    public function solicitudesDescargar(Request $request)
+    {
+        $formato = $request->validate(['formato' => ['required', Rule::in(EstadisticasSolicitudes::FORMATOS)]])['formato'];
+        $datos   = EstadisticasSolicitudes::armar(EstadisticasSolicitudes::filtros($request), $request->user()->name, $formato === 'xlsx');
+
+        return match ($formato) {
+            'xlsx' => Excel::download(new EstadisticasSolicitudesExport($datos), $datos['archivo'].'.xlsx'),
+            'pdf'  => Pdf::loadView('estadisticas.solicitudes.pdf', $datos)
+                ->setPaper('letter', 'portrait')
+                ->setOption('isPhpEnabled', true)
+                ->download($datos['archivo'].'.pdf'),
         };
     }
 

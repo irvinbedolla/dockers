@@ -309,6 +309,17 @@
                     </div>
                 </a>
 
+                <a class="tn-tarjeta es-acceso" href="{{ route('estadisticas.solicitudes') }}">
+                    <div class="es-acceso__cabeza">
+                        <span class="es-acceso__icono" style="background:#FBF4E1;color:#7A5D10;"><i class="bi bi-buildings"></i></span>
+                        <div>
+                            <h2 class="es-acceso__titulo">Solicitudes</h2>
+                            <span class="es-acceso__sub">Ramas industriales y quién reclama sus semanas</span>
+                        </div>
+                        <i class="bi bi-chevron-right es-acceso__ir" aria-hidden="true"></i>
+                    </div>
+                </a>
+
                 @php($am = $atencionMes)
                 <a class="tn-tarjeta es-acceso" href="{{ route('estadisticas.atencion') }}">
                     <div class="es-acceso__cabeza">
