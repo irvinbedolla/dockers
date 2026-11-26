@@ -474,6 +474,13 @@ class ModulosController extends Controller
                 $nombres['sedes_'.$criterio.'.*'] = 'sede por '.mb_strtolower($etiqueta);
                 $nombres['canal_'.$criterio] = 'dónde aplica por '.mb_strtolower($etiqueta);
             }
+            if (LimiteCitas::porTramite()) {
+                // Sin ningún trámite marcado = todos.
+                $reglas['tramites_'.$criterio] = ['nullable', 'array'];
+                $reglas['tramites_'.$criterio.'.*'] = [Rule::in(LimiteCitas::tramites())];
+                $nombres['tramites_'.$criterio] = 'trámites por '.mb_strtolower($etiqueta);
+                $nombres['tramites_'.$criterio.'.*'] = 'trámite por '.mb_strtolower($etiqueta);
+            }
         }
         $datos = $request->validate($reglas, [], $nombres);
 

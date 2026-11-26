@@ -66,7 +66,7 @@ class RecepcionController extends Controller
         if ($telefonoVentanilla && strlen($telefonoVentanilla) !== 10) {
             return back()->withInput()->with('error', 'El teléfono debe tener 10 dígitos.');
         }
-        $bloqueo = \App\Support\LimiteCitas::revisar(null, $correoVentanilla, $telefonoVentanilla, $camposFlujo['solicitante'] ?? null, $request->input('delegacion'), 'ventanilla');
+        $bloqueo = \App\Support\LimiteCitas::revisar(null, $correoVentanilla, $telefonoVentanilla, $camposFlujo['solicitante'] ?? null, $request->input('delegacion'), 'ventanilla', $request->input('tipo'));
         if ($bloqueo) {
             \Illuminate\Support\Facades\Log::info('Turno de ventanilla detenido por el límite', ['motivo' => $bloqueo['motivo'], 'llevaba' => $bloqueo['llevaba'], 'por' => auth()->id()]);
 

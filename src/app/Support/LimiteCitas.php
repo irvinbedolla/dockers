@@ -115,6 +115,30 @@ class LimiteCitas
         return $listo ??= self::porCriterio() && Schema::hasColumn('limites_citas', 'canal_ip');
     }
 
+    /** ¿Ya corrió la migración de los trámites a los que aplica cada tope? */
+    public static function porTramite(): bool
+    {
+        static $listo = null;
+
+        return $listo ??= self::porAlcance() && Schema::hasColumn('limites_citas', 'tramites_ip');
+    }
+
+    /** Los trámites que se agendan (App\Support\AsignadorModulos::TRAMITES). */
+    public static function tramites(): array
+    {
+        return AsignadorModulos::TRAMITES;
+    }
+
+    /** Lista guardada de trámites → nombres válidos; [] = todos. */
+    public static function listaTramites($valor): array
+    {
+        $escritos = is_array($valor) ? $valor : preg_split('/\R+/', (string) $valor, -1, PREG_SPLIT_NO_EMPTY);
+        $claves = array_map([self::class, 'sedeClave'], $escritos);
+        $elegidos = array_values(array_filter(self::tramites(), fn ($t) => in_array(self::sedeClave($t), $claves, true)));
+
+        return count($elegidos) === count(self::tramites()) ? [] : $elegidos;
+    }
+
     /** Las sedes (nombre => clave), las de App\Support\FolioCita. */
     public static function sedes(): array
     {
@@ -144,6 +168,7 @@ class LimiteCitas
         // el código: 3 citas por nombre en 7 días.
         $base = (object) [
             'sedes_ip' => [], 'sedes_correo' => [], 'sedes_telefono' => [], 'sedes_nombre' => [],
+            'tramites_ip' => [], 'tramites_correo' => [], 'tramites_telefono' => [], 'tramites_nombre' => [],
             'canal_ip' => 'linea', 'canal_correo' => 'linea', 'canal_telefono' => 'linea', 'canal_nombre' => 'linea',
             'por_ip' => 0, 'por_correo' => 0, 'por_telefono' => 0, 'por_nombre' => 3,
             'periodo' => 'dia', 'periodo_ip' => 'dia', 'periodo_correo' => 'dia', 'periodo_telefono' => 'dia', 'periodo_nombre' => 'semana',
@@ -167,6 +192,8 @@ class LimiteCitas
         foreach (array_keys(self::CRITERIOS) as $criterio) {
             // Sin la migración de alcance: todas las sedes, sólo en línea.
             $fila->{'sedes_'.$criterio} = self::listaSedes($fila->{'sedes_'.$criterio} ?? '');
+            // Sin la migración de trámites: todos.
+            $fila->{'tramites_'.$criterio} = self::listaTramites($fila->{'tramites_'.$criterio} ?? '');
             $canal = $fila->{'canal_'.$criterio} ?? 'linea';
             $fila->{'canal_'.$criterio} = in_array($criterio, self::SOLO_LINEA, true) || ! isset(self::CANALES[$canal]) ? 'linea' : $canal;
         }
@@ -197,6 +224,7 @@ class LimiteCitas
             if ($n > 0) {
                 $donde = array_filter([
                     $c->{'sedes_'.$criterio} ? implode(', ', $c->{'sedes_'.$criterio}) : null,
+                    $c->{'tramites_'.$criterio} ? implode(', ', $c->{'tramites_'.$criterio}) : null,
                     $c->{'canal_'.$criterio} !== 'linea' ? mb_strtolower(self::CANALES[$c->{'canal_'.$criterio}]) : null,
                 ]);
                 $reglas[] = $n.' '.($n === 1 ? 'cita' : 'citas').' por '.$que[$criterio].' '.self::PERIODOS[$c->{$colPeriodo}]
@@ -225,6 +253,9 @@ class LimiteCitas
         if (self::porAlcance()) {
             foreach (array_keys(self::CRITERIOS) as $criterio) {
                 $valores['sedes_'.$criterio] = implode("\n", self::listaSedes($datos['sedes_'.$criterio] ?? [])) ?: null;
+                if (self::porTramite()) {
+                    $valores['tramites_'.$criterio] = implode("\n", self::listaTramites($datos['tramites_'.$criterio] ?? [])) ?: null;
+                }
                 $canal = $datos['canal_'.$criterio] ?? 'linea';
                 $valores['canal_'.$criterio] = in_array($criterio, self::SOLO_LINEA, true) || ! isset(self::CANALES[$canal]) ? 'linea' : $canal;
             }
@@ -391,10 +422,11 @@ class LimiteCitas
      * ['motivo', 'limite', 'llevaba', 'periodo', 'mensaje'].
      *
      * $canal: 'linea' (/generar-cita) o 'ventanilla' (/turnos/nuevo). Cada
-     * tope aplica sólo en su canal y sus sedes, y cuenta sólo las citas de
-     * ese canal (en las dos: en línea y ventanilla) y esas sedes.
+     * tope aplica sólo en su canal, sus sedes y sus trámites ($tipo: el de
+     * la cita), y cuenta sólo las citas de ese canal (en las dos: en línea y
+     * ventanilla), esas sedes y esos trámites.
      */
-    public static function revisar(?string $ip, ?string $correo, ?string $telefono, ?string $nombre = null, ?string $sede = null, string $canal = 'linea'): ?array
+    public static function revisar(?string $ip, ?string $correo, ?string $telefono, ?string $nombre = null, ?string $sede = null, string $canal = 'linea', ?string $tipo = null): ?array
     {
         $c = self::config();
         $ventanilla = $canal === 'ventanilla';
@@ -419,7 +451,7 @@ class LimiteCitas
             return null;
         }
 
-        // Citas que cuentan para un criterio: de su canal y de sus sedes.
+        // Citas que cuentan para un criterio: de su canal, sus sedes y sus trámites.
         $base = function (string $criterio) use ($c) {
             $origenes = ['linea' => ['linea'], 'ventanilla' => ['ventanilla'], 'ambos' => ['linea', 'ventanilla']][$c->{'canal_'.$criterio}];
             $q = DB::table('recepcion')
@@ -428,6 +460,9 @@ class LimiteCitas
             if ($sedes = $c->{'sedes_'.$criterio}) {
                 // Con y sin acentos, como puede venir guardada.
                 $q->whereIn('delegacion', array_values(array_unique(array_merge($sedes, array_map(fn ($s) => Str::ascii($s), $sedes)))));
+            }
+            if ($tramites = $c->{'tramites_'.$criterio}) {
+                $q->whereIn('tipo', array_values(array_unique(array_merge($tramites, array_map(fn ($t) => Str::ascii($t), $tramites)))));
             }
 
             return $q;
@@ -451,7 +486,11 @@ class LimiteCitas
             if ($limite <= 0 || $consulta === null) {
                 continue;
             }
-            // ¿Aplica en este canal y en esta sede?
+            // ¿Aplica en este canal, en esta sede y a este trámite?
+            $tramites = $c->{'tramites_'.$motivo};
+            if ($tramites && ! in_array(self::sedeClave($tipo), array_map([self::class, 'sedeClave'], $tramites), true)) {
+                continue;
+            }
             if (! in_array($c->{'canal_'.$motivo}, [$canal, 'ambos'], true)) {
                 continue;
             }
