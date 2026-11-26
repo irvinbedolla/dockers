@@ -16,6 +16,7 @@ use Carbon\Carbon;
 //Para sacar el Id del usuario
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use App\Support\DocumentosPoder;
 
 
 class PoderController extends Controller
@@ -736,6 +737,9 @@ class PoderController extends Controller
 
         // Al editar los documentos son opcionales, pero si suben uno se revisa (ver validarPdfs()).
         $this->validarPdfs($request, [], array_keys(self::DOCUMENTOS));
+        $docs = $this->prepararDocumentos($request, $request->input('tipoPersona') === 'Moral'
+            ? ['documentoIne_Moral', 'documentoRepresentacion_Moral', 'documentoPoder', 'documentoAnexo']
+            : ['documentoIne_pFSR', 'documentoIne_pF', 'documentoRepresentacion_pF', 'documentoPoder_pF', 'documentoAnexo_pFSR', 'documentoAnexo_pF']);
 
         $data = $request->all();
         $id_usuario = auth()->user()->id;
@@ -778,19 +782,19 @@ class PoderController extends Controller
 
                 // Sin representante, el formulario de edición manda la identificación
                 // y el anexo como documentoIne_pFSR / documentoAnexo_pFSR (antes se ignoraban).
-                $inputIne   = $request->hasFile('documentoIne_pFSR') ? 'documentoIne_pFSR' : 'documentoIne_pF';
-                $inputAnexo = $request->hasFile('documentoAnexo_pFSR') ? 'documentoAnexo_pFSR' : 'documentoAnexo_pF';
+                $inputIne   = $docs->tiene('documentoIne_pFSR') ? 'documentoIne_pFSR' : 'documentoIne_pF';
+                $inputAnexo = $docs->tiene('documentoAnexo_pFSR') ? 'documentoAnexo_pFSR' : 'documentoAnexo_pF';
 
-                if ($request->hasFile($inputIne)) {
+                if ($docs->tiene($inputIne)) {
                     $archivos_a_guardar[] = ['input' => $inputIne, 'name' => $base_name."_IDENTIFICACION.pdf", 'field' => 'ineDocumento'];
                 }
-                if ($request->hasFile('documentoRepresentacion_pF')) {
+                if ($docs->tiene('documentoRepresentacion_pF')) {
                     $archivos_a_guardar[] = ['input' => 'documentoRepresentacion_pF', 'name' => $base_name."_REPRESENTACION.pdf", 'field' => 'representacionDocumento'];
                 }
-                if ($request->hasFile('documentoPoder_pF')) {
+                if ($docs->tiene('documentoPoder_pF')) {
                     $archivos_a_guardar[] = ['input' => 'documentoPoder_pF', 'name' => $base_name."_PODER.pdf", 'field' => 'cedulaDocumento'];
                 }
-                if ($request->hasFile($inputAnexo)) {
+                if ($docs->tiene($inputAnexo)) {
                     $archivos_a_guardar[] = ['input' => $inputAnexo, 'name' => $base_name."_ANEXO.pdf", 'field' => 'anexo_documeto'];
                 }
             } else {
@@ -810,16 +814,16 @@ class PoderController extends Controller
                     'num_identificacion'             => $data["num_identificacion_pFCR"],
                 ];
 
-                if ($request->hasFile('documentoIne_pF')) {
+                if ($docs->tiene('documentoIne_pF')) {
                     $archivos_a_guardar[] = ['input' => 'documentoIne_pF', 'name' => $base_name."_IDENTIFICACION.pdf", 'field' => 'ineDocumento'];
                 }
-                if ($request->hasFile('documentoRepresentacion_pF')) {
+                if ($docs->tiene('documentoRepresentacion_pF')) {
                     $archivos_a_guardar[] = ['input' => 'documentoRepresentacion_pF', 'name' => $base_name."_REPRESENTACION.pdf", 'field' => 'representacionDocumento'];
                 }
-                if ($request->hasFile('documentoPoder_pF')) {
+                if ($docs->tiene('documentoPoder_pF')) {
                     $archivos_a_guardar[] = ['input' => 'documentoPoder_pF', 'name' => $base_name."_PODER.pdf", 'field' => 'cedulaDocumento'];
                 }
-                if ($request->hasFile('documentoAnexo_pF')) {
+                if ($docs->tiene('documentoAnexo_pF')) {
                     $archivos_a_guardar[] = ['input' => 'documentoAnexo_pF', 'name' => $base_name."_ANEXO.pdf", 'field' => 'anexo_documeto'];
                 }
             }
@@ -859,16 +863,16 @@ class PoderController extends Controller
                 'mun_int_patronal'               => $data["num_int"] ?? null
             ];
 
-            if ($request->hasFile('documentoIne_Moral')) {
+            if ($docs->tiene('documentoIne_Moral')) {
                 $archivos_a_guardar[] = ['input' => 'documentoIne_Moral', 'name' => $base_name."_ACTACONSTITUTIVA.pdf", 'field' => 'ineDocumento'];
             }
-            if ($request->hasFile('documentoRepresentacion_Moral')) {
+            if ($docs->tiene('documentoRepresentacion_Moral')) {
                 $archivos_a_guardar[] = ['input' => 'documentoRepresentacion_Moral', 'name' => $base_name."_REPRESENTACION.pdf", 'field' => 'representacionDocumento'];
             }
-            if ($request->hasFile('documentoPoder')) {
+            if ($docs->tiene('documentoPoder')) {
                 $archivos_a_guardar[] = ['input' => 'documentoPoder', 'name' => $base_name."_PODER.pdf", 'field' => 'cedulaDocumento'];
             }
-            if ($request->hasFile('documentoAnexo')) {
+            if ($docs->tiene('documentoAnexo')) {
                 $archivos_a_guardar[] = ['input' => 'documentoAnexo', 'name' => $base_name."_ANEXO.pdf", 'field' => 'anexo_documeto'];
             }
         }
@@ -877,7 +881,7 @@ class PoderController extends Controller
         //    y con prefijo {idAbogado}_ para mantener consistencia con los registros nuevos.
         $carpetaAbogado = 'documentos_abogados/' . $poder->idAbogado;
         foreach ($archivos_a_guardar as $archivo) {
-            if (!$request->hasFile($archivo['input'])) {
+            if (!$docs->tiene($archivo['input'])) {
                 continue;
             }
 
@@ -886,8 +890,8 @@ class PoderController extends Controller
             // nombre para no encimarse con la anterior (antes se sobrescribía).
             $nombreFinal = $this->nombreArchivo($poder->idAbogado, $archivo['name']);
             $nombreFinal = substr($nombreFinal, 0, -4).'_'.now()->format('Ymd-His').'.pdf';
-            Storage::disk('s3')->putFileAs($carpetaAbogado, $request->file($archivo['input']), $nombreFinal);
-            $data_insertar[$archivo['field']] = $nombreFinal;
+            // Si dos campos traen el mismo PDF, el segundo queda apuntando al archivo del primero.
+            $data_insertar[$archivo['field']] = $docs->guardar($archivo['input'], $carpetaAbogado, $nombreFinal);
         }
 
         // 4. Bloque transaccional seguro
@@ -948,14 +952,17 @@ class PoderController extends Controller
 
     public function publico(Request $request)
     {
-        // Los documentos se revisan antes de crear nada (ver validarPdfs()).
+        // Los documentos se revisan y se dejan listos (repetidos enlazados, los
+        // pesados reducidos) antes de crear nada: ver validarPdfs() y prepararDocumentos().
         if ($request->input('tipoPersona') === 'Moral') {
-            $this->validarPdfs($request, ['documentoIne_Moral', 'documentoRepresentacion_Moral', 'documentoPoder'], ['documentoAnexo']);
+            [$requeridos, $opcionales] = [['documentoIne_Moral', 'documentoRepresentacion_Moral', 'documentoPoder'], ['documentoAnexo']];
         } elseif ($request->input('representate') === 'No') {
-            $this->validarPdfs($request, ['documentoIne_pFSR'], ['documentoAnexo_pFSR']);
+            [$requeridos, $opcionales] = [['documentoIne_pFSR'], ['documentoAnexo_pFSR']];
         } else {
-            $this->validarPdfs($request, ['documentoIne_pF', 'documentoRepresentacion_pF', 'documentoPoder_pF'], ['documentoAnexo_pF']);
+            [$requeridos, $opcionales] = [['documentoIne_pF', 'documentoRepresentacion_pF', 'documentoPoder_pF'], ['documentoAnexo_pF']];
         }
+        $this->validarPdfs($request, $requeridos, $opcionales);
+        $docs = $this->prepararDocumentos($request, array_merge($requeridos, $opcionales));
 
         $data = $request->all();
         $id_user_historial = Auth::id() ?? 0;
@@ -996,19 +1003,13 @@ class PoderController extends Controller
                 $carpetaAbogado = 'documentos_abogados/' . $idAbogado;
 
                 $nombre_ine_original = $data["nombre_pF"]." ".$data["primero_PF"]." ".$data["segundo_Pf"]."-FISICA"."_IDENTIFICACION.pdf";
-                $nombre_ine = $this->nombreArchivo($idAbogado, $nombre_ine_original);
-                Storage::disk('s3')->putFileAs(
-                    $carpetaAbogado, $request->file('documentoIne_pFSR'), $nombre_ine
-                );
-                if(!isset($data["documentoAnexo_pFSR"])){
+                $nombre_ine = $docs->guardar('documentoIne_pFSR', $carpetaAbogado, $this->nombreArchivo($idAbogado, $nombre_ine_original));
+                if(!$docs->tiene('documentoAnexo_pFSR')){
                     $nombre_anexo = "Sin anexo";
                 }
                 else{
                     $nombre_anexo_original = $data["nombre_pF"]." ".$data["primero_PF"]." ".$data["segundo_Pf"]."-FISICA"."_ANEXO.pdf";
-                    $nombre_anexo = $this->nombreArchivo($idAbogado, $nombre_anexo_original);
-                    Storage::disk('s3')->putFileAs(
-                        $carpetaAbogado, $request->file('documentoAnexo_pFSR'), $nombre_anexo
-                    );
+                    $nombre_anexo = $docs->guardar('documentoAnexo_pFSR', $carpetaAbogado, $this->nombreArchivo($idAbogado, $nombre_anexo_original));
                 }
 
                 if(isset($data["num_int_pF"])){
@@ -1063,9 +1064,9 @@ class PoderController extends Controller
                         'fechaRegistro'                 => $data["fecha_expedicion_pF"],
                         //'fechaVigencia'                 => $data["fecha_vigencia_pF"],
                         'descipcion_poder'              => $data["descripcion_pF"],
-                        'representacionDocumento'       => $data['documentoRepresentacion_pF'],
-                        'ineDocumento'                  => $data['documentoIne_pF'],
-                        'documentoPoder_pF'             => $data["documentoPoder_pF"],
+                        // Placeholders: los nombres reales se ponen al guardar los archivos.
+                        'representacionDocumento'       => 'PENDIENTE',
+                        'ineDocumento'                  => 'PENDIENTE',
                         'tipo'                          => $data["tipoPersona"],
                         'estatus'                       => "Pendiente",
                         'reprecentante'                 => "Si",
@@ -1080,32 +1081,21 @@ class PoderController extends Controller
                 $carpetaAbogado = 'documentos_abogados/' . $idAbogado;
 
                 $nombre_ine_original = $data["nombre_pF"]." ".$data["primero_PF"]." ".$data["segundo_Pf"]."-FISICA"."_IDENTIFICACION.pdf";
-                $nombre_ine = $this->nombreArchivo($idAbogado, $nombre_ine_original);
-                Storage::disk('s3')->putFileAs(
-                    $carpetaAbogado, $request->file('documentoIne_pF'), $nombre_ine
-                );
+                $nombre_ine = $docs->guardar('documentoIne_pF', $carpetaAbogado, $this->nombreArchivo($idAbogado, $nombre_ine_original));
 
                 $nombre_reprecentacion_original = $data["nombre_representante_pF"]." ".$data["primer_representante_pF"]." ".$data["segundo_representante_pF"]."-FISICA"."_REPRESENTACION.pdf";
-                $nombre_reprecentacion = $this->nombreArchivo($idAbogado, $nombre_reprecentacion_original);
-                Storage::disk('s3')->putFileAs(
-                    $carpetaAbogado, $request->file('documentoRepresentacion_pF'), $nombre_reprecentacion
-                );
+                $nombre_reprecentacion = $docs->guardar('documentoRepresentacion_pF', $carpetaAbogado, $this->nombreArchivo($idAbogado, $nombre_reprecentacion_original));
 
+                // Si es el mismo PDF que la identificación, queda apuntando a ese archivo.
                 $nombre_poder_original = $data["nombre_pF"]." ".$data["primero_PF"]." ".$data["segundo_Pf"]."-FISICA"."_PODER.pdf";
-                $nombre_poder = $this->nombreArchivo($idAbogado, $nombre_poder_original);
-                Storage::disk('s3')->putFileAs(
-                    $carpetaAbogado, $request->file('documentoPoder_pF'), $nombre_poder
-                );
+                $nombre_poder = $docs->guardar('documentoPoder_pF', $carpetaAbogado, $this->nombreArchivo($idAbogado, $nombre_poder_original));
 
-                if(!isset($data["documentoAnexo_pF"])){
+                if(!$docs->tiene('documentoAnexo_pF')){
                     $nombre_anexo = "Sin anexo";
                 }
                 else{
                     $nombre_anexo_original = $data["nombre_pF"]." ".$data["primero_PF"]." ".$data["segundo_Pf"]."-FISICA"."_ANEXO.pdf";
-                    $nombre_anexo = $this->nombreArchivo($idAbogado, $nombre_anexo_original);
-                    Storage::disk('s3')->putFileAs(
-                        $carpetaAbogado, $request->file('documentoAnexo_pF'), $nombre_anexo
-                    );
+                    $nombre_anexo = $docs->guardar('documentoAnexo_pF', $carpetaAbogado, $this->nombreArchivo($idAbogado, $nombre_anexo_original));
                 }
 
                 $nuevoAbogado->ineDocumento = $nombre_ine;
@@ -1161,9 +1151,10 @@ class PoderController extends Controller
                     'fechaRegistro'                 => $data["fecha_expedicicion_Moral"],
                     //'fechaVigencia'                 => $data["fecha_vigencia_Moral"],
                     'descipcion_poder'              => $data["descripcion_Moral"],
-                    'representacionDocumento'       => $data['documentoRepresentacion_Moral'],
-                    'ineDocumento'                  => $data['documentoIne_Moral'],
-                    'cedulaDocumento'               => $data["documentoPoder"],
+                    // Placeholders: los nombres reales se ponen al guardar los archivos.
+                    'representacionDocumento'       => 'PENDIENTE',
+                    'ineDocumento'                  => 'PENDIENTE',
+                    'cedulaDocumento'               => 'PENDIENTE',
                     'tipo'                          => $data["tipoPersona"],
                     'estatus'                       => "Pendiente",
                     'reprecentante'                 => "Si",
@@ -1178,32 +1169,21 @@ class PoderController extends Controller
             $carpetaAbogado = 'documentos_abogados/' . $idAbogado;
 
             $nombre_ine_original = $data["razon"]."-MORAL"."_ACTACONSTITUTIVA.pdf";
-            $nombre_ine = $this->nombreArchivo($idAbogado, $nombre_ine_original);
-            Storage::disk('s3')->putFileAs(
-                $carpetaAbogado, $request->file('documentoIne_Moral'), $nombre_ine
-            );
+            $nombre_ine = $docs->guardar('documentoIne_Moral', $carpetaAbogado, $this->nombreArchivo($idAbogado, $nombre_ine_original));
 
             $nombre_reprecentacion_original = $data["razon"]."-MORAL"."_REPRESENTACION.pdf";
-            $nombre_reprecentacion = $this->nombreArchivo($idAbogado, $nombre_reprecentacion_original);
-            Storage::disk('s3')->putFileAs(
-                $carpetaAbogado, $request->file('documentoRepresentacion_Moral'), $nombre_reprecentacion
-            );
+            $nombre_reprecentacion = $docs->guardar('documentoRepresentacion_Moral', $carpetaAbogado, $this->nombreArchivo($idAbogado, $nombre_reprecentacion_original));
 
+            // Si es el mismo PDF que el acta constitutiva, queda apuntando a ese archivo.
             $nombre_poder_original = $data["razon"]."-MORAL"."_PODER.pdf";
-            $nombre_poder = $this->nombreArchivo($idAbogado, $nombre_poder_original);
-            Storage::disk('s3')->putFileAs(
-                $carpetaAbogado, $request->file('documentoPoder'), $nombre_poder
-            );
+            $nombre_poder = $docs->guardar('documentoPoder', $carpetaAbogado, $this->nombreArchivo($idAbogado, $nombre_poder_original));
 
-            if(!isset($data["documentoAnexo"])){
+            if(!$docs->tiene('documentoAnexo')){
                 $nombre_anexo = "Sin anexo";
             }
             else{
                 $nombre_anexo_original = $data["razon"]."-MORAL"."_ANEXO.pdf";
-                $nombre_anexo = $this->nombreArchivo($idAbogado, $nombre_anexo_original);
-                Storage::disk('s3')->putFileAs(
-                    $carpetaAbogado, $request->file('documentoAnexo'), $nombre_anexo
-                );
+                $nombre_anexo = $docs->guardar('documentoAnexo', $carpetaAbogado, $this->nombreArchivo($idAbogado, $nombre_anexo_original));
             }
 
             $nuevoAbogado->ineDocumento = $nombre_ine;
@@ -1262,12 +1242,11 @@ class PoderController extends Controller
          $id = $data['idAbogado'];
          $poder = Poder::findOrFail($id);
 
-         // Los documentos se revisan antes de crear el nuevo folio (ver validarPdfs()).
-         $this->validarPdfs(
-             $request,
-             array_merge(['documentoRepresentacion_pF', 'documentoPoder_pF'], $poder->tipo === 'Moral' ? ['documentoActa_Moral'] : []),
-             ['documentoAnexo_pF']
-         );
+         // Los documentos se revisan y se dejan listos antes de crear el nuevo
+         // folio (ver validarPdfs() y prepararDocumentos()).
+         $requeridos = array_merge($poder->tipo === 'Moral' ? ['documentoActa_Moral'] : [], ['documentoRepresentacion_pF', 'documentoPoder_pF']);
+         $this->validarPdfs($request, $requeridos, ['documentoAnexo_pF']);
+         $docs = $this->prepararDocumentos($request, array_merge($requeridos, ['documentoAnexo_pF']));
  
          $id_user_historial = Auth::id() ?? 0;
  
@@ -1314,17 +1293,17 @@ class PoderController extends Controller
          $nuevoIdAbogado = $nuevoAbogado->idAbogado;
          $carpetaAbogado = 'documentos_abogados/' . $nuevoIdAbogado;
 
-         if ($poder->tipo == "Moral" && $request->hasFile('documentoActa_Moral')) {
+         if ($poder->tipo == "Moral" && $docs->tiene('documentoActa_Moral')) {
              $nombre_ine_original = $poder->nombres_patronal."-AGREGADO_ACTACONSTITUTIVA.pdf";
              $nombre_ine = $this->nombreArchivo($nuevoIdAbogado, $nombre_ine_original);
-             Storage::disk('s3')->putFileAs($carpetaAbogado, $request->file('documentoActa_Moral'), $nombre_ine);
+             $nombre_ine = $docs->guardar('documentoActa_Moral', $carpetaAbogado, $nombre_ine);
              $nuevoAbogado->ineDocumento = $nombre_ine;
          }
 
-         if ($request->hasFile('documentoRepresentacion_pF')) {
+         if ($docs->tiene('documentoRepresentacion_pF')) {
              $nombre_reprecentacion_original = $data["nombre_representante_pF"]." ".$data["primer_representante_pF"]." ".$data["segundo_representante_pF"]."-AGREGADO_REPRESENTACION.pdf";
              $nombre_reprecentacion = $this->nombreArchivo($nuevoIdAbogado, $nombre_reprecentacion_original);
-             Storage::disk('s3')->putFileAs($carpetaAbogado, $request->file('documentoRepresentacion_pF'), $nombre_reprecentacion);
+             $nombre_reprecentacion = $docs->guardar('documentoRepresentacion_pF', $carpetaAbogado, $nombre_reprecentacion);
              $nuevoAbogado->representacionDocumento = $nombre_reprecentacion;
          }
 
@@ -1332,10 +1311,10 @@ class PoderController extends Controller
              $nuevoAbogado->representacionDocumento = $poder->representacionDocumento;
          }
 
-         if ($request->hasFile('documentoPoder_pF')) {
+         if ($docs->tiene('documentoPoder_pF')) {
              $nombre_poder_original = $poder->nombres_patronal." ".$poder->primer_apellido_patronal." ".$poder->segundo_apellido_patronal."-AGREGADO_PODER.pdf";
              $nombre_poder = $this->nombreArchivo($nuevoIdAbogado, $nombre_poder_original);
-             Storage::disk('s3')->putFileAs($carpetaAbogado, $request->file('documentoPoder_pF'), $nombre_poder);
+             $nombre_poder = $docs->guardar('documentoPoder_pF', $carpetaAbogado, $nombre_poder);
              $nuevoAbogado->cedulaDocumento = $nombre_poder;
          }
 
@@ -1343,10 +1322,10 @@ class PoderController extends Controller
              $nuevoAbogado->cedulaDocumento = $poder->cedulaDocumento;
          }
 
-         if ($request->hasFile('documentoAnexo_pF')) {
+         if ($docs->tiene('documentoAnexo_pF')) {
              $nombre_anexo_original = $poder->nombres_patronal." ".$poder->primer_apellido_patronal." ".$poder->segundo_apellido_patronal."-AGREGADO_ANEXO.pdf";
              $nombre_anexo = $this->nombreArchivo($nuevoIdAbogado, $nombre_anexo_original);
-             Storage::disk('s3')->putFileAs($carpetaAbogado, $request->file('documentoAnexo_pF'), $nombre_anexo);
+             $nombre_anexo = $docs->guardar('documentoAnexo_pF', $carpetaAbogado, $nombre_anexo);
              $nuevoAbogado->anexo_documeto = $nombre_anexo;
          } else {
              $nuevoAbogado->anexo_documeto = "Sin anexo";
@@ -1355,9 +1334,12 @@ class PoderController extends Controller
          // Lo que no se volvió a subir se copia a la carpeta del folio nuevo:
          // antes sólo se copiaba el nombre y el archivo seguía en la carpeta
          // del folio anterior, así que el enlace no abría.
+         // Si dos campos comparten un mismo archivo (acta = poder), se copia una vez.
+         $copiados = [];
          foreach (['ineDocumento', 'representacionDocumento', 'cedulaDocumento'] as $campo) {
              if ($nuevoAbogado->{$campo} === $poder->{$campo}) {
-                 $nuevoAbogado->{$campo} = $this->copiarDocumento($poder, (string) $poder->{$campo}, $nuevoIdAbogado);
+                 $archivo = (string) $poder->{$campo};
+                 $nuevoAbogado->{$campo} = $copiados[$archivo] ??= $this->copiarDocumento($poder, $archivo, $nuevoIdAbogado);
              }
          }
 
@@ -1435,8 +1417,20 @@ class PoderController extends Controller
         return $nombre;
     }
 
-    /** Tamaño máximo de cada PDF, en KB: lo mismo que avisan los formularios (20 MB). */
-    private const PDF_MAX_KB = 20480;
+    /**
+     * Tamaño máximo de cada PDF al subirlo, en KB. El acta constitutiva y el
+     * documento que acredita la personería suelen ser escaneos largos: se
+     * aceptan hasta 150 MB y lo que pase de 20 MB se reduce antes de guardarse
+     * (ver App\Support\DocumentosPoder). Los demás, hasta 10 MB.
+     * PDF_GRANDE_KB debe coincidir con upload_max_filesize del pool "poderes"
+     * de PHP-FPM (php-fpm-poderes.conf); los dos, con limite_archivos.js.
+     */
+    private const PDF_MAX_KB = 10240;
+
+    private const PDF_GRANDE_KB = 153600;
+
+    /** Campos que aceptan PDF grandes (PDF_GRANDE_KB). Igual en limite_archivos.js. */
+    private const DOCUMENTOS_GRANDES = ['documentoIne_Moral', 'documentoActa_Moral', 'documentoPoder', 'documentoPoder_pF'];
 
     /** Cómo se llama cada documento en los mensajes de error. */
     private const DOCUMENTOS = [
@@ -1454,29 +1448,86 @@ class PoderController extends Controller
     ];
 
     /**
-     * Revisa en el servidor que los documentos sean PDF de hasta 20 MB. Antes
+     * Revisa en el servidor que los documentos sean PDF dentro de su límite
+     * (PDF_GRANDE_KB para DOCUMENTOS_GRANDES, PDF_MAX_KB para los demás). Antes
      * sólo lo revisaba el navegador: un archivo que PHP rechazaba por tamaño
      * llegaba vacío y el registro se guardaba sin él (Agregar representante)
      * o tronaba a medias (registro público). "uploaded" es la regla que
      * Laravel marca cuando PHP no aceptó el archivo.
+     *
+     * Un campo obligatorio que el navegador marcó como "el mismo archivo que
+     * otro campo" no tiene que traer archivo: usa el del otro. Y un campo de
+     * 10 MB que trae el mismo PDF que uno grande (la identificación que también
+     * acredita la personería) tiene el límite del grande.
      */
     private function validarPdfs(Request $request, array $requeridos, array $opcionales = []): void
     {
+        $campos = array_merge($requeridos, $opcionales);
+        $enlazados = DocumentosPoder::enlazadosPorNavegador($request, $campos);
+
         $reglas = [];
-        foreach ($requeridos as $campo) {
-            $reglas[$campo] = ['required', 'file', 'mimes:pdf', 'max:'.self::PDF_MAX_KB];
-        }
-        foreach ($opcionales as $campo) {
-            $reglas[$campo] = ['nullable', 'file', 'mimes:pdf', 'max:'.self::PDF_MAX_KB];
+        $mensajes = [];
+        foreach ($campos as $campo) {
+            $grande = $this->aceptaPdfGrande($request, $campo, $campos, $enlazados);
+            $obligatorio = in_array($campo, $requeridos, true) && ! isset($enlazados[$campo]);
+            $reglas[$campo] = [$obligatorio ? 'required' : 'nullable', 'file', 'mimes:pdf', 'max:'.($grande ? self::PDF_GRANDE_KB : self::PDF_MAX_KB)];
+
+            $megas = $grande ? self::PDF_GRANDE_KB / 1024 : self::PDF_MAX_KB / 1024;
+            $mensajes[$campo.'.uploaded'] = "No se pudo subir :attribute: pesa más de {$megas} MB o se cortó la conexión. Intenta de nuevo con un PDF más ligero.";
+            $mensajes[$campo.'.max'] = ":Attribute pesa más de {$megas} MB. Escanéalo a menor resolución e intenta de nuevo.";
         }
 
-        $request->validate($reglas, [
+        $request->validate($reglas, $mensajes + [
             'required' => 'Falta subir :attribute.',
-            'uploaded' => 'No se pudo subir :attribute: pesa más de 20 MB o se cortó la conexión. Intenta de nuevo con un PDF más ligero.',
             'file'     => 'No se pudo subir :attribute. Intenta de nuevo.',
             'mimes'    => ':Attribute debe ser un archivo PDF.',
-            'max'      => ':Attribute pesa más de 20 MB. Comprime el PDF o divídelo e intenta de nuevo.',
         ], self::DOCUMENTOS);
+    }
+
+    /**
+     * ¿El campo puede traer un PDF grande? Sí si es de DOCUMENTOS_GRANDES, o si
+     * su PDF es el mismo que el de uno de ellos: porque llegó idéntico (mismo
+     * tamaño y SHA-256) o porque el navegador enlazó el grande a este campo.
+     */
+    private function aceptaPdfGrande(Request $request, string $campo, array $campos, array $enlazados): bool
+    {
+        if (in_array($campo, self::DOCUMENTOS_GRANDES, true)) {
+            return true;
+        }
+        if (! $request->hasFile($campo) || ! $request->file($campo)->isValid()
+            || $request->file($campo)->getSize() <= self::PDF_MAX_KB * 1024) {
+            return false;
+        }
+
+        $ruta = $request->file($campo)->getRealPath();
+        foreach (array_intersect(self::DOCUMENTOS_GRANDES, $campos) as $grande) {
+            if (($enlazados[$grande] ?? null) === $campo) {
+                return true;
+            }
+            if ($request->hasFile($grande) && $request->file($grande)->isValid()
+                && $request->file($grande)->getSize() === $request->file($campo)->getSize()
+                && hash_file('sha256', $request->file($grande)->getRealPath()) === hash_file('sha256', $ruta)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Deja listos los PDF del envío (repetidos enlazados y los pesados ya
+     * reducidos) antes de crear o tocar el registro. Ver App\Support\DocumentosPoder.
+     */
+    private function prepararDocumentos(Request $request, array $campos): DocumentosPoder
+    {
+        @set_time_limit(600);
+
+        $campos = array_values(array_merge(
+            array_intersect($campos, self::DOCUMENTOS_GRANDES),
+            array_diff($campos, self::DOCUMENTOS_GRANDES),
+        ));
+
+        return DocumentosPoder::preparar($request, $campos, self::DOCUMENTOS);
     }
 
     /**
