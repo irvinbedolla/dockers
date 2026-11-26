@@ -44,4 +44,9 @@ return [
     ],
 
     'api_key' => env('API_SECRET_KEY'),
+
+    // Compresión de los PDF de poderes (App\Services\CompresorPdf).
+    'ghostscript' => [
+        'bin' => env('GHOSTSCRIPT_BIN', 'gs'),
+    ],
 ];

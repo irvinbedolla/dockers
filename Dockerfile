@@ -15,6 +15,7 @@ RUN apt-get update && apt-get install -y \
     libzip-dev \
     libmagickwand-dev \
     dcraw \
+    ghostscript \
     zip \
     unzip
 
@@ -40,13 +41,19 @@ RUN { \
       echo 'max_execution_time=120'; \
     } > /usr/local/etc/php/conf.d/subidas.ini
 
+# El acta y el documento de personeria de Poderes (hasta 150 MB, se reducen a
+# 20 MB con Ghostscript; los demas documentos, 10 MB) van por
+# un pool aparte en el puerto 9001, con sus propios limites y tiempos; nginx
+# manda ahi solo esas rutas. Ver php-fpm-poderes.conf.
+COPY php-fpm-poderes.conf /usr/local/etc/php-fpm.d/zz-poderes.conf
+
 # Obtener Composer desde la imagen oficial
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 # Configurar el directorio de trabajo
 WORKDIR /var/www
 
-EXPOSE 9000
+EXPOSE 9000 9001
 
 # Asegurar permisos correctos en carpetas de Laravel para el usuario www-data
 RUN mkdir -p /var/www/storage/logs \
