@@ -12,7 +12,10 @@ use Illuminate\Support\Facades\Schema;
  * Cifras de /estadisticas/excepciones (casos del art. 685 Ter LFT).
  *
  *   detectados   citas y turnos marcados como excepción (por su fecha) más
- *                las solicitudes marcadas que no nacieron de una de esas citas;
+ *                las solicitudes marcadas que no nacieron de una de esas citas.
+ *                Por quién lo detectó: recepción al agendar (en línea o
+ *                ventanilla), el orientador o auxiliar que la atendía ("en
+ *                módulo", lo envió desde Mi módulo) o la solicitud; suman el total;
  *   atendidos    formatos terminados (seer_casos_excepcion.terminado_at), por
  *                la fecha del formato;
  *   continúan / canalizados  según la decisión de la persona;
@@ -61,10 +64,22 @@ class EstadisticasExcepcion
                     ->whereColumn('r2.id', 'g.recepcion_id')->where('r2.exepcion', 'Si')));
     }
 
+    /**
+     * Quién detectó la cita: 'modulo' si la envió un orientador o auxiliar desde
+     * Mi módulo (FormatoExcepcion::enviarDesdeModulo); si no, su origen
+     * (recepción la marcó al agendar en línea o en ventanilla).
+     */
+    private static function viaSql(): string
+    {
+        return CasosExcepcion::conEnvio()
+            ? "CASE WHEN EXISTS (SELECT 1 FROM seer_casos_excepcion xe WHERE xe.id_turno = r.id AND xe.enviado_por IS NOT NULL) THEN 'modulo' ELSE r.origen END"
+            : 'r.origen';
+    }
+
     public static function resumen(array $rango, ?string $sede): array
     {
         $citas = self::citasDetectadas($rango, $sede);
-        $porOrigen = (clone $citas)->selectRaw('r.origen, COUNT(*) AS total')->groupBy('r.origen')->pluck('total', 'origen');
+        $porOrigen = (clone $citas)->selectRaw(self::viaSql().' AS via, COUNT(*) AS total')->groupBy('via')->pluck('total', 'via');
         $solicitudes = self::solicitudesDetectadas($rango, $sede)->count();
 
         $fila = CasosExcepcion::conFormato()
@@ -90,6 +105,8 @@ class EstadisticasExcepcion
             'detectados'  => (int) $porOrigen->sum() + $solicitudes,
             'enLinea'     => (int) ($porOrigen['linea'] ?? 0),
             'ventanilla'  => (int) ($porOrigen['ventanilla'] ?? 0),
+            'modulo'      => (int) ($porOrigen['modulo'] ?? 0),
+            'conEnvio'    => CasosExcepcion::conEnvio(),
             'solicitudes' => $solicitudes,
             'atendidos'   => $atendidos,
             'continua'    => (int) ($fila->continua ?? 0),
@@ -173,6 +190,10 @@ class EstadisticasExcepcion
     public static function porSede(array $rango): Collection
     {
         $citas = self::citasDetectadas($rango, null)->selectRaw('r.delegacion AS sede, COUNT(*) AS total')->groupBy('r.delegacion')->pluck('total', 'sede');
+        $modulo = CasosExcepcion::conEnvio()
+            ? self::citasDetectadas($rango, null)->whereRaw(self::viaSql()." = 'modulo'")
+                ->selectRaw('r.delegacion AS sede, COUNT(*) AS total')->groupBy('r.delegacion')->pluck('total', 'sede')
+            : collect();
         $sols  = self::solicitudesDetectadas($rango, null)->selectRaw('g.delegacion AS sede, COUNT(*) AS total')->groupBy('g.delegacion')->pluck('total', 'sede');
         $pend  = CasosExcepcion::porAtender()->selectRaw('r.delegacion AS sede, COUNT(*) AS total')->groupBy('r.delegacion')->pluck('total', 'sede');
         $at    = CasosExcepcion::conFormato()
@@ -186,6 +207,7 @@ class EstadisticasExcepcion
         return collect(CasosExcepcion::SEDES)->map(fn ($s) => [
             'sede'       => $s,
             'detectados' => (int) ($citas[$s] ?? 0) + (int) ($sols[$s] ?? 0),
+            'modulo'     => (int) ($modulo[$s] ?? 0),
             'atendidos'  => (int) ($at[$s]->atendidos ?? 0),
             'continua'   => (int) ($at[$s]->continua ?? 0),
             'canaliza'   => (int) ($at[$s]->canaliza ?? 0),

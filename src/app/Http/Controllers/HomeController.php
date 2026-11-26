@@ -290,7 +290,7 @@ class HomeController extends Controller
         // Tope de citas en línea por conexión (IP), correo, teléfono y nombre
         // completo, y listas blanca y negra de correos (Administración → Módulos).
         $nombreSolicitante = $camposFlujo['solicitante'] ?? ($data['nombre'] ?? null);
-        if ($bloqueo = \App\Support\LimiteCitas::revisar($request->ip(), $data['email'] ?? null, $data['telefono'] ?? null, $nombreSolicitante, $sede, 'linea')) {
+        if ($bloqueo = \App\Support\LimiteCitas::revisar($request->ip(), $data['email'] ?? null, $data['telefono'] ?? null, $nombreSolicitante, $sede, 'linea', $tipo)) {
             \App\Support\LimiteCitas::registrarBloqueo($bloqueo, $request->ip(), $request->userAgent(), $camposFlujo + $data);
             Log::info('Cita en línea detenida por el límite', ['motivo' => $bloqueo['motivo'], 'llevaba' => $bloqueo['llevaba'], 'ip' => $request->ip()]);
 

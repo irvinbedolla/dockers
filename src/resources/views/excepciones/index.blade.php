@@ -147,6 +147,12 @@
                 <a class="cx-pestana {{ $conteos['pendientes'] ? 'cx-pestana--alerta' : '' }} {{ $vista === 'pendientes' ? 'is-activa' : '' }}" href="{{ $con(['vista' => 'pendientes', 'desde' => null, 'hasta' => null]) }}">
                     <i class="bi bi-hourglass-split" aria-hidden="true"></i> Por atender <b>{{ number_format($conteos['pendientes']) }}</b>
                 </a>
+                @if ($conteos['enviados'] || $vista === 'enviados')
+                    <a class="cx-pestana cx-pestana--alerta {{ $vista === 'enviados' ? 'is-activa' : '' }}" href="{{ $con(['vista' => 'enviados', 'desde' => null, 'hasta' => null]) }}"
+                       title="Los mandó un orientador o auxiliar desde Mi módulo, con el formato prellenado">
+                        <i class="bi bi-send" aria-hidden="true"></i> Enviados desde módulos <b>{{ number_format($conteos['enviados']) }}</b>
+                    </a>
+                @endif
                 @if ($conteos['por_levantar'] || $vista === 'por_levantar')
                     <a class="cx-pestana cx-pestana--alerta {{ $vista === 'por_levantar' ? 'is-activa' : '' }}" href="{{ $con(['vista' => 'por_levantar', 'desde' => null, 'hasta' => null]) }}"
                        title="No eran casos de excepción y su módulo no turna: falta levantar su solicitud">
@@ -166,7 +172,7 @@
             <form method="GET" action="{{ route('excepcion') }}" class="tn-tarjeta mb-3" id="cxFiltros">
                 <input type="hidden" name="vista" value="{{ $vista }}">
                 <div class="cx-filtros">
-                    @if (! in_array($vista, ['pendientes', 'por_levantar'], true))
+                    @if (! in_array($vista, ['pendientes', 'enviados', 'por_levantar'], true))
                         <div>
                             <span class="cx-etq">Periodo</span>
                             <div class="cx-atajos">
@@ -221,13 +227,19 @@
                     <h4>
                         @switch($vista)
                             @case('pendientes') Por atender @break
+                            @case('enviados') Enviados desde Mi módulo @break
                             @case('por_levantar') Solicitudes por levantar @break
                             @case('solicitudes') Solicitudes con caso de excepción @break
                             @default Citas y turnos con caso de excepción
                         @endswitch
                     </h4>
                     <span>
-                        {{ $vista === 'pendientes' ? 'Últimos 30 días, sin formato terminado' : ($vista === 'por_levantar' ? 'No eran casos de excepción y todavía no tienen solicitud' : $textoPeriodo) }}
+                        {{ match ($vista) {
+                            'pendientes'   => 'Últimos 30 días, sin formato terminado',
+                            'enviados'     => 'Los detectó quien atendía la cita; el formato ya viene prellenado',
+                            'por_levantar' => 'No eran casos de excepción y todavía no tienen solicitud',
+                            default        => $textoPeriodo,
+                        } }}
                         · {{ number_format($filas->total()) }} {{ $filas->total() === 1 ? 'registro' : 'registros' }}
                     </span>
                 </div>
@@ -301,6 +313,11 @@
                                         <td>
                                             {{ $f->tipo_caso ?: 'Sin especificar' }}
                                             @if ($f->vulnerables && ! in_array($f->vulnerables, ['No aplica', 'Ninguno'], true))<span class="cx-sub">{{ $f->vulnerables }}</span>@endif
+                                            @if (! empty($f->envio))
+                                                <span class="cx-sub" title="{{ $f->nota_envio ? 'Nota: '.$f->nota_envio : 'Enviado desde Mi módulo' }}">
+                                                    <i class="bi bi-send"></i> Envió {{ $titulo($f->envio) }} · {{ \Illuminate\Support\Carbon::parse($f->enviado_at)->format('d/m H:i') }}
+                                                </span>
+                                            @endif
                                         </td>
                                         <td><span class="tn-estatus tn-estatus--{{ $estatus }}">{{ $estatusCita[$estatus] ?? $f->estatus }}</span></td>
                                         <td>@php [$clase, $icono, $texto] = $atencion($f); @endphp<span class="cx-caso {{ $clase }}"><i class="bi {{ $icono }}"></i> {{ $texto }}</span></td>

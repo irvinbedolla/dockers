@@ -1435,8 +1435,8 @@ class PoderController extends Controller
         return $nombre;
     }
 
-    /** Tamaño máximo de cada PDF, en KB: lo mismo que avisan los formularios (10 MB). */
-    private const PDF_MAX_KB = 10240;
+    /** Tamaño máximo de cada PDF, en KB: lo mismo que avisan los formularios (20 MB). */
+    private const PDF_MAX_KB = 20480;
 
     /** Cómo se llama cada documento en los mensajes de error. */
     private const DOCUMENTOS = [
@@ -1454,7 +1454,7 @@ class PoderController extends Controller
     ];
 
     /**
-     * Revisa en el servidor que los documentos sean PDF de hasta 10 MB. Antes
+     * Revisa en el servidor que los documentos sean PDF de hasta 20 MB. Antes
      * sólo lo revisaba el navegador: un archivo que PHP rechazaba por tamaño
      * llegaba vacío y el registro se guardaba sin él (Agregar representante)
      * o tronaba a medias (registro público). "uploaded" es la regla que
@@ -1472,10 +1472,10 @@ class PoderController extends Controller
 
         $request->validate($reglas, [
             'required' => 'Falta subir :attribute.',
-            'uploaded' => 'No se pudo subir :attribute: pesa más de 10 MB o se cortó la conexión. Intenta de nuevo con un PDF más ligero.',
+            'uploaded' => 'No se pudo subir :attribute: pesa más de 20 MB o se cortó la conexión. Intenta de nuevo con un PDF más ligero.',
             'file'     => 'No se pudo subir :attribute. Intenta de nuevo.',
             'mimes'    => ':Attribute debe ser un archivo PDF.',
-            'max'      => ':Attribute pesa más de 10 MB. Comprime el PDF o divídelo e intenta de nuevo.',
+            'max'      => ':Attribute pesa más de 20 MB. Comprime el PDF o divídelo e intenta de nuevo.',
         ], self::DOCUMENTOS);
     }
 

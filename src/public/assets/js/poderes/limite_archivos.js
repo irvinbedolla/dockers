@@ -1,8 +1,9 @@
 /*
  * Poderes (registro público, editar y agregar representante): antes de
- * enviar, revisa que los documentos sean PDF de máximo 10 MB y que entre
- * todos no pasen de 40 MB. El servidor acepta hasta 45 MB por envío; si se
- * pasa, rechaza todo y se pierde lo capturado (errors/413).
+ * enviar, revisa que los documentos sean PDF de máximo 20 MB y que entre
+ * todos no pasen de 80 MB. El servidor acepta hasta 85 MB por envío
+ * (post_max_size en el Dockerfile); si se pasa, rechaza todo y se pierde lo
+ * capturado (errors/413). Debe coincidir con PDF_MAX_KB de PoderController.
  *
  * Sólo cuenta los campos visibles y habilitados: las secciones ocultas del
  * formulario no se envían. Corre antes que las demás validaciones del
@@ -14,8 +15,8 @@
     'use strict';
 
     var MB = 1024 * 1024;
-    var POR_ARCHIVO = 10 * MB;
-    var TOTAL = 40 * MB;
+    var POR_ARCHIVO = 20 * MB;
+    var TOTAL = 80 * MB;
 
     function megas(bytes) {
         return (bytes / MB).toFixed(1).replace(/\.0$/, '') + ' MB';
@@ -41,14 +42,14 @@
                 if (!/\.pdf$/i.test(archivo.name)) {
                     problema = '\u00ab' + archivo.name + '\u00bb no es un PDF. Sube los documentos en formato PDF.';
                 } else if (archivo.size > POR_ARCHIVO) {
-                    problema = '\u00ab' + archivo.name + '\u00bb pesa ' + megas(archivo.size) + '; cada documento puede pesar m\u00e1ximo 10 MB.';
+                    problema = '\u00ab' + archivo.name + '\u00bb pesa ' + megas(archivo.size) + '; cada documento puede pesar m\u00e1ximo 20 MB.';
                 }
                 total += archivo.size;
             });
         });
 
         if (!problema && total > TOTAL) {
-            problema = 'Entre todos, los documentos pesan ' + megas(total) + ' y el m\u00e1ximo por env\u00edo es 40 MB. '
+            problema = 'Entre todos, los documentos pesan ' + megas(total) + ' y el m\u00e1ximo por env\u00edo es 80 MB. '
                 + 'Comprime los PDF (por ejemplo, escaneados en blanco y negro) e intenta de nuevo.';
         }
 

@@ -17,6 +17,8 @@ use Illuminate\Validation\Rule;
  *
  *   vista=citas        citas y turnos de excepción del periodo (hoy por omisión);
  *   vista=pendientes   los de los últimos 30 días que no tienen formato;
+ *   vista=enviados     los que mandó un orientador o auxiliar desde Mi módulo
+ *                      y todavía no se terminan (CasosExcepcion::enviados);
  *   vista=solicitudes  solicitudes marcadas como excepción (sólo vista).
  *
  * Además, "Buscar expedientes" (expedientes()): un modal para buscar entre
@@ -28,7 +30,7 @@ use Illuminate\Validation\Rule;
  */
 class CasosExcepcionController extends Controller
 {
-    public const VISTAS = ['citas', 'pendientes', 'por_levantar', 'solicitudes'];
+    public const VISTAS = ['citas', 'pendientes', 'enviados', 'por_levantar', 'solicitudes'];
 
     private const POR_PAGINA = 25;
 
@@ -64,6 +66,7 @@ class CasosExcepcionController extends Controller
         $conteos = [
             'citas'       => $this->citas($filtros)->count(),
             'pendientes'  => $this->pendientes($filtros)->count(),
+            'enviados'    => CasosExcepcion::conEnvio() ? $this->filtrarCitas(CasosExcepcion::enviados(), $filtros)->count() : 0,
             'solicitudes' => $this->solicitudes($filtros)->count(),
             'por_levantar' => FormatoExcepcion::conSiguiente() ? $this->filtrarCitas(FormatoExcepcion::porLevantar(), $filtros)->count() : 0,
         ];
@@ -71,6 +74,7 @@ class CasosExcepcionController extends Controller
         $filas = match ($vista) {
             'solicitudes' => $this->listaSolicitudes($filtros),
             'pendientes'  => $this->listaCitas($this->pendientes($filtros)),
+            'enviados'    => $this->listaCitas(CasosExcepcion::conEnvio() ? $this->filtrarCitas(CasosExcepcion::enviados(), $filtros) : CasosExcepcion::citas()->whereRaw('1 = 0')),
             'por_levantar' => $this->listaCitas(FormatoExcepcion::conSiguiente() ? $this->filtrarCitas(FormatoExcepcion::porLevantar(), $filtros) : CasosExcepcion::citas()->whereRaw('1 = 0')),
             default       => $this->listaCitas($this->citas($filtros)),
         };
@@ -246,6 +250,12 @@ class CasosExcepcionController extends Controller
             'oficios'     => $oficios,
             'tarjetas'    => $tarjetas,
             'puedeCerrar' => FormatoExcepcion::puedeCerrar($origen['solicitud']),
+            // Lo envió un orientador o auxiliar desde Mi módulo: quién, cuándo y su nota.
+            'envio'       => ! empty($origen['caso']->enviado_por ?? null) ? [
+                'quien' => DB::table('users')->where('id', $origen['caso']->enviado_por)->value('name'),
+                'cuando' => Carbon::parse($origen['caso']->enviado_at),
+                'nota' => $origen['caso']->nota_envio,
+            ] : null,
         ]);
     }
 
@@ -411,16 +421,7 @@ class CasosExcepcionController extends Controller
 
     public function pdf(string $tipo, int $id)
     {
-        $origen = $this->origen($tipo, $id);
-        $datos = FormatoExcepcion::datos($origen);
-        $atendio = ($origen['caso']->id_user ?? null) ? DB::table('users')->where('id', $origen['caso']->id_user)->value('name') : auth()->user()->name;
-
-        $html = view('PDF.Recepcion.FormatoExcepcion', compact('datos', 'atendio'))->render();
-
-        return \PDF::loadHTML($html)
-            ->setPaper('a4', 'portrait')
-            ->setOption('isHtml5ParserEnabled', true)
-            ->stream('formato_685_ter_'.preg_replace('/[^A-Za-z0-9\-]/', '_', (string) ($datos['expediente'] ?? $id)).'.pdf', ['Attachment' => false]);
+        return FormatoExcepcion::pdf($this->origen($tipo, $id), $id);
     }
 
     // ------------------------------------------------------------------
@@ -563,13 +564,19 @@ class CasosExcepcionController extends Controller
 
     private function listaCitas($q)
     {
+        // Quién lo envió desde Mi módulo (FormatoExcepcion::enviarDesdeModulo), si así llegó.
+        $envio = CasosExcepcion::conEnvio()
+            ? ', MAX(enviado_por) AS enviado_por, MAX(enviado_at) AS enviado_at, MAX(nota_envio) AS nota_envio'
+            : ', NULL AS enviado_por, NULL AS enviado_at, NULL AS nota_envio';
+
         return $q
             ->leftJoin('users as u', 'u.id', '=', 'r.auxiliar')
             ->leftJoinSub(
                 DB::table('seer_casos_excepcion')->whereNotNull('id_turno')
-                    ->selectRaw('id_turno, MAX(id) AS id'.(CasosExcepcion::conFormato() ? ', MAX(terminado_at) AS terminado_at, MAX(resultado) AS resultado' : ', MAX(created_at) AS terminado_at, NULL AS resultado'))
+                    ->selectRaw('id_turno, MAX(id) AS id'.(CasosExcepcion::conFormato() ? ', MAX(terminado_at) AS terminado_at, MAX(resultado) AS resultado' : ', MAX(created_at) AS terminado_at, NULL AS resultado').$envio)
                     ->groupBy('id_turno'),
                 'x', 'x.id_turno', '=', 'r.id')
+            ->leftJoin('users as ue', 'ue.id', '=', 'x.enviado_por')
             ->leftJoinSub(
                 DB::table('seer_general')->whereNotNull('recepcion_id')->selectRaw('recepcion_id, MIN(id) AS id, MIN(NUE) AS NUE')->groupBy('recepcion_id'),
                 'g', 'g.recepcion_id', '=', 'r.id')
@@ -578,6 +585,7 @@ class CasosExcepcionController extends Controller
                 'r.id', 'r.codigo', 'r.consecutivo', 'r.fecha', 'r.hora', 'r.solicitante', 'r.tipo', 'r.origen',
                 'r.delegacion', 'r.tipo_caso', 'r.vulnerables', 'r.estatus', 'r.telefono', 'r.correo',
                 'u.name as atiende', 'x.id as formato_id', 'x.terminado_at', 'x.resultado', 'g.id as solicitud_id', 'g.NUE as nue',
+                'ue.name as envio', 'x.enviado_at', 'x.nota_envio',
             ])
             ->paginate(self::POR_PAGINA)
             ->withQueryString();

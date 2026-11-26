@@ -185,6 +185,116 @@
     @endpush
 @endif
 
+{{-- "Enviar a casos de excepción" (MiModuloController::enviarExcepcion): lo mínimo para que el departamento siga con el formato 685 Ter. --}}
+@if ($modulo && \App\Support\CasosExcepcion::conEnvio())
+    @push('modals')
+        <div class="modal fade" id="mmModalExcepcion" tabindex="-1" aria-labelledby="mmModalExcepcionTitulo" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+                <form class="modal-content" id="mmFormExcepcion" novalidate>
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="mmModalExcepcionTitulo"><i class="bi bi-shield-exclamation me-1" aria-hidden="true"></i> Enviar a casos de excepción</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="mb-3">El folio <b id="mmExcepcionFolio"></b> le llegará al Departamento de Conciliación, Género e Igualdad con el formato prellenado. Los datos de la persona se toman de la cita; tú sigue con la atención como siempre.</p>
+                        <fieldset class="mb-3">
+                            <legend class="form-label fs-6 fw-bold mb-1">¿Qué situación es? <span class="text-muted fw-normal">(puedes marcar varias)</span></legend>
+                            @foreach (\App\Support\CasosExcepcion::TIPOS as $clave => $texto)
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="tipos[]" id="mmExcepcion_{{ $clave }}" value="{{ $clave }}">
+                                    <label class="form-check-label" for="mmExcepcion_{{ $clave }}">{{ $texto }}</label>
+                                </div>
+                            @endforeach
+                        </fieldset>
+                        <label for="mmExcepcionDescripcion" class="form-label fw-bold mb-1">¿Qué pasó? (breve)</label>
+                        <textarea id="mmExcepcionDescripcion" name="descripcion" class="form-control mb-3" rows="3" maxlength="2000" required
+                                  placeholder="Lo que contó la persona, con sus palabras"></textarea>
+
+                        {{-- Datos laborales (formato 685 Ter): opcionales; el departamento completa lo que falte. --}}
+                        <fieldset class="mb-3">
+                            <legend class="form-label fs-6 fw-bold mb-1">Datos laborales <span class="text-muted fw-normal">(opcional, lo que sepas)</span></legend>
+                            <div class="row g-2">
+                                <div class="col-12">
+                                    <label for="mmExcepcionEmpresa" class="form-label small mb-1">Empresa o persona empleadora</label>
+                                    <input type="text" id="mmExcepcionEmpresa" name="empresa" class="form-control" maxlength="255">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="mmExcepcionArea" class="form-label small mb-1">Área de adscripción</label>
+                                    <input type="text" id="mmExcepcionArea" name="area_adscripcion" class="form-control" maxlength="255">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="mmExcepcionPuesto" class="form-label small mb-1">Puesto</label>
+                                    <input type="text" id="mmExcepcionPuesto" name="puesto" class="form-control" maxlength="255">
+                                </div>
+                                <div class="col-12">
+                                    <span class="form-label small d-block mb-1">¿Conoce el nombre de su jefe inmediato?</span>
+                                    <div class="d-flex flex-wrap align-items-center gap-3">
+                                        <div class="form-check form-check-inline m-0">
+                                            <input class="form-check-input" type="radio" name="conoce_jefe" id="mmExcepcionJefeSi" value="1">
+                                            <label class="form-check-label" for="mmExcepcionJefeSi">Sí</label>
+                                        </div>
+                                        <div class="form-check form-check-inline m-0">
+                                            <input class="form-check-input" type="radio" name="conoce_jefe" id="mmExcepcionJefeNo" value="0">
+                                            <label class="form-check-label" for="mmExcepcionJefeNo">No</label>
+                                        </div>
+                                        <input type="text" id="mmExcepcionJefe" name="jefe_inmediato" class="form-control flex-grow-1" style="max-width: 380px"
+                                               maxlength="255" placeholder="Nombre del jefe inmediato" aria-label="Nombre del jefe inmediato" hidden>
+                                    </div>
+                                </div>
+                            </div>
+                        </fieldset>
+
+                        <fieldset class="mb-3">
+                            <legend class="form-label fs-6 fw-bold mb-1">Frecuencia de los hechos <span class="text-muted fw-normal">(opcional)</span></legend>
+                            @foreach (\App\Support\CasosExcepcion::FRECUENCIAS as $valor => $texto)
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="frecuencia" id="mmExcepcionFrec_{{ $loop->index }}" value="{{ $valor }}">
+                                    <label class="form-check-label" for="mmExcepcionFrec_{{ $loop->index }}">{{ $texto }}</label>
+                                </div>
+                            @endforeach
+                        </fieldset>
+
+                        <fieldset class="mb-3">
+                            <legend class="form-label fs-6 fw-bold mb-1">Cambios en su situación laboral <span class="text-muted fw-normal">(opcional)</span></legend>
+                            @foreach (\App\Support\CasosExcepcion::SITUACIONES as $valor => $texto)
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="situacion_laboral" id="mmExcepcionSit_{{ $loop->index }}" value="{{ $valor }}">
+                                    <label class="form-check-label" for="mmExcepcionSit_{{ $loop->index }}">{{ $texto }}</label>
+                                </div>
+                            @endforeach
+                            <input type="text" id="mmExcepcionSituacionOtro" name="situacion_otro" class="form-control mt-1" style="max-width: 380px"
+                                   maxlength="255" placeholder="¿Cuál?" aria-label="Otro cambio en su situación laboral" hidden>
+                        </fieldset>
+
+                        {{-- Se guarda en el borrador; el departamento lo confirma al terminar el formato. --}}
+                        <fieldset class="mb-3">
+                            <legend class="form-label fs-6 fw-bold mb-1">¿La persona desea continuar con el procedimiento de conciliación? <span class="text-muted fw-normal">(opcional)</span></legend>
+                            <p class="small text-muted mb-1">Por estar en un supuesto del art. 685 Ter LFT, no está obligada a agotar la instancia conciliatoria.</p>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="resultado" id="mmExcepcionContinua" value="continua">
+                                <label class="form-check-label" for="mmExcepcionContinua"><b>Sí, continúa</b> con la conciliación en el Centro</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="resultado" id="mmExcepcionCanaliza" value="canaliza">
+                                <label class="form-check-label" for="mmExcepcionCanaliza"><b>No, se canaliza</b> a la institución que corresponda</label>
+                            </div>
+                        </fieldset>
+
+                        <label for="mmExcepcionNota" class="form-label mb-1">Nota para el departamento (opcional)</label>
+                        <textarea id="mmExcepcionNota" name="nota" class="form-control" rows="2" maxlength="1000"
+                                  placeholder="Ej.: está en sala esperando, viene acompañada, urgente…"></textarea>
+                        <div class="text-danger small mt-2" id="mmExcepcionError" role="alert" hidden></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-send me-1" aria-hidden="true"></i> Enviar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endpush
+@endif
+
 @section('scripts')
 @if ($modulo)
 <script>
@@ -193,6 +303,8 @@
     var URL_PRELLENAR = @json(route('mi_modulo.prellenar', ['id' => '__ID__']));
     var URL_ACCION = @json(route('mi_modulo.accion', ['id' => '__ID__', 'accion' => '__ACCION__']));
     var URL_RATIFICACION = @json(route('mi_modulo.ratificacion', ['id' => '__ID__']));
+    var URL_EXCEPCION = @json(route('mi_modulo.excepcion', ['id' => '__ID__']));
+    var URL_EXCEPCION_PDF = @json(route('mi_modulo.excepcion.pdf', ['id' => '__ID__']));
     var TOKEN = @json(csrf_token());
     var datos = @json($datos);
 
@@ -205,7 +317,8 @@
         return '<span class="tn-estatus tn-estatus--' + esc(c.estatus) + '">' + esc(c.estatus) + '</span>' +
             (c.enLinea ? ' <span class="mm-chip mm-chip--linea">En línea</span>' : '') +
             (c.prueba ? ' <span class="mm-chip mm-chip--prueba">Prueba</span>' : '') +
-            (c.excepcion ? ' <span class="mm-chip mm-chip--excepcion" title="Recepción lo canalizó a casos de excepción">Caso de excepción</span>' : '') +
+            (c.desdeModulo ? ' <span class="mm-chip mm-chip--excepcion" title="Se envió desde Mi módulo: ya está en la bandeja de casos de excepción">Enviado a excepción</span>'
+                : (c.excepcion ? ' <span class="mm-chip mm-chip--excepcion" title="Recepción lo canalizó a casos de excepción">Caso de excepción</span>' : '')) +
             (vigente(c) && c.enAtencion ? ' <span class="mm-chip mm-chip--atencion">En atención</span>'
                 : (vigente(c) && c.llamado ? ' <span class="mm-chip mm-chip--llamado">Llamado ' + esc(c.llamado) + '</span>' : '')) +
             (c.llegoTarde ? ' <span class="mm-chip mm-chip--tarde" title="Recepción la reactivó: va después de quienes llegaron a tiempo">Llegó tarde</span>' : '') +
@@ -256,12 +369,31 @@
             (bloqueo ? ' disabled title="' + esc(bloqueo) + '"' : '') + '>' +
             '<i class="bi bi-' + icono + ' me-1"></i>' + texto + '</button>';
     }
+    // "Enviar a casos de excepción": en atención o ya atendida, si aún no está en la bandeja.
+    function botonExcepcion(c) {
+        return c.enviadoExcepcion === false && (c.enAtencion || c.estatus === 'atendido')
+            ? boton(c, 'excepcion', 'Caso de excepción', 'shield-exclamation', 'btn-outline-danger') : '';
+    }
+    // Ya está en casos de excepción: el formato 685 Ter en PDF (MiModuloController::excepcionPdf).
+    function botonFormato(c) {
+        return c.enviadoExcepcion === true
+            ? '<a class="btn btn-outline-danger" target="_blank" rel="noopener" href="' + esc(URL_EXCEPCION_PDF.replace('__ID__', c.id)) + '"' +
+                ' title="Formato 685 Ter con lo que se ha llenado; se abre en otra pestaña">' +
+                '<i class="bi bi-file-earmark-pdf me-1"></i>Formato 685 Ter</a>'
+            : '';
+    }
     function acciones(c, enFila) {
-        if (!c.flujoNuevo || !vigente(c)) { return ''; }
+        if (!c.flujoNuevo) { return ''; }
+        if (!vigente(c)) {
+            var exc = botonExcepcion(c) + botonFormato(c);
+            return exc ? '<div class="mm-acciones' + (enFila ? ' mm-acciones--fila' : '') + '">' + exc + '</div>' : '';
+        }
         var b = [];
         if (c.enAtencion) {
             if (!enFila) { b.push(iniciar(c)); }
             b.push(boton(c, 'terminar', 'Terminar', 'check2-circle', 'btn-success'));
+            b.push(botonFormato(c));
+            if (!enFila) { b.push(botonExcepcion(c)); }
         } else if (c.llamado) {
             if (!enFila) { b.push(iniciar(c)); }
             b.push(boton(c, 'atender', 'Iniciar atención', 'person-check', enFila ? 'btn-outline-success' : 'btn-success'));
@@ -441,13 +573,83 @@
             });
         });
     }
+    // "Enviar a casos de excepción" (MiModuloController::enviarExcepcion).
+    var formExcepcion = document.getElementById('mmFormExcepcion');
+    var modalExcepcion = formExcepcion && window.bootstrap ? bootstrap.Modal.getOrCreateInstance(document.getElementById('mmModalExcepcion')) : null;
+    var citaExcepcion = null;
+    function excepcionError(texto) {
+        var e = document.getElementById('mmExcepcionError');
+        e.textContent = texto || '';
+        e.hidden = !texto;
+    }
+    // Valor marcado de un grupo de radios del modal ('' si ninguno).
+    function radioExcepcion(nombre) {
+        var r = formExcepcion.querySelector('input[name="' + nombre + '"]:checked');
+        return r ? r.value : '';
+    }
+    function valorExcepcion(id) { return document.getElementById(id).value.trim(); }
+    // El nombre del jefe sólo con "Sí"; el "¿Cuál?" sólo con "Otro".
+    function mostrarExtrasExcepcion() {
+        document.getElementById('mmExcepcionJefe').hidden = radioExcepcion('conoce_jefe') !== '1';
+        document.getElementById('mmExcepcionSituacionOtro').hidden = radioExcepcion('situacion_laboral') !== 'otro';
+    }
+    function pedirExcepcion(boton, folio) {
+        citaExcepcion = boton.getAttribute('data-id');
+        formExcepcion.reset();
+        mostrarExtrasExcepcion();
+        excepcionError('');
+        formExcepcion.querySelector('button[type="submit"]').disabled = false;
+        document.getElementById('mmExcepcionFolio').textContent = folio;
+        modalExcepcion.show();
+    }
+    if (modalExcepcion) {
+        formExcepcion.addEventListener('change', function () { excepcionError(''); mostrarExtrasExcepcion(); });
+        formExcepcion.addEventListener('submit', function (e) {
+            e.preventDefault();
+            var tipos = Array.prototype.map.call(formExcepcion.querySelectorAll('input[name="tipos[]"]:checked'), function (i) { return i.value; });
+            var descripcion = document.getElementById('mmExcepcionDescripcion');
+            if (!tipos.length) { excepcionError('Marca al menos un tipo de situación.'); return; }
+            if (!descripcion.value.trim()) { excepcionError('Escribe brevemente qué pasó.'); descripcion.focus(); return; }
+            var enviar = formExcepcion.querySelector('button[type="submit"]');
+            enviar.disabled = true;
+            fetch(URL_EXCEPCION.replace('__ID__', citaExcepcion), {
+                method: 'POST',
+                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': TOKEN, 'X-Requested-With': 'XMLHttpRequest' },
+                body: JSON.stringify({
+                    tipos: tipos,
+                    descripcion: descripcion.value.trim(),
+                    nota: valorExcepcion('mmExcepcionNota'),
+                    empresa: valorExcepcion('mmExcepcionEmpresa'),
+                    area_adscripcion: valorExcepcion('mmExcepcionArea'),
+                    puesto: valorExcepcion('mmExcepcionPuesto'),
+                    conoce_jefe: radioExcepcion('conoce_jefe'),
+                    jefe_inmediato: radioExcepcion('conoce_jefe') === '1' ? valorExcepcion('mmExcepcionJefe') : '',
+                    frecuencia: radioExcepcion('frecuencia'),
+                    situacion_laboral: radioExcepcion('situacion_laboral'),
+                    situacion_otro: radioExcepcion('situacion_laboral') === 'otro' ? valorExcepcion('mmExcepcionSituacionOtro') : '',
+                    resultado: radioExcepcion('resultado')
+                })
+            })
+                .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { ok: r.ok, j: j, status: r.status }; }); })
+                .then(function (res) {
+                    enviar.disabled = false;
+                    if (res.ok) { modalExcepcion.hide(); mensaje(res.j.mensaje || 'Enviado.'); actualizar(); return; }
+                    if (res.status === 419) { excepcionError('La sesión expiró; recarga la página.'); return; }
+                    var errores = res.j.errors ? Object.keys(res.j.errors).map(function (k) { return res.j.errors[k][0]; }) : [];
+                    excepcionError(errores[0] || res.j.message || 'No se pudo enviar.');
+                })
+                .catch(function () { enviar.disabled = false; excepcionError('Sin conexión; intenta de nuevo.'); });
+        });
+    }
     // Un solo escuchador: los botones se repintan en cada actualización.
     document.querySelector('.tn .section-body').addEventListener('click', function (e) {
         var boton = e.target.closest('button[data-accion]');
         if (!boton || boton.disabled) { return; }
         var folio = boton.getAttribute('data-folio');
         var accion = boton.getAttribute('data-accion');
-        if (accion === 'ausente') {
+        if (accion === 'excepcion') {
+            if (modalExcepcion) { pedirExcepcion(boton, folio); }
+        } else if (accion === 'ausente') {
             confirmar('¿No se presentó?', 'El folio ' + folio + ' quedará como expirado y saldrá de la pantalla.', function () { ejecutar(boton); });
         } else if (accion === 'terminar') {
             var cita = (datos.citas || []).filter(function (x) { return String(x.id) === boton.getAttribute('data-id'); })[0];

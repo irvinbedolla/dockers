@@ -23,12 +23,16 @@
     $camposLimite = array_merge(['exentas', 'lista_blanca', 'lista_negra'], ...array_map(fn ($c) => [$c[0], $c[1]], array_values(LimiteCitas::CRITERIOS)));
     $porAlcance   = LimiteCitas::porAlcance();
     $sedesTodas   = LimiteCitas::sedes();
+    $porTramite   = LimiteCitas::porTramite();
+    $tramitesTodos = LimiteCitas::tramites();
     // Al volver por un error se respeta lo que se había marcado (nada marcado = todas).
     $hayOld = old('por_ip') !== null;
     foreach (array_keys(LimiteCitas::CRITERIOS) as $k) {
         $camposLimite[] = 'sedes_'.$k;
         $camposLimite[] = 'sedes_'.$k.'.*';
         $camposLimite[] = 'canal_'.$k;
+        $camposLimite[] = 'tramites_'.$k;
+        $camposLimite[] = 'tramites_'.$k.'.*';
     }
 @endphp
 
@@ -116,14 +120,15 @@
                 </div>
                 <div class="modal-body">
                     <p class="md-persona__nota">
-                        Cada tope aplica en las sedes y en el canal que elijas: <b>en línea</b> (/generar-cita), <b>en ventanilla</b> (/turnos/nuevo) o en las dos,
-                        y cuenta sólo las citas de esas sedes y ese canal. Deja <b>0</b> para no limitar ese dato.
+                        Cada tope aplica en las sedes, el canal y los trámites que elijas: <b>en línea</b> (/generar-cita), <b>en ventanilla</b> (/turnos/nuevo) o en las dos,
+                        y cuenta sólo las citas de esas sedes, ese canal y esos trámites. Deja <b>0</b> para no limitar ese dato.
                     </p>
 
-                    <div class="md-lim-tabla {{ $porAlcance ? 'md-lim-tabla--alcance' : '' }}" role="group" aria-label="Topes por dato">
+                    <div class="md-lim-tabla {{ $porAlcance ? 'md-lim-tabla--alcance' : '' }} {{ $porTramite ? 'md-lim-tabla--tramites' : '' }}" role="group" aria-label="Topes por dato">
                         <div class="md-lim-tabla__cab" aria-hidden="true">
                             <span>Dato</span><span>Máximo de citas</span><span>Se cuentan las registradas</span>
                             @if ($porAlcance)<span>Sedes</span><span>Aplica</span>@endif
+                            @if ($porTramite)<span>Trámites</span>@endif
                         </div>
                         @foreach (LimiteCitas::CRITERIOS as $criterio => [$col, $colPeriodo, $etiqueta])
                             <div class="md-lim-tabla__fila">
@@ -157,7 +162,7 @@
                                     @endphp
                                     <div>
                                         <span class="md-lim-tabla__etq" aria-hidden="true">Sedes</span>
-                                        <div class="dropdown md-lim-sedes">
+                                        <div class="dropdown md-lim-sedes" data-todo="Todas" data-plural="sedes">
                                             <button type="button" class="form-select text-start md-lim-sedes__boton @error('sedes_'.$criterio) is-invalid @enderror @error('sedes_'.$criterio.'.*') is-invalid @enderror"
                                                     data-bs-toggle="dropdown" data-bs-auto-close="outside" data-bs-popper-config='{"strategy":"fixed"}'
                                                     aria-expanded="false" aria-label="Sedes por {{ mb_strtolower($etiqueta) }}">
@@ -197,6 +202,39 @@
                                             </select>
                                             @error('canal_'.$criterio)<div class="invalid-feedback">{{ $message }}</div>@enderror
                                         @endif
+                                    </div>
+                                @endif
+                                @if ($porTramite)
+                                    @php
+                                        // Nada marcado = todos (así vienen de inicio).
+                                        $marcados = $hayOld ? (array) old('tramites_'.$criterio, []) : $limite->{'tramites_'.$criterio};
+                                        $marcados = $marcados ?: $tramitesTodos;
+                                    @endphp
+                                    <div>
+                                        <span class="md-lim-tabla__etq" aria-hidden="true">Trámites</span>
+                                        <div class="dropdown md-lim-sedes" data-todo="Todos" data-plural="trámites">
+                                            <button type="button" class="form-select text-start md-lim-sedes__boton @error('tramites_'.$criterio) is-invalid @enderror @error('tramites_'.$criterio.'.*') is-invalid @enderror"
+                                                    data-bs-toggle="dropdown" data-bs-auto-close="outside" data-bs-popper-config='{"strategy":"fixed"}'
+                                                    aria-expanded="false" aria-label="Trámites por {{ mb_strtolower($etiqueta) }}">
+                                                <span class="md-lim-sedes__texto">Todos</span>
+                                            </button>
+                                            <div class="dropdown-menu md-lim-sedes__menu">
+                                                <div class="form-check">
+                                                    <input class="form-check-input md-lim-sedes__todas" type="checkbox" id="limTramTodos_{{ $criterio }}">
+                                                    <label class="form-check-label fw-semibold" for="limTramTodos_{{ $criterio }}">Todos los trámites</label>
+                                                </div>
+                                                <hr class="dropdown-divider">
+                                                @foreach ($tramitesTodos as $i => $t)
+                                                    <div class="form-check">
+                                                        <input class="form-check-input md-lim-sedes__sede" type="checkbox" name="tramites_{{ $criterio }}[]" value="{{ $t }}"
+                                                               id="limTram_{{ $criterio }}_{{ $i }}" @checked(in_array($t, $marcados, true))>
+                                                        <label class="form-check-label" for="limTram_{{ $criterio }}_{{ $i }}">{{ $t }}</label>
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        </div>
+                                        @error('tramites_'.$criterio)<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+                                        @error('tramites_'.$criterio.'.*')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
                                     </div>
                                 @endif
                             </div>
@@ -253,21 +291,24 @@
 
     @if ($porAlcance)
         <script>
-            // Sedes de cada tope: "Todas" marca o desmarca todas; si no queda
-            // ninguna marcada se vuelven a marcar todas (nada marcado = todas).
+            // Sedes y trámites de cada tope: "Todas"/"Todos" marca o desmarca
+            // todo; si no queda nada marcado se vuelve a marcar todo (nada
+            // marcado = todas las sedes o todos los trámites).
             document.addEventListener('DOMContentLoaded', function () {
                 document.querySelectorAll('#mdModalLimite .md-lim-sedes').forEach(function (caja) {
                     var todas = caja.querySelector('.md-lim-sedes__todas');
                     var sedes = Array.prototype.slice.call(caja.querySelectorAll('.md-lim-sedes__sede'));
                     var texto = caja.querySelector('.md-lim-sedes__texto');
+                    var todo = caja.getAttribute('data-todo') || 'Todas';
+                    var plural = caja.getAttribute('data-plural') || 'sedes';
                     function pintar() {
                         var marcadas = sedes.filter(function (s) { return s.checked; });
                         if (marcadas.length === 0) { sedes.forEach(function (s) { s.checked = true; }); marcadas = sedes; }
                         var completas = marcadas.length === sedes.length;
                         todas.checked = completas;
-                        texto.textContent = completas ? 'Todas'
-                            : (marcadas.length <= 2 ? marcadas.map(function (s) { return s.value; }).join(', ') : marcadas.length + ' sedes');
-                        caja.querySelector('.md-lim-sedes__boton').title = completas ? 'Todas las sedes' : marcadas.map(function (s) { return s.value; }).join(', ');
+                        texto.textContent = completas ? todo
+                            : (marcadas.length <= 2 ? marcadas.map(function (s) { return s.value; }).join(', ') : marcadas.length + ' ' + plural);
+                        caja.querySelector('.md-lim-sedes__boton').title = completas ? todo + ' las ' + plural : marcadas.map(function (s) { return s.value; }).join(', ');
                     }
                     todas.addEventListener('change', function () {
                         if (todas.checked) { sedes.forEach(function (s) { s.checked = true; }); }
