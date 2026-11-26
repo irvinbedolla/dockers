@@ -635,6 +635,8 @@ class LlegadasHoy
                 'concId' => $t->id_conciliador,
                 'partes' => self::partesRatificacion($t),
                 'aux'    => [$t->user_id, $cita->modulo_user ?? null, $cita->auxiliar ?? null],
+                // Folio del poder de la empresa (abogados.idAbogado), para "Ver poder".
+                'poder'  => (int) ($t->idAbogado ?? 0) ?: null,
                 'cita'   => $cita ? [
                     'folio'  => FolioCita::mostrar($cita),
                     'valido' => ! empty($cita->confirmada_at ?? null) ? Carbon::parse($cita->confirmada_at)->format('H:i') : null,
@@ -734,6 +736,8 @@ class LlegadasHoy
                 'conObs'         => self::conObservaciones() && array_key_exists($tipo, self::OBSERVAN),
                 'obs'            => self::observacion($obs[$fila->id] ?? null),
                 'obsConc'        => self::observacion($obsConc[$fila->id] ?? null),
+                // Ratificaciones: folio del poder de la empresa (null si no tiene).
+                'poder'          => $d['poder'] ?? null,
                 // Audiencias: de qué audiencias reagendadas viene y a dónde se reagendó.
                 'historial'      => $d['historial'] ?? null,
             ];
@@ -771,7 +775,7 @@ class LlegadasHoy
             ->select([
                 't.id', 't.fecha', 't.hora', 't.delegacion', 't.NUE', 't.estatus', 't.id_conciliador', 't.recepcion_id', 't.user_id',
                 't.trabajador', 't.primero_trabajador', 't.segundo_trabajador', 't.trabajador_curp',
-                't.nombre_empresa', 't.empresa', 't.primero_empresa', 't.segundo_empresa', 't.curp_solicitante',
+                't.nombre_empresa', 't.empresa', 't.primero_empresa', 't.segundo_empresa', 't.curp_solicitante', 't.idAbogado',
                 'u.name as conciliador',
             ]);
     }
@@ -866,6 +870,97 @@ class LlegadasHoy
         }
 
         return $resultado;
+    }
+
+    /** Archivos que en abogados quedan como "no se subió". */
+    private const SIN_ARCHIVO = ['Sin anexo', 'Sin documento', 'Sin carta poder'];
+
+    /**
+     * El poder de la empresa de una ratificación de hoy (turnos.idAbogado),
+     * sólo para consultar: quién es el patrón, quién lo representa, su
+     * identificación y qué documentos tiene el poder (sólo si están o no;
+     * los archivos no se muestran). Devuelve el texto del error si no se
+     * puede ver, o ['poder' => null] si la ratificación no tiene poder.
+     */
+    public static function poderDeRatificacion(int $id, User $usuario): array|string
+    {
+        if (! array_key_exists('ratificacion', self::tiposPara($usuario))) {
+            return 'No consultas ratificaciones.';
+        }
+        $t = DB::table('turnos')->where('id', $id)->where('tipo', 'Ratificación')->first(['id', 'NUE', 'delegacion', 'idAbogado']);
+        if (! $t) {
+            return 'Esa ratificación ya no existe.';
+        }
+        if (! in_array($t->delegacion, self::variantes(self::sedes($usuario)), true)) {
+            return 'No es de tu sede.';
+        }
+
+        $p = $t->idAbogado ? DB::table('abogados')->where('idAbogado', $t->idAbogado)->first() : null;
+        if (! $p) {
+            return ['nue' => (string) $t->NUE, 'poder' => null];
+        }
+
+        $nombre = fn (...$partes) => Str::title(mb_strtolower(trim(preg_replace('/\s+/', ' ', implode(' ', array_filter($partes)))))) ?: null;
+        $hay = fn ($archivo) => trim((string) $archivo) !== '' && ! in_array(trim((string) $archivo), self::SIN_ARCHIVO, true);
+        $moral = ($p->tipo ?? null) === 'Moral';
+        $conRepresentante = ($p->reprecentante ?? null) === 'Si';
+
+        $vigencia = null;
+        if (! empty($p->fechaVigencia)) {
+            $fin = Carbon::parse($p->fechaVigencia)->startOfDay();
+            $vigencia = ['fecha' => $fin->format('d/m/Y'), 'vencido' => $fin->lt(now()->startOfDay())];
+        }
+
+        $documentos = [
+            ['nombre' => $moral ? 'Acta constitutiva' : 'Identificación del patrón', 'esta' => $hay($p->ineDocumento ?? null)],
+        ];
+        if ($conRepresentante) {
+            $documentos[] = ['nombre' => 'Identificación del representante legal', 'esta' => $hay($p->representacionDocumento ?? null)];
+            $documentos[] = [
+                'nombre' => 'Documento que acredita la personería'.(! empty($p->tipo_documento_representante) ? ' ('.$p->tipo_documento_representante.')' : ''),
+                'esta'   => $hay($p->cedulaDocumento ?? null),
+            ];
+        }
+        $documentos[] = ['nombre' => 'Anexo (documentos complementarios)', 'esta' => $hay($p->anexo_documeto ?? null)];
+
+        return [
+            'nue'   => (string) $t->NUE,
+            'poder' => [
+                'folio'     => (int) $p->idAbogado,
+                'estatus'   => (string) ($p->estatus ?: 'Pendiente'),
+                'tipo'      => $moral ? 'Persona moral' : 'Persona física',
+                'vigencia'  => $vigencia,
+                'registro'  => ! empty($p->fechaRegistro) ? Carbon::parse($p->fechaRegistro)->format('d/m/Y') : null,
+                'patron'    => [
+                    // La razón social se deja como está (S.A. de C.V. no se lleva bien con mayúsculas iniciales).
+                    'nombre'   => $moral
+                        ? (trim(preg_replace('/\s+/', ' ', implode(' ', array_filter([$p->nombres_patronal ?? null, $p->primer_apellido_patronal ?? null, $p->segundo_apellido_patronal ?? null])))) ?: null)
+                        : $nombre($p->nombres_patronal ?? null, $p->primer_apellido_patronal ?? null, $p->segundo_apellido_patronal ?? null),
+                    'rfc'      => $p->rfc_patronal ?: null,
+                    'curp'     => $moral ? null : ($p->curp_patronal ?: null),
+                    'giro'     => $p->giroComercial ?: null,
+                    'telefono' => $p->telefono_patronal ?: null,
+                    'correo'   => $p->email_patronal ?: null,
+                ],
+                // Quien comparece: el representante o, si no hay, el propio patrón.
+                'comparece' => $conRepresentante ? 'representante' : 'patron',
+                'representante' => $conRepresentante ? [
+                    'nombre'   => $nombre($p->nombre_representante ?? null, $p->primer_apellido_representante ?? null, $p->segundo_apellido_representante ?? null),
+                    'curp'     => $p->curp_representante ?: null,
+                    'telefono' => $p->numero_representante ?: null,
+                    'correo'   => $p->correo_representante ?: null,
+                ] : null,
+                'identificacion' => [
+                    'tipo'   => $p->tipo_identificacion ?: null,
+                    'numero' => $p->num_identificacion ?: null,
+                ],
+                'personeria' => $conRepresentante ? [
+                    'tipo'        => $p->tipo_documento_representante ?: null,
+                    'descripcion' => trim((string) ($p->descipcion_poder ?? '')) ?: null,
+                ] : null,
+                'documentos' => $documentos,
+            ],
+        ];
     }
 
     /**
