@@ -226,6 +226,9 @@ class CasosExcepcionController extends Controller
     public function formato(string $tipo, int $id)
     {
         $origen = $this->origen($tipo, $id);
+        if ($aviso = $this->citaCerrada($origen)) {
+            return redirect()->route('excepcion', ['vista' => 'citas'])->with('error', $aviso);
+        }
 
         $datos = FormatoExcepcion::datos($origen);
         $sede  = FormatoExcepcion::sede($origen);
@@ -266,6 +269,11 @@ class CasosExcepcionController extends Controller
         abort_unless(CasosExcepcion::conFormato(), 503, 'Falta correr la migración del formato 685 Ter.');
 
         $origen = $this->origen($tipo, $id);
+        if ($aviso = $this->citaCerrada($origen)) {
+            return $request->expectsJson()
+                ? response()->json(['ok' => false, 'mensaje' => $aviso], 422)
+                : redirect()->route('excepcion', ['vista' => 'citas'])->with('error', $aviso);
+        }
         $accion = $request->input('accion', 'borrador');
         $terminar = $accion === 'terminar';
 
@@ -528,6 +536,22 @@ class CasosExcepcionController extends Controller
             || CasosExcepcion::veSede($usuario, $origen['solicitud']->delegacion ?? null), 403, 'Ese caso es de otra sede.');
 
         return $origen;
+    }
+
+    /**
+     * Aviso si el caso es de una cita cancelada o que expiró (no llegó) y no
+     * tiene formato terminado: ya no se atiende. Null si se puede atender.
+     * Sólo para el formato de la cita; el de una solicitud sigue su curso.
+     */
+    private function citaCerrada(array $origen): ?string
+    {
+        if ($origen['tipo'] !== 'cita' || ! CasosExcepcion::citaCerrada($origen['cita'], $origen['caso']->terminado_at ?? null)) {
+            return null;
+        }
+
+        return 'El folio '.\App\Support\FolioCita::mostrar($origen['cita']).' '
+            .(strtolower((string) $origen['cita']->estatus) === 'cancelada' ? 'se canceló' : 'expiró (la persona no llegó)')
+            .': ya no se puede atender.';
     }
 
     private function verSede(Request $request, ?string $sede): void

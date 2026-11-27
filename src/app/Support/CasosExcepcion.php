@@ -362,6 +362,20 @@ class CasosExcepcion
                 ->when(self::conFormato(), fn ($q) => $q->whereNotNull('x.terminado_at')));
     }
 
+    /** Estatus de cita con los que ya no se atiende el caso. */
+    public const ESTATUS_CERRADOS = ['expirada', 'cancelada'];
+
+    /**
+     * ¿La cita ya no se puede atender? Si se canceló o expiró (no llegó) y no
+     * tiene formato terminado. Con formato terminado se sigue pudiendo ver.
+     */
+    public static function citaCerrada(?object $cita, ?string $terminadoAt = null): bool
+    {
+        return $cita !== null
+            && in_array(strtolower((string) $cita->estatus), self::ESTATUS_CERRADOS, true)
+            && empty($terminadoAt);
+    }
+
     /**
      * Bandeja "Citas y turnos": las citas de excepción del periodo (por atender,
      * en borrador o atendidas) y, además, las que se cerraron como "No es caso
