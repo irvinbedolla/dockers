@@ -106,6 +106,18 @@
         .gc-form .form-control:focus,
         .gc-form .form-select:focus { border-color: var(--color-oro); box-shadow: 0 0 0 .2rem rgba(206, 168, 69, .25); }
         .gc-mayus { text-transform: uppercase; }
+        /* CURP y domicilio van dentro de #gcCamposTrabajador (display: contents, para
+           ocultarlos juntos). Ahí ".row > *" de Bootstrap ya no los alcanza y quedaban
+           pegados; se les da el mismo espaciado que a las demás columnas. :where() deja
+           la especificidad en cero para que col-md-6 / col-md-3 sigan mandando en el ancho. */
+        :where(#gcCamposTrabajador) > * {
+            flex-shrink: 0;
+            width: 100%;
+            max-width: 100%;
+            padding-right: calc(var(--bs-gutter-x) * .5);
+            padding-left: calc(var(--bs-gutter-x) * .5);
+            margin-top: var(--bs-gutter-y);
+        }
         .gc-mayus::placeholder { text-transform: none; }
 
         .gc-ayuda-tramite.is-activa {
