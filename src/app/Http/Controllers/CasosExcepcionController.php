@@ -15,7 +15,9 @@ use Illuminate\Validation\Rule;
  * Bandeja de casos de excepción (art. 685 Ter LFT) del Departamento de
  * Conciliación, Género e Igualdad. Ver App\Support\CasosExcepcion.
  *
- *   vista=citas        citas y turnos de excepción del periodo (hoy por omisión);
+ *   vista=citas        citas y turnos de excepción del periodo (hoy por omisión),
+ *                      con las que se cerraron como "No es caso de excepción"
+ *                      bloqueadas (en gris, con qué se hizo);
  *   vista=pendientes   los de los últimos 30 días que no tienen formato;
  *   vista=enviados     los que mandó un orientador o auxiliar desde Mi módulo
  *                      y todavía no se terminan (CasosExcepcion::enviados);
@@ -76,7 +78,7 @@ class CasosExcepcionController extends Controller
             'pendientes'  => $this->listaCitas($this->pendientes($filtros)),
             'enviados'    => $this->listaCitas(CasosExcepcion::conEnvio() ? $this->filtrarCitas(CasosExcepcion::enviados(), $filtros) : CasosExcepcion::citas()->whereRaw('1 = 0')),
             'por_levantar' => $this->listaCitas(FormatoExcepcion::conSiguiente() ? $this->filtrarCitas(FormatoExcepcion::porLevantar(), $filtros) : CasosExcepcion::citas()->whereRaw('1 = 0')),
-            default       => $this->listaCitas($this->citas($filtros)),
+            default       => $this->listaCitas($this->citas($filtros), true),
         };
 
         return view('excepciones.index', [
@@ -542,7 +544,8 @@ class CasosExcepcionController extends Controller
 
     private function citas(array $f)
     {
-        return $this->filtrarCitas(CasosExcepcion::citas()->whereBetween('r.fecha', [$f['desde'], $f['hasta']]), $f);
+        // Con las que se cerraron como "No es caso de excepción" (salen bloqueadas).
+        return $this->filtrarCitas(CasosExcepcion::citasDelPeriodo($f['desde'], $f['hasta']), $f);
     }
 
     /** CasosExcepcion::porAtender() con los filtros de la bandeja. */
@@ -562,7 +565,12 @@ class CasosExcepcionController extends Controller
             });
     }
 
-    private function listaCitas($q)
+    /**
+     * Renglones de citas por fecha y hora. Con $porAtencion, las que no eran de
+     * excepción se ordenan por el día y la hora en que se terminó su formato
+     * (su cita pudo moverse a otro día).
+     */
+    private function listaCitas($q, bool $porAtencion = false)
     {
         // Quién lo envió desde Mi módulo (FormatoExcepcion::enviarDesdeModulo), si así llegó.
         $envio = CasosExcepcion::conEnvio()
@@ -573,19 +581,24 @@ class CasosExcepcionController extends Controller
             ->leftJoin('users as u', 'u.id', '=', 'r.auxiliar')
             ->leftJoinSub(
                 DB::table('seer_casos_excepcion')->whereNotNull('id_turno')
-                    ->selectRaw('id_turno, MAX(id) AS id'.(CasosExcepcion::conFormato() ? ', MAX(terminado_at) AS terminado_at, MAX(resultado) AS resultado' : ', MAX(created_at) AS terminado_at, NULL AS resultado').$envio)
+                    ->selectRaw('id_turno, MAX(id) AS id'.(CasosExcepcion::conFormato() ? ', MAX(terminado_at) AS terminado_at, MAX(resultado) AS resultado' : ', MAX(created_at) AS terminado_at, NULL AS resultado').$envio
+                        .(FormatoExcepcion::conSiguiente() ? ', MAX(siguiente) AS siguiente' : ', NULL AS siguiente'))
                     ->groupBy('id_turno'),
                 'x', 'x.id_turno', '=', 'r.id')
             ->leftJoin('users as ue', 'ue.id', '=', 'x.enviado_por')
             ->leftJoinSub(
                 DB::table('seer_general')->whereNotNull('recepcion_id')->selectRaw('recepcion_id, MIN(id) AS id, MIN(NUE) AS NUE')->groupBy('recepcion_id'),
                 'g', 'g.recepcion_id', '=', 'r.id')
-            ->orderBy('r.fecha')->orderBy('r.hora')
+            ->when($porAtencion,
+                fn ($q) => $q->orderByRaw("CASE WHEN x.resultado = 'no_excepcion' AND x.terminado_at IS NOT NULL THEN DATE(x.terminado_at) ELSE r.fecha END")
+                    ->orderByRaw("CASE WHEN x.resultado = 'no_excepcion' AND x.terminado_at IS NOT NULL THEN TIME(x.terminado_at) ELSE r.hora END"),
+                fn ($q) => $q->orderBy('r.fecha')->orderBy('r.hora'))
             ->select([
                 'r.id', 'r.codigo', 'r.consecutivo', 'r.fecha', 'r.hora', 'r.solicitante', 'r.tipo', 'r.origen',
                 'r.delegacion', 'r.tipo_caso', 'r.vulnerables', 'r.estatus', 'r.telefono', 'r.correo',
                 'u.name as atiende', 'x.id as formato_id', 'x.terminado_at', 'x.resultado', 'g.id as solicitud_id', 'g.NUE as nue',
                 'ue.name as envio', 'x.enviado_at', 'x.nota_envio',
+                'x.siguiente', 'r.lugar_auxiliar',
             ])
             ->paginate(self::POR_PAGINA)
             ->withQueryString();

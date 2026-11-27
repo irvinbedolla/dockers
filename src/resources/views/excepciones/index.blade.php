@@ -42,6 +42,24 @@
             ? ['cx-caso--borrador', 'bi-pencil', 'Borrador']
             : ['cx-caso--pend', 'bi-hourglass-split', 'Por atender'];
     };
+    // Citas y turnos: ¿se cerró como "No es caso de excepción"? (FormatoExcepcion::reclasificar) Sale bloqueada.
+    $noEra = fn ($f) => $vista === 'citas' && ($f->resultado ?? null) === 'no_excepcion' && ! empty($f->terminado_at);
+    // Qué se hizo con la persona. La cita ya trae la fecha, hora y módulo nuevos.
+    $queSeHizo = function ($f) {
+        $dia    = \Illuminate\Support\Carbon::parse($f->fecha)->locale('es')->isoFormat('dddd D [de] MMMM');
+        $hora   = substr((string) $f->hora, 0, 5);
+        $modulo = $f->lugar_auxiliar ? ' en '.preg_replace('/^m[oó]dulo\b/iu', 'Módulo', (string) $f->lugar_auxiliar) : '';
+
+        return match ($f->siguiente ?? null) {
+            'hoy'        => ['bi-people', "Pasó a la fila del {$dia}, horario de las {$hora} h{$modulo}."],
+            'otra_fecha' => ['bi-calendar-check', "Se agendó una nueva cita el {$dia} a las {$hora} h{$modulo}."],
+            'levantar'   => ! empty($f->solicitud_id)
+                ? ['bi-file-earmark-check', 'Se levantó su solicitud'.($f->nue ? ' ('.$f->nue.')' : '').'.']
+                : ['bi-file-earmark-plus', 'Se decidió levantar su solicitud aquí; todavía falta levantarla.'],
+            'terminar'   => ['bi-door-closed', 'Sólo se terminó la atención.'],
+            default      => ['bi-door-closed', 'Se cerró la atención.'],
+        };
+    };
 @endphp
 
 @section('page_css')
@@ -82,6 +100,14 @@
         .cx-caso--canal { background: #F6E4EA; color: #8C1D40; }
         .cx-caso--incomp { background: #ECEAF4; color: #4B3F7A; }
         .cx-caso--borrador { background: #EEF2F2; color: #5E6E6F; }
+        /* Citas y turnos: renglón que no se consideró caso de excepción (bloqueado). */
+        .cx-tabla tr.cx-fila--no > td { --bs-table-bg: #F3F5F5; --bs-table-accent-bg: transparent; --bs-table-color: #8A9798; background-color: #F3F5F5; color: #8A9798; }
+        .cx-tabla tr.cx-fila--no .cx-nombre, .cx-tabla tr.cx-fila--no .cx-sub { color: #8A9798; }
+        .cx-tabla tr.cx-fila--no .tn-estatus { filter: grayscale(1); opacity: .75; }
+        .cx-tabla tr.cx-fila--no > td:first-child { box-shadow: inset 3px 0 0 #B8C3C4; }
+        .cx-bloq { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: 6px; background: #E3E8E8; color: #5E6E6F; font-size: 11.5px; font-weight: 700; white-space: nowrap; }
+        .cx-hizo { display: block; margin-top: 4px; font-size: 12px; color: #5E6E6F; }
+        .cx-leyenda { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; padding: 8px 12px; border-radius: 8px; background: #F3F5F5; color: #5E6E6F; font-size: 12.5px; }
         .cx-acciones { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
         .cx-vacio { padding: 30px 10px; text-align: center; color: var(--tn-tenue); }
         .cx-vacio .bi { display: block; font-size: 26px; margin-bottom: 6px; color: #C5CFCF; }
@@ -284,6 +310,10 @@
                         </table>
                     </div>
                 @else
+                    @if ($filas->contains(fn ($f) => $noEra($f)))
+                        <p class="cx-leyenda"><i class="bi bi-lock" aria-hidden="true"></i>
+                            Los renglones en gris se atendieron pero no se consideraron casos de excepción: se indica qué se hizo con la persona y se fechan el día en que se atendieron.</p>
+                    @endif
                     <div class="table-responsive">
                         <table class="table table-hover cx-tabla mb-0">
                             <thead>
@@ -291,12 +321,23 @@
                             </thead>
                             <tbody>
                                 @foreach ($filas as $f)
-                                    @php $estatus = strtolower((string) $f->estatus); @endphp
-                                    <tr>
-                                        <td class="cx-nombre" style="white-space:nowrap">{{ \App\Support\FolioCita::mostrar($f) }}</td>
+                                    @php
+                                        $estatus = strtolower((string) $f->estatus);
+                                        $bloqueado = $noEra($f);
+                                        [$iconoHizo, $textoHizo] = $bloqueado ? $queSeHizo($f) : [null, null];
+                                    @endphp
+                                    <tr @class(['cx-fila--no' => $bloqueado]) @if ($bloqueado) title="No se consideró caso de excepción. {{ $textoHizo }}" @endif>
+                                        <td class="cx-nombre" style="white-space:nowrap">
+                                            @if ($bloqueado)<i class="bi bi-lock-fill me-1" aria-label="Bloqueado"></i>@endif{{ \App\Support\FolioCita::mostrar($f) }}
+                                        </td>
                                         <td style="white-space:nowrap">
-                                            {{ \Illuminate\Support\Carbon::parse($f->fecha)->format('d/m/Y') }}
-                                            <span class="cx-sub">{{ substr((string) $f->hora, 0, 5) }} h</span>
+                                            @if ($bloqueado)
+                                                {{ \Illuminate\Support\Carbon::parse($f->terminado_at)->format('d/m/Y') }}
+                                                <span class="cx-sub">Atendida {{ \Illuminate\Support\Carbon::parse($f->terminado_at)->format('H:i') }} h</span>
+                                            @else
+                                                {{ \Illuminate\Support\Carbon::parse($f->fecha)->format('d/m/Y') }}
+                                                <span class="cx-sub">{{ substr((string) $f->hora, 0, 5) }} h</span>
+                                            @endif
                                         </td>
                                         <td>
                                             <span class="cx-nombre">{{ $titulo($f->solicitante) ?: 'Sin nombre' }}</span>
@@ -311,8 +352,13 @@
                                             @if (! empty($f->atiende))<span class="cx-sub" title="A quién se le asignó"><i class="bi bi-person"></i> {{ $titulo($f->atiende) }}</span>@endif
                                         </td>
                                         <td>
-                                            {{ $f->tipo_caso ?: 'Sin especificar' }}
-                                            @if ($f->vulnerables && ! in_array($f->vulnerables, ['No aplica', 'Ninguno'], true))<span class="cx-sub">{{ $f->vulnerables }}</span>@endif
+                                            @if ($bloqueado)
+                                                <span class="cx-bloq"><i class="bi bi-slash-circle" aria-hidden="true"></i> No se consideró caso de excepción</span>
+                                                <span class="cx-hizo"><i class="bi {{ $iconoHizo }}" aria-hidden="true"></i> {{ $textoHizo }}</span>
+                                            @else
+                                                {{ $f->tipo_caso ?: 'Sin especificar' }}
+                                            @endif
+                                            @if (! $bloqueado && $f->vulnerables && ! in_array($f->vulnerables, ['No aplica', 'Ninguno'], true))<span class="cx-sub">{{ $f->vulnerables }}</span>@endif
                                             @if (! empty($f->envio))
                                                 <span class="cx-sub" title="{{ $f->nota_envio ? 'Nota: '.$f->nota_envio : 'Enviado desde Mi módulo' }}">
                                                     <i class="bi bi-send"></i> Envió {{ $titulo($f->envio) }} · {{ \Illuminate\Support\Carbon::parse($f->enviado_at)->format('d/m H:i') }}
@@ -338,7 +384,7 @@
                                                         <button type="submit" class="btn btn-sm btn-outline-danger" title="La persona no llegó: se cierra el caso y sale de Por atender"><i class="bi bi-person-x"></i> No llegó</button>
                                                     </form>
                                                 @endif
-                                                @if ($vista === 'por_levantar' && $atiende)
+                                                @if ($atiende && ($vista === 'por_levantar' || ($bloqueado && ($f->siguiente ?? null) === 'levantar' && ! $f->solicitud_id)))
                                                     <form method="POST" action="{{ route('excepciones.levantar', $f->id) }}" class="d-inline">
                                                         @csrf
                                                         <button type="submit" class="btn btn-sm btn-primary" title="Abre la captura con los datos de la cita"><i class="bi bi-file-earmark-plus"></i> Levantar solicitud</button>

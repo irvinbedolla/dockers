@@ -363,6 +363,28 @@ class CasosExcepcion
     }
 
     /**
+     * Bandeja "Citas y turnos": las citas de excepción del periodo (por atender,
+     * en borrador o atendidas) y, además, las que se cerraron como "No es caso
+     * de excepción" en el periodo (salen bloqueadas). Éstas ya no están marcadas
+     * (FormatoExcepcion::reclasificar pone exepcion = 'No' y puede moverles
+     * fecha y hora), así que se buscan por su formato y por el día en que se
+     * terminó.
+     */
+    public static function citasDelPeriodo(string $desde, string $hasta): Builder
+    {
+        return DB::table('recepcion as r')
+            ->when(FlujoCita::migrado(), fn ($q) => $q->where('r.es_prueba', 0))
+            ->where(function ($w) use ($desde, $hasta) {
+                $w->where(fn ($q) => $q->where('r.exepcion', 'Si')->whereBetween('r.fecha', [$desde, $hasta]))
+                    ->when(self::conFormato(), fn ($q) => $q->orWhereExists(fn ($s) => $s->select(DB::raw(1))
+                        ->from('seer_casos_excepcion as xn')
+                        ->whereColumn('xn.id_turno', 'r.id')
+                        ->where('xn.resultado', 'no_excepcion')
+                        ->whereBetween('xn.terminado_at', [$desde.' 00:00:00', $hasta.' 23:59:59'])));
+            });
+    }
+
+    /**
      * Enviados desde Mi módulo: citas ("r") con un borrador que dejó un
      * orientador o auxiliar (FormatoExcepcion::enviarDesdeModulo) y que el
      * departamento todavía no termina. También salen en citas() (enviarDesdeModulo
