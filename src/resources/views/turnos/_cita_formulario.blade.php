@@ -87,8 +87,8 @@
                                             <div class="form-text" id="ayuda_folio_patronal">{{ $ventanilla ? 'Si ya tiene folio, se captura en el paso 2.' : 'Si ya tienes folio, lo escribirás en el paso 2.' }}</div>
                                             <div class="invalid-feedback">Elige una opción.</div>
                                         </div>
-                                        @unless ($ventanilla)
-                                            {{-- Empleador con 5 o más trabajadores: ratificación múltiple (RatificacionMultipleController). --}}
+                                        @if (! $ventanilla && \App\Http\Controllers\RatificacionMultipleController::EN_GENERAR_CITA)
+                                            {{-- Empleador con 5 o más trabajadores: ratificación múltiple (RatificacionMultipleController). Se apaga con EN_GENERAR_CITA. --}}
                                             <div class="col-12" id="gcRatMultiple" hidden>
                                                 <div class="alert alert-light border d-flex gap-2 align-items-start mb-0" style="font-size: 14px;">
                                                     <i class="bi bi-people-fill" style="color: #496163; font-size: 18px;"></i>
@@ -99,7 +99,7 @@
                                                     </div>
                                                 </div>
                                             </div>
-                                        @endunless
+                                        @endif
                                         <div class="col-md-6">
                                             <label class="form-label" for="municipio_citado">{{ $ventanilla ? 'Municipio de la fuente de empleo (o de la persona a citar)' : 'Municipio donde está tu trabajo (o la persona a la que vas a citar)' }} <span class="gc-req">*</span></label>
                                             <select id="municipio_citado" class="form-select" name="{{ $ventanilla ? 'municipio_solicitante' : 'municipio_citado' }}" required>

@@ -37,6 +37,13 @@ class RatificacionMultipleController extends Controller
 {
     private const SESION = 'ratificacion_multiple';
 
+    /**
+     * ¿Se ofrece en /generar-cita (aviso "¿Vas a ratificar convenios de 5 o
+     * más trabajadores?")? Apagado mientras la función se termina; para
+     * volver a mostrarlo basta con ponerlo en true.
+     */
+    public const EN_GENERAR_CITA = false;
+
     private const CARPETA = 'ratificaciones_multiples';
 
     /** El formato vacío que se descarga desde la página. */
