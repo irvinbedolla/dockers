@@ -13,6 +13,10 @@ use Illuminate\Support\Carbon;
  *
  *   - Es hoy y está pendiente, y llegó a más tardar 5 minutos después de su
  *     hora: se confirma.
+ *   - Turno "al momento": recepción lo agendó en ventanilla para dentro de
+ *     3 horas o menos (o para un horario que ya había empezado), así que la
+ *     persona está ahí. Su tolerancia es de media hora, contada desde lo más
+ *     tarde entre la hora de la cita y la hora en que se agendó (limite()).
  *   - Es hoy y llegó después de esa tolerancia: se marca expirada.
  *   - Es otro día futuro: no cambia nada.
  *   - Ya pasó y seguía pendiente: se marca expirada.
@@ -27,6 +31,79 @@ use Illuminate\Support\Carbon;
 class ValidadorCita
 {
     public const TOLERANCIA_MINUTOS = 5;
+
+    /** Tolerancia de un turno "al momento" (ventanilla, la persona está ahí). */
+    public const TOLERANCIA_AL_MOMENTO = 30;
+
+    /** Un turno de ventanilla para dentro de estas horas o menos es "al momento". */
+    public const HORAS_AL_MOMENTO = 3;
+
+    /**
+     * ¿Es un turno "al momento"? De ventanilla, agendado el mismo día y a lo
+     * más HORAS_AL_MOMENTO antes de su hora. Sirve con el modelo o con una
+     * fila de DB::table (necesita fecha, hora, origen y created_at).
+     */
+    public static function alMomento(object $cita): bool
+    {
+        if (($cita->origen ?? null) !== 'ventanilla' || empty($cita->created_at)) {
+            return false;
+        }
+        $inicio = self::inicio($cita);
+        $creada = Carbon::parse($cita->created_at);
+
+        return $creada->isSameDay($inicio)
+            && $creada->greaterThanOrEqualTo($inicio->copy()->subHours(self::HORAS_AL_MOMENTO));
+    }
+
+    /** Minutos de tolerancia que le tocan a la cita. */
+    public static function tolerancia(object $cita): int
+    {
+        return self::alMomento($cita) ? self::TOLERANCIA_AL_MOMENTO : self::TOLERANCIA_MINUTOS;
+    }
+
+    /**
+     * Hasta cuándo se puede validar la llegada: su hora más la tolerancia; si
+     * es "al momento" y se agendó después de que empezó su horario, desde que
+     * se agendó.
+     */
+    public static function limite(object $cita): Carbon
+    {
+        $inicio = self::inicio($cita);
+        if (! self::alMomento($cita)) {
+            return $inicio->addMinutes(self::TOLERANCIA_MINUTOS);
+        }
+
+        return $inicio->max(Carbon::parse($cita->created_at))->addMinutes(self::TOLERANCIA_AL_MOMENTO);
+    }
+
+    /** Fecha y hora de la cita. */
+    private static function inicio(object $cita): Carbon
+    {
+        $fecha = $cita->fecha instanceof \DateTimeInterface ? $cita->fecha->format('Y-m-d') : substr((string) $cita->fecha, 0, 10);
+        $hora  = $cita instanceof Recepcion ? $cita->getRawOriginal('hora') : (string) $cita->hora;
+
+        return Carbon::parse($fecha.' '.$hora);
+    }
+
+    /**
+     * Marca expiradas las pendientes de hoy de una sede que ya rebasaron su
+     * tolerancia (la usan las pantallas viejas /pantallaMorelia y compañía,
+     * que lo hacían con 5 minutos parejos para todas).
+     */
+    public static function expirarVencidas(string $sede, ?Carbon $ahora = null): int
+    {
+        $ahora = $ahora ?? now();
+        $ids = Recepcion::query()
+            ->whereDate('fecha', $ahora->toDateString())
+            ->where('delegacion', $sede)
+            ->where('estatus', 'pendiente')
+            ->where('hora', '<=', $ahora->copy()->subMinutes(self::TOLERANCIA_MINUTOS)->format('H:i:s'))
+            ->get(['id', 'fecha', 'hora', 'origen', 'created_at'])
+            ->filter(fn (Recepcion $c) => $ahora->greaterThan(self::limite($c)))
+            ->pluck('id');
+
+        return $ids->isEmpty() ? 0 : Recepcion::whereIn('id', $ids)->update(['estatus' => 'expirada']);
+    }
 
     /**
      * @return array{resultado: string, cambio: bool}
@@ -69,10 +146,7 @@ class ValidadorCita
             return ['resultado' => 'ya_confirmada', 'cambio' => false];
         }
 
-        $limite = $fecha->copy()->setTimeFromTimeString($cita->getRawOriginal('hora'))
-            ->addMinutes(self::TOLERANCIA_MINUTOS);
-
-        if ($ahora->greaterThan($limite)) {
+        if ($ahora->greaterThan(self::limite($cita))) {
             $cita->update(['estatus' => 'expirada']);
 
             return ['resultado' => 'tarde', 'cambio' => true];
