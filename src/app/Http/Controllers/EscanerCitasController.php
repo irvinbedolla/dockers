@@ -279,7 +279,7 @@ class EscanerCitasController extends Controller
             'confirmada'    => trim("Cita de las {$hora}. {$modulo}"),
             'ya_confirmada' => trim("Se confirmó antes. {$modulo}"),
             'atendida'      => 'No hace falta volver a confirmarla.',
-            'tarde'         => "Su cita era a las {$hora} y la tolerancia es de ".ValidadorCita::TOLERANCIA_MINUTOS.' minutos.',
+            'tarde'         => "Su cita era a las {$hora} y la tolerancia es de ".ValidadorCita::tolerancia($cita).' minutos.',
             'expirada'      => "Era el {$dia} a las {$hora}.",
             'otro_dia'      => "Está agendada para el {$dia} a las {$hora}. No se modificó.",
             'pasada'        => "Era el {$dia}. No se modificó.",

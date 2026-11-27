@@ -49,12 +49,8 @@ class HomeController extends Controller
         $horaLimite = now()->subMinutes(5)->format('H:i:s');
         $horaInicio = now()->subMinutes(60)->format('H:i:s');
         $horaFinal =  now()->addMinutes(60)->format('H:i:s');
-        $expiradas = Recepcion::
-        where('fecha',$fecha_actual)
-        ->where('delegacion','Morelia')
-        ->where('estatus', 'pendiente')
-        ->where('hora', '<=', $horaLimite)
-        ->update(['estatus' => 'expirada']); 
+        // Con la tolerancia de cada cita (media hora en los turnos de ventanilla "al momento").
+        $expiradas = \App\Support\ValidadorCita::expirarVencidas('Morelia'); 
 
         $cumplimientos = Pagos::
         where('pago_solicitud.fecha',$fecha_actual)
@@ -109,12 +105,8 @@ class HomeController extends Controller
         $horaLimite = now()->subMinutes(5)->format('H:i:s');
         $horaInicio = now()->subMinutes(60)->format('H:i:s');
         $horaFinal =  now()->addMinutes(60)->format('H:i:s');
-        $expiradas = Recepcion::
-        where('fecha',$fecha_actual)
-        ->where('delegacion','Uruapan')
-        ->where('estatus', 'pendiente')
-        ->where('hora', '<=', $horaLimite)
-        ->update(['estatus' => 'expirada']);
+        // Con la tolerancia de cada cita (media hora en los turnos de ventanilla "al momento").
+        $expiradas = \App\Support\ValidadorCita::expirarVencidas('Uruapan');
        
         $cumplimientos = Pagos::where('pago_solicitud.fecha',$fecha_actual)
         ->join('seer_general','seer_general.id','pago_solicitud.id_solicitud')
@@ -168,12 +160,8 @@ class HomeController extends Controller
         $horaLimite = now()->subMinutes(5)->format('H:i:s');
         $horaInicio = now()->subMinutes(60)->format('H:i:s');
         $horaFinal =  now()->addMinutes(60)->format('H:i:s');
-        $expiradas = Recepcion::
-        where('fecha',$fecha_actual)
-        ->where('delegacion','Zamora')
-        ->where('estatus', 'pendiente')
-        ->where('hora', '<=', $horaLimite)
-        ->update(['estatus' => 'expirada']);
+        // Con la tolerancia de cada cita (media hora en los turnos de ventanilla "al momento").
+        $expiradas = \App\Support\ValidadorCita::expirarVencidas('Zamora');
 
         $cumplimientos = Pagos::where('pago_solicitud.fecha',$fecha_actual)
         ->join('seer_general','seer_general.id','pago_solicitud.id_solicitud')
