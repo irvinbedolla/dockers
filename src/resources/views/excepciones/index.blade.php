@@ -25,9 +25,10 @@
         ? \Illuminate\Support\Carbon::parse($filtros['desde'])->locale('es')->isoFormat('dddd D [de] MMMM YYYY')
         : $fechaCorta($filtros['desde']).' – '.$fechaCorta($filtros['hasta']);
     $titulo = fn ($t) => \Illuminate\Support\Str::title(mb_strtolower((string) $t));
-    $estatusCita = ['pendiente' => 'Por llegar', 'confirmada' => 'En sala', 'atendido' => 'Atendida', 'expirada' => 'No llegó'];
+    $estatusCita = ['pendiente' => 'Por llegar', 'confirmada' => 'En sala', 'atendido' => 'Atendida', 'expirada' => 'No llegó', 'cancelada' => 'Cancelada'];
     // Estado de la atención (formato 685 Ter): terminado con su resultado, borrador o pendiente.
-    $atencion = function ($f) {
+    // $esCita: renglón de cita (en solicitudes no aplica el estatus de la cita).
+    $atencion = function ($f, bool $esCita = false) {
         if (! empty($f->terminado_at)) {
             return match ($f->resultado ?? null) {
                 'continua' => ['cx-caso--hecho', 'bi-check2-circle', 'Continúa conciliación'],
@@ -36,6 +37,13 @@
                 'no_excepcion' => ['cx-caso--borrador', 'bi-slash-circle', 'No era excepción'],
                 default    => ['cx-caso--hecho', 'bi-check2-circle', 'Atendido'],
             };
+        }
+
+        // Cancelada o expirada sin formato terminado: ya no se atiende (CasosExcepcion::citaCerrada).
+        if ($esCita && \App\Support\CasosExcepcion::citaCerrada($f, $f->terminado_at ?? null)) {
+            return strtolower((string) $f->estatus) === 'cancelada'
+                ? ['cx-caso--cerrada', 'bi-x-circle', 'Cancelada · sin atender']
+                : ['cx-caso--cerrada', 'bi-person-x', 'No llegó · sin atender'];
         }
 
         return ! empty($f->formato_id)
@@ -100,6 +108,7 @@
         .cx-caso--canal { background: #F6E4EA; color: #8C1D40; }
         .cx-caso--incomp { background: #ECEAF4; color: #4B3F7A; }
         .cx-caso--borrador { background: #EEF2F2; color: #5E6E6F; }
+        .cx-caso--cerrada { background: #FBE4E6; color: #A3162E; }
         /* Citas y turnos: renglón que no se consideró caso de excepción (bloqueado). */
         .cx-tabla tr.cx-fila--no > td { --bs-table-bg: #F3F5F5; --bs-table-accent-bg: transparent; --bs-table-color: #8A9798; background-color: #F3F5F5; color: #8A9798; }
         .cx-tabla tr.cx-fila--no .cx-nombre, .cx-tabla tr.cx-fila--no .cx-sub { color: #8A9798; }
@@ -366,10 +375,11 @@
                                             @endif
                                         </td>
                                         <td><span class="tn-estatus tn-estatus--{{ $estatus }}">{{ $estatusCita[$estatus] ?? $f->estatus }}</span></td>
-                                        <td>@php [$clase, $icono, $texto] = $atencion($f); @endphp<span class="cx-caso {{ $clase }}"><i class="bi {{ $icono }}"></i> {{ $texto }}</span></td>
+                                        <td>@php [$clase, $icono, $texto] = $atencion($f, true); @endphp<span class="cx-caso {{ $clase }}"><i class="bi {{ $icono }}"></i> {{ $texto }}</span></td>
                                         <td>
                                             <div class="cx-acciones">
-                                                @if ($atiende && ($estatus !== 'expirada' || $f->formato_id))
+                                                {{-- Cancelada o expirada sin formato terminado: ya no se atiende. --}}
+                                                @if ($atiende && ! \App\Support\CasosExcepcion::citaCerrada($f, $f->terminado_at ?? null))
                                                     <a class="btn btn-sm {{ empty($f->terminado_at) ? 'btn-primary' : 'btn-outline-secondary' }}" href="{{ route('excepciones.formato', ['tipo' => 'cita', 'id' => $f->id]) }}">
                                                         <i class="bi bi-clipboard2-pulse"></i> {{ ! empty($f->terminado_at) ? 'Formato' : ($f->formato_id ? 'Continuar' : 'Atender') }}
                                                     </a>
