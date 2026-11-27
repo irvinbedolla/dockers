@@ -99,6 +99,20 @@ class LlegadasHoyController extends Controller
         return response()->json(['ok' => true]);
     }
 
+    /** El poder de la empresa de una ratificación (sólo lectura, sin los archivos). */
+    public function poder(Request $request, int $id)
+    {
+        $usuario = $request->user();
+        abort_unless(LlegadasHoy::puedeVer($usuario), 403);
+
+        $datos = LlegadasHoy::poderDeRatificacion($id, $usuario);
+        if (is_string($datos)) {
+            return response()->json(['message' => $datos], 422);
+        }
+
+        return response()->json($datos)->header('Cache-Control', 'no-store');
+    }
+
     /** Para el conciliador: quién llegó a lo que tiene hoy. */
     public function avisos(Request $request)
     {

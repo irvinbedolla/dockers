@@ -28,7 +28,9 @@ use Illuminate\Support\Str;
  *   - confirmada (la persona ya llegó y escaneó su QR) y no atendida, de
  *     cualquier hora del día: quien está en sala no se cae de la fila aunque
  *     el módulo vaya muy atrasado;
- *   - pendiente cuya hora no ha rebasado la tolerancia de llegada.
+ *   - pendiente cuya hora no ha rebasado la tolerancia de llegada
+ *     (ValidadorCita::limite: 5 minutos, o media hora si es un turno de
+ *     ventanilla "al momento").
  *
  * El turno "ahora" de cada módulo es su cita vigente más temprana cuya hora
  * ya llegó (con ADELANTO minutos de margen). Así la pantalla "llama" el folio
@@ -114,14 +116,19 @@ class PantallaEspera
         $conFlujo   = FlujoCita::migrado();
         $sinPruebas = ! $conPruebas && $conFlujo;
         $tolerancia = $ahora->copy()->subMinutes(ValidadorCita::TOLERANCIA_MINUTOS)->format('H:i:s');
+        // Los turnos de ventanilla "al momento" tienen media hora; se traen y luego se filtran con su límite.
+        $toleranciaAmplia = $ahora->copy()->subMinutes(ValidadorCita::TOLERANCIA_AL_MOMENTO);
 
         return DB::table('recepcion as r')
             ->leftJoin('modulos as m', 'm.id', '=', 'r.modulo_id')
             ->where('r.fecha', $ahora->toDateString())
             ->where('r.delegacion', $sede)
             ->when($sinPruebas, fn ($q) => $q->where('r.es_prueba', 0))
-            ->where(function ($q) use ($tolerancia, $conFlujo) {
+            ->where(function ($q) use ($tolerancia, $toleranciaAmplia, $conFlujo) {
                 $q->where(fn ($p) => $p->where('r.estatus', 'pendiente')->where('r.hora', '>=', $tolerancia))
+                  ->orWhere(fn ($p) => $p->where('r.estatus', 'pendiente')->where('r.origen', 'ventanilla')
+                      ->where(fn ($h) => $h->where('r.hora', '>=', $toleranciaAmplia->format('H:i:s'))
+                          ->orWhere('r.created_at', '>=', $toleranciaAmplia->format('Y-m-d H:i:s'))))
                   // En sala: sigue en la fila hasta que la atiendan, a la hora que sea.
                   ->orWhere('r.estatus', 'confirmada');
                 // Ya llamada por el auxiliar y sin terminar: sigue aunque se le haya pasado la hora.
@@ -134,9 +141,14 @@ class PantallaEspera
             ->get(array_merge([
                 'r.id', 'r.codigo', 'r.consecutivo', 'r.tipo', 'r.hora', 'r.estatus',
                 'r.origen', 'r.modulo_id', 'r.lugar_auxiliar', 'm.nombre as modulo_nombre',
+                'r.fecha', 'r.created_at',
             ], $conFlujo ? ['r.es_prueba', 'r.llamado_at', 'r.atencion_inicio_at'] : [],
                FlujoCita::conSeguimiento() ? ['r.confirmada_at'] : [],
-               FlujoCita::conTardias() ? ['r.llego_tarde'] : [], $extra));
+               FlujoCita::conTardias() ? ['r.llego_tarde'] : [], $extra))
+            // Pendiente sin llamar: sólo mientras siga dentro de su tolerancia.
+            ->reject(fn ($c) => $c->estatus === 'pendiente' && empty($c->llamado_at ?? null)
+                && $ahora->greaterThan(ValidadorCita::limite($c)))
+            ->values();
     }
 
     /**
@@ -175,7 +187,6 @@ class PantallaEspera
     {
         $sinPruebas = ! $conPruebas && FlujoCita::migrado();
         $hoy        = $ahora->toDateString();
-        $tolerancia = $ahora->copy()->subMinutes(ValidadorCita::TOLERANCIA_MINUTOS)->format('H:i:s');
 
         // audiencias/pago_solicitud guardan la sede a veces sin acento.
         $variantes = array_values(array_unique([$sede, Str::ascii($sede)]));
@@ -211,7 +222,7 @@ class PantallaEspera
 
         $proximas = $citas
             ->reject(fn ($c) => in_array($c->id, $enModulo, true) || ! empty($c->llamado_at ?? null))
-            ->filter(fn ($c) => $c->hora >= $tolerancia || self::esperaLlamado($c))
+            ->filter(fn ($c) => $ahora->lessThanOrEqualTo(ValidadorCita::limite($c)) || self::esperaLlamado($c))
             ->take(20)
             ->map(fn ($c) => self::cita($c))
             ->values()

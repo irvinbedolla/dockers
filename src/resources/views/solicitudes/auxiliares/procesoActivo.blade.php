@@ -75,6 +75,7 @@
 </style>
 
 @section('content')
+    @include('solicitudes.auxiliares._proceso_vencido')
 <section class="section">
     <div class="section-header">
         <h3 class="page__heading">Solicitud</h3>
