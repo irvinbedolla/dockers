@@ -566,6 +566,7 @@
 @section('scripts')
     <script src="{{ asset('assets/js/poderes/general.js') }}"></script>
     <script src="{{ asset('assets/js/poderes/limite_archivos.js') }}"></script>
+    <script src="{{ asset('assets/js/poderes/documentos_duplicados.js') }}"></script>
     <script>
         // Historial: al abrir el modal se pide el resumen de cambios del folio.
         (function () {
@@ -661,16 +662,8 @@
                 checkVigencia.onchange = toggleFechaVigencia;
             });
 
-            const limiteArchivo = 10 * 1024 * 1024;
-            exampleModal1.querySelectorAll('input[type="file"]').forEach(function (inputDocumento) {
-                inputDocumento.addEventListener('change', function (e) {
-                    const archivo = e.target.files[0];
-                    if (archivo && archivo.size > limiteArchivo) {
-                        alert("El archivo no puede pasar de 10 Megas");
-                        this.value = "";
-                    }
-                });
-            });
+            // El tamaño de cada documento (150 MB el acta y el de personería,
+            // 10 MB los demás) lo revisa limite_archivos.js.
         }
 
         $(document).ready(function () {

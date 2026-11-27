@@ -941,22 +941,10 @@
     <div class="loader"></div>
 </div>
 
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const limite = 20 * 1024 * 1024;
-        document.querySelectorAll('input[type="file"]').forEach(function(inputDocumento) {
-            inputDocumento.addEventListener('change', function(e) {
-                const archivo = e.target.files[0];
-                if (archivo && archivo.size > limite) {
-                    alert("El archivo no puede pasar de 20 MB");
-                    this.value = "";
-                }
-            });
-        });
-    });
-</script>
+{{-- El tamaño de cada documento (150 MB el acta y el de personería, 10 MB los demás) lo revisa limite_archivos.js. --}}
 
 @section('scripts')
     <script src="{{ asset('assets/js/poderes/general.js') }}"></script>
     <script src="{{ asset('assets/js/poderes/limite_archivos.js') }}"></script>
+    <script src="{{ asset('assets/js/poderes/documentos_duplicados.js') }}"></script>
 @endsection
