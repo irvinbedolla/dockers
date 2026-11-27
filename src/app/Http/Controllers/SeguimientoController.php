@@ -18,7 +18,9 @@ use Illuminate\Support\Str;
  *                                documentos en cada paso;
  *   /seguimiento/solicitud/{id}  la solicitud en modo consulta (verSolicitud: "solicitud"
  *                                choca con Controller::solicitud()) (se abre en un
- *                                modal; sólo HTML, sin layout).
+ *                                modal; sólo HTML, sin layout);
+ *   /seguimiento/audiencia/{id}  el seguimiento de la solicitud {id} para el modal
+ *                                de las pantallas de audiencia (sólo HTML).
  *
  * Super Usuario y Directivo ven todo; Conciliación, Género e Igualdad,
  * todas las sedes pero sólo casos de excepción; los demás, las sedes de su
@@ -75,6 +77,19 @@ class SeguimientoController extends Controller
         abort_unless($caso, 404, 'Ese caso no existe o no es de tus sedes.');
 
         return view('seguimiento.ver', ['caso' => $caso]);
+    }
+
+    /**
+     * El seguimiento de la solicitud de una audiencia, sólo el cuerpo (sin
+     * layout) para el modal de revisar/iniciar audiencia
+     * (seguimiento/_boton_modal). Mismas reglas de sedes que ver().
+     */
+    public function modal(Request $request, int $id)
+    {
+        $caso = SeguimientoCaso::linea('s'.$id, SeguimientoCaso::sedes($request->user()), SeguimientoCaso::soloExcepcion($request->user()));
+        abort_unless($caso, 404, 'Ese caso no existe o no es de tus sedes.');
+
+        return view('seguimiento._caso', ['caso' => $caso]);
     }
 
     public function verSolicitud(Request $request, int $id)

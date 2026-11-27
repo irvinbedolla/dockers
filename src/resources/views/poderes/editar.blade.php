@@ -943,12 +943,12 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        const limite = 10 * 1024 * 1024;
+        const limite = 20 * 1024 * 1024;
         document.querySelectorAll('input[type="file"]').forEach(function(inputDocumento) {
             inputDocumento.addEventListener('change', function(e) {
                 const archivo = e.target.files[0];
                 if (archivo && archivo.size > limite) {
-                    alert("El archivo no puede pasar de 10 Megas");
+                    alert("El archivo no puede pasar de 20 MB");
                     this.value = "";
                 }
             });
